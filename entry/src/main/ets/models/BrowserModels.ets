@@ -1,3 +1,60 @@
+/**
+ * Data model for the minimal browser.
+ *
+ * ArkTS forbids untyped object literals and object spread, so every model is an
+ * interface with an explicit `clone*` helper. State updates always publish fresh
+ * objects so that @State / @Prop observe the change.
+ */
+
+export enum AppearanceMode {
+  System = 0,
+  Light = 1,
+  Dark = 2
+}
+
+export enum RuleStrength {
+  Standard = 0,
+  Strict = 1
+}
+
+export enum SearchEngine {
+  Bing = 0,
+  Baidu = 1,
+  Google = 2,
+  DuckDuckGo = 3
+}
+
+export enum ReaderPaper {
+  White = 0,
+  Sepia = 1,
+  Night = 2
+}
+
+export enum SuggestionKind {
+  History = 0,
+  Bookmark = 1,
+  Search = 2
+}
+
+/** Requests the blocker stopped, split by what they were. */
+export interface BlockStats {
+  ads: number;
+  trackers: number;
+  popups: number;
+  cookieBanners: number;
+}
+
+export interface SiteBlockStats {
+  host: string;
+  stats: BlockStats;
+}
+
+export interface DailyBlockCount {
+  /** `YYYY-MM-DD` in local time. */
+  day: string;
+  count: number;
+}
+
 export interface BrowserTab {
   id: string;
   url: string;
@@ -5,7 +62,11 @@ export interface BrowserTab {
   isPrivate: boolean;
   isLoading: boolean;
   progress: number;
-  blockedCount: number;
+  isDesktop: boolean;
+  isReader: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  blocked: BlockStats;
 }
 
 export interface BrowserTabUpdate {
@@ -13,7 +74,11 @@ export interface BrowserTabUpdate {
   title?: string;
   isLoading?: boolean;
   progress?: number;
-  blockedCount?: number;
+  isDesktop?: boolean;
+  isReader?: boolean;
+  canGoBack?: boolean;
+  canGoForward?: boolean;
+  blocked?: BlockStats;
 }
 
 export interface Bookmark {
@@ -28,19 +93,74 @@ export interface HistoryEntry {
   title: string;
   url: string;
   visitedAt: number;
+  visitCount: number;
 }
 
 export interface BrowserSettings {
-  isAdsBlockingEnabled: boolean;
-  isDarkModeEnabled: boolean;
-  isDesktopModeEnabled: boolean;
+  blockAds: boolean;
+  blockTrackers: boolean;
+  ruleStrength: RuleStrength;
+  searchEngine: SearchEngine;
+  appearance: AppearanceMode;
+  clearCookiesOnTabClose: boolean;
+  readerFontSize: number;
+  readerLineHeight: number;
+  readerPaper: ReaderPaper;
+}
+
+/** A tile on the start page. `colorIndex` is 0-5 and maps to `site_tile_*` colors. */
+export interface QuickSite {
+  title: string;
+  url: string;
+  badge: string;
+  colorIndex: number;
+}
+
+export interface Suggestion {
+  id: string;
+  kind: SuggestionKind;
+  title: string;
+  subtitle: string;
+  url: string;
+}
+
+export function emptyBlockStats(): BlockStats {
+  return { ads: 0, trackers: 0, popups: 0, cookieBanners: 0 };
+}
+
+export function cloneBlockStats(stats: BlockStats): BlockStats {
+  return {
+    ads: stats.ads,
+    trackers: stats.trackers,
+    popups: stats.popups,
+    cookieBanners: stats.cookieBanners
+  };
+}
+
+export function addBlockStats(base: BlockStats, delta: BlockStats): BlockStats {
+  return {
+    ads: base.ads + delta.ads,
+    trackers: base.trackers + delta.trackers,
+    popups: base.popups + delta.popups,
+    cookieBanners: base.cookieBanners + delta.cookieBanners
+  };
+}
+
+export function totalBlocked(stats: BlockStats): number {
+  return stats.ads + stats.trackers + stats.popups + stats.cookieBanners;
 }
 
 export function defaultBrowserSettings(): BrowserSettings {
   return {
-    isAdsBlockingEnabled: true,
-    isDarkModeEnabled: false,
-    isDesktopModeEnabled: false
+    blockAds: true,
+    blockTrackers: true,
+    ruleStrength: RuleStrength.Standard,
+    searchEngine: SearchEngine.Bing,
+    appearance: AppearanceMode.System,
+    clearCookiesOnTabClose: false,
+    readerFontSize: 17,
+    readerLineHeight: 205,
+    readerPaper: ReaderPaper.Sepia
   };
 }
 
@@ -52,7 +172,11 @@ export function cloneTab(tab: BrowserTab): BrowserTab {
     isPrivate: tab.isPrivate,
     isLoading: tab.isLoading,
     progress: tab.progress,
-    blockedCount: tab.blockedCount
+    isDesktop: tab.isDesktop,
+    isReader: tab.isReader,
+    canGoBack: tab.canGoBack,
+    canGoForward: tab.canGoForward,
+    blocked: cloneBlockStats(tab.blocked)
   };
 }
 
@@ -70,14 +194,38 @@ export function cloneHistoryEntry(entry: HistoryEntry): HistoryEntry {
     id: entry.id,
     title: entry.title,
     url: entry.url,
-    visitedAt: entry.visitedAt
+    visitedAt: entry.visitedAt,
+    visitCount: entry.visitCount
   };
 }
 
 export function cloneSettings(settings: BrowserSettings): BrowserSettings {
   return {
-    isAdsBlockingEnabled: settings.isAdsBlockingEnabled,
-    isDarkModeEnabled: settings.isDarkModeEnabled,
-    isDesktopModeEnabled: settings.isDesktopModeEnabled
+    blockAds: settings.blockAds,
+    blockTrackers: settings.blockTrackers,
+    ruleStrength: settings.ruleStrength,
+    searchEngine: settings.searchEngine,
+    appearance: settings.appearance,
+    clearCookiesOnTabClose: settings.clearCookiesOnTabClose,
+    readerFontSize: settings.readerFontSize,
+    readerLineHeight: settings.readerLineHeight,
+    readerPaper: settings.readerPaper
+  };
+}
+
+export function cloneSiteStats(entry: SiteBlockStats): SiteBlockStats {
+  return { host: entry.host, stats: cloneBlockStats(entry.stats) };
+}
+
+export function cloneDailyCount(entry: DailyBlockCount): DailyBlockCount {
+  return { day: entry.day, count: entry.count };
+}
+
+export function cloneQuickSite(site: QuickSite): QuickSite {
+  return {
+    title: site.title,
+    url: site.url,
+    badge: site.badge,
+    colorIndex: site.colorIndex
   };
 }

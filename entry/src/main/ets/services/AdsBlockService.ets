@@ -4,7 +4,7 @@ import fs from '@ohos.file.fs';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'AdsBlockService';
-const RULE_FILE_NAME: string = 'clear-browser-easylist.txt';
+const RULE_FILE_NAME: string = 'minimal-browser-easylist.txt';
 
 export class AdsBlockService {
   private rulesPath: string = '';
@@ -41,11 +41,15 @@ export class AdsBlockService {
     }
   }
 
-  addAllowedDomain(domain: string): void {
+  /** Hosts the user turned blocking off for, from the blocking panel. */
+  applyAllowedHosts(hosts: string[]): void {
     try {
-      webview.AdsBlockManager.addAdsBlockAllowedList([domain]);
+      webview.AdsBlockManager.clearAdsBlockAllowedList();
+      if (hosts.length > 0) {
+        webview.AdsBlockManager.addAdsBlockAllowedList(hosts);
+      }
     } catch (error) {
-      Logger.error(TAG, `Failed to add allowed domain: ${String(error)}`);
+      Logger.error(TAG, `Failed to apply allowed hosts: ${String(error)}`);
     }
   }
 }

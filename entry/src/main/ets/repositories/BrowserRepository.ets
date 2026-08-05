@@ -1,38 +1,60 @@
 import { common } from '@kit.AbilityKit';
 import preferences from '@ohos.data.preferences';
-import { MAX_BOOKMARK_COUNT, MAX_HISTORY_COUNT, STORE_NAME } from '../constants/AppConstants';
 import {
+  MAX_BOOKMARK_COUNT,
+  MAX_HISTORY_COUNT,
+  STORE_NAME,
+  WEEKLY_WINDOW_DAYS
+} from '../constants/AppConstants';
+import {
+  BlockStats,
   Bookmark,
   BrowserSettings,
+  DailyBlockCount,
   HistoryEntry,
+  SiteBlockStats,
+  addBlockStats,
+  cloneBlockStats,
   cloneBookmark,
+  cloneDailyCount,
   cloneHistoryEntry,
   cloneSettings,
-  defaultBrowserSettings
+  cloneSiteStats,
+  defaultBrowserSettings,
+  emptyBlockStats,
+  totalBlocked
 } from '../models/BrowserModels';
+import { recentDayKeys, todayKey } from '../utils/Formatting';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'BrowserRepository';
 const BOOKMARKS_KEY: string = 'bookmarks';
 const HISTORY_KEY: string = 'history';
 const SETTINGS_KEY: string = 'settings';
+const SITE_STATS_KEY: string = 'site_stats';
+const DAILY_STATS_KEY: string = 'daily_stats';
+const ALLOWED_HOSTS_KEY: string = 'allowed_hosts';
 
 export class BrowserRepository {
   private store: preferences.Preferences | undefined;
   private bookmarks: Bookmark[] = [];
   private history: HistoryEntry[] = [];
   private settings: BrowserSettings = defaultBrowserSettings();
+  private siteStats: SiteBlockStats[] = [];
+  private dailyStats: DailyBlockCount[] = [];
+  private allowedHosts: string[] = [];
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
     try {
       this.store = await preferences.getPreferences(context, STORE_NAME);
       const store: preferences.Preferences = this.store;
-      const savedBookmarks: preferences.ValueType = await store.get(BOOKMARKS_KEY, '[]');
-      const savedHistory: preferences.ValueType = await store.get(HISTORY_KEY, '[]');
-      const savedSettings: preferences.ValueType = await store.get(SETTINGS_KEY, '');
-      this.bookmarks = this.decodeBookmarks(savedBookmarks);
-      this.history = this.decodeHistory(savedHistory);
-      this.settings = this.decodeSettings(savedSettings);
+      this.bookmarks = this.decode<Bookmark>(await store.get(BOOKMARKS_KEY, '[]'), BOOKMARKS_KEY);
+      this.history = this.decode<HistoryEntry>(await store.get(HISTORY_KEY, '[]'), HISTORY_KEY);
+      this.siteStats = this.decode<SiteBlockStats>(await store.get(SITE_STATS_KEY, '[]'), SITE_STATS_KEY);
+      this.dailyStats = this.decode<DailyBlockCount>(await store.get(DAILY_STATS_KEY, '[]'), DAILY_STATS_KEY);
+      this.allowedHosts = this.decode<string>(await store.get(ALLOWED_HOSTS_KEY, '[]'), ALLOWED_HOSTS_KEY);
+      this.settings = this.decodeSettings(await store.get(SETTINGS_KEY, ''));
+      this.pruneDailyStats();
     } catch (error) {
       this.store = undefined;
       Logger.error(TAG, `Failed to initialize preferences: ${String(error)}`);
@@ -51,6 +73,10 @@ export class BrowserRepository {
     return cloneSettings(this.settings);
   }
 
+  getAllowedHosts(): string[] {
+    return this.allowedHosts.slice(0);
+  }
+
   async addBookmark(bookmark: Bookmark): Promise<void> {
     const filtered: Bookmark[] = this.bookmarks.filter((item: Bookmark) => item.url !== bookmark.url);
     this.bookmarks = [bookmark].concat(filtered).slice(0, MAX_BOOKMARK_COUNT);
@@ -62,9 +88,14 @@ export class BrowserRepository {
     await this.save(BOOKMARKS_KEY, JSON.stringify(this.bookmarks));
   }
 
+  /** Re-visiting a URL bumps its counter instead of adding a duplicate row. */
   async recordHistory(entry: HistoryEntry): Promise<void> {
+    const previous: HistoryEntry | undefined =
+      this.history.find((item: HistoryEntry) => item.url === entry.url);
+    const merged: HistoryEntry = cloneHistoryEntry(entry);
+    merged.visitCount = (previous?.visitCount ?? 0) + 1;
     const filtered: HistoryEntry[] = this.history.filter((item: HistoryEntry) => item.url !== entry.url);
-    this.history = [entry].concat(filtered).slice(0, MAX_HISTORY_COUNT);
+    this.history = [merged].concat(filtered).slice(0, MAX_HISTORY_COUNT);
     await this.save(HISTORY_KEY, JSON.stringify(this.history));
   }
 
@@ -76,6 +107,78 @@ export class BrowserRepository {
   async saveSettings(settings: BrowserSettings): Promise<void> {
     this.settings = cloneSettings(settings);
     await this.save(SETTINGS_KEY, JSON.stringify(this.settings));
+  }
+
+  getSiteStats(host: string): BlockStats {
+    const entry: SiteBlockStats | undefined =
+      this.siteStats.find((item: SiteBlockStats) => item.host === host);
+    return entry === undefined ? emptyBlockStats() : cloneBlockStats(entry.stats);
+  }
+
+  /** Folds a delta into both the per-site total and today's bucket. */
+  async recordBlocked(host: string, delta: BlockStats): Promise<void> {
+    const amount: number = totalBlocked(delta);
+    if (amount === 0) {
+      return;
+    }
+    if (host.length > 0) {
+      const existing: SiteBlockStats | undefined =
+        this.siteStats.find((item: SiteBlockStats) => item.host === host);
+      if (existing === undefined) {
+        this.siteStats = this.siteStats.concat([{ host: host, stats: cloneBlockStats(delta) }]);
+      } else {
+        existing.stats = addBlockStats(existing.stats, delta);
+      }
+      await this.save(SITE_STATS_KEY, JSON.stringify(this.siteStats));
+    }
+
+    const today: string = todayKey();
+    const bucket: DailyBlockCount | undefined =
+      this.dailyStats.find((item: DailyBlockCount) => item.day === today);
+    if (bucket === undefined) {
+      this.dailyStats = this.dailyStats.concat([{ day: today, count: amount }]);
+    } else {
+      bucket.count += amount;
+    }
+    this.pruneDailyStats();
+    await this.save(DAILY_STATS_KEY, JSON.stringify(this.dailyStats));
+  }
+
+  /** Total shown at the bottom of the start page. */
+  getWeeklyBlocked(): number {
+    const window: string[] = recentDayKeys(WEEKLY_WINDOW_DAYS);
+    return this.dailyStats
+      .filter((item: DailyBlockCount) => window.includes(item.day))
+      .reduce((sum: number, item: DailyBlockCount) => sum + item.count, 0);
+  }
+
+  isHostAllowed(host: string): boolean {
+    return host.length > 0 && this.allowedHosts.includes(host);
+  }
+
+  async setHostAllowed(host: string, allowed: boolean): Promise<void> {
+    if (host.length === 0) {
+      return;
+    }
+    const without: string[] = this.allowedHosts.filter((item: string) => item !== host);
+    this.allowedHosts = allowed ? without.concat([host]) : without;
+    await this.save(ALLOWED_HOSTS_KEY, JSON.stringify(this.allowedHosts));
+  }
+
+  async clearBrowsingData(): Promise<void> {
+    this.history = [];
+    this.siteStats = [];
+    this.dailyStats = [];
+    await this.save(HISTORY_KEY, '[]');
+    await this.save(SITE_STATS_KEY, '[]');
+    await this.save(DAILY_STATS_KEY, '[]');
+  }
+
+  private pruneDailyStats(): void {
+    const window: string[] = recentDayKeys(WEEKLY_WINDOW_DAYS);
+    this.dailyStats = this.dailyStats
+      .filter((item: DailyBlockCount) => window.includes(item.day))
+      .map((item: DailyBlockCount) => cloneDailyCount(item));
   }
 
   private async save(key: string, value: string): Promise<void> {
@@ -92,44 +195,46 @@ export class BrowserRepository {
     }
   }
 
-  private decodeBookmarks(value: preferences.ValueType): Bookmark[] {
-    if (typeof value !== 'string') {
-      return [];
-    }
-    try {
-      return JSON.parse(value) as Bookmark[];
-    } catch (error) {
-      Logger.warn(TAG, `Invalid bookmarks payload: ${String(error)}`);
-      return [];
-    }
-  }
-
-  private decodeHistory(value: preferences.ValueType): HistoryEntry[] {
-    if (typeof value !== 'string') {
-      return [];
-    }
-    try {
-      return JSON.parse(value) as HistoryEntry[];
-    } catch (error) {
-      Logger.warn(TAG, `Invalid history payload: ${String(error)}`);
-      return [];
-    }
-  }
-
-  private decodeSettings(value: preferences.ValueType): BrowserSettings {
+  private decode<T>(value: preferences.ValueType, key: string): T[] {
     if (typeof value !== 'string' || value.length === 0) {
-      return defaultBrowserSettings();
+      return [];
+    }
+    try {
+      const parsed: T[] = JSON.parse(value) as T[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      Logger.warn(TAG, `Invalid ${key} payload: ${String(error)}`);
+      return [];
+    }
+  }
+
+  /** Field-by-field so a payload written by an older build still loads. */
+  private decodeSettings(value: preferences.ValueType): BrowserSettings {
+    const fallback: BrowserSettings = defaultBrowserSettings();
+    if (typeof value !== 'string' || value.length === 0) {
+      return fallback;
     }
     try {
       const parsed: BrowserSettings = JSON.parse(value) as BrowserSettings;
       return {
-        isAdsBlockingEnabled: parsed.isAdsBlockingEnabled,
-        isDarkModeEnabled: parsed.isDarkModeEnabled,
-        isDesktopModeEnabled: parsed.isDesktopModeEnabled
+        blockAds: parsed.blockAds ?? fallback.blockAds,
+        blockTrackers: parsed.blockTrackers ?? fallback.blockTrackers,
+        ruleStrength: parsed.ruleStrength ?? fallback.ruleStrength,
+        searchEngine: parsed.searchEngine ?? fallback.searchEngine,
+        appearance: parsed.appearance ?? fallback.appearance,
+        clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,
+        readerFontSize: parsed.readerFontSize ?? fallback.readerFontSize,
+        readerLineHeight: parsed.readerLineHeight ?? fallback.readerLineHeight,
+        readerPaper: parsed.readerPaper ?? fallback.readerPaper
       };
     } catch (error) {
       Logger.warn(TAG, `Invalid settings payload: ${String(error)}`);
-      return defaultBrowserSettings();
+      return fallback;
     }
+  }
+
+  /** Kept for symmetry with the other getters; used by the blocking panel. */
+  getSiteStatsSnapshot(): SiteBlockStats[] {
+    return this.siteStats.map((item: SiteBlockStats) => cloneSiteStats(item));
   }
 }
