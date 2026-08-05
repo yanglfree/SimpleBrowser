@@ -1,0 +1,9 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Clear Browser entry module",
+  "main": "",
+  "author": "onevcat",
+  "license": "Apache-2.0",
+  "dependencies": {}
+}

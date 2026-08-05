@@ -1,0 +1,16 @@
+! Clear Browser starter rules. Replace with a verified EasyList-compatible subscription in production.
+||doubleclick.net^
+||googlesyndication.com^
+||googleadservices.com^
+||adservice.google.com^
+||adsrvr.org^
+||adnxs.com^
+||advertising.com^
+||scorecardresearch.com^
+||quantserve.com^
+||taboola.com^
+||outbrain.com^
+||zedo.com^
+*/ads/*
+*/adserver/*
+*/advert/*

@@ -1,0 +1,13 @@
+{
+  "color": [
+    { "name": "start_window_background", "value": "#0D1117" },
+    { "name": "page_background", "value": "#0D1117" },
+    { "name": "surface_background", "value": "#161B22" },
+    { "name": "surface_elevated", "value": "#21262D" },
+    { "name": "text_primary", "value": "#F0F6FC" },
+    { "name": "text_secondary", "value": "#8B949E" },
+    { "name": "accent", "value": "#58A6FF" },
+    { "name": "positive", "value": "#3FB950" },
+    { "name": "divider", "value": "#30363D" }
+  ]
+}
