@@ -2,9 +2,37 @@ import { image } from '@kit.ImageKit';
 import { BrowserTab } from '../models/BrowserModels';
 import { displayHost, isHomeUrl } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
-
-const CARD_THUMB_HEIGHT: number = 170;
-const CLOSE_SWIPE: number = 44;
+import {
+  TAB_CARD_ACTIVE_BORDER,
+  TAB_CARD_BORDER,
+  TAB_CARD_CLOSE_ICON_SIZE,
+  TAB_CARD_CLOSE_SWIPE_DISTANCE,
+  TAB_CARD_HEADER_BOTTOM,
+  TAB_CARD_HEADER_HORIZONTAL,
+  TAB_CARD_HEADER_TOP,
+  TAB_CARD_RADIUS,
+  TAB_CARD_SHADOW_OFFSET_Y,
+  TAB_CARD_SHADOW_RADIUS,
+  TAB_CARD_SWIPE_DISTANCE,
+  TAB_CARD_TITLE_SIZE,
+  TAB_CLOSE_HIT_SIZE,
+  TAB_CONTROL_GAP,
+  TAB_NEW_BUTTON_BOTTOM_MARGIN,
+  TAB_NEW_BUTTON_HEIGHT,
+  TAB_NEW_BUTTON_HORIZONTAL_PADDING,
+  TAB_NEW_BUTTON_ICON_SIZE,
+  TAB_NEW_BUTTON_RADIUS,
+  TAB_NEW_BUTTON_TEXT_SIZE,
+  TAB_OVERVIEW_ACTION_SIZE,
+  TAB_OVERVIEW_GRID_BOTTOM,
+  TAB_OVERVIEW_GRID_GAP,
+  TAB_OVERVIEW_HEADER_BOTTOM,
+  TAB_OVERVIEW_HEADER_HORIZONTAL,
+  TAB_OVERVIEW_HEADER_TOP,
+  TAB_OVERVIEW_TITLE_SIZE,
+  TAB_PRIVATE_GESTURE_DURATION,
+  TAB_THUMB_HEIGHT
+} from './TabTokens';
 
 /** A snapshot of a tab taken the last time it was on screen. */
 export interface TabThumbnail {
@@ -37,19 +65,24 @@ export struct TabOverview {
             Span(' ')
             Span($r('app.string.tabs_count_suffix'))
           }
-          .fontSize(20)
+          .fontSize(TAB_OVERVIEW_TITLE_SIZE)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.text_primary'))
           .fontFeature('"tnum" 1')
           .layoutWeight(1)
 
           Text($r('app.string.close_all_tabs'))
-            .fontSize(14)
+            .fontSize(TAB_OVERVIEW_ACTION_SIZE)
             .fontColor($r('app.color.text_secondary'))
             .onClick(() => this.onCloseAll())
         }
         .width('100%')
-        .padding({ top: 22, left: 24, right: 24, bottom: 18 })
+        .padding({
+          top: TAB_OVERVIEW_HEADER_TOP,
+          left: TAB_OVERVIEW_HEADER_HORIZONTAL,
+          right: TAB_OVERVIEW_HEADER_HORIZONTAL,
+          bottom: TAB_OVERVIEW_HEADER_BOTTOM
+        })
 
         Grid() {
           ForEach(this.tabs, (tab: BrowserTab) => {
@@ -59,9 +92,13 @@ export struct TabOverview {
           }, (tab: BrowserTab) => tab.id)
         }
         .columnsTemplate('1fr 1fr')
-        .columnsGap(16)
-        .rowsGap(16)
-        .padding({ left: 24, right: 24, bottom: 120 })
+        .columnsGap(TAB_OVERVIEW_GRID_GAP)
+        .rowsGap(TAB_OVERVIEW_GRID_GAP)
+        .padding({
+          left: TAB_OVERVIEW_HEADER_HORIZONTAL,
+          right: TAB_OVERVIEW_HEADER_HORIZONTAL,
+          bottom: TAB_OVERVIEW_GRID_BOTTOM
+        })
         .layoutWeight(1)
         .scrollBar(BarState.Off)
       }
@@ -80,7 +117,7 @@ export struct TabOverview {
     Column() {
       Row() {
         Text(this.cardTitle(tab))
-          .fontSize(12)
+          .fontSize(TAB_CARD_TITLE_SIZE)
           .fontWeight(FontWeight.Medium)
           .fontColor(tab.id === this.activeTabId
             ? $r('app.color.text_primary')
@@ -89,28 +126,48 @@ export struct TabOverview {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .layoutWeight(1)
 
-        AppIcon({ name: IconName.Close, glyphSize: 13, color: $r('app.color.text_secondary') })
+        Row() {
+          AppIcon({
+            name: IconName.Close,
+            glyphSize: TAB_CARD_CLOSE_ICON_SIZE,
+            color: $r('app.color.text_secondary')
+          })
+        }
+          .id(`close-tab-${tab.id}`)
+          .width(TAB_CLOSE_HIT_SIZE)
+          .height(TAB_CLOSE_HIT_SIZE)
+          .justifyContent(FlexAlign.Center)
           .onClick(() => this.onClose(tab.id))
       }
       .width('100%')
-      .padding({ top: 10, left: 12, right: 12, bottom: 8 })
+      .padding({
+        top: TAB_CARD_HEADER_TOP,
+        left: TAB_CARD_HEADER_HORIZONTAL,
+        right: TAB_CARD_HEADER_HORIZONTAL,
+        bottom: TAB_CARD_HEADER_BOTTOM
+      })
 
       this.Thumbnail(tab)
     }
     .width('100%')
     .clip(true)
-    .borderRadius(20)
+    .borderRadius(TAB_CARD_RADIUS)
     .backgroundColor($r('app.color.surface_panel'))
     .border({
-      width: tab.id === this.activeTabId ? 1.5 : 1,
+      width: tab.id === this.activeTabId ? TAB_CARD_ACTIVE_BORDER : TAB_CARD_BORDER,
       color: tab.id === this.activeTabId ? $r('app.color.accent') : $r('app.color.border')
     })
-    .shadow({ radius: 12, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: 2 })
+    .shadow({
+      radius: TAB_CARD_SHADOW_RADIUS,
+      color: $r('app.color.shadow_soft'),
+      offsetX: 0,
+      offsetY: TAB_CARD_SHADOW_OFFSET_Y
+    })
     .onClick(() => this.onSelect(tab.id))
     .gesture(
-      PanGesture({ direction: PanDirection.Horizontal, distance: 8 })
+      PanGesture({ direction: PanDirection.Horizontal, distance: TAB_CARD_SWIPE_DISTANCE })
         .onActionEnd((event: GestureEvent) => {
-          if (event.offsetX <= -CLOSE_SWIPE) {
+          if (event.offsetX <= -TAB_CARD_CLOSE_SWIPE_DISTANCE) {
             this.onClose(tab.id);
           }
         })
@@ -125,7 +182,7 @@ export struct TabOverview {
       ForEach(this.thumbnailsFor(tab.id), (item: TabThumbnail) => {
         Image(item.shot)
           .width('100%')
-          .height(CARD_THUMB_HEIGHT)
+          .height(TAB_THUMB_HEIGHT)
           .objectFit(ImageFit.Cover)
       }, (item: TabThumbnail) => item.id)
 
@@ -134,7 +191,7 @@ export struct TabOverview {
       }
     }
     .width('100%')
-    .height(CARD_THUMB_HEIGHT)
+    .height(TAB_THUMB_HEIGHT)
     .clip(true)
     .backgroundColor($r('app.color.page_background'))
     .border({ width: { top: 1 }, color: $r('app.color.border') })
@@ -180,20 +237,28 @@ export struct TabOverview {
 
   @Builder
   private NewTabButton() {
-    Row() {
-      AppIcon({ name: IconName.Plus, glyphSize: 23, color: $r('app.color.text_primary') })
+    Row({ space: TAB_CONTROL_GAP }) {
+      AppIcon({
+        name: IconName.Plus,
+        glyphSize: TAB_NEW_BUTTON_ICON_SIZE,
+        color: $r('app.color.text_primary')
+      })
+      Text($r('app.string.new_tab'))
+        .fontSize(TAB_NEW_BUTTON_TEXT_SIZE)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
     }
-    .width(56)
-    .height(56)
+    .height(TAB_NEW_BUTTON_HEIGHT)
+    .padding({ left: TAB_NEW_BUTTON_HORIZONTAL_PADDING, right: TAB_NEW_BUTTON_HORIZONTAL_PADDING })
     .justifyContent(FlexAlign.Center)
-    .borderRadius(28)
+    .borderRadius(TAB_NEW_BUTTON_RADIUS)
     .backgroundColor($r('app.color.surface_panel'))
     .border({ width: 1, color: $r('app.color.border') })
     .shadow({ radius: 12, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: 2 })
-    .margin({ bottom: 46 })
+    .margin({ bottom: TAB_NEW_BUTTON_BOTTOM_MARGIN })
     .onClick(() => this.onNewTab())
     .gesture(
-      LongPressGesture({ repeat: false, duration: 450 })
+      LongPressGesture({ repeat: false, duration: TAB_PRIVATE_GESTURE_DURATION })
         .onAction(() => this.onNewPrivateTab())
     )
   }

@@ -35,7 +35,9 @@ import { OmniCapsule } from '../components/OmniCapsule';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { SettingsPage } from '../components/SettingsPage';
 import { StartPage } from '../components/StartPage';
+import { TabLauncher } from '../components/TabLauncher';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
+import { TAB_LAUNCHER_RIGHT_MARGIN, TAB_LAUNCHER_TOP_MARGIN, TAB_WEB_BOTTOM_INSET } from '../components/TabTokens';
 import { PrivacyService } from '../services/PrivacyService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
@@ -197,7 +199,7 @@ struct Index {
    */
   @Builder
   private TabStack() {
-    Stack() {
+    Stack({ alignContent: Alignment.TopEnd }) {
       ForEach(this.tabs, (tab: BrowserTab) => {
         Column() {
           if (isHomeUrl(tab.url)) {
@@ -224,8 +226,17 @@ struct Index {
         .id(`tab-view-${tab.id}`)
         .width('100%')
         .height('100%')
+        .padding({ bottom: isHomeUrl(tab.url) ? 0 : TAB_WEB_BOTTOM_INSET })
         .visibility(tab.id === this.activeTabId ? Visibility.Visible : Visibility.Hidden)
       }, (tab: BrowserTab) => `${tab.id}-${isHomeUrl(tab.url) ? 'home' : 'web'}`)
+
+      if (this.sheet === Overlay.None && this.isActiveHome()) {
+        TabLauncher({
+          count: this.tabs.length,
+          onOpen: (): void => { this.openTabs(); }
+        })
+          .margin({ top: TAB_LAUNCHER_TOP_MARGIN, right: TAB_LAUNCHER_RIGHT_MARGIN })
+      }
     }
     .layoutWeight(1)
     .width('100%')
@@ -285,17 +296,23 @@ struct Index {
               .onActionEnd(() => { this.isCapsuleHidden = false; })
           )
       } else {
-        OmniCapsule({
-          host: displayHost(this.activeTab()?.url ?? ''),
-          blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
-          isPrivate: this.activeTab()?.isPrivate === true,
-          onTap: (): void => this.openAddress(),
-          onLongPress: (): void => this.openBlockPanel(),
-          onSwipeUp: (): void => { this.sheet = Overlay.Actions; },
-          onSwipeDown: (): void => { this.isCapsuleHidden = true; },
-          onSwipeLeft: (): void => { this.switchNeighbour(1); },
-          onSwipeRight: (): void => { this.switchNeighbour(-1); }
-        })
+        Row({ space: 8 }) {
+          TabLauncher({
+            count: this.tabs.length,
+            onOpen: (): void => { this.openTabs(); }
+          })
+          OmniCapsule({
+            host: displayHost(this.activeTab()?.url ?? ''),
+            blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
+            isPrivate: this.activeTab()?.isPrivate === true,
+            onTap: (): void => this.openAddress(),
+            onLongPress: (): void => this.openBlockPanel(),
+            onSwipeUp: (): void => { this.sheet = Overlay.Actions; },
+            onSwipeDown: (): void => { this.isCapsuleHidden = true; },
+            onSwipeLeft: (): void => { this.switchNeighbour(1); },
+            onSwipeRight: (): void => { this.switchNeighbour(-1); }
+          })
+        }
           .margin({ bottom: 46 })
           .transition(TransitionEffect.OPACITY.animation({ duration: 200 })
             .combine(TransitionEffect.translate({ y: 40 })))

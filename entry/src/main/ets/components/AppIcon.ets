@@ -21,7 +21,8 @@ export enum IconName {
   LineHeight = 15,
   Stop = 16,
   ArrowUpLeft = 17,
-  Check = 18
+  Check = 18,
+  Tabs = 19
 }
 
 const COMMANDS: string[] = [
@@ -43,7 +44,8 @@ const COMMANDS: string[] = [
   'M8 7h12M8 12h12M8 17h12M4 6.5v11M4 6.5l-1.4 1.6M4 6.5l1.4 1.6M4 17.5l-1.4-1.6M4 17.5l1.4-1.6',
   'M7.5 7.5h9v9h-9z',
   'M16 15.5L8.5 8M15.5 8h-7v7',
-  'M5 12.5l4.5 4.5L19 7.5'
+  'M5 12.5l4.5 4.5L19 7.5',
+  'M5 5h10v10H5zM9 9h10v10H9z'
 ];
 
 @Component
