@@ -24,8 +24,9 @@ export struct OmniCapsule {
     Row({ space: 10 }) {
       AppIcon({
         name: this.isPrivate ? IconName.Shield : IconName.ShieldCheck,
-        glyphSize: 15,
-        color: $r('app.color.accent')
+        glyphSize: 18,
+        color: $r('app.color.accent_strong'),
+        strokeWidth: 1.8
       })
       Text(`${this.blockedCount}`)
         .fontSize(13)
