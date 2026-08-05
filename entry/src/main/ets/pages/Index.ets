@@ -78,19 +78,21 @@ struct Index {
 
   build() {
     Column() {
-      this.Header()
-      this.TabStrip()
-      this.AddressToolbar()
-      if (!this.isReady) {
-        this.LoadingView()
-      } else if (this.errorMessage.length > 0) {
-        this.ErrorView()
-      } else if (this.showLibrary) {
+      if (this.showLibrary) {
         this.LibraryView()
       } else if (this.showSettings) {
         this.SettingsView()
       } else {
-        this.WebContent()
+        this.Header()
+        this.TabStrip()
+        this.AddressToolbar()
+        if (!this.isReady) {
+          this.LoadingView()
+        } else if (this.errorMessage.length > 0) {
+          this.ErrorView()
+        } else {
+          this.WebContent()
+        }
       }
     }
     .width('100%')
@@ -119,16 +121,20 @@ struct Index {
           .fontColor($r('app.color.text_secondary'))
           .margin({ right: 12 })
       }
-      Button('+')
-        .fontSize(22)
-        .fontColor($r('app.color.text_primary'))
+      Button() {
+        SymbolGlyph($r('sys.symbol.plus'))
+          .fontSize(23)
+          .fontColor([$r('app.color.text_primary')])
+      }
+        .type(ButtonType.Circle)
         .backgroundColor($r('app.color.surface_elevated'))
         .borderRadius(18)
         .width(38)
         .height(38)
         .onClick(() => this.createTab(false))
-      Button('⋯')
-        .fontSize(22)
+      Button('...')
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.text_primary'))
         .backgroundColor(Color.Transparent)
         .width(42)
@@ -154,9 +160,15 @@ struct Index {
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
               .layoutWeight(1)
-            Text('×')
-              .fontSize(15)
-              .fontColor($r('app.color.text_secondary'))
+            Button() {
+              SymbolGlyph($r('sys.symbol.xmark'))
+                .fontSize(14)
+                .fontColor([$r('app.color.text_secondary')])
+            }
+              .type(ButtonType.Normal)
+              .backgroundColor(Color.Transparent)
+              .width(28)
+              .height(28)
               .onClick(() => this.closeTab(tab.id))
           }
           .width(152)
@@ -178,17 +190,23 @@ struct Index {
   @Builder
   private AddressToolbar() {
     Row({ space: 5 }) {
-      Button('‹')
-        .fontSize(25)
-        .fontColor(this.canGoBack() ? $r('app.color.text_primary') : $r('app.color.text_secondary'))
+      Button() {
+        SymbolGlyph($r('sys.symbol.chevron_left'))
+          .fontSize(22)
+          .fontColor([this.canGoBack() ? $r('app.color.text_primary') : $r('app.color.text_secondary')])
+      }
+        .type(ButtonType.Normal)
         .backgroundColor(Color.Transparent)
         .width(34)
         .height(38)
         .enabled(this.canGoBack())
         .onClick(() => this.goBack())
-      Button('›')
-        .fontSize(25)
-        .fontColor(this.canGoForward() ? $r('app.color.text_primary') : $r('app.color.text_secondary'))
+      Button() {
+        SymbolGlyph($r('sys.symbol.chevron_right'))
+          .fontSize(22)
+          .fontColor([this.canGoForward() ? $r('app.color.text_primary') : $r('app.color.text_secondary')])
+      }
+        .type(ButtonType.Normal)
         .backgroundColor(Color.Transparent)
         .width(34)
         .height(38)
@@ -197,7 +215,7 @@ struct Index {
       TextInput({ text: this.addressText, placeholder: $r('app.string.address_placeholder') })
         .layoutWeight(1)
         .height(38)
-        .fontSize(14)
+        .fontSize(13)
         .fontColor($r('app.color.text_primary'))
         .placeholderColor($r('app.color.text_secondary'))
         .backgroundColor($r('app.color.surface_background'))
@@ -205,16 +223,24 @@ struct Index {
         .padding({ left: 15, right: 12 })
         .onChange((value: string) => this.addressText = value)
         .onSubmit(() => this.navigate())
-      Button(this.viewModel.getActiveTab()?.isLoading === true ? '×' : '↻')
-        .fontSize(19)
-        .fontColor($r('app.color.text_primary'))
+      Button() {
+        SymbolGlyph(this.viewModel.getActiveTab()?.isLoading === true
+          ? $r('sys.symbol.xmark')
+          : $r('sys.symbol.arrow_counterclockwise'))
+          .fontSize(20)
+          .fontColor([$r('app.color.text_primary')])
+      }
+        .type(ButtonType.Normal)
         .backgroundColor(Color.Transparent)
         .width(36)
         .height(38)
         .onClick(() => this.reload())
-      Button(this.isCurrentPageBookmarked() ? '★' : '☆')
-        .fontSize(21)
-        .fontColor(this.isCurrentPageBookmarked() ? $r('app.color.accent') : $r('app.color.text_primary'))
+      Button() {
+        SymbolGlyph(this.isCurrentPageBookmarked() ? $r('sys.symbol.star_fill') : $r('sys.symbol.star'))
+          .fontSize(20)
+          .fontColor([this.isCurrentPageBookmarked() ? $r('app.color.accent') : $r('app.color.text_primary')])
+      }
+        .type(ButtonType.Normal)
         .backgroundColor(Color.Transparent)
         .width(36)
         .height(38)
@@ -230,7 +256,7 @@ struct Index {
       if (this.activeTabId.length > 0) {
         this.ActiveWebView(this.activeTab() as BrowserTab)
       }
-      Row() {
+      Row({ space: 4 }) {
         Text(`${this.activeTab()?.blockedCount ?? 0}`)
           .fontSize(11)
           .fontColor($r('app.color.text_secondary'))
@@ -291,6 +317,7 @@ struct Index {
       }
       .width('100%')
       .padding({ left: 18, right: 12, top: 12, bottom: 8 })
+      .zIndex(1)
       Row({ space: 8 }) {
         Button($r('app.string.bookmarks'))
           .layoutWeight(1)
@@ -408,6 +435,7 @@ struct Index {
       }
     }
     .layoutWeight(1)
+    .width('100%')
   }
 
   @Builder
@@ -638,7 +666,7 @@ struct Index {
     if (id === this.activeTabId) {
       this.addressText = url;
     }
-    this.syncState();
+    this.syncTabState(id);
   }
 
   private async handlePageEnd(id: string, url: string): Promise<void> {
@@ -652,20 +680,28 @@ struct Index {
 
   private handleTitle(id: string, title: string): void {
     this.viewModel.updateTab(id, { title: title.length > 0 ? title : displayHost(this.activeTab()?.url ?? '') });
-    this.syncState();
+    this.syncTabState(id);
   }
 
   private handleProgress(id: string, progress: number): void {
     this.viewModel.updateTab(id, { progress: progress, isLoading: progress < 100 });
-    this.syncState();
+    this.syncTabState(id);
   }
 
   private handleAdsBlocked(id: string, count: number): void {
     const tab: BrowserTab | undefined = this.viewModel.tabs.find((item: BrowserTab) => item.id === id);
     if (tab !== undefined) {
       this.viewModel.updateTab(id, { blockedCount: tab.blockedCount + count });
-      this.syncState();
+      this.syncTabState(id);
     }
+  }
+
+  private syncTabState(id: string): void {
+    const source: BrowserTab | undefined = this.viewModel.tabs.find((tab: BrowserTab) => tab.id === id);
+    if (source === undefined) {
+      return;
+    }
+    this.tabs = this.tabs.map((tab: BrowserTab) => tab.id === id ? cloneTab(source) : tab);
   }
 
   private isCurrentPageBookmarked(): boolean {
