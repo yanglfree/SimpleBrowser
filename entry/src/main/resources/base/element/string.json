@@ -54,6 +54,9 @@
     { "name": "rule_strength_standard", "value": "标准" },
     { "name": "rule_strength_strict", "value": "严格" },
     { "name": "default_search_engine", "value": "默认搜索引擎" },
+    { "name": "search_suggestions", "value": "搜索建议" },
+    { "name": "gestures_enabled", "value": "启用手势操作" },
+    { "name": "auto_hide_toolbar", "value": "滚动自动隐藏工具栏" },
     { "name": "engine_bing", "value": "必应" },
     { "name": "engine_baidu", "value": "百度" },
     { "name": "engine_google", "value": "谷歌" },
@@ -82,6 +85,16 @@
     { "name": "error_certificate_title", "value": "连接证书异常" },
     { "name": "error_certificate_message", "value": "为保护你的隐私，浏览器不会自动绕过证书错误。" },
     { "name": "error_unknown_title", "value": "页面加载失败" },
-    { "name": "error_unknown_message", "value": "无法完成页面加载，请稍后重试。" }
+    { "name": "error_unknown_message", "value": "无法完成页面加载，请稍后重试。" },
+    { "name": "security_secure", "value": "连接安全" },
+    { "name": "security_secure_message", "value": "此页面通过 HTTPS 加密传输。" },
+    { "name": "security_insecure", "value": "连接不安全" },
+    { "name": "security_insecure_message", "value": "此页面未使用 HTTPS，请勿输入敏感信息。" },
+    { "name": "security_certificate_error", "value": "证书异常" },
+    { "name": "security_certificate_message", "value": "证书无法验证，浏览器不会自动绕过此风险。" },
+    { "name": "security_unknown", "value": "安全信息不可用" },
+    { "name": "security_unknown_message", "value": "当前页面还没有可用的连接安全信息。" },
+    { "name": "security_site", "value": "网站" },
+    { "name": "security_certificate_note", "value": "证书摘要由系统网络层提供；如有异常，请离开此页面。" }
   ]
 }

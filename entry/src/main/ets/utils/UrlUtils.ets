@@ -8,6 +8,18 @@ const SEARCH_ENDPOINTS: string[] = [
   'https://duckduckgo.com/?q='
 ];
 
+interface SearchPrefix {
+  prefix: string;
+  engine: SearchEngine;
+}
+
+const SEARCH_PREFIXES: SearchPrefix[] = [
+  { prefix: 'g', engine: SearchEngine.Google },
+  { prefix: 'b', engine: SearchEngine.Baidu },
+  { prefix: 'ddg', engine: SearchEngine.DuckDuckGo },
+  { prefix: 'bing', engine: SearchEngine.Bing }
+];
+
 export function searchEndpoint(engine: SearchEngine): string {
   const index: number = engine as number;
   return index >= 0 && index < SEARCH_ENDPOINTS.length ? SEARCH_ENDPOINTS[index] : SEARCH_ENDPOINTS[0];
@@ -41,11 +53,24 @@ export function normalizeAddress(input: string, engine: SearchEngine): string {
   if (looksLikeUrl(value)) {
     return `https://${value}`;
   }
-  return `${searchEndpoint(engine)}${encodeURIComponent(value)}`;
+  return searchUrl(value, engine);
 }
 
 export function searchUrl(query: string, engine: SearchEngine): string {
-  return `${searchEndpoint(engine)}${encodeURIComponent(query.trim())}`;
+  const value: string = query.trim();
+  const parts: string[] = value.split(/\s+/);
+  let resolvedEngine: SearchEngine = engine;
+  let searchTerms: string = value;
+  if (parts.length > 1) {
+    const prefix: SearchPrefix | undefined = SEARCH_PREFIXES.find(
+      (item: SearchPrefix): boolean => item.prefix === parts[0].toLowerCase()
+    );
+    if (prefix !== undefined) {
+      resolvedEngine = prefix.engine;
+      searchTerms = value.substring(parts[0].length).trim();
+    }
+  }
+  return `${searchEndpoint(resolvedEngine)}${encodeURIComponent(searchTerms)}`;
 }
 
 /** Host without the `www.`/`m.` prefix — what the capsule and cards display. */

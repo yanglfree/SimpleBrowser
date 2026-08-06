@@ -15,6 +15,7 @@ import {
   BrowserTabUpdate,
   HistoryEntry,
   LoadErrorKind,
+  SecurityState,
   QuickSite,
   Suggestion,
   SuggestionKind,
@@ -109,7 +110,9 @@ export class BrowserViewModel {
       faviconUrl: '',
       lastVisitedAt: Date.now(),
       scrollY: 0,
-      loadError: LoadErrorKind.None
+      readerScrollY: 0,
+      loadError: LoadErrorKind.None,
+      securityState: SecurityState.Unknown
     };
   }
 
@@ -210,11 +213,18 @@ export class BrowserViewModel {
       if (update.scrollY !== undefined) {
         updated.scrollY = update.scrollY;
       }
+      if (update.readerScrollY !== undefined) {
+        updated.readerScrollY = update.readerScrollY;
+      }
       if (update.loadError !== undefined) {
         updated.loadError = update.loadError;
       }
+      if (update.securityState !== undefined) {
+        updated.securityState = update.securityState;
+      }
       if (update.url !== undefined || update.title !== undefined || update.isDesktop !== undefined ||
-        update.isReader !== undefined || update.scrollY !== undefined || update.lastVisitedAt !== undefined) {
+        update.isReader !== undefined || update.scrollY !== undefined || update.readerScrollY !== undefined ||
+        update.lastVisitedAt !== undefined) {
         updated.lastVisitedAt = update.lastVisitedAt ?? updated.lastVisitedAt;
       }
       return updated;
@@ -383,7 +393,7 @@ export class BrowserViewModel {
         results.push(BrowserViewModel.historySuggestion(entry));
       }
     }
-    if (results.length < MAX_SUGGESTION_COUNT && !looksLikeUrl(trimmed)) {
+    if (this.settings.searchSuggestionsEnabled && results.length < MAX_SUGGESTION_COUNT && !looksLikeUrl(trimmed)) {
       results.push({
         id: `search-${trimmed}`,
         kind: SuggestionKind.Search,

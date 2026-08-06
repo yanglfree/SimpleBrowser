@@ -1,4 +1,5 @@
 import { AppIcon, IconName } from './AppIcon';
+import { SecurityState } from '../models/BrowserModels';
 
 const SWIPE_THRESHOLD: number = 22;
 
@@ -13,7 +14,10 @@ export struct OmniCapsule {
   @Prop host: string = '';
   @Prop blockedCount: number = 0;
   @Prop isPrivate: boolean = false;
+  @Prop securityState: SecurityState = SecurityState.Unknown;
+  @Prop gesturesEnabled: boolean = true;
   onTap: () => void = (): void => {};
+  onSecurityTap: () => void = (): void => {};
   onLongPress: () => void = (): void => {};
   onSwipeUp: () => void = (): void => {};
   onSwipeDown: () => void = (): void => {};
@@ -23,11 +27,14 @@ export struct OmniCapsule {
   build() {
     Row({ space: 10 }) {
       AppIcon({
-        name: this.isPrivate ? IconName.Shield : IconName.ShieldCheck,
+        name: this.isPrivate || this.securityState !== SecurityState.Secure
+          ? IconName.Shield
+          : IconName.ShieldCheck,
         glyphSize: 18,
-        color: $r('app.color.accent_strong'),
+        color: this.securityColor(),
         strokeWidth: 1.8
       })
+        .onClick(() => this.onSecurityTap())
       Text(`${this.blockedCount}`)
         .fontSize(13)
         .fontWeight(FontWeight.Medium)
@@ -72,7 +79,16 @@ export struct OmniCapsule {
     )
   }
 
+  private securityColor(): ResourceColor {
+    return this.securityState === SecurityState.Secure
+      ? $r('app.color.accent_strong')
+      : $r('app.color.text_secondary');
+  }
+
   private resolveSwipe(event: GestureEvent): void {
+    if (!this.gesturesEnabled) {
+      return;
+    }
     const dx: number = event.offsetX;
     const dy: number = event.offsetY;
     if (Math.abs(dy) >= Math.abs(dx)) {

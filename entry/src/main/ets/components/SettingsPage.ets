@@ -109,6 +109,36 @@ export struct SettingsPage {
               true,
               () => this.picker = PickerKind.SearchEngine
             )
+            this.SwitchRow(
+              $r('app.string.search_suggestions'),
+              this.settings.searchSuggestionsEnabled,
+              true,
+              () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.searchSuggestionsEnabled = !next.searchSuggestionsEnabled;
+                this.onChange(next);
+              }
+            )
+            this.SwitchRow(
+              $r('app.string.gestures_enabled'),
+              this.settings.gesturesEnabled,
+              true,
+              () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.gesturesEnabled = !next.gesturesEnabled;
+                this.onChange(next);
+              }
+            )
+            this.SwitchRow(
+              $r('app.string.auto_hide_toolbar'),
+              this.settings.autoHideToolbarEnabled,
+              true,
+              () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.autoHideToolbarEnabled = !next.autoHideToolbarEnabled;
+                this.onChange(next);
+              }
+            )
             this.ValueRow(
               $r('app.string.appearance'),
               APPEARANCE_LABELS[this.settings.appearance as number],

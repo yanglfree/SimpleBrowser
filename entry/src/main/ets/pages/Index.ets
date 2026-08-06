@@ -5,13 +5,15 @@ import {
   DESKTOP_VIEWPORT_SCRIPT,
   HOME_URL,
   READER_EXIT_SCRIPT,
+  READ_SCROLL_POSITION_SCRIPT,
   READER_FONT_MAX,
   READER_FONT_MIN,
   READER_FONT_STEP,
   RESTORE_HIDDEN_SCRIPT,
   TRACKER_BLOCK_SCRIPT,
   contentCleanupScript,
-  readerApplyScript
+  readerApplyScript,
+  restoreScrollPositionScript
 } from '../constants/AppConstants';
 import {
   BlockStats,
@@ -22,6 +24,7 @@ import {
   RuleStrength,
   Suggestion,
   LoadErrorKind,
+  SecurityState,
   cloneSettings,
   cloneTab,
   defaultBrowserSettings,
@@ -35,6 +38,7 @@ import { BrowserWebView } from '../components/BrowserWebView';
 import { OmniCapsule } from '../components/OmniCapsule';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { SettingsPage } from '../components/SettingsPage';
+import { SecurityPanel } from '../components/SecurityPanel';
 import { StartPage } from '../components/StartPage';
 import { TabLauncher } from '../components/TabLauncher';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
@@ -56,7 +60,8 @@ enum Overlay {
   Address = 2,
   Tabs = 3,
   Block = 4,
-  Settings = 5
+  Settings = 5,
+  Security = 6
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -120,7 +125,7 @@ struct Index {
     }
     const tab: BrowserTab | undefined = this.activeTab();
     if (tab !== undefined && tab.isReader) {
-      this.exitReader(tab.id);
+      void this.exitReader(tab.id);
       return true;
     }
     if (tab !== undefined && tab.canGoBack) {
@@ -169,7 +174,7 @@ struct Index {
             onGrow: (): void => this.stepReaderFont(READER_FONT_STEP),
             onCycleLineHeight: (): void => this.cycleReaderLineHeight(),
             onPickPaper: (paper: ReaderPaper): void => this.pickReaderPaper(paper),
-            onDone: (): void => { this.exitReader(this.activeTabId); }
+            onDone: (): void => { void this.exitReader(this.activeTabId); }
           })
         }
         if (this.activeTab()?.loadError !== LoadErrorKind.None) {
@@ -341,10 +346,17 @@ struct Index {
             host: displayHost(this.activeTab()?.url ?? ''),
             blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
             isPrivate: this.activeTab()?.isPrivate === true,
+            securityState: this.activeTab()?.securityState ?? SecurityState.Unknown,
+            gesturesEnabled: this.settings.gesturesEnabled,
             onTap: (): void => this.openAddress(),
+            onSecurityTap: (): void => this.openSecurityDetails(),
             onLongPress: (): void => this.openBlockPanel(),
             onSwipeUp: (): void => { this.sheet = Overlay.Actions; },
-            onSwipeDown: (): void => { this.isCapsuleHidden = true; },
+            onSwipeDown: (): void => {
+              if (this.settings.autoHideToolbarEnabled) {
+                this.isCapsuleHidden = true;
+              }
+            },
             onSwipeLeft: (): void => { this.switchNeighbour(1); },
             onSwipeRight: (): void => { this.switchNeighbour(-1); }
           })
@@ -416,6 +428,14 @@ struct Index {
         onBack: (): void => { this.sheet = Overlay.None; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.Security) {
+      SecurityPanel({
+        host: displayHost(this.activeTab()?.url ?? ''),
+        url: this.activeTab()?.url ?? '',
+        state: this.activeTab()?.securityState ?? SecurityState.Unknown,
+        onDismiss: (): void => { this.sheet = Overlay.None; }
+      })
+        .transition(this.sheetTransition())
     }
   }
 
@@ -525,6 +545,7 @@ struct Index {
   private async switchNeighbour(offset: number): Promise<void> {
     const next: string = this.viewModel.neighbourTabId(offset);
     if (next !== this.activeTabId) {
+      await this.captureScrollPosition(this.activeTabId);
       await this.captureThumbnail(this.activeTabId);
       this.viewModel.selectTab(next);
       this.syncState();
@@ -532,6 +553,7 @@ struct Index {
   }
 
   private async selectTab(id: string): Promise<void> {
+    await this.captureScrollPosition(this.activeTabId);
     await this.captureThumbnail(this.activeTabId);
     this.viewModel.selectTab(id);
     this.sheet = Overlay.None;
@@ -547,6 +569,7 @@ struct Index {
   }
 
   private closeTab(id: string): void {
+    void this.captureScrollPosition(id);
     this.viewModel.closeTab(id);
     this.controllers.delete(id);
     this.thumbnails = this.thumbnails.filter((item: TabThumbnail) => item.id !== id);
@@ -557,6 +580,7 @@ struct Index {
   }
 
   private closeAllTabs(): void {
+    void this.captureScrollPosition(this.activeTabId);
     this.viewModel.closeAllTabs();
     this.controllers.clear();
     this.thumbnails = [];
@@ -626,7 +650,7 @@ struct Index {
     if (key === 'reader') {
       this.sheet = Overlay.None;
       if (tab.isReader) {
-        this.exitReader(tab.id);
+        await this.exitReader(tab.id);
       } else {
         await this.enterReader(tab.id);
       }
@@ -657,15 +681,24 @@ struct Index {
       return;
     }
     this.viewModel.updateTab(id, { isReader: true });
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (tab !== undefined && tab.readerScrollY > 0) {
+      await this.runScript(controller, restoreScrollPositionScript(tab.readerScrollY));
+    }
     this.syncState();
   }
 
-  private exitReader(id: string): void {
+  private async exitReader(id: string): Promise<void> {
     const controller: webview.WebviewController | undefined = this.controllers.get(id);
     if (controller !== undefined) {
-      this.runScript(controller, READER_EXIT_SCRIPT);
+      await this.captureScrollPosition(id);
+      await this.runScript(controller, READER_EXIT_SCRIPT);
     }
     this.viewModel.updateTab(id, { isReader: false });
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (controller !== undefined && tab !== undefined && tab.scrollY > 0) {
+      await this.runScript(controller, restoreScrollPositionScript(tab.scrollY));
+    }
     this.syncState();
   }
 
@@ -757,6 +790,7 @@ struct Index {
       progress: 0,
       isReader: false,
       loadError: LoadErrorKind.None,
+      securityState: Index.securityStateForUrl(url),
       lastVisitedAt: Date.now()
     });
     this.syncTab(id);
@@ -768,6 +802,7 @@ struct Index {
       isLoading: false,
       progress: 100,
       loadError: LoadErrorKind.None,
+      securityState: Index.securityStateForUrl(url),
       lastVisitedAt: Date.now()
     });
     this.refreshNavigationState(id);
@@ -775,6 +810,7 @@ struct Index {
     if (tab !== undefined) {
       await this.viewModel.recordPageVisit(tab);
       this.viewModel.persistSession();
+      await this.restoreScrollPosition(tab);
     }
     await this.enhancePage(id);
     this.syncState();
@@ -800,7 +836,10 @@ struct Index {
     const kind: LoadErrorKind = Index.errorKindFor(code, message);
     this.viewModel.updateTab(id, {
       isLoading: false,
-      loadError: kind
+      loadError: kind,
+      securityState: kind === LoadErrorKind.Certificate
+        ? SecurityState.CertificateError
+        : this.viewModel.getTab(id)?.securityState ?? SecurityState.Unknown
     });
     this.syncTab(id);
   }
@@ -816,7 +855,7 @@ struct Index {
   }
 
   private openSecurityDetails(): void {
-    this.sheet = Overlay.Block;
+    this.sheet = Overlay.Security;
   }
 
   private errorTitle(): Resource {
@@ -845,6 +884,16 @@ struct Index {
     if (value.includes('offline') || value.includes('network')) return LoadErrorKind.Offline;
     if (code === -7 || code === -21) return LoadErrorKind.Offline;
     return LoadErrorKind.Unknown;
+  }
+
+  private static securityStateForUrl(url: string): SecurityState {
+    if (url.toLowerCase().startsWith('https://')) {
+      return SecurityState.Secure;
+    }
+    if (url.toLowerCase().startsWith('http://')) {
+      return SecurityState.Insecure;
+    }
+    return SecurityState.Unknown;
   }
 
   /**
@@ -968,6 +1017,30 @@ struct Index {
       Logger.warn(TAG, `Script execution failed: ${String(error)}`);
       return '';
     }
+  }
+
+  private async captureScrollPosition(id: string): Promise<void> {
+    const controller: webview.WebviewController | undefined = this.controllers.get(id);
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (controller === undefined || tab === undefined || isHomeUrl(tab.url)) {
+      return;
+    }
+    const raw: string = await this.runScript(controller, READ_SCROLL_POSITION_SCRIPT);
+    const position: number = Number(raw.replace(/[^0-9.-]/g, ''));
+    if (Number.isNaN(position)) {
+      return;
+    }
+    this.viewModel.updateTab(id, tab.isReader ? { readerScrollY: position } : { scrollY: position });
+    this.viewModel.persistSession();
+  }
+
+  private async restoreScrollPosition(tab: BrowserTab): Promise<void> {
+    const controller: webview.WebviewController | undefined = this.controllers.get(tab.id);
+    const position: number = tab.isReader ? tab.readerScrollY : tab.scrollY;
+    if (controller === undefined || position <= 0) {
+      return;
+    }
+    await this.runScript(controller, restoreScrollPositionScript(position));
   }
 
   // ------------------------------------------------------------------ state

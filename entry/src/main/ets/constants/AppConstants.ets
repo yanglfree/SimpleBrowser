@@ -179,6 +179,20 @@ export const RESTORE_HIDDEN_SCRIPT: string = `
   return 'restored';
 })();`;
 
+export const READ_SCROLL_POSITION_SCRIPT: string = `
+(function() {
+  return String(Math.max(0, Math.round(window.scrollY || 0)));
+})();`;
+
+export function restoreScrollPositionScript(position: number): string {
+  const safePosition: number = Math.max(0, Math.round(position));
+  return `
+(function() {
+  window.scrollTo(0, ${safePosition});
+  return 'restored';
+})();`;
+}
+
 /** Makes a mobile page lay out at desktop width once the desktop UA is set. */
 export const DESKTOP_VIEWPORT_SCRIPT: string = `
 (function() {

@@ -45,6 +45,13 @@ export enum LoadErrorKind {
   Unknown = 5
 }
 
+export enum SecurityState {
+  Unknown = 0,
+  Secure = 1,
+  Insecure = 2,
+  CertificateError = 3
+}
+
 /** Requests the blocker stopped, split by what they were. */
 export interface BlockStats {
   ads: number;
@@ -79,7 +86,9 @@ export interface BrowserTab {
   faviconUrl: string;
   lastVisitedAt: number;
   scrollY: number;
+  readerScrollY: number;
   loadError: LoadErrorKind;
+  securityState: SecurityState;
 }
 
 export interface BrowserTabUpdate {
@@ -95,7 +104,9 @@ export interface BrowserTabUpdate {
   faviconUrl?: string;
   lastVisitedAt?: number;
   scrollY?: number;
+  readerScrollY?: number;
   loadError?: LoadErrorKind;
+  securityState?: SecurityState;
 }
 
 export interface BrowserSession {
@@ -123,6 +134,9 @@ export interface BrowserSettings {
   blockTrackers: boolean;
   ruleStrength: RuleStrength;
   searchEngine: SearchEngine;
+  searchSuggestionsEnabled: boolean;
+  gesturesEnabled: boolean;
+  autoHideToolbarEnabled: boolean;
   appearance: AppearanceMode;
   clearCookiesOnTabClose: boolean;
   readerFontSize: number;
@@ -178,6 +192,9 @@ export function defaultBrowserSettings(): BrowserSettings {
     blockTrackers: true,
     ruleStrength: RuleStrength.Standard,
     searchEngine: SearchEngine.Bing,
+    searchSuggestionsEnabled: false,
+    gesturesEnabled: true,
+    autoHideToolbarEnabled: true,
     appearance: AppearanceMode.System,
     clearCookiesOnTabClose: false,
     readerFontSize: 17,
@@ -202,7 +219,9 @@ export function cloneTab(tab: BrowserTab): BrowserTab {
     faviconUrl: tab.faviconUrl,
     lastVisitedAt: tab.lastVisitedAt,
     scrollY: tab.scrollY,
-    loadError: tab.loadError
+    readerScrollY: tab.readerScrollY,
+    loadError: tab.loadError,
+    securityState: tab.securityState
   };
 }
 
@@ -231,6 +250,9 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     blockTrackers: settings.blockTrackers,
     ruleStrength: settings.ruleStrength,
     searchEngine: settings.searchEngine,
+    searchSuggestionsEnabled: settings.searchSuggestionsEnabled,
+    gesturesEnabled: settings.gesturesEnabled,
+    autoHideToolbarEnabled: settings.autoHideToolbarEnabled,
     appearance: settings.appearance,
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,
     readerFontSize: settings.readerFontSize,

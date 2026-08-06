@@ -15,6 +15,7 @@ import {
   DailyBlockCount,
   HistoryEntry,
   LoadErrorKind,
+  SecurityState,
   SiteBlockStats,
   addBlockStats,
   cloneBlockStats,
@@ -248,6 +249,9 @@ export class BrowserRepository {
         blockTrackers: parsed.blockTrackers ?? fallback.blockTrackers,
         ruleStrength: parsed.ruleStrength ?? fallback.ruleStrength,
         searchEngine: parsed.searchEngine ?? fallback.searchEngine,
+        searchSuggestionsEnabled: parsed.searchSuggestionsEnabled ?? fallback.searchSuggestionsEnabled,
+        gesturesEnabled: parsed.gesturesEnabled ?? fallback.gesturesEnabled,
+        autoHideToolbarEnabled: parsed.autoHideToolbarEnabled ?? fallback.autoHideToolbarEnabled,
         appearance: parsed.appearance ?? fallback.appearance,
         clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,
         readerFontSize: parsed.readerFontSize ?? fallback.readerFontSize,
@@ -295,7 +299,9 @@ export class BrowserRepository {
       faviconUrl: tab.faviconUrl ?? '',
       lastVisitedAt: tab.lastVisitedAt ?? Date.now(),
       scrollY: tab.scrollY ?? 0,
-      loadError: LoadErrorKind.None
+      readerScrollY: tab.readerScrollY ?? 0,
+      loadError: LoadErrorKind.None,
+      securityState: SecurityState.Unknown
     };
     return cloneTab(decoded);
   }
