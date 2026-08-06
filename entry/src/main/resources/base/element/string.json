@@ -113,6 +113,8 @@
 
     { "name": "initialization_error", "value": "无法启动极简浏览器" },
     { "name": "retry", "value": "重试" },
+    { "name": "pull_to_refresh", "value": "下拉刷新" },
+    { "name": "release_to_refresh", "value": "松开刷新" },
     { "name": "copied_link", "value": "链接已复制" },
     { "name": "certificate_details", "value": "查看安全信息" },
     { "name": "error_offline_title", "value": "当前处于离线状态" },

@@ -113,6 +113,7 @@ struct Index {
   @State private quickSites: QuickSite[] = [];
   @State private weeklyBlocked: number = 0;
   @State private cumulativeBlocked: number = 0;
+  @State private isActivePageAtTop: boolean = true;
   @State private siteStats: BlockStats = emptyBlockStats();
   @State private isSiteAllowed: boolean = false;
   @State private isActiveBookmarked: boolean = false;
@@ -256,6 +257,8 @@ struct Index {
               onProgressChange: (progress: number): void => this.handleProgress(tab.id, progress),
               onScroll: (offsetY: number): void => this.handlePageScroll(tab.id, offsetY),
               onKeyboardAttach: (): void => { this.showCapsule(); },
+              isAtTop: tab.id === this.activeTabId && this.isActivePageAtTop,
+              onPullRefresh: (): void => { this.pullRefresh(tab.id); },
               onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); },
               onError: (code: number, message: string): void => this.handleLoadError(tab.id, code, message)
             })
@@ -956,6 +959,9 @@ struct Index {
   private handlePageBegin(id: string, url: string): void {
     this.dismissResumePrompt();
     this.pageScrollOffsets.set(id, 0);
+    if (id === this.activeTabId) {
+      this.isActivePageAtTop = true;
+    }
     this.showCapsule();
     const current: BrowserTab | undefined = this.viewModel.getTab(id);
     const progress: number = current?.isLoading === true && current.progress > 0
@@ -1009,7 +1015,29 @@ struct Index {
     this.syncTab(id);
   }
 
+  private pullRefresh(id: string): void {
+    if (id !== this.activeTabId || !this.isActivePageAtTop) {
+      return;
+    }
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    const controller: webview.WebviewController | undefined = this.controllers.get(id);
+    if (tab === undefined || controller === undefined || tab.isLoading) {
+      return;
+    }
+    this.dismissResumePrompt();
+    this.isActivePageAtTop = true;
+    this.viewModel.updateTab(id, { isLoading: true, progress: 0, loadError: LoadErrorKind.None });
+    this.syncTab(id);
+    WebKernelService.reload(controller);
+  }
+
   private handlePageScroll(id: string, offsetY: number): void {
+    if (id === this.activeTabId) {
+      const isAtTop: boolean = offsetY <= 8;
+      if (isAtTop !== this.isActivePageAtTop) {
+        this.isActivePageAtTop = isAtTop;
+      }
+    }
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (tab === undefined || id !== this.activeTabId || tab.isLoading || this.sheet !== Overlay.None) {
       return;

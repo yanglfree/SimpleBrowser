@@ -15,7 +15,9 @@ const TAG: string = 'BrowserWebView';
 export struct BrowserWebView {
   @Prop tab: BrowserTab;
   @Prop blockAds: boolean;
+  @Prop isAtTop: boolean = false;
   controller: webview.WebviewController = new webview.WebviewController();
+  @State private pullDistance: number = 0;
   private adsBlockService: AdsBlockService = new AdsBlockService();
   onPageBegin: (url: string) => void = (_url: string): void => {};
   onPageEnd: (url: string) => void = (_url: string): void => {};
@@ -23,11 +25,13 @@ export struct BrowserWebView {
   onProgressChange: (progress: number) => void = (_progress: number): void => {};
   onScroll: (offsetY: number) => void = (_offsetY: number): void => {};
   onKeyboardAttach: () => void = (): void => {};
+  onPullRefresh: () => void = (): void => {};
   onAdsBlocked: (urls: string[]) => void = (_urls: string[]): void => {};
   onError: (code: number, message: string) => void = (_code: number, _message: string): void => {};
 
   build() {
-    Web({ src: this.tab.url, controller: this.controller })
+    Stack({ alignContent: Alignment.Top }) {
+      Web({ src: this.tab.url, controller: this.controller })
       .javaScriptAccess(true)
       .domStorageAccess(true)
       .onlineImageAccess(true)
@@ -58,5 +62,54 @@ export struct BrowserWebView {
         Logger.warn(TAG, `Load error ${code}: ${message}`);
         this.onError(code, message);
       })
+      .parallelGesture(
+        PanGesture({ direction: PanDirection.Vertical, distance: 8 })
+          .onActionUpdate((event: GestureEvent) => this.updatePullDistance(event))
+          .onActionEnd((_event: GestureEvent) => this.finishPull())
+          .onActionCancel(() => this.cancelPull())
+      )
+
+      if (this.pullDistance > 0) {
+        Row({ space: 8 }) {
+          if (this.pullDistance >= 64) {
+            Text($r('app.string.release_to_refresh'))
+              .fontSize(13)
+              .fontColor($r('app.color.text_secondary'))
+          } else {
+            Text($r('app.string.pull_to_refresh'))
+              .fontSize(13)
+              .fontColor($r('app.color.text_secondary'))
+          }
+        }
+        .width('100%')
+        .height(40)
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor($r('app.color.surface_subtle'))
+        .translate({ y: Math.min(40, this.pullDistance * 0.45) })
+      }
+    }
+      .width('100%')
+      .height('100%')
+  }
+
+  private updatePullDistance(event: GestureEvent): void {
+    if (!this.isAtTop || this.tab.isLoading || event.offsetY <= 0 ||
+      Math.abs(event.offsetY) < Math.abs(event.offsetX)) {
+      this.pullDistance = 0;
+      return;
+    }
+    this.pullDistance = Math.min(92, event.offsetY);
+  }
+
+  private finishPull(): void {
+    const shouldRefresh: boolean = this.pullDistance >= 64 && this.isAtTop && !this.tab.isLoading;
+    this.pullDistance = 0;
+    if (shouldRefresh) {
+      this.onPullRefresh();
+    }
+  }
+
+  private cancelPull(): void {
+    this.pullDistance = 0;
   }
 }
