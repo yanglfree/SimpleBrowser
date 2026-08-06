@@ -92,6 +92,7 @@ export class BrowserViewModel {
     await this.adsBlockService.initialize(context);
     this.adsBlockService.applyAllowedHosts(this.repository.getAllowedHosts());
     DownloadService.configure();
+    DownloadService.setConcurrencyLimit(this.settings.downloadConcurrency);
     this.persistSession();
   }
 
@@ -447,6 +448,7 @@ export class BrowserViewModel {
   async updateSettings(settings: BrowserSettings): Promise<void> {
     this.settings = cloneSettings(settings);
     await this.repository.saveSettings(this.settings);
+    DownloadService.setConcurrencyLimit(this.settings.downloadConcurrency);
     await this.repository.applyHistoryRetention(this.settings.historyRetentionDays);
     this.history = this.repository.getHistory();
     Logger.info(TAG, 'Browser settings updated');

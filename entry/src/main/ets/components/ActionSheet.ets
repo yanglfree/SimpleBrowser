@@ -231,6 +231,13 @@ export struct ActionSheet {
         icon: IconName.Clock,
         enabled: true,
         active: false
+      },
+      {
+        key: 'downloads',
+        label: $r('app.string.download_title'),
+        icon: IconName.ArrowUpLeft,
+        enabled: true,
+        active: false
       }
     ];
   }

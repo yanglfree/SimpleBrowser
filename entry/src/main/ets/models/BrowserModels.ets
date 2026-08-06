@@ -168,6 +168,7 @@ export interface BrowserSettings {
   tabExpiryDays: TabExpiry;
   historyRetentionDays: number;
   liveWebViewLimit: number;
+  downloadConcurrency: number;
   tabSoftLimit: number;
   appearance: AppearanceMode;
   clearCookiesOnTabClose: boolean;
@@ -237,6 +238,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     tabExpiryDays: TabExpiry.SevenDays,
     historyRetentionDays: 30,
     liveWebViewLimit: 4,
+    downloadConcurrency: 2,
     tabSoftLimit: 12,
     appearance: AppearanceMode.System,
     clearCookiesOnTabClose: false,
@@ -310,6 +312,7 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     tabExpiryDays: settings.tabExpiryDays,
     historyRetentionDays: settings.historyRetentionDays,
     liveWebViewLimit: settings.liveWebViewLimit,
+    downloadConcurrency: settings.downloadConcurrency,
     tabSoftLimit: settings.tabSoftLimit,
     appearance: settings.appearance,
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,

@@ -398,6 +398,7 @@ export class BrowserRepository {
         tabExpiryDays: parsed.tabExpiryDays ?? fallback.tabExpiryDays,
         historyRetentionDays: parsed.historyRetentionDays ?? fallback.historyRetentionDays,
         liveWebViewLimit: parsed.liveWebViewLimit ?? fallback.liveWebViewLimit,
+        downloadConcurrency: parsed.downloadConcurrency ?? fallback.downloadConcurrency,
         tabSoftLimit: parsed.tabSoftLimit ?? fallback.tabSoftLimit,
         appearance: parsed.appearance ?? fallback.appearance,
         clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,

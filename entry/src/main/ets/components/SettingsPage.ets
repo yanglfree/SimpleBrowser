@@ -20,7 +20,8 @@ enum PickerKind {
   TabExpiry = 4,
   HistoryRetention = 5,
   LiveWebViewLimit = 6,
-  ClearDataRange = 7
+  DownloadConcurrency = 7,
+  ClearDataRange = 8
 }
 interface PickerOption {
   label: Resource;
@@ -79,6 +80,13 @@ const LIVE_WEBVIEW_LIMIT_LABELS: Resource[] = [
   $r('app.string.live_webview_limit_two'),
   $r('app.string.live_webview_limit_four'),
   $r('app.string.live_webview_limit_six')
+];
+
+const DOWNLOAD_CONCURRENCY_LABELS: Resource[] = [
+  $r('app.string.download_concurrency_one'),
+  $r('app.string.download_concurrency_two'),
+  $r('app.string.download_concurrency_three'),
+  $r('app.string.download_concurrency_four')
 ];
 
 const CLEAR_DATA_RANGE_LABELS: Resource[] = [
@@ -264,6 +272,12 @@ export struct SettingsPage {
               this.liveWebViewLimitLabel(),
               false,
               () => this.picker = PickerKind.LiveWebViewLimit
+            )
+            this.ValueRow(
+              $r('app.string.download_concurrency'),
+              this.downloadConcurrencyLabel(),
+              false,
+              () => this.picker = PickerKind.DownloadConcurrency
             )
           }
           .groupCard()
@@ -501,6 +515,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.LiveWebViewLimit) {
       return optionsFrom(LIVE_WEBVIEW_LIMIT_LABELS);
     }
+    if (this.picker === PickerKind.DownloadConcurrency) {
+      return optionsFrom(DOWNLOAD_CONCURRENCY_LABELS);
+    }
     if (this.picker === PickerKind.ClearDataRange) {
       return optionsFrom(CLEAR_DATA_RANGE_LABELS);
     }
@@ -522,6 +539,9 @@ export struct SettingsPage {
     }
     if (this.picker === PickerKind.LiveWebViewLimit) {
       return this.liveWebViewLimitIndex();
+    }
+    if (this.picker === PickerKind.DownloadConcurrency) {
+      return this.downloadConcurrencyIndex();
     }
     if (this.picker === PickerKind.ClearDataRange) {
       return this.clearDataRangeIndex();
@@ -546,6 +566,8 @@ export struct SettingsPage {
       next.historyRetentionDays = this.historyRetentionValue(value);
     } else if (this.picker === PickerKind.LiveWebViewLimit) {
       next.liveWebViewLimit = this.liveWebViewLimitValue(value);
+    } else if (this.picker === PickerKind.DownloadConcurrency) {
+      next.downloadConcurrency = this.downloadConcurrencyValue(value);
     } else {
       next.appearance = value as AppearanceMode;
     }
@@ -641,6 +663,18 @@ export struct SettingsPage {
 
   private liveWebViewLimitLabel(): Resource {
     return LIVE_WEBVIEW_LIMIT_LABELS[this.liveWebViewLimitIndex()];
+  }
+
+  private downloadConcurrencyIndex(): number {
+    return Math.min(3, Math.max(0, this.settings.downloadConcurrency - 1));
+  }
+
+  private downloadConcurrencyValue(index: number): number {
+    return Math.min(4, Math.max(1, index + 1));
+  }
+
+  private downloadConcurrencyLabel(): Resource {
+    return DOWNLOAD_CONCURRENCY_LABELS[this.downloadConcurrencyIndex()];
   }
 
   private saveSearchTemplate(template: string): void {

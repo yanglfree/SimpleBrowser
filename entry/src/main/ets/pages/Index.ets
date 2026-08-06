@@ -41,6 +41,7 @@ import { ActionSheet } from '../components/ActionSheet';
 import { AddressSheet } from '../components/AddressSheet';
 import { BlockPanel } from '../components/BlockPanel';
 import { BrowserWebView } from '../components/BrowserWebView';
+import { DownloadSheet } from '../components/DownloadSheet';
 import { OmniCapsule } from '../components/OmniCapsule';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
 import { HistorySheet } from '../components/HistorySheet';
@@ -55,6 +56,7 @@ import { TAB_LAUNCHER_RIGHT_MARGIN, TAB_LAUNCHER_TOP_MARGIN, TAB_WEB_BOTTOM_INSE
 import { PrivacyService } from '../services/PrivacyService';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { MemoryPressureService } from '../services/MemoryPressureService';
+import { DownloadService, DownloadTask } from '../services/DownloadService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
 import { WebHistoryEntry, WebKernelService } from '../services/WebKernelService';
@@ -75,7 +77,8 @@ enum Overlay {
   Security = 6,
   NavigationHistory = 7,
   History = 8,
-  Share = 9
+  Share = 9,
+  Downloads = 10
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -128,6 +131,7 @@ struct Index {
   @State private isSiteAllowed: boolean = false;
   @State private isActiveBookmarked: boolean = false;
   @State private isActiveSavedForLater: boolean = false;
+  @State private downloadTasks: DownloadTask[] = [];
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
   @State private history: HistoryEntry[] = [];
@@ -137,6 +141,9 @@ struct Index {
   private pageScrollOffsets: Map<string, number> = new Map();
   private persistedPageScrollOffsets: Map<string, number> = new Map();
   @State private resumeRequest: ResumeRequest | undefined = undefined;
+  private downloadListener: (tasks: DownloadTask[]) => void = (tasks: DownloadTask[]): void => {
+    this.downloadTasks = tasks;
+  };
 
   async aboutToAppear(): Promise<void> {
     try {
@@ -149,6 +156,7 @@ struct Index {
           void this.reclaimForMemory(level);
         }
       });
+      DownloadService.subscribe(this.downloadListener);
       this.isReady = true;
       this.promptExpiredTabs();
     } catch (error) {
@@ -158,6 +166,7 @@ struct Index {
   }
 
   aboutToDisappear(): void {
+    DownloadService.unsubscribe(this.downloadListener);
     MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
   }
@@ -601,6 +610,15 @@ struct Index {
         onDeleteSite: (host: string): void => { this.deleteHistorySite(host); }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.Downloads) {
+      DownloadSheet({
+        tasks: this.downloadTasks,
+        onDismiss: (): void => { this.sheet = Overlay.None; },
+        onPause: (id: string): void => DownloadService.pause(id),
+        onResume: (id: string): void => DownloadService.resume(id),
+        onRetry: (id: string): void => DownloadService.retry(id)
+      })
+        .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.Share) {
       SharePanel({
         title: this.activeTab()?.title ?? '',
@@ -1022,6 +1040,10 @@ struct Index {
     }
     if (key === 'history') {
       this.sheet = Overlay.History;
+      return;
+    }
+    if (key === 'downloads') {
+      this.sheet = Overlay.Downloads;
     }
   }
 
