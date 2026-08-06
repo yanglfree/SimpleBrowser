@@ -16,6 +16,7 @@ import {
   HistoryEntry,
   LoadErrorKind,
   SecurityState,
+  SiteBlockStats,
   QuickSite,
   Suggestion,
   SuggestionKind,
@@ -25,7 +26,8 @@ import {
   cloneSettings,
   cloneTab,
   defaultBrowserSettings,
-  emptyBlockStats
+  emptyBlockStats,
+  totalBlocked
 } from '../models/BrowserModels';
 import { BrowserRepository } from '../repositories/BrowserRepository';
 import { AdsBlockService } from '../services/AdsBlockService';
@@ -271,6 +273,11 @@ export class BrowserViewModel {
 
   getWeeklyBlocked(): number {
     return this.repository.getWeeklyBlocked();
+  }
+
+  getCumulativeBlocked(): number {
+    return this.repository.getSiteStatsSnapshot()
+      .reduce((sum: number, item: SiteBlockStats): number => sum + totalBlocked(item.stats), 0);
   }
 
   getSiteBlocked(url: string): BlockStats {

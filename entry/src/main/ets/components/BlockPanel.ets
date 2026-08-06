@@ -19,7 +19,8 @@ interface BlockRow {
 @Component
 export struct BlockPanel {
   @Prop host: string = '';
-  @Prop stats: BlockStats = { ads: 0, trackers: 0, popups: 0, cookieBanners: 0 };
+  @Prop stats: BlockStats = { ads: 0, trackers: 0, malicious: 0, popups: 0, cookieBanners: 0 };
+  @Prop cumulativeBlockedCount: number = 0;
   /** The switch reads "关闭拦截", so on means blocking is off for this site. */
   @Prop isDisabledForSite: boolean = false;
   onDismiss: () => void = (): void => {};
@@ -71,6 +72,14 @@ export struct BlockPanel {
         .fontColor($r('app.color.text_primary'))
         .fontFeature('"tnum" 1')
         .margin({ top: 12 })
+      Text() {
+        Span($r('app.string.blocked_cumulative_prefix'))
+        Span(` ${groupNumber(this.cumulativeBlockedCount)}`)
+        Span($r('app.string.blocked_cumulative_suffix'))
+      }
+        .width('100%')
+        .fontSize(13)
+        .fontColor($r('app.color.text_secondary'))
 
       Column({ space: 16 }) {
         ForEach(this.rows(), (row: BlockRow) => {
@@ -163,6 +172,7 @@ export struct BlockPanel {
     const peak: number = Math.max(
       this.stats.ads,
       this.stats.trackers,
+      this.stats.malicious,
       this.stats.popups,
       this.stats.cookieBanners
     );
@@ -173,6 +183,7 @@ export struct BlockPanel {
     return [
       { key: 'ads', label: $r('app.string.category_ads'), value: this.stats.ads },
       { key: 'trackers', label: $r('app.string.category_trackers'), value: this.stats.trackers },
+      { key: 'malicious', label: $r('app.string.category_malicious'), value: this.stats.malicious },
       { key: 'popups', label: $r('app.string.category_popups'), value: this.stats.popups },
       {
         key: 'cookies',

@@ -63,6 +63,7 @@ export enum TabExpiry {
 export interface BlockStats {
   ads: number;
   trackers: number;
+  malicious: number;
   popups: number;
   cookieBanners: number;
 }
@@ -179,13 +180,14 @@ export interface Suggestion {
 }
 
 export function emptyBlockStats(): BlockStats {
-  return { ads: 0, trackers: 0, popups: 0, cookieBanners: 0 };
+  return { ads: 0, trackers: 0, malicious: 0, popups: 0, cookieBanners: 0 };
 }
 
 export function cloneBlockStats(stats: BlockStats): BlockStats {
   return {
     ads: stats.ads,
     trackers: stats.trackers,
+    malicious: stats.malicious ?? 0,
     popups: stats.popups,
     cookieBanners: stats.cookieBanners
   };
@@ -195,13 +197,14 @@ export function addBlockStats(base: BlockStats, delta: BlockStats): BlockStats {
   return {
     ads: base.ads + delta.ads,
     trackers: base.trackers + delta.trackers,
+    malicious: base.malicious + delta.malicious,
     popups: base.popups + delta.popups,
     cookieBanners: base.cookieBanners + delta.cookieBanners
   };
 }
 
 export function totalBlocked(stats: BlockStats): number {
-  return stats.ads + stats.trackers + stats.popups + stats.cookieBanners;
+  return stats.ads + stats.trackers + stats.malicious + stats.popups + stats.cookieBanners;
 }
 
 export function defaultBrowserSettings(): BrowserSettings {

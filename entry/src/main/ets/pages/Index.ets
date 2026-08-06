@@ -72,6 +72,7 @@ enum Overlay {
 interface CleanupResult {
   ads?: number;
   trackers?: number;
+  malicious?: number;
   popups?: number;
   cookieBanners?: number;
 }
@@ -111,6 +112,7 @@ struct Index {
   @State private suggestions: Suggestion[] = [];
   @State private quickSites: QuickSite[] = [];
   @State private weeklyBlocked: number = 0;
+  @State private cumulativeBlocked: number = 0;
   @State private siteStats: BlockStats = emptyBlockStats();
   @State private isSiteAllowed: boolean = false;
   @State private isActiveBookmarked: boolean = false;
@@ -471,6 +473,7 @@ struct Index {
       BlockPanel({
         host: displayHost(this.activeTab()?.url ?? ''),
         stats: this.siteStats,
+        cumulativeBlockedCount: this.cumulativeBlocked,
         isDisabledForSite: this.isSiteAllowed,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onToggleSite: (): void => { this.toggleSiteBlocking(); },
@@ -1159,8 +1162,11 @@ struct Index {
   private async handleAdsBlocked(id: string, urls: string[]): Promise<void> {
     let ads: number = 0;
     let trackers: number = 0;
+    let malicious: number = 0;
     for (const url of urls) {
-      if (isTrackerUrl(url)) {
+      if (Index.isMaliciousUrl(url)) {
+        malicious += 1;
+      } else if (isTrackerUrl(url)) {
         trackers += 1;
       } else {
         ads += 1;
@@ -1169,12 +1175,14 @@ struct Index {
     await this.viewModel.recordBlocked(id, {
       ads: ads,
       trackers: trackers,
+      malicious: malicious,
       popups: 0,
       cookieBanners: 0
     });
     this.syncTab(id);
     if (id === this.activeTabId) {
       this.weeklyBlocked = this.viewModel.getWeeklyBlocked();
+      this.cumulativeBlocked = this.viewModel.getCumulativeBlocked();
     }
   }
 
@@ -1243,6 +1251,7 @@ struct Index {
     return {
       ads: base.ads + (parsed.ads ?? 0),
       trackers: base.trackers + (parsed.trackers ?? 0),
+      malicious: base.malicious + (parsed.malicious ?? 0),
       popups: base.popups + (parsed.popups ?? 0),
       cookieBanners: base.cookieBanners + (parsed.cookieBanners ?? 0)
     };
@@ -1377,9 +1386,19 @@ struct Index {
     this.settings = cloneSettings(this.viewModel.settings);
     this.quickSites = this.viewModel.getQuickSites();
     this.weeklyBlocked = this.viewModel.getWeeklyBlocked();
+    this.cumulativeBlocked = this.viewModel.getCumulativeBlocked();
     const url: string = this.activeTab()?.url ?? '';
     this.isActiveBookmarked = this.viewModel.isBookmarked(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
+  }
+
+  private static isMaliciousUrl(url: string): boolean {
+    const value: string = url.toLowerCase();
+    const patterns: string[] = [
+      'malware', 'phishing', 'phish', 'trojan', 'ransom', 'exploit',
+      'cryptominer', 'coinhive', 'malvertising'
+    ];
+    return patterns.some((pattern: string) => value.includes(pattern));
   }
 
   /** Cheaper path for high-frequency events like progress updates. */

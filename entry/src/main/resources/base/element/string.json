@@ -37,8 +37,11 @@
     { "name": "private_badge", "value": "无痕" },
 
     { "name": "blocked_on_site", "value": "本站已拦截" },
+    { "name": "blocked_cumulative_prefix", "value": "累计拦截" },
+    { "name": "blocked_cumulative_suffix", "value": "条请求" },
     { "name": "category_ads", "value": "广告" },
     { "name": "category_trackers", "value": "追踪器" },
+    { "name": "category_malicious", "value": "恶意站点" },
     { "name": "category_popups", "value": "弹窗" },
     { "name": "category_cookie_banners", "value": "Cookie 横幅" },
     { "name": "disable_blocking_on_site", "value": "在此站点关闭拦截" },
