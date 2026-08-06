@@ -13,14 +13,18 @@ export class PrivacyService {
     }
   }
 
-  /** Backs 设置 › 隐私 › 清除浏览数据. Bookmarks are deliberately untouched. */
-  static clearSiteData(controllers: webview.WebviewController[]): void {
+  /** Clears cookies and Web Storage. Bookmarks are deliberately untouched. */
+  static clearCookiesAndStorage(): void {
     PrivacyService.clearCookies();
     try {
       webview.WebStorage.deleteAllData();
     } catch (error) {
       Logger.warn(TAG, `Failed to clear web storage: ${String(error)}`);
     }
+  }
+
+  /** Clears HTTP cache for the currently mounted web views. */
+  static clearCache(controllers: webview.WebviewController[]): void {
     for (const controller of controllers) {
       try {
         controller.removeCache(true);
@@ -28,5 +32,11 @@ export class PrivacyService {
         Logger.warn(TAG, `Failed to clear cache: ${String(error)}`);
       }
     }
+  }
+
+  /** Backs the legacy one-tap clear-all flow. */
+  static clearSiteData(controllers: webview.WebviewController[]): void {
+    PrivacyService.clearCookiesAndStorage();
+    PrivacyService.clearCache(controllers);
   }
 }

@@ -140,9 +140,11 @@ export class BrowserRepository {
     await this.save(HISTORY_KEY, JSON.stringify(this.history));
   }
 
-  async clearHistory(): Promise<void> {
-    this.history = [];
-    await this.save(HISTORY_KEY, '[]');
+  async clearHistory(before: number = 0): Promise<void> {
+    this.history = before > 0
+      ? this.history.filter((item: HistoryEntry) => item.visitedAt > before)
+      : [];
+    await this.save(HISTORY_KEY, JSON.stringify(this.history));
   }
 
   async saveSettings(settings: BrowserSettings): Promise<void> {
@@ -213,6 +215,11 @@ export class BrowserRepository {
     await this.save(HISTORY_KEY, '[]');
     await this.save(SITE_STATS_KEY, '[]');
     await this.save(DAILY_STATS_KEY, '[]');
+  }
+
+  async clearAllowedHosts(): Promise<void> {
+    this.allowedHosts = [];
+    await this.save(ALLOWED_HOSTS_KEY, '[]');
   }
 
   private pruneDailyStats(): void {

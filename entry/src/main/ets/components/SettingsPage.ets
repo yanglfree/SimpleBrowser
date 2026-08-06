@@ -17,11 +17,27 @@ enum PickerKind {
   RuleStrength = 1,
   SearchEngine = 2,
   Appearance = 3,
-  TabExpiry = 4
+  TabExpiry = 4,
+  ClearDataRange = 5
 }
 interface PickerOption {
   label: Resource;
   value: number;
+}
+
+export enum ClearDataRange {
+  All = 0,
+  Today = 1,
+  SevenDays = 7,
+  ThirtyDays = 30
+}
+
+export interface ClearDataSelection {
+  history: boolean;
+  cookies: boolean;
+  cache: boolean;
+  permissions: boolean;
+  range: ClearDataRange;
 }
 
 const RULE_STRENGTH_LABELS: Resource[] = [
@@ -49,6 +65,13 @@ const TAB_EXPIRY_LABELS: Resource[] = [
   $r('app.string.tab_expiry_seven_days')
 ];
 
+const CLEAR_DATA_RANGE_LABELS: Resource[] = [
+  $r('app.string.clear_data_all_time'),
+  $r('app.string.clear_data_today'),
+  $r('app.string.clear_data_seven_days'),
+  $r('app.string.clear_data_thirty_days')
+];
+
 function optionsFrom(labels: Resource[]): PickerOption[] {
   return labels.map((label: Resource, index: number): PickerOption => ({ label: label, value: index }));
 }
@@ -74,11 +97,17 @@ export struct SettingsPage {
   @Prop allowedHosts: string[] = [];
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
   onResetGestures: () => void = (): void => {};
-  onClearData: () => void = (): void => {};
+  onClearData: (selection: ClearDataSelection) => void = (_selection: ClearDataSelection): void => {};
   onRemoveAllowedHost: (host: string) => void = (_host: string): void => {};
   onBack: () => void = (): void => {};
   @State private picker: PickerKind = PickerKind.None;
   @State private isEditingSearchTemplate: boolean = false;
+  @State private isClearDataSheetVisible: boolean = false;
+  @State private clearHistory: boolean = true;
+  @State private clearCookies: boolean = true;
+  @State private clearCache: boolean = true;
+  @State private clearPermissions: boolean = true;
+  @State private clearDataRange: ClearDataRange = ClearDataRange.All;
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
@@ -229,7 +258,7 @@ export struct SettingsPage {
                 this.onChange(next);
               }
             )
-            this.ActionRow($r('app.string.clear_browsing_data'), false, () => this.confirmClear())
+            this.ActionRow($r('app.string.clear_browsing_data'), false, () => this.openClearDataSheet())
             if (this.allowedHosts.length > 0) {
               ForEach(this.allowedHosts, (host: string) => this.AllowedHostRow(host), (host: string) => host)
             } else {
@@ -259,6 +288,9 @@ export struct SettingsPage {
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
 
+      if (this.isClearDataSheetVisible && this.picker === PickerKind.None) {
+        this.ClearDataSheet()
+      }
       if (this.picker !== PickerKind.None) {
         this.Picker()
       }
@@ -435,6 +467,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.TabExpiry) {
       return optionsFrom(TAB_EXPIRY_LABELS);
     }
+    if (this.picker === PickerKind.ClearDataRange) {
+      return optionsFrom(CLEAR_DATA_RANGE_LABELS);
+    }
     return optionsFrom(APPEARANCE_LABELS);
   }
 
@@ -448,10 +483,18 @@ export struct SettingsPage {
     if (this.picker === PickerKind.TabExpiry) {
       return this.tabExpiryIndex();
     }
+    if (this.picker === PickerKind.ClearDataRange) {
+      return this.clearDataRangeIndex();
+    }
     return this.settings.appearance as number;
   }
 
   private applyPick(value: number): void {
+    if (this.picker === PickerKind.ClearDataRange) {
+      this.clearDataRange = this.clearDataRangeValue(value);
+      this.picker = PickerKind.None;
+      return;
+    }
     const next: BrowserSettings = cloneSettings(this.settings);
     if (this.picker === PickerKind.RuleStrength) {
       next.ruleStrength = value as RuleStrength;
@@ -504,9 +547,24 @@ export struct SettingsPage {
   }
 
   private confirmClear(): void {
+    if (!this.clearHistory && !this.clearCookies && !this.clearCache && !this.clearPermissions) {
+      this.getUIContext().showAlertDialog({
+        title: $r('app.string.clear_browsing_data'),
+        message: $r('app.string.clear_data_select_at_least_one'),
+        confirm: { value: $r('app.string.done'), action: (): void => {} }
+      });
+      return;
+    }
+    const selection: ClearDataSelection = {
+      history: this.clearHistory,
+      cookies: this.clearCookies,
+      cache: this.clearCache,
+      permissions: this.clearPermissions,
+      range: this.clearDataRange
+    };
     this.getUIContext().showAlertDialog({
       title: $r('app.string.clear_browsing_data'),
-      message: $r('app.string.clear_browsing_data_message'),
+      message: $r('app.string.clear_data_confirm_message'),
       primaryButton: {
         value: $r('app.string.cancel'),
         action: (): void => {}
@@ -514,9 +572,145 @@ export struct SettingsPage {
       secondaryButton: {
         value: $r('app.string.clear_browsing_data_confirm'),
         fontColor: $r('app.color.accent'),
-        action: (): void => this.onClearData()
+        action: (): void => {
+          this.isClearDataSheetVisible = false;
+          this.onClearData(selection);
+        }
       }
     });
+  }
+
+  private openClearDataSheet(): void {
+    this.clearHistory = true;
+    this.clearCookies = true;
+    this.clearCache = true;
+    this.clearPermissions = true;
+    this.clearDataRange = ClearDataRange.All;
+    this.isClearDataSheetVisible = true;
+  }
+
+  @Builder
+  private ClearDataSheet() {
+    Column() {
+      Column()
+        .layoutWeight(1)
+        .width('100%')
+        .backgroundColor($r('app.color.scrim'))
+        .onClick(() => this.isClearDataSheetVisible = false)
+
+      Column() {
+        Row()
+          .width(36)
+          .height(4)
+          .borderRadius(2)
+          .backgroundColor($r('app.color.handle'))
+          .margin({ bottom: 12 })
+        Text($r('app.string.clear_browsing_data'))
+          .fontSize(20)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+          .width('100%')
+        Text($r('app.string.clear_data_select_hint'))
+          .fontSize(13)
+          .fontColor($r('app.color.text_secondary'))
+          .width('100%')
+          .margin({ top: 6, bottom: 8 })
+        this.ClearDataSwitchRow($r('app.string.clear_data_history'), this.clearHistory,
+          () => this.clearHistory = !this.clearHistory)
+        this.ClearDataSwitchRow($r('app.string.clear_data_cookies'), this.clearCookies,
+          () => this.clearCookies = !this.clearCookies)
+        this.ClearDataSwitchRow($r('app.string.clear_data_cache'), this.clearCache,
+          () => this.clearCache = !this.clearCache)
+        this.ClearDataSwitchRow($r('app.string.clear_data_permissions'), this.clearPermissions,
+          () => this.clearPermissions = !this.clearPermissions)
+        Row() {
+          Text($r('app.string.clear_data_time_range'))
+            .fontSize(15)
+            .fontColor($r('app.color.text_primary'))
+            .layoutWeight(1)
+          Text(this.clearDataRangeLabel())
+            .fontSize(14)
+            .fontColor($r('app.color.text_secondary'))
+          AppIcon({ name: IconName.ChevronRight, glyphSize: 16, color: $r('app.color.text_secondary') })
+        }
+        .width('100%')
+        .height(52)
+        .onClick(() => this.picker = PickerKind.ClearDataRange)
+        Text($r('app.string.clear_data_range_note'))
+          .fontSize(12)
+          .fontColor($r('app.color.text_secondary'))
+          .width('100%')
+          .margin({ top: 4 })
+        Row({ space: 12 }) {
+          Text($r('app.string.cancel'))
+            .fontSize(15)
+            .fontColor($r('app.color.text_secondary'))
+            .layoutWeight(1)
+            .textAlign(TextAlign.Center)
+            .onClick(() => this.isClearDataSheetVisible = false)
+          Text($r('app.string.clear_data_continue'))
+            .fontSize(15)
+            .fontColor($r('app.color.accent'))
+            .layoutWeight(1)
+            .textAlign(TextAlign.Center)
+            .onClick(() => this.confirmClear())
+        }
+        .width('100%')
+        .height(52)
+        .margin({ top: 8 })
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Center)
+      .padding({ top: 10, left: 28, right: 28, bottom: 32 })
+      .backgroundColor($r('app.color.surface_panel'))
+      .borderRadius({ topLeft: 20, topRight: 20 })
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private ClearDataSwitchRow(label: Resource, checked: boolean, onToggle: () => void) {
+    Row() {
+      Text(label)
+        .fontSize(15)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+      AppSwitch({ checked: checked, onToggle: onToggle })
+    }
+    .width('100%')
+    .height(48)
+    .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+  }
+
+  private clearDataRangeIndex(): number {
+    if (this.clearDataRange === ClearDataRange.Today) {
+      return 1;
+    }
+    if (this.clearDataRange === ClearDataRange.SevenDays) {
+      return 2;
+    }
+    if (this.clearDataRange === ClearDataRange.ThirtyDays) {
+      return 3;
+    }
+    return 0;
+  }
+
+  private clearDataRangeValue(index: number): ClearDataRange {
+    if (index === 1) {
+      return ClearDataRange.Today;
+    }
+    if (index === 2) {
+      return ClearDataRange.SevenDays;
+    }
+    if (index === 3) {
+      return ClearDataRange.ThirtyDays;
+    }
+    return ClearDataRange.All;
+  }
+
+  private clearDataRangeLabel(): Resource {
+    return CLEAR_DATA_RANGE_LABELS[this.clearDataRangeIndex()];
   }
 
   private showAbout(): void {

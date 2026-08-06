@@ -40,7 +40,7 @@ import { BrowserWebView } from '../components/BrowserWebView';
 import { OmniCapsule } from '../components/OmniCapsule';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
-import { SettingsPage } from '../components/SettingsPage';
+import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
 import { StartPage } from '../components/StartPage';
 import { TabLauncher } from '../components/TabLauncher';
@@ -483,7 +483,7 @@ struct Index {
         allowedHosts: this.viewModel.getAllowedHosts(),
         onChange: (settings: BrowserSettings): void => { this.applySettings(settings); },
         onResetGestures: (): void => { this.resetGestures(); },
-        onClearData: (): void => { this.clearBrowsingData(); },
+        onClearData: (selection: ClearDataSelection): void => { this.clearBrowsingData(selection); },
         onRemoveAllowedHost: (host: string): void => { void this.removeAllowedHost(host); },
         onBack: (): void => { this.sheet = Overlay.None; }
       })
@@ -912,12 +912,35 @@ struct Index {
     }
   }
 
-  private async clearBrowsingData(): Promise<void> {
+  private async clearBrowsingData(selection: ClearDataSelection): Promise<void> {
     const controllers: webview.WebviewController[] = [];
     this.controllers.forEach((controller: webview.WebviewController) => controllers.push(controller));
-    PrivacyService.clearSiteData(controllers);
-    await this.viewModel.clearBrowsingData();
+    if (selection.cookies) {
+      PrivacyService.clearCookiesAndStorage();
+    }
+    if (selection.cache) {
+      PrivacyService.clearCache(controllers);
+    }
+    if (selection.history) {
+      await this.viewModel.clearHistory(this.clearDataCutoff(selection.range));
+    }
+    if (selection.permissions) {
+      await this.viewModel.clearAllowedHosts();
+      this.viewModel.adsBlockService.applyAllowedHosts(this.viewModel.getAllowedHosts());
+    }
     this.syncState();
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: $r('app.string.clear_data_completed') });
+    } catch (error) {
+      Logger.warn(TAG, `Clear data toast unavailable: ${String(error)}`);
+    }
+  }
+
+  private clearDataCutoff(range: ClearDataRange): number {
+    if (range === ClearDataRange.All) {
+      return 0;
+    }
+    return Date.now() - Number(range) * 24 * 60 * 60 * 1000;
   }
 
   // ------------------------------------------------------------- web events
