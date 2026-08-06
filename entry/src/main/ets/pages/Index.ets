@@ -137,6 +137,10 @@ struct Index {
     }
   }
 
+  aboutToDisappear(): void {
+    PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
+  }
+
   onBackPress(): boolean {
     if (this.sheet !== Overlay.None) {
       this.sheet = Overlay.None;
@@ -465,7 +469,8 @@ struct Index {
         .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.Tabs) {
       TabOverview({
-        tabs: this.tabs,
+        tabs: this.normalTabs(),
+        privateTabs: this.privateTabs(),
         activeTabId: this.activeTabId,
         thumbnails: this.thumbnails,
         onSelect: (id: string): void => { this.selectTab(id); },
@@ -533,6 +538,28 @@ struct Index {
 
   private isActiveReader(): boolean {
     return this.activeTab()?.isReader === true;
+  }
+
+  private normalTabs(): BrowserTab[] {
+    return this.tabs.filter((tab: BrowserTab) => !tab.isPrivate);
+  }
+
+  private privateTabs(): BrowserTab[] {
+    return this.tabs.filter((tab: BrowserTab) => tab.isPrivate);
+  }
+
+  private privateControllers(tabs: BrowserTab[]): webview.WebviewController[] {
+    const privateControllers: webview.WebviewController[] = [];
+    for (const tab of tabs) {
+      if (!tab.isPrivate) {
+        continue;
+      }
+      const controller: webview.WebviewController | undefined = this.controllers.get(tab.id);
+      if (controller !== undefined) {
+        privateControllers.push(controller);
+      }
+    }
+    return privateControllers;
   }
 
   private controllerFor(id: string): webview.WebviewController {
@@ -692,6 +719,10 @@ struct Index {
 
   private closeTab(id: string): void {
     void this.captureScrollPosition(id);
+    const tab: BrowserTab | undefined = this.tabs.find((item: BrowserTab) => item.id === id);
+    if (tab?.isPrivate === true) {
+      PrivacyService.clearPrivateSiteData(this.privateControllers([tab]));
+    }
     this.viewModel.closeTab(id);
     this.controllers.delete(id);
     this.thumbnails = this.thumbnails.filter((item: TabThumbnail) => item.id !== id);
@@ -703,6 +734,7 @@ struct Index {
 
   private closeAllTabs(): void {
     void this.captureScrollPosition(this.activeTabId);
+    PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
     this.viewModel.closeAllTabs();
     this.controllers.clear();
     this.thumbnails = [];

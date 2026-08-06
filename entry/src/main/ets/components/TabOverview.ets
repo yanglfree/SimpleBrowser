@@ -47,6 +47,7 @@ export interface TabThumbnail {
 @Component
 export struct TabOverview {
   @Prop tabs: BrowserTab[] = [];
+  @Prop privateTabs: BrowserTab[] = [];
   @Prop activeTabId: string = '';
   /** Snapshots captured when a tab was last on screen; absent for a cold tab. */
   thumbnails: TabThumbnail[] = [];
@@ -61,7 +62,7 @@ export struct TabOverview {
       Column() {
         Row() {
           Text() {
-            Span(`${this.tabs.length}`)
+            Span(`${this.tabs.length + this.privateTabs.length}`)
             Span(' ')
             Span($r('app.string.tabs_count_suffix'))
           }
@@ -84,21 +85,27 @@ export struct TabOverview {
           bottom: TAB_OVERVIEW_HEADER_BOTTOM
         })
 
-        Grid() {
-          ForEach(this.tabs, (tab: BrowserTab) => {
-            GridItem() {
-              this.TabCard(tab)
+        Scroll() {
+          Column() {
+            this.TabGrid(this.tabs)
+
+            if (this.privateTabs.length > 0) {
+              Text($r('app.string.private_badge'))
+                .width('100%')
+                .fontSize(TAB_OVERVIEW_TITLE_SIZE)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.text_secondary'))
+                .padding({
+                  top: TAB_OVERVIEW_HEADER_BOTTOM,
+                  left: TAB_OVERVIEW_HEADER_HORIZONTAL,
+                  right: TAB_OVERVIEW_HEADER_HORIZONTAL,
+                  bottom: TAB_OVERVIEW_HEADER_BOTTOM
+                })
+              this.TabGrid(this.privateTabs)
             }
-          }, (tab: BrowserTab) => tab.id)
+          }
+          .width('100%')
         }
-        .columnsTemplate('1fr 1fr')
-        .columnsGap(TAB_OVERVIEW_GRID_GAP)
-        .rowsGap(TAB_OVERVIEW_GRID_GAP)
-        .padding({
-          left: TAB_OVERVIEW_HEADER_HORIZONTAL,
-          right: TAB_OVERVIEW_HEADER_HORIZONTAL,
-          bottom: TAB_OVERVIEW_GRID_BOTTOM
-        })
         .layoutWeight(1)
         .scrollBar(BarState.Off)
       }
@@ -110,6 +117,26 @@ export struct TabOverview {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.page_background'))
+  }
+
+  @Builder
+  private TabGrid(tabs: BrowserTab[]) {
+    Grid() {
+      ForEach(tabs, (tab: BrowserTab) => {
+        GridItem() {
+          this.TabCard(tab)
+        }
+      }, (tab: BrowserTab) => tab.id)
+    }
+    .columnsTemplate('1fr 1fr')
+    .columnsGap(TAB_OVERVIEW_GRID_GAP)
+    .rowsGap(TAB_OVERVIEW_GRID_GAP)
+    .padding({
+      left: TAB_OVERVIEW_HEADER_HORIZONTAL,
+      right: TAB_OVERVIEW_HEADER_HORIZONTAL,
+      bottom: TAB_OVERVIEW_GRID_BOTTOM
+    })
+    .width('100%')
   }
 
   @Builder

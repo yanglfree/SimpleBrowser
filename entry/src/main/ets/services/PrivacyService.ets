@@ -39,4 +39,19 @@ export class PrivacyService {
     PrivacyService.clearCookiesAndStorage();
     PrivacyService.clearCache(controllers);
   }
+
+  /** Clears the isolated cookie, storage, and cache stores used by private tabs. */
+  static clearPrivateSiteData(controllers: webview.WebviewController[]): void {
+    try {
+      webview.WebCookieManager.clearAllCookiesSync(true);
+    } catch (error) {
+      Logger.warn(TAG, `Failed to clear private cookies: ${String(error)}`);
+    }
+    try {
+      webview.WebStorage.deleteAllData(true);
+    } catch (error) {
+      Logger.warn(TAG, `Failed to clear private web storage: ${String(error)}`);
+    }
+    PrivacyService.clearCache(controllers);
+  }
 }

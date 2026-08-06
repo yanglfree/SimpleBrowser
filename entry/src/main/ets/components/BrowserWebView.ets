@@ -28,7 +28,7 @@ export struct BrowserWebView {
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
-      Web({ src: this.tab.url, controller: this.controller })
+      Web({ src: this.tab.url, controller: this.controller, incognitoMode: this.tab.isPrivate })
       .javaScriptAccess(true)
       .domStorageAccess(true)
       .onlineImageAccess(true)
