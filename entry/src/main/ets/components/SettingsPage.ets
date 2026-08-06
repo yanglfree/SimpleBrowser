@@ -21,7 +21,8 @@ enum PickerKind {
   HistoryRetention = 5,
   LiveWebViewLimit = 6,
   DownloadConcurrency = 7,
-  ClearDataRange = 8
+  TabSoftLimit = 8,
+  ClearDataRange = 9
 }
 interface PickerOption {
   label: Resource;
@@ -87,6 +88,13 @@ const DOWNLOAD_CONCURRENCY_LABELS: Resource[] = [
   $r('app.string.download_concurrency_two'),
   $r('app.string.download_concurrency_three'),
   $r('app.string.download_concurrency_four')
+];
+
+const TAB_SOFT_LIMIT_LABELS: Resource[] = [
+  $r('app.string.tab_soft_limit_eight'),
+  $r('app.string.tab_soft_limit_twelve'),
+  $r('app.string.tab_soft_limit_twenty'),
+  $r('app.string.tab_soft_limit_forty')
 ];
 
 const CLEAR_DATA_RANGE_LABELS: Resource[] = [
@@ -278,6 +286,12 @@ export struct SettingsPage {
               this.downloadConcurrencyLabel(),
               false,
               () => this.picker = PickerKind.DownloadConcurrency
+            )
+            this.ValueRow(
+              $r('app.string.tab_soft_limit'),
+              this.tabSoftLimitLabel(),
+              false,
+              () => this.picker = PickerKind.TabSoftLimit
             )
           }
           .groupCard()
@@ -518,6 +532,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.DownloadConcurrency) {
       return optionsFrom(DOWNLOAD_CONCURRENCY_LABELS);
     }
+    if (this.picker === PickerKind.TabSoftLimit) {
+      return optionsFrom(TAB_SOFT_LIMIT_LABELS);
+    }
     if (this.picker === PickerKind.ClearDataRange) {
       return optionsFrom(CLEAR_DATA_RANGE_LABELS);
     }
@@ -542,6 +559,9 @@ export struct SettingsPage {
     }
     if (this.picker === PickerKind.DownloadConcurrency) {
       return this.downloadConcurrencyIndex();
+    }
+    if (this.picker === PickerKind.TabSoftLimit) {
+      return this.tabSoftLimitIndex();
     }
     if (this.picker === PickerKind.ClearDataRange) {
       return this.clearDataRangeIndex();
@@ -568,6 +588,8 @@ export struct SettingsPage {
       next.liveWebViewLimit = this.liveWebViewLimitValue(value);
     } else if (this.picker === PickerKind.DownloadConcurrency) {
       next.downloadConcurrency = this.downloadConcurrencyValue(value);
+    } else if (this.picker === PickerKind.TabSoftLimit) {
+      next.tabSoftLimit = this.tabSoftLimitValue(value);
     } else {
       next.appearance = value as AppearanceMode;
     }
@@ -675,6 +697,36 @@ export struct SettingsPage {
 
   private downloadConcurrencyLabel(): Resource {
     return DOWNLOAD_CONCURRENCY_LABELS[this.downloadConcurrencyIndex()];
+  }
+
+  private tabSoftLimitIndex(): number {
+    if (this.settings.tabSoftLimit === 8) {
+      return 0;
+    }
+    if (this.settings.tabSoftLimit === 20) {
+      return 2;
+    }
+    if (this.settings.tabSoftLimit === 40) {
+      return 3;
+    }
+    return 1;
+  }
+
+  private tabSoftLimitValue(index: number): number {
+    if (index === 0) {
+      return 8;
+    }
+    if (index === 2) {
+      return 20;
+    }
+    if (index === 3) {
+      return 40;
+    }
+    return 12;
+  }
+
+  private tabSoftLimitLabel(): Resource {
+    return TAB_SOFT_LIMIT_LABELS[this.tabSoftLimitIndex()];
   }
 
   private saveSearchTemplate(template: string): void {

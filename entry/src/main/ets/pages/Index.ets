@@ -144,6 +144,7 @@ struct Index {
   @State private liveTabIds: string[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
+  private isTabSoftLimitPromptVisible: boolean = false;
   private pageScrollOffsets: Map<string, number> = new Map();
   private persistedPageScrollOffsets: Map<string, number> = new Map();
   @State private resumeRequest: ResumeRequest | undefined = undefined;
@@ -937,17 +938,58 @@ struct Index {
 
   private createTab(isPrivate: boolean): void {
     if (this.viewModel.isTabSoftLimitReached()) {
-      try {
-        this.getUIContext().getPromptAction().showToast({ message: $r('app.string.tab_soft_limit_message') });
-      } catch (error) {
-        Logger.warn(TAG, `Tab limit toast unavailable: ${String(error)}`);
-      }
+      this.promptTabSoftLimit();
     }
     this.viewModel.addTab(HOME_URL, isPrivate);
     void this.activateTab(this.viewModel.activeTabId);
     this.sheet = Overlay.None;
     this.isCapsuleHidden = false;
     this.syncState();
+  }
+
+  private promptTabSoftLimit(): void {
+    if (this.isTabSoftLimitPromptVisible) {
+      return;
+    }
+    this.isTabSoftLimitPromptVisible = true;
+    try {
+      this.getUIContext().showAlertDialog({
+        title: $r('app.string.tab_soft_limit_title'),
+        message: $r('app.string.tab_soft_limit_message'),
+        primaryButton: {
+          value: $r('app.string.tab_soft_limit_cleanup'),
+          action: (): void => {
+            this.isTabSoftLimitPromptVisible = false;
+            this.cleanupSoftLimitTabs();
+          }
+        },
+        secondaryButton: {
+          value: $r('app.string.tab_soft_limit_continue'),
+          action: (): void => {
+            this.isTabSoftLimitPromptVisible = false;
+          }
+        }
+      });
+    } catch (error) {
+      this.isTabSoftLimitPromptVisible = false;
+      Logger.warn(TAG, `Tab limit prompt unavailable: ${String(error)}`);
+    }
+  }
+
+  private cleanupSoftLimitTabs(): void {
+    const candidates: string[] = this.viewModel.softLimitCleanupCandidates();
+    for (const id of candidates) {
+      this.closeTab(id);
+    }
+    if (candidates.length > 0) {
+      try {
+        this.getUIContext().getPromptAction().showToast({
+          message: `${candidates.length}${$r('app.string.tab_soft_limit_cleaned')}`
+        });
+      } catch (error) {
+        Logger.warn(TAG, `Tab cleanup toast unavailable: ${String(error)}`);
+      }
+    }
   }
 
   private closeTab(id: string): void {

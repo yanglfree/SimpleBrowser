@@ -156,6 +156,27 @@ export class BrowserViewModel {
     return this.tabs.length >= this.settings.tabSoftLimit;
   }
 
+  /** Returns the oldest disposable tabs needed to get back below the soft limit. */
+  softLimitCleanupCandidates(): string[] {
+    const targetCount: number = Math.max(1, Math.floor(this.settings.tabSoftLimit) - 1);
+    const removeCount: number = Math.max(0, this.tabs.length - targetCount);
+    if (removeCount === 0) {
+      return [];
+    }
+
+    const stale: BrowserTab[] = this.tabs
+      .filter((tab: BrowserTab): boolean => tab.id !== this.activeTabId &&
+        (isHomeUrl(tab.url) || tab.isLoading))
+      .sort((left: BrowserTab, right: BrowserTab): number => left.lastVisitedAt - right.lastVisitedAt);
+    const remaining: BrowserTab[] = this.tabs
+      .filter((tab: BrowserTab): boolean => tab.id !== this.activeTabId &&
+        !stale.some((candidate: BrowserTab): boolean => candidate.id === tab.id))
+      .sort((left: BrowserTab, right: BrowserTab): number => left.lastVisitedAt - right.lastVisitedAt);
+    return stale.concat(remaining)
+      .slice(0, removeCount)
+      .map((tab: BrowserTab): string => tab.id);
+  }
+
   get expiredTabCount(): number {
     return this.expiredTabs.length;
   }
