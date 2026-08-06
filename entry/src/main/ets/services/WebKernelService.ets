@@ -52,10 +52,23 @@ export class WebKernelService {
   }
 
   static goBackBySteps(controller: webview.WebviewController, step: number): void {
-    if (step >= 0) {
+    if (!WebKernelService.isBackwardStep(step)) {
       return;
     }
     WebKernelService.run('goBackBySteps', (): void => controller.backOrForward(step));
+  }
+
+  /** Keeps UI state in the same range as ArkWeb's progress callback contract. */
+  static clampProgress(progress: number): number {
+    if (Number.isNaN(progress)) {
+      return 0;
+    }
+    return Math.min(100, Math.max(0, progress));
+  }
+
+  /** Back-history navigation is expressed as a negative relative step. */
+  static isBackwardStep(step: number): boolean {
+    return step < 0;
   }
 
   static getBackHistory(controller: webview.WebviewController): WebHistoryEntry[] {
@@ -101,12 +114,17 @@ export class WebKernelService {
       if (WebKernelService.defaultUserAgent.length === 0) {
         WebKernelService.defaultUserAgent = controller.getUserAgent();
       }
-      controller.setCustomUserAgent(
-        isDesktop ? DESKTOP_USER_AGENT : WebKernelService.defaultUserAgent
-      );
+      controller.setCustomUserAgent(WebKernelService.userAgentFor(
+        isDesktop,
+        WebKernelService.defaultUserAgent
+      ));
     } catch (error) {
       Logger.warn(TAG, `Unable to apply user agent: ${String(error)}`);
     }
+  }
+
+  static userAgentFor(isDesktop: boolean, mobileUserAgent: string): string {
+    return isDesktop ? DESKTOP_USER_AGENT : mobileUserAgent;
   }
 
   private static run(name: string, action: () => void): void {

@@ -251,16 +251,19 @@ struct Index {
               tab: tab,
               blockAds: this.settings.blockAds && !this.viewModel.isHostAllowed(tab.url),
               controller: this.controllerFor(tab.id),
-              onPageBegin: (url: string): void => this.handlePageBegin(tab.id, url),
-              onPageEnd: (url: string): void => { this.handlePageEnd(tab.id, url); },
+              kernelCallbacks: {
+                onPageBegin: (url: string): void => this.handlePageBegin(tab.id, url),
+                onPageEnd: (url: string): void => { this.handlePageEnd(tab.id, url); },
+                onProgressChange: (progress: number): void => this.handleProgress(tab.id, progress),
+                onError: (code: number, message: string): void =>
+                  this.handleLoadError(tab.id, code, message)
+              },
               onTitleReceive: (title: string): void => this.handleTitle(tab.id, title),
-              onProgressChange: (progress: number): void => this.handleProgress(tab.id, progress),
               onScroll: (offsetY: number): void => this.handlePageScroll(tab.id, offsetY),
               onKeyboardAttach: (): void => { this.showCapsule(); },
               isAtTop: tab.id === this.activeTabId && this.isActivePageAtTop,
               onPullRefresh: (): void => { this.pullRefresh(tab.id); },
-              onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); },
-              onError: (code: number, message: string): void => this.handleLoadError(tab.id, code, message)
+              onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); }
             })
           }
         }
@@ -1008,7 +1011,7 @@ struct Index {
 
   private handleProgress(id: string, progress: number): void {
     this.viewModel.updateTab(id, {
-      progress: Math.min(100, Math.max(0, progress)),
+      progress: WebKernelService.clampProgress(progress),
       isLoading: progress < 100,
       loadError: LoadErrorKind.None
     });

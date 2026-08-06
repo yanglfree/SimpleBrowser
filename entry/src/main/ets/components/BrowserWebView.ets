@@ -1,7 +1,7 @@
 import { webview } from '@kit.ArkWeb';
 import { BrowserTab } from '../models/BrowserModels';
 import { AdsBlockService } from '../services/AdsBlockService';
-import { WebKernelService } from '../services/WebKernelService';
+import { WebKernelCallbacks, WebKernelService } from '../services/WebKernelService';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'BrowserWebView';
@@ -15,19 +15,16 @@ const TAG: string = 'BrowserWebView';
 export struct BrowserWebView {
   @Prop tab: BrowserTab;
   @Prop blockAds: boolean;
+  @Prop kernelCallbacks: WebKernelCallbacks;
   @Prop isAtTop: boolean = false;
   controller: webview.WebviewController = new webview.WebviewController();
   @State private pullDistance: number = 0;
   private adsBlockService: AdsBlockService = new AdsBlockService();
-  onPageBegin: (url: string) => void = (_url: string): void => {};
-  onPageEnd: (url: string) => void = (_url: string): void => {};
   onTitleReceive: (title: string) => void = (_title: string): void => {};
-  onProgressChange: (progress: number) => void = (_progress: number): void => {};
   onScroll: (offsetY: number) => void = (_offsetY: number): void => {};
   onKeyboardAttach: () => void = (): void => {};
   onPullRefresh: () => void = (): void => {};
   onAdsBlocked: (urls: string[]) => void = (_urls: string[]): void => {};
-  onError: (code: number, message: string) => void = (_code: number, _message: string): void => {};
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
@@ -46,9 +43,10 @@ export struct BrowserWebView {
         this.adsBlockService.configure(this.controller, this.blockAds);
         WebKernelService.applyUserAgent(this.controller, this.tab.isDesktop);
       })
-      .onPageBegin((event: OnPageBeginEvent) => this.onPageBegin(event.url))
-      .onPageEnd((event: OnPageEndEvent) => this.onPageEnd(event.url))
-      .onProgressChange((event: OnProgressChangeEvent) => this.onProgressChange(event.newProgress))
+      .onPageBegin((event: OnPageBeginEvent) => this.kernelCallbacks.onPageBegin(event.url))
+      .onPageEnd((event: OnPageEndEvent) => this.kernelCallbacks.onPageEnd(event.url))
+      .onProgressChange((event: OnProgressChangeEvent) =>
+        this.kernelCallbacks.onProgressChange(event.newProgress))
       .onScroll((event: OnScrollEvent) => this.onScroll(event.yOffset))
       .onInterceptKeyboardAttach((_info: WebKeyboardCallbackInfo): WebKeyboardOptions => {
         this.onKeyboardAttach();
@@ -60,7 +58,7 @@ export struct BrowserWebView {
         const code: number = event.error.getErrorCode();
         const message: string = event.error.getErrorInfo();
         Logger.warn(TAG, `Load error ${code}: ${message}`);
-        this.onError(code, message);
+        this.kernelCallbacks.onError(code, message);
       })
       .parallelGesture(
         PanGesture({ direction: PanDirection.Vertical, distance: 8 })
