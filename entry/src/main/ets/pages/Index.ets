@@ -792,8 +792,13 @@ struct Index {
       return;
     }
     const applied: string = await this.runScript(controller, this.readerScript());
-    if (applied.includes('no-article')) {
+    if (applied.includes('no-article') || !applied.includes('reader')) {
       Logger.info(TAG, 'Reader mode found no article to reflow');
+      try {
+        this.getUIContext().getPromptAction().showToast({ message: $r('app.string.reader_mode_unavailable') });
+      } catch (error) {
+        Logger.warn(TAG, `Reader mode toast unavailable: ${String(error)}`);
+      }
       return;
     }
     this.viewModel.updateTab(id, { isReader: true });

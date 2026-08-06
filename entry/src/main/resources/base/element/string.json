@@ -24,6 +24,7 @@
     { "name": "action_bookmark_add", "value": "加入书签" },
     { "name": "action_bookmark_remove", "value": "移出书签" },
     { "name": "action_reader", "value": "阅读模式" },
+    { "name": "reader_mode_unavailable", "value": "当前页面无法提取正文，已保留原页面。" },
     { "name": "action_desktop", "value": "桌面版" },
     { "name": "navigation_history_title", "value": "后退历史" },
     { "name": "navigation_history_empty", "value": "没有可返回的页面" },

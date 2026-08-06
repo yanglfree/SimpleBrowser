@@ -237,12 +237,27 @@ export function readerApplyScript(
 
   if (!S.active) {
     var candidates = document.querySelectorAll(
-      'article, main, [role="main"], .article, .article-content, .post, .post-content, #content'
+      'article, main, [role="main"], [itemprop="articleBody"], .article, .article-content, ' +
+      '.post, .post-content, .entry-content, .story-body, #content'
     );
-    var best = null, bestLength = 0;
+    var best = null, bestScore = 0, bestLength = 0;
     for (var i = 0; i < candidates.length; i++) {
-      var length = (candidates[i].innerText || '').length;
-      if (length > bestLength) { bestLength = length; best = candidates[i]; }
+      var candidate = candidates[i];
+      var text = (candidate.innerText || '').trim();
+      var length = text.length;
+      if (length < 240) continue;
+      var paragraphs = candidate.querySelectorAll('p').length;
+      var links = candidate.querySelectorAll('a').length;
+      var linkText = 0;
+      for (var linkIndex = 0; linkIndex < links; linkIndex++) {
+        linkText += (candidate.querySelectorAll('a')[linkIndex].innerText || '').length;
+      }
+      var score = length + Math.min(paragraphs, 80) * 80 - Math.min(linkText, length) * 0.25;
+      if (score > bestScore) {
+        bestScore = score;
+        bestLength = length;
+        best = candidate;
+      }
     }
     if (!best || bestLength < 240) return 'no-article';
 
