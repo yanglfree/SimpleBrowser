@@ -1,10 +1,11 @@
-import { UIAbility } from '@kit.AbilityKit';
+import { AbilityConstant, UIAbility } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { AppearanceMode, cloneSettings } from '../models/BrowserModels';
 import { BrowserRepository } from '../repositories/BrowserRepository';
 import { ThemeService } from '../services/ThemeService';
 import { AppContext } from '../utils/AppContext';
 import { Logger } from '../utils/Logger';
+import { MemoryPressureService } from '../services/MemoryPressureService';
 
 const TAG: string = 'EntryAbility';
 
@@ -42,6 +43,10 @@ export default class EntryAbility extends UIAbility {
 
   onWindowStageDestroy(): void {
     Logger.info(TAG, 'Window stage destroyed');
+  }
+
+  onMemoryLevel(level: AbilityConstant.MemoryLevel): void {
+    MemoryPressureService.notify(level as number);
   }
 
   onDestroy(): void {

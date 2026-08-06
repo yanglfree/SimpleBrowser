@@ -19,7 +19,8 @@ enum PickerKind {
   Appearance = 3,
   TabExpiry = 4,
   HistoryRetention = 5,
-  ClearDataRange = 6
+  LiveWebViewLimit = 6,
+  ClearDataRange = 7
 }
 interface PickerOption {
   label: Resource;
@@ -71,6 +72,13 @@ const HISTORY_RETENTION_LABELS: Resource[] = [
   $r('app.string.history_retention_one_day'),
   $r('app.string.history_retention_seven_days'),
   $r('app.string.history_retention_thirty_days')
+];
+
+const LIVE_WEBVIEW_LIMIT_LABELS: Resource[] = [
+  $r('app.string.live_webview_limit_one'),
+  $r('app.string.live_webview_limit_two'),
+  $r('app.string.live_webview_limit_four'),
+  $r('app.string.live_webview_limit_six')
 ];
 
 const CLEAR_DATA_RANGE_LABELS: Resource[] = [
@@ -250,6 +258,12 @@ export struct SettingsPage {
               this.tabExpiryLabel(),
               false,
               () => this.picker = PickerKind.TabExpiry
+            )
+            this.ValueRow(
+              $r('app.string.live_webview_limit'),
+              this.liveWebViewLimitLabel(),
+              false,
+              () => this.picker = PickerKind.LiveWebViewLimit
             )
           }
           .groupCard()
@@ -484,6 +498,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.HistoryRetention) {
       return optionsFrom(HISTORY_RETENTION_LABELS);
     }
+    if (this.picker === PickerKind.LiveWebViewLimit) {
+      return optionsFrom(LIVE_WEBVIEW_LIMIT_LABELS);
+    }
     if (this.picker === PickerKind.ClearDataRange) {
       return optionsFrom(CLEAR_DATA_RANGE_LABELS);
     }
@@ -502,6 +519,9 @@ export struct SettingsPage {
     }
     if (this.picker === PickerKind.HistoryRetention) {
       return this.historyRetentionIndex();
+    }
+    if (this.picker === PickerKind.LiveWebViewLimit) {
+      return this.liveWebViewLimitIndex();
     }
     if (this.picker === PickerKind.ClearDataRange) {
       return this.clearDataRangeIndex();
@@ -524,6 +544,8 @@ export struct SettingsPage {
       next.tabExpiryDays = this.tabExpiryValue(value);
     } else if (this.picker === PickerKind.HistoryRetention) {
       next.historyRetentionDays = this.historyRetentionValue(value);
+    } else if (this.picker === PickerKind.LiveWebViewLimit) {
+      next.liveWebViewLimit = this.liveWebViewLimitValue(value);
     } else {
       next.appearance = value as AppearanceMode;
     }
@@ -589,6 +611,36 @@ export struct SettingsPage {
 
   private historyRetentionLabel(): Resource {
     return HISTORY_RETENTION_LABELS[this.historyRetentionIndex()];
+  }
+
+  private liveWebViewLimitIndex(): number {
+    if (this.settings.liveWebViewLimit === 1) {
+      return 0;
+    }
+    if (this.settings.liveWebViewLimit === 2) {
+      return 1;
+    }
+    if (this.settings.liveWebViewLimit === 6) {
+      return 3;
+    }
+    return 2;
+  }
+
+  private liveWebViewLimitValue(index: number): number {
+    if (index === 0) {
+      return 1;
+    }
+    if (index === 1) {
+      return 2;
+    }
+    if (index === 3) {
+      return 6;
+    }
+    return 4;
+  }
+
+  private liveWebViewLimitLabel(): Resource {
+    return LIVE_WEBVIEW_LIMIT_LABELS[this.liveWebViewLimitIndex()];
   }
 
   private saveSearchTemplate(template: string): void {

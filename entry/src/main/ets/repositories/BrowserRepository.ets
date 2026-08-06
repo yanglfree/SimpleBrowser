@@ -314,6 +314,7 @@ export class BrowserRepository {
         quickSitesEnabled: parsed.quickSitesEnabled ?? fallback.quickSitesEnabled,
         tabExpiryDays: parsed.tabExpiryDays ?? fallback.tabExpiryDays,
         historyRetentionDays: parsed.historyRetentionDays ?? fallback.historyRetentionDays,
+        liveWebViewLimit: parsed.liveWebViewLimit ?? fallback.liveWebViewLimit,
         tabSoftLimit: parsed.tabSoftLimit ?? fallback.tabSoftLimit,
         appearance: parsed.appearance ?? fallback.appearance,
         clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,
@@ -365,6 +366,7 @@ export class BrowserRepository {
       readerScrollY: tab.readerScrollY ?? 0,
       scrollSavedAt: tab.scrollSavedAt ?? 0,
       readerScrollSavedAt: tab.readerScrollSavedAt ?? 0,
+      formDraft: tab.formDraft ?? '',
       loadError: LoadErrorKind.None,
       securityState: SecurityState.Unknown
     };

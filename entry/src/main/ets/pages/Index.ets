@@ -6,6 +6,7 @@ import {
   HOME_URL,
   READER_EXIT_SCRIPT,
   READ_FAVICON_SCRIPT,
+  READ_FORM_DRAFT_SCRIPT,
   READ_SCROLL_POSITION_SCRIPT,
   RESUME_WINDOW_DAYS,
   READER_FONT_MAX,
@@ -15,6 +16,7 @@ import {
   TRACKER_BLOCK_SCRIPT,
   contentCleanupScript,
   readerApplyScript,
+  restoreFormDraftScript,
   restoreScrollPositionScript
 } from '../constants/AppConstants';
 import {
@@ -51,6 +53,7 @@ import { TabOverview, TabThumbnail } from '../components/TabOverview';
 import { TAB_LAUNCHER_RIGHT_MARGIN, TAB_LAUNCHER_TOP_MARGIN, TAB_WEB_BOTTOM_INSET } from '../components/TabTokens';
 import { PrivacyService } from '../services/PrivacyService';
 import { AdsBlockService } from '../services/AdsBlockService';
+import { MemoryPressureService } from '../services/MemoryPressureService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
 import { WebHistoryEntry, WebKernelService } from '../services/WebKernelService';
@@ -125,6 +128,7 @@ struct Index {
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
   @State private history: HistoryEntry[] = [];
+  @State private liveTabIds: string[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
   private pageScrollOffsets: Map<string, number> = new Map();
@@ -136,6 +140,12 @@ struct Index {
       await this.viewModel.initialize(AppContext.getContext());
       ThemeService.apply(AppContext.getContext(), this.viewModel.settings.appearance);
       this.syncState();
+      this.liveTabIds = this.initialLiveTabIds();
+      MemoryPressureService.register((level: number): void => {
+        if (level >= 1) {
+          void this.reclaimForMemory(level);
+        }
+      });
       this.isReady = true;
     } catch (error) {
       Logger.error(TAG, `Failed to initialize browser: ${String(error)}`);
@@ -144,6 +154,7 @@ struct Index {
   }
 
   aboutToDisappear(): void {
+    MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
   }
 
@@ -236,10 +247,7 @@ struct Index {
     .visibility(this.activeTab()?.isLoading === true ? Visibility.Visible : Visibility.Hidden)
   }
 
-  /**
-   * Every tab stays mounted and is merely hidden, so switching keeps scroll
-   * position and page state — and so a snapshot can be taken on the way out.
-   */
+  /** Keeps only the configured live WebView set mounted; the rest are restorable shells. */
   @Builder
   private TabStack() {
     Stack({ alignContent: Alignment.TopEnd }) {
@@ -256,7 +264,7 @@ struct Index {
               onToggleQuickSites: (): void => { void this.toggleQuickSites(); },
               onOpenStats: (): void => { this.sheet = Overlay.Settings; }
             })
-          } else {
+          } else if (this.isTabLive(tab.id)) {
             BrowserWebView({
               tab: tab,
               blockAds: this.settings.blockAds && !this.viewModel.isHostAllowed(tab.url),
@@ -275,6 +283,8 @@ struct Index {
               onPullRefresh: (): void => { this.pullRefresh(tab.id); },
               onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); }
             })
+          } else {
+            this.HibernatedTab(tab)
           }
         }
         .id(`tab-view-${tab.id}`)
@@ -282,7 +292,8 @@ struct Index {
         .height('100%')
         .padding({ bottom: isHomeUrl(tab.url) ? 0 : TAB_WEB_BOTTOM_INSET })
         .visibility(tab.id === this.activeTabId ? Visibility.Visible : Visibility.Hidden)
-      }, (tab: BrowserTab) => `${tab.id}-${isHomeUrl(tab.url) ? 'home' : 'web'}`)
+      }, (tab: BrowserTab) =>
+        `${tab.id}-${isHomeUrl(tab.url) ? 'home' : (this.isTabLive(tab.id) ? 'live' : 'sleep')}`)
 
       if (this.sheet === Overlay.None && this.isActiveHome()) {
         TabLauncher({
@@ -294,6 +305,29 @@ struct Index {
     }
     .layoutWeight(1)
     .width('100%')
+  }
+
+  @Builder
+  private HibernatedTab(tab: BrowserTab) {
+    Column({ space: 12 }) {
+      Text(tab.title.length > 0 ? tab.title : displayHost(tab.url))
+        .fontSize(18)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text($r('app.string.tab_hibernated'))
+        .fontSize(14)
+        .fontColor($r('app.color.text_secondary'))
+      Text($r('app.string.tab_hibernated_restore'))
+        .fontSize(14)
+        .fontColor($r('app.color.accent'))
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .backgroundColor($r('app.color.page_background'))
+    .onClick(() => { void this.selectTab(tab.id); })
   }
 
   @Builder
@@ -577,6 +611,93 @@ struct Index {
     return privateControllers;
   }
 
+  private initialLiveTabIds(): string[] {
+    const ordered: BrowserTab[] = this.tabs.slice(0).sort(
+      (left: BrowserTab, right: BrowserTab): number => right.lastVisitedAt - left.lastVisitedAt
+    );
+    const live: string[] = [];
+    const limit: number = this.liveWebViewLimit();
+    const active: BrowserTab | undefined = this.tabs.find((tab: BrowserTab) => tab.id === this.activeTabId);
+    if (active !== undefined && !isHomeUrl(active.url)) {
+      live.push(active.id);
+    }
+    for (const tab of ordered) {
+      if (isHomeUrl(tab.url) || live.includes(tab.id)) {
+        continue;
+      }
+      if (live.length >= limit) {
+        break;
+      }
+      live.push(tab.id);
+    }
+    return live;
+  }
+
+  private isTabLive(id: string): boolean {
+    const tab: BrowserTab | undefined = this.tabs.find((item: BrowserTab) => item.id === id);
+    return tab !== undefined && (isHomeUrl(tab.url) || this.liveTabIds.includes(id));
+  }
+
+  private liveWebViewLimit(): number {
+    return Math.max(1, Math.round(this.settings.liveWebViewLimit));
+  }
+
+  private async activateTab(id: string): Promise<void> {
+    const tab: BrowserTab | undefined = this.tabs.find((item: BrowserTab) => item.id === id);
+    if (tab === undefined || isHomeUrl(tab.url) || this.liveTabIds.includes(id)) {
+      return;
+    }
+    while (this.liveTabIds.length >= this.liveWebViewLimit()) {
+      const candidate: string = this.leastRecentLiveTab(id);
+      if (candidate.length === 0) {
+        break;
+      }
+      await this.hibernateTab(candidate);
+    }
+    if (!this.liveTabIds.includes(id)) {
+      this.liveTabIds = this.liveTabIds.concat([id]);
+    }
+  }
+
+  private leastRecentLiveTab(excludedId: string): string {
+    let candidate: BrowserTab | undefined;
+    for (const tab of this.tabs) {
+      if (tab.id === excludedId || !this.liveTabIds.includes(tab.id) || isHomeUrl(tab.url)) {
+        continue;
+      }
+      if (candidate === undefined || tab.lastVisitedAt < candidate.lastVisitedAt) {
+        candidate = tab;
+      }
+    }
+    return candidate?.id ?? '';
+  }
+
+  private async hibernateTab(id: string): Promise<void> {
+    const controller: webview.WebviewController | undefined = this.controllers.get(id);
+    if (controller !== undefined) {
+      await this.captureScrollPosition(id);
+      await this.captureFormDraft(id);
+      this.controllers.delete(id);
+    }
+    this.liveTabIds = this.liveTabIds.filter((tabId: string) => tabId !== id);
+  }
+
+  private async enforceLiveWebViewLimit(limit: number): Promise<void> {
+    const target: number = Math.max(1, Math.round(limit));
+    while (this.liveTabIds.length > target) {
+      const candidate: string = this.leastRecentLiveTab(this.activeTabId);
+      if (candidate.length === 0) {
+        break;
+      }
+      await this.hibernateTab(candidate);
+    }
+  }
+
+  private async reclaimForMemory(level: number): Promise<void> {
+    const target: number = level >= 2 ? 1 : Math.max(1, this.liveWebViewLimit() - 1);
+    await this.enforceLiveWebViewLimit(target);
+  }
+
   private controllerFor(id: string): webview.WebviewController {
     const existing: webview.WebviewController | undefined = this.controllers.get(id);
     if (existing !== undefined) {
@@ -626,6 +747,7 @@ struct Index {
       canGoForward: false
     });
     this.controllers.delete(id);
+    this.liveTabIds = this.liveTabIds.filter((tabId: string) => tabId !== id);
     this.viewModel.persistSession();
     this.syncState();
   }
@@ -669,10 +791,12 @@ struct Index {
     const next: string = this.viewModel.neighbourTabId(offset);
     this.clearSwipePreview();
     if (next !== this.activeTabId) {
+      await this.activateTab(next);
       this.dismissResumePrompt();
       await this.captureScrollPosition(this.activeTabId);
       await this.captureThumbnail(this.activeTabId);
       this.viewModel.selectTab(next);
+      this.viewModel.updateTab(next, { lastVisitedAt: Date.now() });
       this.syncState();
       const selected: BrowserTab | undefined = this.viewModel.getActiveTab();
       if (selected !== undefined) {
@@ -706,9 +830,11 @@ struct Index {
 
   private async selectTab(id: string): Promise<void> {
     this.dismissResumePrompt();
+    await this.activateTab(id);
     await this.captureScrollPosition(this.activeTabId);
     await this.captureThumbnail(this.activeTabId);
     this.viewModel.selectTab(id);
+    this.viewModel.updateTab(id, { lastVisitedAt: Date.now() });
     this.sheet = Overlay.None;
     this.isCapsuleHidden = false;
     this.syncState();
@@ -727,6 +853,7 @@ struct Index {
       }
     }
     this.viewModel.addTab(HOME_URL, isPrivate);
+    void this.activateTab(this.viewModel.activeTabId);
     this.sheet = Overlay.None;
     this.isCapsuleHidden = false;
     this.syncState();
@@ -740,6 +867,7 @@ struct Index {
     }
     this.viewModel.closeTab(id);
     this.controllers.delete(id);
+    this.liveTabIds = this.liveTabIds.filter((tabId: string) => tabId !== id);
     this.thumbnails = this.thumbnails.filter((item: TabThumbnail) => item.id !== id);
     if (this.settings.clearCookiesOnTabClose) {
       PrivacyService.clearCookies();
@@ -752,6 +880,7 @@ struct Index {
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
     this.viewModel.closeAllTabs();
     this.controllers.clear();
+    this.liveTabIds = [];
     this.thumbnails = [];
     if (this.settings.clearCookiesOnTabClose) {
       PrivacyService.clearCookies();
@@ -941,6 +1070,7 @@ struct Index {
     if (appearanceChanged) {
       ThemeService.apply(AppContext.getContext(), next.appearance);
     }
+    await this.enforceLiveWebViewLimit(this.liveWebViewLimit());
     this.reconfigureBlocking();
   }
 
@@ -1064,6 +1194,12 @@ struct Index {
       await this.viewModel.recordPageVisit(tab);
       this.viewModel.persistSession();
       await this.prepareScrollResume(tab);
+      if (tab.formDraft.length > 0) {
+        const controller: webview.WebviewController | undefined = this.controllers.get(id);
+        if (controller !== undefined) {
+          await this.runScript(controller, restoreFormDraftScript(tab.formDraft));
+        }
+      }
     }
     await this.enhancePage(id);
     this.syncState();
@@ -1436,6 +1572,20 @@ struct Index {
     }
     this.persistedPageScrollOffsets.set(id, position);
     this.viewModel.persistSession();
+  }
+
+  private async captureFormDraft(id: string): Promise<void> {
+    const controller: webview.WebviewController | undefined = this.controllers.get(id);
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (controller === undefined || tab === undefined || isHomeUrl(tab.url)) {
+      return;
+    }
+    const raw: string = await this.runScript(controller, READ_FORM_DRAFT_SCRIPT);
+    const draft: string = this.parseScriptString(raw);
+    if (draft.length > 0) {
+      this.viewModel.updateTab(id, { formDraft: draft });
+      this.viewModel.persistSession();
+    }
   }
 
   private async prepareScrollResume(tab: BrowserTab): Promise<void> {

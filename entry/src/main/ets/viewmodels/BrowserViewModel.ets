@@ -126,6 +126,7 @@ export class BrowserViewModel {
       readerScrollY: 0,
       scrollSavedAt: 0,
       readerScrollSavedAt: 0,
+      formDraft: '',
       loadError: LoadErrorKind.None,
       securityState: SecurityState.Unknown
     };
@@ -243,6 +244,9 @@ export class BrowserViewModel {
       }
       if (update.readerScrollSavedAt !== undefined) {
         updated.readerScrollSavedAt = update.readerScrollSavedAt;
+      }
+      if (update.formDraft !== undefined) {
+        updated.formDraft = update.formDraft;
       }
       if (update.loadError !== undefined) {
         updated.loadError = update.loadError;

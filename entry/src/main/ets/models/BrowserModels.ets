@@ -97,6 +97,7 @@ export interface BrowserTab {
   readerScrollY: number;
   scrollSavedAt: number;
   readerScrollSavedAt: number;
+  formDraft: string;
   loadError: LoadErrorKind;
   securityState: SecurityState;
 }
@@ -117,6 +118,7 @@ export interface BrowserTabUpdate {
   readerScrollY?: number;
   scrollSavedAt?: number;
   readerScrollSavedAt?: number;
+  formDraft?: string;
   loadError?: LoadErrorKind;
   securityState?: SecurityState;
 }
@@ -156,6 +158,7 @@ export interface BrowserSettings {
   quickSitesEnabled: boolean;
   tabExpiryDays: TabExpiry;
   historyRetentionDays: number;
+  liveWebViewLimit: number;
   tabSoftLimit: number;
   appearance: AppearanceMode;
   clearCookiesOnTabClose: boolean;
@@ -224,6 +227,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     quickSitesEnabled: true,
     tabExpiryDays: TabExpiry.SevenDays,
     historyRetentionDays: 30,
+    liveWebViewLimit: 4,
     tabSoftLimit: 12,
     appearance: AppearanceMode.System,
     clearCookiesOnTabClose: false,
@@ -252,6 +256,7 @@ export function cloneTab(tab: BrowserTab): BrowserTab {
     readerScrollY: tab.readerScrollY,
     scrollSavedAt: tab.scrollSavedAt,
     readerScrollSavedAt: tab.readerScrollSavedAt,
+    formDraft: tab.formDraft,
     loadError: tab.loadError,
     securityState: tab.securityState
   };
@@ -292,6 +297,7 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     quickSitesEnabled: settings.quickSitesEnabled,
     tabExpiryDays: settings.tabExpiryDays,
     historyRetentionDays: settings.historyRetentionDays,
+    liveWebViewLimit: settings.liveWebViewLimit,
     tabSoftLimit: settings.tabSoftLimit,
     appearance: settings.appearance,
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,

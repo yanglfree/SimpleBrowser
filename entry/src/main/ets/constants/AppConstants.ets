@@ -186,6 +186,19 @@ export const READ_SCROLL_POSITION_SCRIPT: string = `
   return String(Math.max(0, Math.round(window.scrollY || 0)));
 })();`;
 
+export const READ_FORM_DRAFT_SCRIPT: string = `
+(function() {
+  var fields = document.querySelectorAll('input:not([type="password"]),textarea,select');
+  var draft = [];
+  for (var i = 0; i < fields.length && draft.length < 80; i++) {
+    var field = fields[i];
+    var key = field.id || field.name || ('field-' + i);
+    var value = field.value || '';
+    if (value.length > 0) draft.push({ key: key, value: value });
+  }
+  return JSON.stringify(draft);
+})();`;
+
 export const READ_FAVICON_SCRIPT: string = `
 (function() {
   var links = document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]');
@@ -203,6 +216,23 @@ export function restoreScrollPositionScript(position: number): string {
   window.scrollTo(0, ${safePosition});
   return 'restored';
 })();`;
+}
+
+export function restoreFormDraftScript(draft: string): string {
+  const payload: string = JSON.stringify(draft);
+  return `(function(serialized) {
+  var fields = document.querySelectorAll('input:not([type="password"]),textarea,select');
+  var draft = [];
+  try { draft = JSON.parse(serialized || '[]'); } catch (e) { return 'invalid'; }
+  for (var i = 0; i < fields.length; i++) {
+    var field = fields[i];
+    var key = field.id || field.name || ('field-' + i);
+    for (var j = 0; j < draft.length; j++) {
+      if (draft[j].key === key) { field.value = draft[j].value || ''; break; }
+    }
+  }
+  return 'restored';
+})(${payload});`;
 }
 
 /** Makes a mobile page lay out at desktop width once the desktop UA is set. */
