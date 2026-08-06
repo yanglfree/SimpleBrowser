@@ -77,6 +77,10 @@ export struct AddressSheet {
               this.text = value;
               this.onQueryChange(value);
             })
+            .onPaste((content: string, _event: PasteEvent) => {
+              this.text = content;
+              this.onSubmit(content);
+            })
             .onSubmit(() => this.onSubmit(this.text))
 
           if (this.text.length > 0) {
