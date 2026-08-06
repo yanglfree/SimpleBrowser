@@ -1,4 +1,5 @@
 import { webview } from '@kit.ArkWeb';
+import { abilityAccessCtrl, PermissionRequestResult, Permissions } from '@kit.AbilityKit';
 
 import { image } from '@kit.ImageKit';
 import {
@@ -35,6 +36,8 @@ import {
   Suggestion,
   LoadErrorKind,
   SecurityState,
+  SitePermission,
+  SitePermissionDecision,
   cloneSettings,
   cloneHistoryEntry,
   cloneTab,
@@ -53,6 +56,7 @@ import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
 import { HistorySheet } from '../components/HistorySheet';
 import { LinkActionSheet } from '../components/LinkActionSheet';
 import { OnboardingSheet } from '../components/OnboardingSheet';
+import { PermissionSheet } from '../components/PermissionSheet';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
@@ -90,7 +94,8 @@ enum Overlay {
   Downloads = 10,
   Find = 11,
   LinkActions = 12,
-  Onboarding = 13
+  Onboarding = 13,
+  Permission = 14
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -106,6 +111,12 @@ interface ResumeRequest {
   tabId: string;
   position: number;
   isReader: boolean;
+}
+
+interface PendingSitePermission {
+  origin: string;
+  resources: string[];
+  displayResources: Resource[];
 }
 
 interface ReaderPalette {
@@ -149,6 +160,7 @@ struct Index {
   @State private findCurrent: number = 0;
   @State private findTotal: number = 0;
   @State private longPressTarget: WebLongPressTarget | undefined = undefined;
+  @State private pendingSitePermission: PendingSitePermission | undefined = undefined;
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
   @State private history: HistoryEntry[] = [];
@@ -156,6 +168,8 @@ struct Index {
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
   private isTabSoftLimitPromptVisible: boolean = false;
+  private pendingPermissionRequest: PermissionRequest | undefined = undefined;
+  private pendingGeolocation: OnGeolocationShowEvent | undefined = undefined;
   private pageScrollOffsets: Map<string, number> = new Map();
   private persistedPageScrollOffsets: Map<string, number> = new Map();
   @State private resumeRequest: ResumeRequest | undefined = undefined;
@@ -356,7 +370,11 @@ struct Index {
               onEdgeForward: (): void => { this.edgeNavigate(tab.id, false); },
               onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); },
               onScaleChange: (scale: number): void => { void this.handleScaleChange(tab.id, scale); },
-              onLongPress: (): void => { void this.openLongPressActions(tab.id); }
+              onLongPress: (): void => { void this.openLongPressActions(tab.id); },
+              onPermissionRequest: (event: OnPermissionRequestEvent): void =>
+                this.handlePermissionRequest(event),
+              onGeolocationShow: (event: OnGeolocationShowEvent): void =>
+                this.handleGeolocationShow(event)
             })
           } else {
             this.HibernatedTab(tab)
@@ -612,6 +630,7 @@ struct Index {
       SettingsPage({
         settings: this.settings,
         allowedHosts: this.viewModel.getAllowedHosts(),
+        sitePermissions: this.settings.sitePermissions,
         currentHost: displayHost(this.activeTab()?.url ?? ''),
         currentHostDarkModeEnabled: !this.isDarkModeExcluded(this.activeTab()?.url ?? ''),
         rulesLastUpdatedAt: this.rulesLastUpdatedAt,
@@ -621,11 +640,20 @@ struct Index {
         onImportBookmarks: (): void => { void this.importBookmarks(); },
         onExportBookmarks: (): void => { void this.exportBookmarks(); },
         onRemoveAllowedHost: (host: string): void => { void this.removeAllowedHost(host); },
+        onRemoveSitePermission: (origin: string): void => { void this.removeSitePermission(origin); },
         onToggleCurrentSiteDarkMode: (): void => { void this.toggleCurrentSiteDarkMode(); },
         onUpdateRules: (): void => { void this.updateRules(); },
         onBack: (): void => { this.sheet = Overlay.None; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.Permission && this.pendingSitePermission !== undefined) {
+      PermissionSheet({
+        origin: this.pendingSitePermission.origin,
+        resources: this.pendingSitePermission.displayResources,
+        onAllow: (): void => { void this.allowPendingPermission(); },
+        onDeny: (): void => { void this.denyPendingPermission(); }
+      })
+        .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.Security) {
       SecurityPanel({
         host: displayHost(this.activeTab()?.url ?? ''),
@@ -1415,6 +1443,215 @@ struct Index {
     return host.length > 0 && this.settings.webDarkModeExcludedHosts.includes(host);
   }
 
+  private handlePermissionRequest(event: OnPermissionRequestEvent): void {
+    const request: PermissionRequest = event.request;
+    const origin: string = request.getOrigin();
+    const resources: string[] = request.getAccessibleResource();
+    if (origin.length === 0 || resources.length === 0) {
+      request.deny();
+      return;
+    }
+    if (resources.some((resource: string): boolean => !this.isSupportedPermissionResource(resource))) {
+      request.deny();
+      return;
+    }
+    const decision: SitePermissionDecision = this.sitePermissionDecision(origin, resources);
+    if (decision === SitePermissionDecision.Allow) {
+      void this.grantPermissionRequest(origin, resources, request, undefined);
+    } else if (decision === SitePermissionDecision.Deny) {
+      request.deny();
+    } else {
+      this.pendingPermissionRequest = request;
+      this.pendingGeolocation = undefined;
+      this.pendingSitePermission = {
+        origin: origin,
+        resources: resources,
+        displayResources: resources.map((resource: string): Resource => this.permissionResourceLabel(resource))
+      };
+      this.sheet = Overlay.Permission;
+    }
+  }
+
+  private handleGeolocationShow(event: OnGeolocationShowEvent): void {
+    const decision: SitePermissionDecision =
+      this.sitePermissionDecision(event.origin, ['LOCATION']);
+    if (decision === SitePermissionDecision.Allow) {
+      event.geolocation.invoke(event.origin, true, true);
+    } else if (decision === SitePermissionDecision.Deny) {
+      event.geolocation.invoke(event.origin, false, false);
+    } else {
+      this.pendingPermissionRequest = undefined;
+      this.pendingGeolocation = event;
+      this.pendingSitePermission = {
+        origin: event.origin,
+        resources: ['LOCATION'],
+        displayResources: [$r('app.string.site_permission_location')]
+      };
+      this.sheet = Overlay.Permission;
+    }
+  }
+
+  private permissionResourceLabel(resource: string): Resource {
+    if (resource === 'TYPE_VIDEO_CAPTURE') {
+      return $r('app.string.site_permission_camera');
+    }
+    if (resource === 'TYPE_AUDIO_CAPTURE') {
+      return $r('app.string.site_permission_microphone');
+    }
+    if (resource === 'LOCATION') {
+      return $r('app.string.site_permission_location');
+    }
+    return $r('app.string.site_permission_notifications');
+  }
+
+  private isSupportedPermissionResource(resource: string): boolean {
+    return resource === 'TYPE_VIDEO_CAPTURE' || resource === 'TYPE_AUDIO_CAPTURE';
+  }
+
+  private sitePermissionDecision(origin: string, resources: string[]): SitePermissionDecision {
+    const stored: SitePermission | undefined = this.settings.sitePermissions.find(
+      (entry: SitePermission): boolean => entry.origin === origin);
+    if (stored === undefined) {
+      return SitePermissionDecision.Prompt;
+    }
+    let result: SitePermissionDecision = SitePermissionDecision.Allow;
+    for (const resource of resources) {
+      let decision: SitePermissionDecision;
+      if (resource === 'TYPE_VIDEO_CAPTURE') {
+        decision = stored.camera;
+      } else if (resource === 'TYPE_AUDIO_CAPTURE') {
+        decision = stored.microphone;
+      } else if (resource === 'LOCATION') {
+        decision = stored.location;
+      } else {
+        return SitePermissionDecision.Deny;
+      }
+      if (decision === SitePermissionDecision.Deny) {
+        return SitePermissionDecision.Deny;
+      }
+      if (decision === SitePermissionDecision.Prompt) {
+        result = SitePermissionDecision.Prompt;
+      }
+    }
+    return result;
+  }
+
+  private async grantPermissionRequest(
+    origin: string,
+    resources: string[],
+    request: PermissionRequest | undefined,
+    geolocation: OnGeolocationShowEvent | undefined
+  ): Promise<void> {
+    const nativePermissions: Permissions[] = [];
+    if (resources.includes('TYPE_VIDEO_CAPTURE')) {
+      nativePermissions.push('ohos.permission.CAMERA');
+    }
+    if (resources.includes('TYPE_AUDIO_CAPTURE')) {
+      nativePermissions.push('ohos.permission.MICROPHONE');
+    }
+    if (resources.includes('LOCATION')) {
+      nativePermissions.push('ohos.permission.LOCATION');
+    }
+    const nativeAllowed: boolean = await this.requestNativePermissions(nativePermissions);
+    if (!nativeAllowed) {
+      request?.deny();
+      geolocation?.geolocation.invoke(origin, false, false);
+      await this.updateSitePermission(origin, resources, SitePermissionDecision.Deny);
+      return;
+    }
+    if (request !== undefined) {
+      request.grant(resources);
+    }
+    geolocation?.geolocation.invoke(origin, true, true);
+    await this.updateSitePermission(origin, resources, SitePermissionDecision.Allow);
+  }
+
+  private async requestNativePermissions(permissions: Permissions[]): Promise<boolean> {
+    if (permissions.length === 0) {
+      return true;
+    }
+    try {
+      const manager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
+      const result: PermissionRequestResult =
+        await manager.requestPermissionsFromUser(AppContext.getContext(), permissions);
+      return result.authResults.length === permissions.length &&
+        result.authResults.every((status: number): boolean =>
+          status === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED);
+    } catch (error) {
+      Logger.warn(TAG, `Native site permission request failed: ${String(error)}`);
+      return false;
+    }
+  }
+
+  private async allowPendingPermission(): Promise<void> {
+    const pending: PendingSitePermission | undefined = this.pendingSitePermission;
+    if (pending === undefined) {
+      return;
+    }
+    const request: PermissionRequest | undefined = this.pendingPermissionRequest;
+    const geolocation: OnGeolocationShowEvent | undefined = this.pendingGeolocation;
+    this.clearPendingPermission();
+    await this.grantPermissionRequest(pending.origin, pending.resources, request, geolocation);
+  }
+
+  private async denyPendingPermission(): Promise<void> {
+    const pending: PendingSitePermission | undefined = this.pendingSitePermission;
+    if (pending === undefined) {
+      return;
+    }
+    const request: PermissionRequest | undefined = this.pendingPermissionRequest;
+    const geolocation: OnGeolocationShowEvent | undefined = this.pendingGeolocation;
+    this.clearPendingPermission();
+    request?.deny();
+    geolocation?.geolocation.invoke(pending.origin, false, false);
+    await this.updateSitePermission(pending.origin, pending.resources, SitePermissionDecision.Deny);
+  }
+
+  private clearPendingPermission(): void {
+    this.pendingPermissionRequest = undefined;
+    this.pendingGeolocation = undefined;
+    this.pendingSitePermission = undefined;
+    this.sheet = Overlay.None;
+  }
+
+  private async updateSitePermission(
+    origin: string,
+    resources: string[],
+    decision: SitePermissionDecision
+  ): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    let stored: SitePermission | undefined = next.sitePermissions.find(
+      (entry: SitePermission): boolean => entry.origin === origin);
+    if (stored === undefined) {
+      stored = {
+        origin: origin,
+        camera: SitePermissionDecision.Prompt,
+        microphone: SitePermissionDecision.Prompt,
+        location: SitePermissionDecision.Prompt,
+        notifications: SitePermissionDecision.Deny
+      };
+      next.sitePermissions.push(stored);
+    }
+    if (resources.includes('TYPE_VIDEO_CAPTURE')) {
+      stored.camera = decision;
+    }
+    if (resources.includes('TYPE_AUDIO_CAPTURE')) {
+      stored.microphone = decision;
+    }
+    if (resources.includes('LOCATION')) {
+      stored.location = decision;
+    }
+    stored.notifications = SitePermissionDecision.Deny;
+    await this.applySettings(next);
+  }
+
+  private async removeSitePermission(origin: string): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.sitePermissions = next.sitePermissions.filter(
+      (entry: SitePermission): boolean => entry.origin !== origin);
+    await this.applySettings(next);
+  }
+
   private async toggleCurrentSiteDarkMode(): Promise<void> {
     const host: string = rawHost(this.activeTab()?.url ?? '');
     if (host.length === 0) {
@@ -1548,6 +1785,7 @@ struct Index {
     }
     if (selection.permissions) {
       await this.viewModel.clearAllowedHosts();
+      await this.viewModel.clearSitePermissions();
       this.viewModel.adsBlockService.applyAllowedHosts(this.viewModel.getAllowedHosts());
     }
     this.syncState();

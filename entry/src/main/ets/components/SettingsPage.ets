@@ -4,6 +4,8 @@ import {
   BrowserSettings,
   RuleStrength,
   SearchEngine,
+  SitePermission,
+  SitePermissionDecision,
   TabExpiry,
   WebDarkModePreference,
   cloneSettings,
@@ -157,6 +159,7 @@ function groupCard() {
 export struct SettingsPage {
   @Prop settings: BrowserSettings = defaultBrowserSettings();
   @Prop allowedHosts: string[] = [];
+  @Prop sitePermissions: SitePermission[] = [];
   @Prop currentHost: string = '';
   @Prop currentHostDarkModeEnabled: boolean = false;
   @Prop rulesLastUpdatedAt: number = 0;
@@ -166,6 +169,7 @@ export struct SettingsPage {
   onImportBookmarks: () => void = (): void => {};
   onExportBookmarks: () => void = (): void => {};
   onRemoveAllowedHost: (host: string) => void = (_host: string): void => {};
+  onRemoveSitePermission: (origin: string) => void = (_origin: string): void => {};
   onToggleCurrentSiteDarkMode: () => void = (): void => {};
   onUpdateRules: () => void = (): void => {};
   onBack: () => void = (): void => {};
@@ -423,6 +427,24 @@ export struct SettingsPage {
                 .fontColor($r('app.color.text_secondary'))
                 .textAlign(TextAlign.Start)
             }
+            Text($r('app.string.site_permissions'))
+              .width('100%')
+              .height(44)
+              .margin({ top: 12 })
+              .fontSize(13)
+              .fontColor($r('app.color.text_secondary'))
+            if (this.sitePermissions.length > 0) {
+              ForEach(this.sitePermissions,
+                (permission: SitePermission) => this.SitePermissionRow(permission),
+                (permission: SitePermission) => permission.origin)
+            } else {
+              Text($r('app.string.site_permissions_empty'))
+                .width('100%')
+                .height(44)
+                .fontSize(13)
+                .fontColor($r('app.color.text_secondary'))
+                .textAlign(TextAlign.Start)
+            }
           }
           .groupCard()
 
@@ -673,6 +695,56 @@ export struct SettingsPage {
     .width('100%')
     .height(44)
     .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+  }
+
+  @Builder
+  private SitePermissionRow(permission: SitePermission) {
+    Column() {
+      Row({ space: 10 }) {
+        Text(permission.origin)
+          .layoutWeight(1)
+          .fontSize(14)
+          .fontColor($r('app.color.text_primary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        AppIcon({ name: IconName.Close, glyphSize: 16, color: $r('app.color.text_secondary') })
+          .accessibilityText($r('app.string.site_permission_deny'))
+          .onClick(() => this.onRemoveSitePermission(permission.origin))
+      }
+      .width('100%')
+      this.PermissionStatusRow($r('app.string.site_permission_camera'), permission.camera)
+      this.PermissionStatusRow($r('app.string.site_permission_microphone'), permission.microphone)
+      this.PermissionStatusRow($r('app.string.site_permission_location'), permission.location)
+      this.PermissionStatusRow($r('app.string.site_permission_notifications'), permission.notifications)
+    }
+    .width('100%')
+    .padding({ top: 10, bottom: 10 })
+    .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+  }
+
+  @Builder
+  private PermissionStatusRow(label: Resource, decision: SitePermissionDecision) {
+    Row() {
+      Text(label)
+        .layoutWeight(1)
+        .fontSize(12.5)
+        .fontColor($r('app.color.text_secondary'))
+      Text(this.permissionDecisionLabel(decision))
+        .fontSize(12.5)
+        .fontColor($r('app.color.text_secondary'))
+    }
+    .width('100%')
+    .height(24)
+  }
+
+  private permissionDecisionLabel(decision: SitePermissionDecision): Resource {
+    if (decision === SitePermissionDecision.Allow) {
+      return $r('app.string.site_permission_allowed');
+    }
+    if (decision === SitePermissionDecision.Deny) {
+      return $r('app.string.site_permission_denied');
+    }
+    return $r('app.string.site_permission_prompt');
   }
 
   /** Sub-screens would break the single-surface rule, so choices open as sheets. */

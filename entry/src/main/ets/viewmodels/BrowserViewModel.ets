@@ -557,6 +557,11 @@ export class BrowserViewModel {
     await this.repository.clearAllowedHosts();
   }
 
+  async clearSitePermissions(): Promise<void> {
+    await this.repository.clearSitePermissions();
+    this.settings = this.repository.getSettings();
+  }
+
   async clearBrowsingData(): Promise<void> {
     await this.repository.clearBrowsingData();
     this.history = [];

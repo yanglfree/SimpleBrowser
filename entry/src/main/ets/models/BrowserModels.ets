@@ -18,6 +18,12 @@ export enum WebDarkModePreference {
   Dark = 2
 }
 
+export enum SitePermissionDecision {
+  Prompt = 0,
+  Allow = 1,
+  Deny = 2
+}
+
 export enum RuleStrength {
   Standard = 0,
   Strict = 1
@@ -184,6 +190,7 @@ export interface BrowserSettings {
   appearance: AppearanceMode;
   webDarkMode: WebDarkModePreference;
   webDarkModeExcludedHosts: string[];
+  sitePermissions: SitePermission[];
   clearCookiesOnTabClose: boolean;
   readerFontSize: number;
   readerLineHeight: number;
@@ -194,6 +201,14 @@ export interface BrowserSettings {
 export interface SiteZoomRatio {
   host: string;
   percent: number;
+}
+
+export interface SitePermission {
+  origin: string;
+  camera: SitePermissionDecision;
+  microphone: SitePermissionDecision;
+  location: SitePermissionDecision;
+  notifications: SitePermissionDecision;
 }
 
 /** A tile on the start page. `colorIndex` is 0-5 and maps to `site_tile_*` colors. */
@@ -267,6 +282,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     appearance: AppearanceMode.System,
     webDarkMode: WebDarkModePreference.System,
     webDarkModeExcludedHosts: [],
+    sitePermissions: [],
     clearCookiesOnTabClose: false,
     readerFontSize: 17,
     readerLineHeight: 205,
@@ -351,6 +367,13 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     appearance: settings.appearance,
     webDarkMode: settings.webDarkMode,
     webDarkModeExcludedHosts: settings.webDarkModeExcludedHosts.slice(0),
+    sitePermissions: settings.sitePermissions.map((entry: SitePermission): SitePermission => ({
+      origin: entry.origin,
+      camera: entry.camera,
+      microphone: entry.microphone,
+      location: entry.location,
+      notifications: entry.notifications
+    })),
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,
     readerFontSize: settings.readerFontSize,
     readerLineHeight: settings.readerLineHeight,

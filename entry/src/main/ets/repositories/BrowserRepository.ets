@@ -18,6 +18,8 @@ import {
   HistoryEntry,
   LoadErrorKind,
   SecurityState,
+  SitePermission,
+  SitePermissionDecision,
   SiteZoomRatio,
   SiteBlockStats,
   addBlockStats,
@@ -308,6 +310,13 @@ export class BrowserRepository {
     await this.save(ALLOWED_HOSTS_KEY, '[]');
   }
 
+  async clearSitePermissions(): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.sitePermissions = [];
+    this.settings = next;
+    await this.save(SETTINGS_KEY, JSON.stringify(next));
+  }
+
   private pruneDailyStats(): void {
     const window: string[] = recentDayKeys(WEEKLY_WINDOW_DAYS);
     this.dailyStats = this.dailyStats
@@ -436,6 +445,18 @@ export class BrowserRepository {
             .filter((host: string): boolean => typeof host === 'string' && host.length > 0)
             .map((host: string): string => host.toLowerCase())
           : fallback.webDarkModeExcludedHosts,
+        sitePermissions: Array.isArray(parsed.sitePermissions)
+          ? parsed.sitePermissions
+            .filter((entry: SitePermission): boolean =>
+              entry !== undefined && typeof entry.origin === 'string' && entry.origin.length > 0)
+            .map((entry: SitePermission): SitePermission => ({
+              origin: entry.origin,
+              camera: entry.camera ?? SitePermissionDecision.Prompt,
+              microphone: entry.microphone ?? SitePermissionDecision.Prompt,
+              location: entry.location ?? SitePermissionDecision.Prompt,
+              notifications: SitePermissionDecision.Deny
+            }))
+          : fallback.sitePermissions,
         clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,
         readerFontSize: parsed.readerFontSize ?? fallback.readerFontSize,
         readerLineHeight: parsed.readerLineHeight ?? fallback.readerLineHeight,

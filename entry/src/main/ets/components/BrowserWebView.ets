@@ -40,6 +40,10 @@ export struct BrowserWebView {
   onAdsBlocked: (urls: string[]) => void = (_urls: string[]): void => {};
   onScaleChange: (scale: number) => void = (_scale: number): void => {};
   onLongPress: () => void = (): void => {};
+  onPermissionRequest: (event: OnPermissionRequestEvent) => void =
+    (_event: OnPermissionRequestEvent): void => {};
+  onGeolocationShow: (event: OnGeolocationShowEvent) => void =
+    (_event: OnGeolocationShowEvent): void => {};
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
@@ -74,6 +78,8 @@ export struct BrowserWebView {
       .onTitleReceive((event: OnTitleReceiveEvent) => this.onTitleReceive(event.title))
       .onScaleChange((event: OnScaleChangeEvent) => this.onScaleChange(event.newScale))
       .onAdsBlocked((details: AdsBlockedDetails) => this.onAdsBlocked(details.adsBlocked))
+      .onPermissionRequest((event: OnPermissionRequestEvent) => this.onPermissionRequest(event))
+      .onGeolocationShow((event: OnGeolocationShowEvent) => this.onGeolocationShow(event))
       .onErrorReceive((event: OnErrorReceiveEvent) => {
         const code: number = event.error.getErrorCode();
         const message: string = event.error.getErrorInfo();
