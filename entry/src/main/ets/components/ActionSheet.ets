@@ -233,6 +233,13 @@ export struct ActionSheet {
         active: false
       },
       {
+        key: 'find',
+        label: $r('app.string.find_title'),
+        icon: IconName.Search,
+        enabled: true,
+        active: false
+      },
+      {
         key: 'downloads',
         label: $r('app.string.download_title'),
         icon: IconName.ArrowUpLeft,

@@ -3,6 +3,7 @@ import { webview } from '@kit.ArkWeb';
 import { image } from '@kit.ImageKit';
 import {
   DESKTOP_VIEWPORT_SCRIPT,
+  findCountScript,
   HOME_URL,
   READER_EXIT_SCRIPT,
   READ_FAVICON_SCRIPT,
@@ -42,6 +43,7 @@ import { AddressSheet } from '../components/AddressSheet';
 import { BlockPanel } from '../components/BlockPanel';
 import { BrowserWebView } from '../components/BrowserWebView';
 import { DownloadSheet } from '../components/DownloadSheet';
+import { FindSheet } from '../components/FindSheet';
 import { OmniCapsule } from '../components/OmniCapsule';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
 import { HistorySheet } from '../components/HistorySheet';
@@ -78,7 +80,8 @@ enum Overlay {
   NavigationHistory = 7,
   History = 8,
   Share = 9,
-  Downloads = 10
+  Downloads = 10,
+  Find = 11
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -132,6 +135,9 @@ struct Index {
   @State private isActiveBookmarked: boolean = false;
   @State private isActiveSavedForLater: boolean = false;
   @State private downloadTasks: DownloadTask[] = [];
+  @State private findQuery: string = '';
+  @State private findCurrent: number = 0;
+  @State private findTotal: number = 0;
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
   @State private history: HistoryEntry[] = [];
@@ -619,6 +625,16 @@ struct Index {
         onRetry: (id: string): void => DownloadService.retry(id)
       })
         .transition(this.sheetTransition())
+    } else if (this.sheet === Overlay.Find) {
+      FindSheet({
+        query: this.findQuery,
+        current: this.findCurrent,
+        total: this.findTotal,
+        onQueryChange: (query: string): void => { void this.updateFindQuery(query); },
+        onPrevious: (): void => { void this.findNextMatch(false); },
+        onNext: (): void => { void this.findNextMatch(true); },
+        onDismiss: (): void => { this.closeFind(); }
+      })
     } else if (this.sheet === Overlay.Share) {
       SharePanel({
         title: this.activeTab()?.title ?? '',
@@ -1044,7 +1060,62 @@ struct Index {
     }
     if (key === 'downloads') {
       this.sheet = Overlay.Downloads;
+      return;
     }
+    if (key === 'find') {
+      this.findQuery = '';
+      this.findCurrent = 0;
+      this.findTotal = 0;
+      this.sheet = Overlay.Find;
+    }
+  }
+
+  private async updateFindQuery(query: string): Promise<void> {
+    this.findQuery = query;
+    this.findCurrent = 0;
+    this.findTotal = 0;
+    const controller: webview.WebviewController | undefined = this.controllers.get(this.activeTabId);
+    if (controller === undefined || query.trim().length === 0) {
+      if (controller !== undefined) {
+        WebKernelService.clearFind(controller);
+      }
+      return;
+    }
+    const raw: string = await this.runScript(controller, findCountScript(query));
+    if (query !== this.findQuery) {
+      return;
+    }
+    const count: number = Number(this.parseScriptString(raw));
+    this.findTotal = Number.isNaN(count) ? 0 : count;
+    if (this.findTotal > 0) {
+      WebKernelService.findAll(controller, query.trim());
+      this.findCurrent = 1;
+    }
+  }
+
+  private findNextMatch(forward: boolean): void {
+    if (this.findTotal === 0) {
+      return;
+    }
+    const controller: webview.WebviewController | undefined = this.controllers.get(this.activeTabId);
+    if (controller === undefined) {
+      return;
+    }
+    WebKernelService.findNext(controller, forward);
+    this.findCurrent = forward
+      ? (this.findCurrent >= this.findTotal ? 1 : this.findCurrent + 1)
+      : (this.findCurrent <= 1 ? this.findTotal : this.findCurrent - 1);
+  }
+
+  private closeFind(): void {
+    const controller: webview.WebviewController | undefined = this.controllers.get(this.activeTabId);
+    if (controller !== undefined) {
+      WebKernelService.clearFind(controller);
+    }
+    this.findQuery = '';
+    this.findCurrent = 0;
+    this.findTotal = 0;
+    this.sheet = Overlay.None;
   }
 
   private async shareActivePage(): Promise<void> {

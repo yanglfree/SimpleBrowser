@@ -51,6 +51,18 @@ export class WebKernelService {
     WebKernelService.run('goForward', (): void => controller.forward());
   }
 
+  static findAll(controller: webview.WebviewController, query: string): void {
+    WebKernelService.run('findAll', (): void => controller.searchAllAsync(query));
+  }
+
+  static findNext(controller: webview.WebviewController, forward: boolean): void {
+    WebKernelService.run('findNext', (): void => controller.searchNext(forward));
+  }
+
+  static clearFind(controller: webview.WebviewController): void {
+    WebKernelService.run('clearFind', (): void => controller.clearMatches());
+  }
+
   static goBackBySteps(controller: webview.WebviewController, step: number): void {
     if (!WebKernelService.isBackwardStep(step)) {
       return;

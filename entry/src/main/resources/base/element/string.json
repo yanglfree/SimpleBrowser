@@ -49,6 +49,8 @@
     { "name": "action_desktop", "value": "桌面版" },
     { "name": "navigation_history_title", "value": "后退历史" },
     { "name": "navigation_history_empty", "value": "没有可返回的页面" },
+    { "name": "find_title", "value": "查找" },
+    { "name": "find_placeholder", "value": "在页面中查找" },
 
     { "name": "cancel", "value": "取消" },
     { "name": "done", "value": "完成" },

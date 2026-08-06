@@ -407,3 +407,18 @@ export const READER_EXIT_SCRIPT: string = `
   S.active = false;
   return 'restored';
 })();`;
+
+/** Counts visible text matches while ArkWeb owns native highlighting/navigation. */
+export function findCountScript(query: string): string {
+  const serialized: string = JSON.stringify(query.trim().toLowerCase());
+  return `(function(q) {
+  if (!q) return '0';
+  var text = (document.body.innerText || '').toLowerCase();
+  var count = 0, offset = 0, index = -1;
+  while ((index = text.indexOf(q, offset)) >= 0) {
+    count += 1;
+    offset = index + q.length;
+  }
+  return String(count);
+})(${serialized});`;
+}
