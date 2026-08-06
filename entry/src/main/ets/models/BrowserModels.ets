@@ -52,6 +52,13 @@ export enum SecurityState {
   CertificateError = 3
 }
 
+export enum TabExpiry {
+  OneDay = 1,
+  ThreeDays = 3,
+  SevenDays = 7,
+  Never = 0
+}
+
 /** Requests the blocker stopped, split by what they were. */
 export interface BlockStats {
   ads: number;
@@ -137,6 +144,8 @@ export interface BrowserSettings {
   searchSuggestionsEnabled: boolean;
   gesturesEnabled: boolean;
   autoHideToolbarEnabled: boolean;
+  tabExpiryDays: TabExpiry;
+  tabSoftLimit: number;
   appearance: AppearanceMode;
   clearCookiesOnTabClose: boolean;
   readerFontSize: number;
@@ -195,6 +204,8 @@ export function defaultBrowserSettings(): BrowserSettings {
     searchSuggestionsEnabled: false,
     gesturesEnabled: true,
     autoHideToolbarEnabled: true,
+    tabExpiryDays: TabExpiry.SevenDays,
+    tabSoftLimit: 12,
     appearance: AppearanceMode.System,
     clearCookiesOnTabClose: false,
     readerFontSize: 17,
@@ -253,6 +264,8 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     searchSuggestionsEnabled: settings.searchSuggestionsEnabled,
     gesturesEnabled: settings.gesturesEnabled,
     autoHideToolbarEnabled: settings.autoHideToolbarEnabled,
+    tabExpiryDays: settings.tabExpiryDays,
+    tabSoftLimit: settings.tabSoftLimit,
     appearance: settings.appearance,
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,
     readerFontSize: settings.readerFontSize,

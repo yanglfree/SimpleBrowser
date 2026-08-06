@@ -4,6 +4,7 @@ import {
   BrowserSettings,
   RuleStrength,
   SearchEngine,
+  TabExpiry,
   cloneSettings,
   defaultBrowserSettings
 } from '../models/BrowserModels';
@@ -14,7 +15,8 @@ enum PickerKind {
   None = 0,
   RuleStrength = 1,
   SearchEngine = 2,
-  Appearance = 3
+  Appearance = 3,
+  TabExpiry = 4
 }
 interface PickerOption {
   label: Resource;
@@ -37,6 +39,13 @@ const APPEARANCE_LABELS: Resource[] = [
   $r('app.string.appearance_system'),
   $r('app.string.appearance_light'),
   $r('app.string.appearance_dark')
+];
+
+const TAB_EXPIRY_LABELS: Resource[] = [
+  $r('app.string.tab_expiry_never'),
+  $r('app.string.tab_expiry_one_day'),
+  $r('app.string.tab_expiry_three_days'),
+  $r('app.string.tab_expiry_seven_days')
 ];
 
 function optionsFrom(labels: Resource[]): PickerOption[] {
@@ -144,6 +153,12 @@ export struct SettingsPage {
               APPEARANCE_LABELS[this.settings.appearance as number],
               false,
               () => this.picker = PickerKind.Appearance
+            )
+            this.ValueRow(
+              $r('app.string.tab_expiry'),
+              this.tabExpiryLabel(),
+              false,
+              () => this.picker = PickerKind.TabExpiry
             )
           }
           .groupCard()
@@ -329,6 +344,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.SearchEngine) {
       return optionsFrom(SEARCH_ENGINE_LABELS);
     }
+    if (this.picker === PickerKind.TabExpiry) {
+      return optionsFrom(TAB_EXPIRY_LABELS);
+    }
     return optionsFrom(APPEARANCE_LABELS);
   }
 
@@ -339,6 +357,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.SearchEngine) {
       return this.settings.searchEngine as number;
     }
+    if (this.picker === PickerKind.TabExpiry) {
+      return this.tabExpiryIndex();
+    }
     return this.settings.appearance as number;
   }
 
@@ -348,11 +369,31 @@ export struct SettingsPage {
       next.ruleStrength = value as RuleStrength;
     } else if (this.picker === PickerKind.SearchEngine) {
       next.searchEngine = value as SearchEngine;
+    } else if (this.picker === PickerKind.TabExpiry) {
+      next.tabExpiryDays = this.tabExpiryValue(value);
     } else {
       next.appearance = value as AppearanceMode;
     }
     this.picker = PickerKind.None;
     this.onChange(next);
+  }
+
+  private tabExpiryIndex(): number {
+    if (this.settings.tabExpiryDays === TabExpiry.OneDay) return 1;
+    if (this.settings.tabExpiryDays === TabExpiry.ThreeDays) return 2;
+    if (this.settings.tabExpiryDays === TabExpiry.SevenDays) return 3;
+    return 0;
+  }
+
+  private tabExpiryValue(index: number): TabExpiry {
+    if (index === 1) return TabExpiry.OneDay;
+    if (index === 2) return TabExpiry.ThreeDays;
+    if (index === 3) return TabExpiry.SevenDays;
+    return TabExpiry.Never;
+  }
+
+  private tabExpiryLabel(): Resource {
+    return TAB_EXPIRY_LABELS[this.tabExpiryIndex()];
   }
 
   private confirmClear(): void {

@@ -562,6 +562,13 @@ struct Index {
   }
 
   private createTab(isPrivate: boolean): void {
+    if (this.viewModel.isTabSoftLimitReached()) {
+      try {
+        this.getUIContext().getPromptAction().showToast({ message: $r('app.string.tab_soft_limit_message') });
+      } catch (error) {
+        Logger.warn(TAG, `Tab limit toast unavailable: ${String(error)}`);
+      }
+    }
     this.viewModel.addTab(HOME_URL, isPrivate);
     this.sheet = Overlay.None;
     this.isCapsuleHidden = false;

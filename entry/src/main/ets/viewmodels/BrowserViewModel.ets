@@ -19,6 +19,7 @@ import {
   QuickSite,
   Suggestion,
   SuggestionKind,
+  TabExpiry,
   addBlockStats,
   cloneBlockStats,
   cloneSettings,
@@ -58,7 +59,16 @@ export class BrowserViewModel {
     this.settings = this.repository.getSettings();
     const session: BrowserSession | undefined = this.repository.getSession();
     if (session !== undefined && session.tabs.length > 0) {
-      this.tabs = session.tabs.map((tab: BrowserTab) => cloneTab(tab));
+      const expiryDays: TabExpiry = this.settings.tabExpiryDays;
+      const cutoff: number = expiryDays === TabExpiry.Never
+        ? 0
+        : Date.now() - Number(expiryDays) * 24 * 60 * 60 * 1000;
+      this.tabs = session.tabs
+        .filter((tab: BrowserTab): boolean => cutoff === 0 || tab.lastVisitedAt >= cutoff)
+        .map((tab: BrowserTab) => cloneTab(tab));
+      if (this.tabs.length === 0) {
+        this.tabs = [this.createTab(HOME_URL, false)];
+      }
       this.activeTabId = this.tabs.some((tab: BrowserTab) => tab.id === session.activeTabId)
         ? session.activeTabId
         : this.tabs[0].id;
@@ -73,6 +83,7 @@ export class BrowserViewModel {
     await this.adsBlockService.initialize(context);
     this.adsBlockService.applyAllowedHosts(this.repository.getAllowedHosts());
     DownloadService.configure();
+    this.persistSession();
   }
 
   persistSession(): void {
@@ -126,6 +137,10 @@ export class BrowserViewModel {
     this.activeTabId = tab.id;
     this.persistSession();
     return tab;
+  }
+
+  isTabSoftLimitReached(): boolean {
+    return this.tabs.length >= this.settings.tabSoftLimit;
   }
 
   /** Closing the last tab leaves a fresh start-page tab rather than an empty app. */

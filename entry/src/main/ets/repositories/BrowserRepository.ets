@@ -252,6 +252,8 @@ export class BrowserRepository {
         searchSuggestionsEnabled: parsed.searchSuggestionsEnabled ?? fallback.searchSuggestionsEnabled,
         gesturesEnabled: parsed.gesturesEnabled ?? fallback.gesturesEnabled,
         autoHideToolbarEnabled: parsed.autoHideToolbarEnabled ?? fallback.autoHideToolbarEnabled,
+        tabExpiryDays: parsed.tabExpiryDays ?? fallback.tabExpiryDays,
+        tabSoftLimit: parsed.tabSoftLimit ?? fallback.tabSoftLimit,
         appearance: parsed.appearance ?? fallback.appearance,
         clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,
         readerFontSize: parsed.readerFontSize ?? fallback.readerFontSize,
