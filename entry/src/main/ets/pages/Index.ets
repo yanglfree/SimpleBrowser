@@ -621,6 +621,7 @@ struct Index {
     } else if (this.sheet === Overlay.History) {
       HistorySheet({
         entries: this.history,
+        savedItems: this.viewModel.savedItems,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onSelect: (url: string): void => this.navigateTo(url),
         onDelete: (id: string): void => { this.deleteHistory(id); },

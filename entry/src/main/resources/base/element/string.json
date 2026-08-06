@@ -51,6 +51,7 @@
     { "name": "navigation_history_empty", "value": "没有可返回的页面" },
     { "name": "find_title", "value": "查找" },
     { "name": "find_placeholder", "value": "在页面中查找" },
+    { "name": "global_search_placeholder", "value": "搜索历史与收藏" },
     { "name": "link_menu_title", "value": "链接操作" },
     { "name": "link_menu_open_background", "value": "后台打开" },
     { "name": "link_menu_copy", "value": "复制链接" },
