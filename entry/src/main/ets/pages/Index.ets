@@ -867,29 +867,55 @@ struct Index {
 
   private errorTitle(): Resource {
     const kind: LoadErrorKind = this.activeTab()?.loadError ?? LoadErrorKind.Unknown;
-    if (kind === LoadErrorKind.Offline) return $r('app.string.error_offline_title');
-    if (kind === LoadErrorKind.Timeout) return $r('app.string.error_timeout_title');
-    if (kind === LoadErrorKind.Dns) return $r('app.string.error_dns_title');
-    if (kind === LoadErrorKind.Certificate) return $r('app.string.error_certificate_title');
+    if (kind === LoadErrorKind.Offline) {
+      return $r('app.string.error_offline_title');
+    }
+    if (kind === LoadErrorKind.Timeout) {
+      return $r('app.string.error_timeout_title');
+    }
+    if (kind === LoadErrorKind.Dns) {
+      return $r('app.string.error_dns_title');
+    }
+    if (kind === LoadErrorKind.Certificate) {
+      return $r('app.string.error_certificate_title');
+    }
     return $r('app.string.error_unknown_title');
   }
 
   private errorMessage(): Resource {
     const kind: LoadErrorKind = this.activeTab()?.loadError ?? LoadErrorKind.Unknown;
-    if (kind === LoadErrorKind.Offline) return $r('app.string.error_offline_message');
-    if (kind === LoadErrorKind.Timeout) return $r('app.string.error_timeout_message');
-    if (kind === LoadErrorKind.Dns) return $r('app.string.error_dns_message');
-    if (kind === LoadErrorKind.Certificate) return $r('app.string.error_certificate_message');
+    if (kind === LoadErrorKind.Offline) {
+      return $r('app.string.error_offline_message');
+    }
+    if (kind === LoadErrorKind.Timeout) {
+      return $r('app.string.error_timeout_message');
+    }
+    if (kind === LoadErrorKind.Dns) {
+      return $r('app.string.error_dns_message');
+    }
+    if (kind === LoadErrorKind.Certificate) {
+      return $r('app.string.error_certificate_message');
+    }
     return $r('app.string.error_unknown_message');
   }
 
   private static errorKindFor(code: number, message: string): LoadErrorKind {
     const value: string = message.toLowerCase();
-    if (value.includes('certificate') || value.includes('ssl')) return LoadErrorKind.Certificate;
-    if (value.includes('dns') || value.includes('resolve')) return LoadErrorKind.Dns;
-    if (value.includes('timeout') || value.includes('timed out')) return LoadErrorKind.Timeout;
-    if (value.includes('offline') || value.includes('network')) return LoadErrorKind.Offline;
-    if (code === -7 || code === -21) return LoadErrorKind.Offline;
+    if (value.includes('certificate') || value.includes('ssl')) {
+      return LoadErrorKind.Certificate;
+    }
+    if (value.includes('dns') || value.includes('resolve')) {
+      return LoadErrorKind.Dns;
+    }
+    if (value.includes('timeout') || value.includes('timed out')) {
+      return LoadErrorKind.Timeout;
+    }
+    if (value.includes('offline') || value.includes('network')) {
+      return LoadErrorKind.Offline;
+    }
+    if (code === -7 || code === -21) {
+      return LoadErrorKind.Offline;
+    }
     return LoadErrorKind.Unknown;
   }
 

@@ -75,16 +75,28 @@ export struct SecurityPanel {
   }
 
   private stateTitle(): Resource {
-    if (this.state === SecurityState.Secure) return $r('app.string.security_secure');
-    if (this.state === SecurityState.CertificateError) return $r('app.string.security_certificate_error');
-    if (this.state === SecurityState.Insecure) return $r('app.string.security_insecure');
+    if (this.state === SecurityState.Secure) {
+      return $r('app.string.security_secure');
+    }
+    if (this.state === SecurityState.CertificateError) {
+      return $r('app.string.security_certificate_error');
+    }
+    if (this.state === SecurityState.Insecure) {
+      return $r('app.string.security_insecure');
+    }
     return $r('app.string.security_unknown');
   }
 
   private stateMessage(): Resource {
-    if (this.state === SecurityState.Secure) return $r('app.string.security_secure_message');
-    if (this.state === SecurityState.CertificateError) return $r('app.string.security_certificate_message');
-    if (this.state === SecurityState.Insecure) return $r('app.string.security_insecure_message');
+    if (this.state === SecurityState.Secure) {
+      return $r('app.string.security_secure_message');
+    }
+    if (this.state === SecurityState.CertificateError) {
+      return $r('app.string.security_certificate_message');
+    }
+    if (this.state === SecurityState.Insecure) {
+      return $r('app.string.security_insecure_message');
+    }
     return $r('app.string.security_unknown_message');
   }
 }

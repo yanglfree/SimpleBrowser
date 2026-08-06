@@ -379,16 +379,28 @@ export struct SettingsPage {
   }
 
   private tabExpiryIndex(): number {
-    if (this.settings.tabExpiryDays === TabExpiry.OneDay) return 1;
-    if (this.settings.tabExpiryDays === TabExpiry.ThreeDays) return 2;
-    if (this.settings.tabExpiryDays === TabExpiry.SevenDays) return 3;
+    if (this.settings.tabExpiryDays === TabExpiry.OneDay) {
+      return 1;
+    }
+    if (this.settings.tabExpiryDays === TabExpiry.ThreeDays) {
+      return 2;
+    }
+    if (this.settings.tabExpiryDays === TabExpiry.SevenDays) {
+      return 3;
+    }
     return 0;
   }
 
   private tabExpiryValue(index: number): TabExpiry {
-    if (index === 1) return TabExpiry.OneDay;
-    if (index === 2) return TabExpiry.ThreeDays;
-    if (index === 3) return TabExpiry.SevenDays;
+    if (index === 1) {
+      return TabExpiry.OneDay;
+    }
+    if (index === 2) {
+      return TabExpiry.ThreeDays;
+    }
+    if (index === 3) {
+      return TabExpiry.SevenDays;
+    }
     return TabExpiry.Never;
   }
 
