@@ -21,6 +21,8 @@ export struct BrowserWebView {
   onPageEnd: (url: string) => void = (_url: string): void => {};
   onTitleReceive: (title: string) => void = (_title: string): void => {};
   onProgressChange: (progress: number) => void = (_progress: number): void => {};
+  onScroll: (offsetY: number) => void = (_offsetY: number): void => {};
+  onKeyboardAttach: () => void = (): void => {};
   onAdsBlocked: (urls: string[]) => void = (_urls: string[]): void => {};
   onError: (code: number, message: string) => void = (_code: number, _message: string): void => {};
 
@@ -43,6 +45,11 @@ export struct BrowserWebView {
       .onPageBegin((event: OnPageBeginEvent) => this.onPageBegin(event.url))
       .onPageEnd((event: OnPageEndEvent) => this.onPageEnd(event.url))
       .onProgressChange((event: OnProgressChangeEvent) => this.onProgressChange(event.newProgress))
+      .onScroll((event: OnScrollEvent) => this.onScroll(event.yOffset))
+      .onInterceptKeyboardAttach((_info: WebKeyboardCallbackInfo): WebKeyboardOptions => {
+        this.onKeyboardAttach();
+        return { useSystemKeyboard: true };
+      })
       .onTitleReceive((event: OnTitleReceiveEvent) => this.onTitleReceive(event.title))
       .onAdsBlocked((details: AdsBlockedDetails) => this.onAdsBlocked(details.adsBlocked))
       .onErrorReceive((event: OnErrorReceiveEvent) => {

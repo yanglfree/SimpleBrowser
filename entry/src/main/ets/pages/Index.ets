@@ -109,6 +109,7 @@ struct Index {
   @State private isActiveBookmarked: boolean = false;
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
+  private pageScrollOffsets: Map<string, number> = new Map();
 
   async aboutToAppear(): Promise<void> {
     try {
@@ -233,6 +234,8 @@ struct Index {
               onPageEnd: (url: string): void => { this.handlePageEnd(tab.id, url); },
               onTitleReceive: (title: string): void => this.handleTitle(tab.id, title),
               onProgressChange: (progress: number): void => this.handleProgress(tab.id, progress),
+              onScroll: (offsetY: number): void => this.handlePageScroll(tab.id, offsetY),
+              onKeyboardAttach: (): void => { this.showCapsule(); },
               onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); },
               onError: (code: number, message: string): void => this.handleLoadError(tab.id, code, message)
             })
@@ -331,7 +334,7 @@ struct Index {
             .onActionEnd(() => { this.openTabs(); })
         )
     } else if (this.sheet === Overlay.None) {
-      if (this.isCapsuleHidden) {
+      if (this.isCapsuleHidden && this.activeTab()?.isLoading !== true) {
         // Swipe up from the bottom edge to bring the capsule back.
         Row()
           .width('100%')
@@ -541,6 +544,7 @@ struct Index {
   }
 
   private openAddress(): void {
+    this.showCapsule();
     this.updateSuggestions(this.isActiveHome() ? '' : (this.activeTab()?.url ?? ''));
     this.sheet = Overlay.Address;
   }
@@ -816,6 +820,8 @@ struct Index {
   // ------------------------------------------------------------- web events
 
   private handlePageBegin(id: string, url: string): void {
+    this.pageScrollOffsets.set(id, 0);
+    this.showCapsule();
     const current: BrowserTab | undefined = this.viewModel.getTab(id);
     const progress: number = current?.isLoading === true && current.progress > 0
       ? current.progress
@@ -866,6 +872,26 @@ struct Index {
       loadError: LoadErrorKind.None
     });
     this.syncTab(id);
+  }
+
+  private handlePageScroll(id: string, offsetY: number): void {
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (tab === undefined || id !== this.activeTabId || tab.isLoading ||
+      !this.settings.autoHideToolbarEnabled || this.sheet !== Overlay.None) {
+      return;
+    }
+    const previous: number = this.pageScrollOffsets.get(id) ?? offsetY;
+    this.pageScrollOffsets.set(id, offsetY);
+    const delta: number = offsetY - previous;
+    if (offsetY <= 8 || delta < -4) {
+      this.showCapsule();
+    } else if (offsetY > 36 && delta > 4) {
+      this.isCapsuleHidden = true;
+    }
+  }
+
+  private showCapsule(): void {
+    this.isCapsuleHidden = false;
   }
 
   private handleLoadError(id: string, code: number, message: string): void {
