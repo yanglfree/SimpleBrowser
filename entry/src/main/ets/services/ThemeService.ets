@@ -9,6 +9,8 @@ const LIGHT_BACKGROUND: string = '#FAF9F7';
 const DARK_BACKGROUND: string = '#131311';
 const LIGHT_CONTENT: string = '#1A1A18';
 const DARK_CONTENT: string = '#F5F3EE';
+const TRANSPARENT_BACKGROUND: string = '#00000000';
+const HOME_CONTENT: string = '#FFFFFFFF';
 
 /**
  * 设置 › 通用 › 外观. Switching the application colour mode is what flips every
@@ -22,7 +24,20 @@ export class ThemeService {
     } catch (error) {
       Logger.warn(TAG, `Failed to set colour mode: ${String(error)}`);
     }
-    ThemeService.applySystemBars(context, ThemeService.isDark(context, appearance));
+    ThemeService.applySystemBars(context, ThemeService.isDark(context, appearance), false);
+  }
+
+  static applySurface(
+    context: common.UIAbilityContext,
+    appearance: AppearanceMode,
+    isHome: boolean,
+    homeBackgroundEnabled: boolean
+  ): void {
+    ThemeService.applySystemBars(
+      context,
+      ThemeService.isDark(context, appearance),
+      isHome && homeBackgroundEnabled
+    );
   }
 
   static isDark(context: common.UIAbilityContext, appearance: AppearanceMode): boolean {
@@ -45,19 +60,23 @@ export class ThemeService {
     return ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET;
   }
 
-  private static applySystemBars(context: common.UIAbilityContext, isDark: boolean): void {
+  private static applySystemBars(context: common.UIAbilityContext, isDark: boolean, isHome: boolean): void {
     const background: string = isDark ? DARK_BACKGROUND : LIGHT_BACKGROUND;
     const content: string = isDark ? DARK_CONTENT : LIGHT_CONTENT;
     window.getLastWindow(context).then((mainWindow: window.Window) => {
       const properties: window.SystemBarProperties = {
-        statusBarColor: background,
-        navigationBarColor: background,
-        statusBarContentColor: content,
-        navigationBarContentColor: content
+        statusBarColor: isHome ? TRANSPARENT_BACKGROUND : background,
+        navigationBarColor: isHome ? TRANSPARENT_BACKGROUND : background,
+        statusBarContentColor: isHome ? HOME_CONTENT : content,
+        navigationBarContentColor: isHome ? HOME_CONTENT : content
       };
       mainWindow.setWindowBackgroundColor(background);
-      mainWindow.setWindowSystemBarProperties(properties).catch((error: Error): void => {
-        Logger.warn(TAG, `Failed to apply system bar style: ${String(error)}`);
+      mainWindow.setWindowLayoutFullScreen(isHome).then((): void => {
+        mainWindow.setWindowSystemBarProperties(properties).catch((error: Error): void => {
+          Logger.warn(TAG, `Failed to apply system bar style: ${String(error)}`);
+        });
+      }).catch((error: Error): void => {
+        Logger.warn(TAG, `Failed to apply full-screen layout: ${String(error)}`);
       });
     }).catch((error: Error): void => {
       Logger.warn(TAG, `Failed to resolve main window: ${String(error)}`);

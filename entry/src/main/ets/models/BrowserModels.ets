@@ -187,6 +187,7 @@ export interface BrowserSettings {
   gestureBlockingEnabled: boolean;
   autoHideToolbarEnabled: boolean;
   quickSitesEnabled: boolean;
+  startPageBackgroundEnabled: boolean;
   tabExpiryDays: TabExpiry;
   historyRetentionDays: number;
   liveWebViewLimit: number;
@@ -280,6 +281,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     gestureBlockingEnabled: true,
     autoHideToolbarEnabled: true,
     quickSitesEnabled: true,
+    startPageBackgroundEnabled: true,
     tabExpiryDays: TabExpiry.SevenDays,
     historyRetentionDays: 30,
     liveWebViewLimit: 4,
@@ -364,6 +366,7 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     gestureBlockingEnabled: settings.gestureBlockingEnabled,
     autoHideToolbarEnabled: settings.autoHideToolbarEnabled,
     quickSitesEnabled: settings.quickSitesEnabled,
+    startPageBackgroundEnabled: settings.startPageBackgroundEnabled,
     tabExpiryDays: settings.tabExpiryDays,
     historyRetentionDays: settings.historyRetentionDays,
     liveWebViewLimit: settings.liveWebViewLimit,

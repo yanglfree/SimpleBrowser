@@ -16,6 +16,8 @@ interface HistoryGroup {
 export struct HistorySheet {
   @Prop entries: HistoryEntry[] = [];
   @Prop savedItems: SavedItem[] = [];
+  @Prop favoritesOnly: boolean = false;
+  @Prop usesFullscreenBars: boolean = false;
   @State private query: string = '';
   @State private searchResults: HistoryEntry[] = [];
 
@@ -32,18 +34,18 @@ export struct HistorySheet {
       Row({ space: 12 }) {
         AppIcon({ name: IconName.ArrowLeft, glyphSize: 21, color: $r('app.color.text_primary') })
           .onClick(() => this.onDismiss())
-        Text($r('app.string.history_title'))
+        Text(this.favoritesOnly ? $r('app.string.favorites') : $r('app.string.history_title'))
           .fontSize(24)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.text_primary'))
           .layoutWeight(1)
-        Text(`${this.entries.length}`)
+        Text(`${this.favoritesOnly ? this.savedItems.length : this.entries.length}`)
           .fontSize(14)
           .fontColor($r('app.color.text_secondary'))
           .fontFeature('"tnum" 1')
       }
       .width('100%')
-        .padding({ top: 18, left: 24, right: 24, bottom: 12 })
+        .padding({ top: this.usesFullscreenBars ? 48 : 18, left: 24, right: 24, bottom: 12 })
 
       TextInput({ text: this.query, placeholder: $r('app.string.global_search_placeholder') })
         .width('100%')
@@ -61,8 +63,12 @@ export struct HistorySheet {
 
       if (this.visibleEntries().length === 0) {
         Column() {
-          AppIcon({ name: IconName.Clock, glyphSize: 28, color: $r('app.color.text_secondary') })
-          Text($r('app.string.history_empty'))
+          AppIcon({
+            name: this.favoritesOnly ? IconName.Bookmark : IconName.Clock,
+            glyphSize: 28,
+            color: $r('app.color.text_secondary')
+          })
+          Text(this.favoritesOnly ? $r('app.string.favorites_empty') : $r('app.string.history_empty'))
             .fontSize(15)
             .fontColor($r('app.color.text_secondary'))
             .margin({ top: 12 })
@@ -130,8 +136,10 @@ export struct HistorySheet {
         .fontSize(11.5)
         .fontColor($r('app.color.text_secondary'))
         .fontFeature('"tnum" 1')
-      AppIcon({ name: IconName.Close, glyphSize: 15, color: $r('app.color.text_secondary') })
-        .onClick(() => this.onDeleteSite(rawHost(entry.url)))
+      if (!this.favoritesOnly) {
+        AppIcon({ name: IconName.Close, glyphSize: 15, color: $r('app.color.text_secondary') })
+          .onClick(() => this.onDeleteSite(rawHost(entry.url)))
+      }
     }
     .width('100%')
     .height(64)
@@ -140,7 +148,7 @@ export struct HistorySheet {
     .gesture(
       PanGesture({ direction: PanDirection.Horizontal, distance: HISTORY_SWIPE_DISTANCE })
         .onActionEnd((event: GestureEvent) => {
-          if (event.offsetX <= -HISTORY_SWIPE_DISTANCE) {
+          if (!this.favoritesOnly && event.offsetX <= -HISTORY_SWIPE_DISTANCE) {
             this.onDelete(entry.id);
           }
         })
@@ -172,7 +180,7 @@ export struct HistorySheet {
   private visibleEntries(): HistoryEntry[] {
     const query: string = this.query.trim().toLowerCase();
     if (query.length === 0) {
-      return this.entries;
+      return this.favoritesOnly ? this.favoriteEntries() : this.entries;
     }
     return this.searchResults;
   }
@@ -193,9 +201,11 @@ export struct HistorySheet {
         visitCount: 0
       });
     }
-    for (const item of this.entries) {
-      if (!merged.some((candidate: HistoryEntry): boolean => candidate.url === item.url)) {
-        merged.push(item);
+    if (!this.favoritesOnly) {
+      for (const item of this.entries) {
+        if (!merged.some((candidate: HistoryEntry): boolean => candidate.url === item.url)) {
+          merged.push(item);
+        }
       }
     }
 
@@ -206,6 +216,18 @@ export struct HistorySheet {
         const scoreDifference: number = this.matchScore(right, query) - this.matchScore(left, query);
         return scoreDifference !== 0 ? scoreDifference : right.visitedAt - left.visitedAt;
       });
+  }
+
+  private favoriteEntries(): HistoryEntry[] {
+    return this.savedItems.map((item: SavedItem): HistoryEntry => {
+      return {
+        id: `favorite-${item.id}`,
+        title: item.title,
+        url: item.url,
+        visitedAt: item.updatedAt,
+        visitCount: 0
+      };
+    });
   }
 
   private matchScore(entry: HistoryEntry, query: string): number {

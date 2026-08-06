@@ -1,35 +1,23 @@
 import { AppIcon, IconName } from './AppIcon';
 
-const SWIPE_THRESHOLD: number = 26;
-
 interface SheetAction {
   key: string;
   label: Resource;
   icon: IconName;
   enabled: boolean;
   active: boolean;
+  featured: boolean;
 }
 
-/**
- * 1c — the capsule swiped up. Seven actions on two rows of four; swiping up
- * again continues to the tab overview, swiping down or tapping the scrim puts
- * the capsule back.
- */
 @Component
 export struct ActionSheet {
   @Prop host: string = '';
   @Prop blockedCount: number = 0;
-  @Prop canGoBack: boolean = false;
-  @Prop canGoForward: boolean = false;
-  @Prop isLoading: boolean = false;
+  @Prop isHome: boolean = false;
   @Prop isBookmarked: boolean = false;
-  @Prop isSavedForLater: boolean = false;
   @Prop isReader: boolean = false;
   @Prop isDesktop: boolean = false;
   onDismiss: () => void = (): void => {};
-  onEscalate: () => void = (): void => {};
-  onBackLongPress: () => void = (): void => {};
-  onReloadLongPress: () => void = (): void => {};
   onAction: (key: string) => void = (_key: string): void => {};
 
   build() {
@@ -37,7 +25,7 @@ export struct ActionSheet {
       Column()
         .layoutWeight(1)
         .width('100%')
-        .backgroundColor($r('app.color.scrim'))
+        .backgroundColor(this.isHome ? $r('app.color.home_menu_scrim') : $r('app.color.scrim'))
         .onClick(() => this.onDismiss())
 
       this.Panel()
@@ -48,38 +36,51 @@ export struct ActionSheet {
 
   @Builder
   private Panel() {
-    Column() {
+    Column({ space: 12 }) {
       Row()
         .width(36)
         .height(4)
         .borderRadius(2)
-        .backgroundColor($r('app.color.handle'))
+        .backgroundColor(this.handleColor())
 
-      Row() {
-        Text(this.host)
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .layoutWeight(1)
+      Row({ space: 14 }) {
+        Image($r('app.media.app_icon'))
+          .width(46)
+          .height(46)
+          .borderRadius(14)
 
-        Row({ space: 7 }) {
-          AppIcon({ name: IconName.ShieldCheck, glyphSize: 14, color: $r('app.color.accent') })
-          Text(`${this.blockedCount}`)
-            .fontSize(12.5)
+        Column({ space: 4 }) {
+          Text(this.isHome ? $r('app.string.browser_profile_title') : this.host)
+            .width('100%')
+            .fontSize(17)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.text_primary'))
-            .fontFeature('"tnum" 1')
+            .fontColor(this.primaryColor())
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text() {
+            if (this.isHome) {
+              Span($r('app.string.browser_profile_subtitle'))
+            } else {
+              Span(`${this.blockedCount}`)
+              Span(' ')
+              Span($r('app.string.blocked_cumulative_suffix'))
+            }
+          }
+            .width('100%')
+            .fontSize(13)
+            .fontColor(this.secondaryColor())
+            .maxLines(1)
         }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        AppIcon({ name: IconName.ChevronRight, glyphSize: 18, color: this.secondaryColor() })
       }
       .width('100%')
-      .margin({ top: 14 })
-
-      Divider()
-        .strokeWidth(1)
-        .color($r('app.color.border'))
-        .margin({ top: 18 })
+      .height(68)
+      .padding({ left: 16, right: 16 })
+      .borderRadius(18)
+      .backgroundColor(this.cardColor())
 
       Flex({ wrap: FlexWrap.Wrap }) {
         ForEach(this.actions(), (action: SheetAction) => {
@@ -87,165 +88,111 @@ export struct ActionSheet {
         }, (action: SheetAction) => action.key)
       }
       .width('100%')
-      .margin({ top: 8 })
+
+      Row({ space: 8 }) {
+        Row()
+          .width(32)
+          .height(4)
+          .borderRadius(2)
+          .backgroundColor(this.primaryColor())
+        Row()
+          .width(14)
+          .height(4)
+          .borderRadius(2)
+          .backgroundColor(this.handleColor())
+      }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Center)
-    .padding({ top: 10, left: 24, right: 24, bottom: 46 })
-    .backgroundColor($r('app.color.surface_panel'))
-    .borderRadius({ topLeft: 20, topRight: 20 })
-    .shadow({ radius: 12, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: -2 })
-    .gesture(
-      PanGesture({ direction: PanDirection.Vertical, distance: 6 })
-        .onActionEnd((event: GestureEvent) => {
-          if (event.offsetY <= -SWIPE_THRESHOLD) {
-            this.onEscalate();
-          } else if (event.offsetY >= SWIPE_THRESHOLD) {
-            this.onDismiss();
-          }
-        })
-    )
+    .padding({ top: 10, left: 18, right: 18, bottom: 20 })
+    .backgroundColor(this.panelColor())
+    .borderRadius({ topLeft: 28, topRight: 28 })
+    .shadow({ radius: 18, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: -4 })
   }
 
   @Builder
   private ActionCell(action: SheetAction) {
-    if (action.key === 'back' || action.key === 'reload') {
-      Column({ space: 7 }) {
-        this.ActionContent(action)
-      }
-      .width('25%')
-      .padding({ top: 12, bottom: 12 })
-      .opacity(action.enabled ? 1 : 0.35)
-      .gesture(
-        GestureGroup(GestureMode.Exclusive,
-          LongPressGesture({ repeat: false, duration: 450 })
-            .onAction(() => {
-              if (action.key === 'back' && action.enabled) {
-                this.onBackLongPress();
-              } else if (action.key === 'reload' && action.enabled && !this.isLoading) {
-                this.onReloadLongPress();
-              }
-            }),
-          TapGesture()
-            .onAction(() => {
-              if (action.enabled) {
-                this.onAction(action.key);
-              }
-            })
-        )
-      )
-    } else {
-      Column({ space: 7 }) {
-        this.ActionContent(action)
-      }
-      .width('25%')
-      .padding({ top: 12, bottom: 12 })
-      .opacity(action.enabled ? 1 : 0.35)
-      .onClick(() => {
-        if (action.enabled) {
-          this.onAction(action.key);
-        }
+    Column({ space: 6 }) {
+      AppIcon({
+        name: action.icon,
+        glyphSize: 30,
+        color: action.featured || action.active ? $r('app.color.accent_strong') : this.primaryColor(),
+        filled: action.active && action.icon === IconName.Bookmark,
+        strokeWidth: 1.7
       })
+      Text(action.label)
+        .width('100%')
+        .height(32)
+        .fontSize(10.5)
+        .fontColor(action.active ? $r('app.color.accent_strong') : this.primaryColor())
+        .textAlign(TextAlign.Center)
+        .maxLines(2)
     }
-  }
-
-  @Builder
-  private ActionContent(action: SheetAction) {
-    AppIcon({
-      name: action.icon,
-      glyphSize: 23,
-      color: action.active ? $r('app.color.accent') : $r('app.color.text_primary'),
-      filled: action.active && action.icon === IconName.Bookmark
+    .width('25%')
+    .height(80)
+    .justifyContent(FlexAlign.Center)
+    .opacity(action.enabled ? 1 : 0.5)
+    .onClick(() => {
+      if (action.enabled) {
+        this.onAction(action.key);
+      }
     })
-    Text(action.label)
-      .fontSize(11)
-      .fontColor(action.active ? $r('app.color.accent') : $r('app.color.text_secondary'))
-      .maxLines(1)
   }
 
   private actions(): SheetAction[] {
     return [
-      {
-        key: 'back',
-        label: $r('app.string.action_back'),
-        icon: IconName.ChevronLeft,
-        enabled: this.canGoBack,
-        active: false
-      },
-      {
-        key: 'forward',
-        label: $r('app.string.action_forward'),
-        icon: IconName.ChevronRight,
-        enabled: this.canGoForward,
-        active: false
-      },
-      {
-        key: 'reload',
-        label: this.isLoading ? $r('app.string.action_stop') : $r('app.string.action_reload'),
-        icon: this.isLoading ? IconName.Stop : IconName.Refresh,
-        enabled: true,
-        active: false
-      },
-      {
-        key: 'share',
-        label: $r('app.string.action_share'),
-        icon: IconName.Share,
-        enabled: true,
-        active: false
-      },
-      {
-        key: 'bookmark',
-        label: this.isBookmarked
-          ? $r('app.string.action_saved_remove')
-          : $r('app.string.action_saved_add'),
-        icon: IconName.Bookmark,
-        enabled: true,
-        active: this.isBookmarked
-      },
-      {
-        key: 'save_later',
-        label: this.isSavedForLater
-          ? $r('app.string.action_save_later_saved')
-          : $r('app.string.action_save_later'),
-        icon: IconName.Reader,
-        enabled: true,
-        active: this.isSavedForLater
-      },
-      {
-        key: 'reader',
-        label: $r('app.string.action_reader'),
-        icon: IconName.Reader,
-        enabled: true,
-        active: this.isReader
-      },
-      {
-        key: 'desktop',
-        label: $r('app.string.action_desktop'),
-        icon: IconName.Desktop,
-        enabled: true,
-        active: this.isDesktop
-      },
-      {
-        key: 'history',
-        label: $r('app.string.history_title'),
-        icon: IconName.Clock,
-        enabled: true,
-        active: false
-      },
-      {
-        key: 'find',
-        label: $r('app.string.find_title'),
-        icon: IconName.Search,
-        enabled: true,
-        active: false
-      },
-      {
-        key: 'downloads',
-        label: $r('app.string.download_title'),
-        icon: IconName.ArrowUpLeft,
-        enabled: true,
-        active: false
-      }
+      this.action('favorites', $r('app.string.favorites'), IconName.Bookmark, true, false, true),
+      this.action('history', $r('app.string.history_title'), IconName.Clock, true, false, true),
+      this.action('downloads', $r('app.string.download_title'), IconName.Download, true, false, true),
+      this.action('settings', $r('app.string.settings'), IconName.Settings, true, false, true),
+      this.action('home', $r('app.string.home'), IconName.Home, !this.isHome, this.isHome, false),
+      this.action('private', $r('app.string.new_private_tab'), IconName.Incognito, true, false, false),
+      this.action('bookmark', $r('app.string.edit_favorites'), IconName.Bookmark,
+        !this.isHome, this.isBookmarked, false),
+      this.action('tabs', $r('app.string.recent_tabs'), IconName.Tabs, true, false, false),
+      this.action('desktop', $r('app.string.action_desktop'), IconName.Desktop,
+        !this.isHome, this.isDesktop, false),
+      this.action('find', $r('app.string.find_title'), IconName.Search, !this.isHome, false, false),
+      this.action('reader', $r('app.string.action_reader'), IconName.Reader, !this.isHome, this.isReader, false),
+      this.action('share', $r('app.string.action_share'), IconName.Share, !this.isHome, false, false)
     ];
+  }
+
+  private action(
+    key: string,
+    label: Resource,
+    icon: IconName,
+    enabled: boolean,
+    active: boolean,
+    featured: boolean
+  ): SheetAction {
+    return {
+      key: key,
+      label: label,
+      icon: icon,
+      enabled: enabled,
+      active: active,
+      featured: featured
+    };
+  }
+
+  private panelColor(): ResourceColor {
+    return this.isHome ? $r('app.color.home_menu_background') : $r('app.color.surface_panel');
+  }
+
+  private cardColor(): ResourceColor {
+    return this.isHome ? $r('app.color.home_panel_subtle') : $r('app.color.surface_subtle');
+  }
+
+  private primaryColor(): ResourceColor {
+    return this.isHome ? $r('app.color.home_text_primary') : $r('app.color.text_primary');
+  }
+
+  private secondaryColor(): ResourceColor {
+    return this.isHome ? $r('app.color.home_text_secondary') : $r('app.color.text_secondary');
+  }
+
+  private handleColor(): ResourceColor {
+    return this.isHome ? $r('app.color.home_panel_divider') : $r('app.color.handle');
   }
 }

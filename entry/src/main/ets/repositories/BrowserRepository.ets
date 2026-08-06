@@ -421,6 +421,7 @@ export class BrowserRepository {
         gestureBlockingEnabled: parsed.gestureBlockingEnabled ?? fallback.gestureBlockingEnabled,
         autoHideToolbarEnabled: parsed.autoHideToolbarEnabled ?? fallback.autoHideToolbarEnabled,
         quickSitesEnabled: parsed.quickSitesEnabled ?? fallback.quickSitesEnabled,
+        startPageBackgroundEnabled: parsed.startPageBackgroundEnabled ?? fallback.startPageBackgroundEnabled,
         tabExpiryDays: parsed.tabExpiryDays ?? fallback.tabExpiryDays,
         historyRetentionDays: parsed.historyRetentionDays ?? fallback.historyRetentionDays,
         liveWebViewLimit: parsed.liveWebViewLimit ?? fallback.liveWebViewLimit,

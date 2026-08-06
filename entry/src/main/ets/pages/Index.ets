@@ -27,6 +27,7 @@ import {
 } from '../constants/AppConstants';
 import {
   BlockStats,
+  AppearanceMode,
   BrowserSettings,
   BrowserTab,
   HistoryEntry,
@@ -53,20 +54,20 @@ import { BlockPanel } from '../components/BlockPanel';
 import { BrowserWebView } from '../components/BrowserWebView';
 import { DownloadSheet } from '../components/DownloadSheet';
 import { FindSheet } from '../components/FindSheet';
-import { OmniCapsule } from '../components/OmniCapsule';
+import { BrowserDock } from '../components/BrowserDock';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
 import { HistorySheet } from '../components/HistorySheet';
 import { LinkActionSheet } from '../components/LinkActionSheet';
 import { OnboardingSheet } from '../components/OnboardingSheet';
 import { PermissionSheet } from '../components/PermissionSheet';
+import { PageSettingsPanel } from '../components/PageSettingsPanel';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
 import { SharePanel } from '../components/SharePanel';
 import { StartPage } from '../components/StartPage';
-import { TabLauncher } from '../components/TabLauncher';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
-import { TAB_LAUNCHER_RIGHT_MARGIN, TAB_LAUNCHER_TOP_MARGIN, TAB_WEB_BOTTOM_INSET } from '../components/TabTokens';
+import { TAB_WEB_BOTTOM_INSET } from '../components/TabTokens';
 import { PrivacyService } from '../services/PrivacyService';
 import { CertificateService } from '../services/CertificateService';
 import { AdsBlockService } from '../services/AdsBlockService';
@@ -99,7 +100,9 @@ enum Overlay {
   Find = 11,
   LinkActions = 12,
   Onboarding = 13,
-  Permission = 14
+  Permission = 14,
+  PageSettings = 15,
+  Favorites = 16
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -343,12 +346,11 @@ struct Index {
             StartPage({
               quickSites: this.quickSites,
               quickSitesEnabled: this.settings.quickSitesEnabled,
-              weeklyBlocked: this.weeklyBlocked,
+              backgroundEnabled: this.settings.startPageBackgroundEnabled,
               onOpenAddress: (): void => this.openAddress(),
               onOpenSite: (url: string): void => this.navigateTo(url),
               onRemoveSite: (url: string): void => { void this.removeQuickSite(url); },
-              onToggleQuickSites: (): void => { void this.toggleQuickSites(); },
-              onOpenStats: (): void => { this.sheet = Overlay.Settings; }
+              onOpenPageSettings: (): void => { this.sheet = Overlay.PageSettings; }
             })
           } else if (this.isTabLive(tab.id)) {
             BrowserWebView({
@@ -397,14 +399,6 @@ struct Index {
         .visibility(tab.id === this.activeTabId ? Visibility.Visible : Visibility.Hidden)
       }, (tab: BrowserTab) =>
         `${tab.id}-${isHomeUrl(tab.url) ? 'home' : (this.isTabLive(tab.id) ? 'live' : 'sleep')}`)
-
-      if (this.sheet === Overlay.None && this.isActiveHome()) {
-        TabLauncher({
-          count: this.tabs.length,
-          onOpen: (): void => { this.openTabs(); }
-        })
-          .margin({ top: TAB_LAUNCHER_TOP_MARGIN, right: TAB_LAUNCHER_RIGHT_MARGIN })
-      }
     }
     .layoutWeight(1)
     .width('100%')
@@ -520,60 +514,43 @@ struct Index {
 
   @Builder
   private CapsuleLayer() {
-    if (this.sheet === Overlay.None && this.isActiveHome()) {
-      // The start page shows no capsule, but it keeps its bottom-edge gesture so
-      // the tab overview stays reachable from a freshly opened tab.
-      Row()
-        .width('100%')
-        .height(28)
-        .gesture(
-          PanGesture({ direction: PanDirection.Up, distance: 12 })
-            .onActionEnd(() => { this.openTabs(); })
-        )
-    } else if (this.sheet === Overlay.None) {
-      if (this.isCapsuleHidden && this.activeTab()?.isLoading !== true) {
-        // Swipe up from the bottom edge to bring the capsule back.
+    if (this.sheet === Overlay.None) {
+      if (this.isCapsuleHidden && !this.isActiveHome()) {
         Row()
           .width('100%')
           .height(28)
           .gesture(
             PanGesture({ direction: PanDirection.Up, distance: 8 })
-              .onActionEnd(() => { this.isCapsuleHidden = false; })
+              .onActionEnd(() => { this.showCapsule(); })
           )
       } else {
-        Row({ space: 8 }) {
-          TabLauncher({
-            count: this.tabs.length,
-            onOpen: (): void => { this.openTabs(); }
-          })
-          OmniCapsule({
-            host: displayHost(this.activeTab()?.url ?? ''),
-            previewHost: this.swipePreviewHost,
-            isSwipeBoundary: this.isSwipeBoundary,
-            blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
-            isPrivate: this.activeTab()?.isPrivate === true,
-            securityState: this.activeTab()?.securityState ?? SecurityState.Unknown,
-            gesturesEnabled: this.settings.gesturesEnabled,
-            actionsGestureEnabled: this.settings.gesturesEnabled && this.settings.gestureActionsEnabled,
-            tabSwitchGestureEnabled: this.settings.gesturesEnabled && this.settings.gestureTabSwitchEnabled,
-            blockingGestureEnabled: this.settings.gesturesEnabled && this.settings.gestureBlockingEnabled,
-            onTap: (): void => this.openAddress(),
-            onSecurityTap: (): void => this.openSecurityDetails(),
-            onLongPress: (): void => this.openBlockPanel(),
-            onSwipeUp: (): void => { this.sheet = Overlay.Actions; },
-            onSwipeDown: (): void => {
-              if (this.settings.autoHideToolbarEnabled) {
-                this.isCapsuleHidden = true;
-              }
-            },
-            onSwipeLeft: (): void => { this.switchNeighbour(1); },
-            onSwipeRight: (): void => { this.switchNeighbour(-1); },
-            onSwipePreview: (direction: number): void => { this.previewNeighbour(direction); }
-          })
-        }
-          .margin({ bottom: 46 })
-          .transition(TransitionEffect.OPACITY.animation({ duration: 200 })
-            .combine(TransitionEffect.translate({ y: 40 })))
+        BrowserDock({
+          isHome: this.isActiveHome(),
+          host: displayHost(this.activeTab()?.url ?? ''),
+          tabCount: this.tabs.length,
+          canGoBack: this.activeTab()?.canGoBack === true,
+          canGoForward: this.activeTab()?.canGoForward === true,
+          gesturesEnabled: this.settings.gesturesEnabled,
+          actionsGestureEnabled: this.settings.gestureActionsEnabled,
+          tabSwitchGestureEnabled: this.settings.gestureTabSwitchEnabled,
+          blockingGestureEnabled: this.settings.gestureBlockingEnabled,
+          onOpenAddress: (): void => this.openAddress(),
+          onBack: (): void => { void this.performAction('back'); },
+          onForward: (): void => { void this.performAction('forward'); },
+          onNewTab: (): void => this.createTab(false),
+          onOpenTabs: (): void => { void this.openTabs(); },
+          onOpenMenu: (): void => { this.sheet = Overlay.Actions; },
+          onOpenBlocking: (): void => this.openBlockPanel(),
+          onHide: (): void => {
+            if (this.settings.autoHideToolbarEnabled && !this.isActiveHome()) {
+              this.isCapsuleHidden = true;
+            }
+          },
+          onSwitchPrevious: (): void => { void this.switchNeighbour(-1); },
+          onSwitchNext: (): void => { void this.switchNeighbour(1); }
+        })
+          .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
+            .combine(TransitionEffect.translate({ y: 24 })))
       }
     }
   }
@@ -586,20 +563,25 @@ struct Index {
       ActionSheet({
         host: displayHost(this.activeTab()?.url ?? ''),
         blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
-        canGoBack: this.activeTab()?.canGoBack === true,
-        canGoForward: this.activeTab()?.canGoForward === true,
-        isLoading: this.activeTab()?.isLoading === true,
+        isHome: this.isActiveHome(),
         isBookmarked: this.isActiveBookmarked,
-        isSavedForLater: this.isActiveSavedForLater,
         isReader: this.isActiveReader(),
         isDesktop: this.activeTab()?.isDesktop === true,
         onDismiss: (): void => { this.sheet = Overlay.None; },
-        onEscalate: (): void => { this.openTabs(); },
-        onBackLongPress: (): void => { this.openBackHistory(); },
-        onReloadLongPress: (): void => { this.forceReload(); },
         onAction: (key: string): void => { this.performAction(key); }
       })
         .transition(this.sheetTransition())
+    } else if (this.sheet === Overlay.PageSettings) {
+      PageSettingsPanel({
+        quickSitesEnabled: this.settings.quickSitesEnabled,
+        backgroundEnabled: this.settings.startPageBackgroundEnabled,
+        appearanceLabel: this.appearanceLabel(),
+        onToggleQuickSites: (): void => { void this.toggleQuickSites(); },
+        onToggleBackground: (): void => { void this.toggleStartPageBackground(); },
+        onOpenSettings: (): void => { this.sheet = Overlay.Settings; },
+        onDismiss: (): void => { this.sheet = Overlay.None; }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 180 }))
     } else if (this.sheet === Overlay.Address) {
       AddressSheet({
         suggestions: this.suggestions,
@@ -687,10 +669,21 @@ struct Index {
       HistorySheet({
         entries: this.history,
         savedItems: this.viewModel.savedItems,
+        usesFullscreenBars: this.isActiveHome(),
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onSelect: (url: string): void => this.navigateTo(url),
         onDelete: (id: string): void => { this.deleteHistory(id); },
         onDeleteSite: (host: string): void => { this.deleteHistorySite(host); }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.Favorites) {
+      HistorySheet({
+        entries: [],
+        savedItems: this.viewModel.savedItems,
+        favoritesOnly: true,
+        usesFullscreenBars: this.isActiveHome(),
+        onDismiss: (): void => { this.sheet = Overlay.None; },
+        onSelect: (url: string): void => this.navigateTo(url)
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Downloads) {
@@ -758,6 +751,16 @@ struct Index {
 
   private isActiveHome(): boolean {
     return isHomeUrl(this.activeTab()?.url ?? HOME_URL);
+  }
+
+  private appearanceLabel(): Resource {
+    if (this.settings.appearance === AppearanceMode.Light) {
+      return $r('app.string.appearance_light');
+    }
+    if (this.settings.appearance === AppearanceMode.Dark) {
+      return $r('app.string.appearance_dark');
+    }
+    return $r('app.string.appearance_system');
   }
 
   private isActiveReader(): boolean {
@@ -1159,6 +1162,31 @@ struct Index {
       this.sheet = Overlay.Share;
       return;
     }
+    if (key === 'favorites') {
+      this.sheet = Overlay.Favorites;
+      return;
+    }
+    if (key === 'history') {
+      this.sheet = Overlay.History;
+      return;
+    }
+    if (key === 'settings') {
+      this.sheet = Overlay.Settings;
+      return;
+    }
+    if (key === 'home') {
+      this.goHome(tab.id);
+      this.sheet = Overlay.None;
+      return;
+    }
+    if (key === 'private') {
+      this.createTab(true);
+      return;
+    }
+    if (key === 'tabs') {
+      await this.openTabs();
+      return;
+    }
     if (key === 'bookmark') {
       await this.viewModel.toggleSaved(tab);
       this.isActiveBookmarked = this.viewModel.isSaved(tab.url);
@@ -1189,10 +1217,6 @@ struct Index {
         WebKernelService.applyUserAgent(controller, isDesktop);
         WebKernelService.reload(controller);
       });
-      return;
-    }
-    if (key === 'history') {
-      this.sheet = Overlay.History;
       return;
     }
     if (key === 'downloads') {
@@ -1451,6 +1475,12 @@ struct Index {
     if (appearanceChanged) {
       ThemeService.apply(AppContext.getContext(), next.appearance);
     }
+    ThemeService.applySurface(
+      AppContext.getContext(),
+      next.appearance,
+      this.isActiveHome(),
+      next.startPageBackgroundEnabled
+    );
     await this.enforceLiveWebViewLimit(this.liveWebViewLimit());
     this.reconfigureBlocking();
   }
@@ -1803,7 +1833,13 @@ struct Index {
 
   private async toggleQuickSites(): Promise<void> {
     const next: BrowserSettings = cloneSettings(this.settings);
-    next.quickSitesEnabled = false;
+    next.quickSitesEnabled = !next.quickSitesEnabled;
+    await this.applySettings(next);
+  }
+
+  private async toggleStartPageBackground(): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.startPageBackgroundEnabled = !next.startPageBackgroundEnabled;
     await this.applySettings(next);
   }
 
@@ -2491,6 +2527,12 @@ struct Index {
     this.isActiveBookmarked = this.viewModel.isSaved(url);
     this.isActiveSavedForLater = this.viewModel.isSavedForLater(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
+    ThemeService.applySurface(
+      AppContext.getContext(),
+      this.settings.appearance,
+      isHomeUrl(url),
+      this.settings.startPageBackgroundEnabled
+    );
   }
 
   private static isMaliciousUrl(url: string): boolean {

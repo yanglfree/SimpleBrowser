@@ -22,7 +22,15 @@ export enum IconName {
   Stop = 16,
   ArrowUpLeft = 17,
   Check = 18,
-  Tabs = 19
+  Tabs = 19,
+  Sliders = 20,
+  Menu = 21,
+  Home = 22,
+  Incognito = 23,
+  Settings = 24,
+  Download = 25,
+  Trash = 26,
+  Mic = 27
 }
 
 const COMMANDS: string[] = [
@@ -45,7 +53,18 @@ const COMMANDS: string[] = [
   'M7.5 7.5h9v9h-9z',
   'M16 15.5L8.5 8M15.5 8h-7v7',
   'M5 12.5l4.5 4.5L19 7.5',
-  'M5 5h10v10H5zM9 9h10v10H9z'
+  'M5 5h10v10H5zM9 9h10v10H9z',
+  'M4 7h9M17 7h3M4 17h3M11 17h9M13 4v6M7 14v6',
+  'M4 6h16M4 12h16M4 18h16',
+  'M3.5 11.5L12 4l8.5 7.5M6 10v10h12V10M10 20v-6h4v6',
+  'M3 15l2-7h14l2 7M5 15h5l2-2 2 2h5M8 11h2M14 11h2',
+  'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 1 0 0-7' +
+    'M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1A8 8 0 0 0 15 6l-.3-2.5h-4' +
+    'L10.4 6a8 8 0 0 0-1.6.9l-2.3-1-2 3.5 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.5 2.3-1' +
+    'a8 8 0 0 0 1.6.9l.3 2.5h4l.3-2.5a8 8 0 0 0 1.6-.9l2.3 1 2-3.5-2-1.5a7 7 0 0 0 .1-1z',
+  'M12 3v12M7 10l5 5 5-5M5 20h14',
+  'M5 7h14M9 7V4h6v3M8 10v7M12 10v7M16 10v7M7 7l1 14h8l1-14',
+  'M12 3a4 4 0 0 0-4 4v5a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6'
 ];
 
 @Component
@@ -115,6 +134,22 @@ export struct AppIcon {
         return $r('app.string.done');
       case IconName.Tabs:
         return $r('app.string.tabs_count_suffix');
+      case IconName.Sliders:
+        return $r('app.string.page_settings');
+      case IconName.Menu:
+        return $r('app.string.tools_menu');
+      case IconName.Home:
+        return $r('app.string.home');
+      case IconName.Incognito:
+        return $r('app.string.new_private_tab');
+      case IconName.Settings:
+        return $r('app.string.settings');
+      case IconName.Download:
+        return $r('app.string.download_title');
+      case IconName.Trash:
+        return $r('app.string.clear_browsing_data');
+      case IconName.Mic:
+        return $r('app.string.voice_search');
       default:
         return $r('app.string.app_name');
     }

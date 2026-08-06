@@ -37,4 +37,4 @@ export const TAB_PRIVATE_GESTURE_DURATION: number = 450;
 export const TAB_NEW_BUTTON_HEIGHT: number = 52;
 export const TAB_NEW_BUTTON_HORIZONTAL_PADDING: number = 20;
 export const TAB_NEW_BUTTON_RADIUS: number = 26;
-export const TAB_WEB_BOTTOM_INSET: number = 96;
+export const TAB_WEB_BOTTOM_INSET: number = 128;

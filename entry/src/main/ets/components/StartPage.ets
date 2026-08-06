@@ -1,5 +1,4 @@
 import { QuickSite } from '../models/BrowserModels';
-import { formatDate, greetingResource, groupNumber } from '../utils/Formatting';
 import { AppIcon, IconName } from './AppIcon';
 
 const TILE_BACKGROUNDS: Resource[] = [
@@ -25,148 +24,121 @@ function tileColor(palette: Resource[], index: number): Resource {
   return palette[safe];
 }
 
-/**
- * 1a — start page. No toolbar of any kind: a greeting, one search capsule, the
- * six sites you actually visit, and a single quiet line of blocking statistics.
- */
 @Component
 export struct StartPage {
   @Prop quickSites: QuickSite[] = [];
   @Prop quickSitesEnabled: boolean = true;
-  @Prop weeklyBlocked: number = 0;
+  @Prop backgroundEnabled: boolean = true;
   onOpenAddress: () => void = (): void => {};
   onOpenSite: (url: string) => void = (_url: string): void => {};
   onRemoveSite: (url: string) => void = (_url: string): void => {};
-  onToggleQuickSites: () => void = (): void => {};
-  /**
-   * The start page has no capsule, so the statistics line doubles as the way
-   * into the global blocking settings — otherwise a fresh launch, which starts
-   * here with a single tab, has no route to 设置 at all.
-   */
-  onOpenStats: () => void = (): void => {};
+  onOpenPageSettings: () => void = (): void => {};
 
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
-      Scroll() {
-        Column() {
-          Text(greetingResource(new Date().getHours()))
-            .fontSize(30)
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.text_primary'))
-            .letterSpacing(0.3)
+    Stack({ alignContent: Alignment.Top }) {
+      if (this.backgroundEnabled) {
+        Image($r('app.media.home_background'))
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor($r('app.color.home_scrim'))
+      }
 
-          Text(formatDate(new Date()))
-            .fontSize(14)
-            .fontColor($r('app.color.text_secondary'))
-            .margin({ top: 8 })
-
-          this.SearchCapsule()
-          if (this.quickSitesEnabled) {
-            this.SiteGrid()
-          }
+      Column() {
+        Blank()
+        if (this.quickSitesEnabled) {
+          this.SiteGrid()
         }
-        .width('100%')
-        .alignItems(HorizontalAlign.Start)
-        .padding({ top: 64, left: 32, right: 32, bottom: 120 })
       }
       .width('100%')
       .height('100%')
-      .align(Alignment.TopStart)
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
 
-      this.WeeklyStat()
+      Row() {
+        Blank()
+        Column() {
+          AppIcon({
+            name: IconName.Sliders,
+            glyphSize: 32,
+            color: this.primaryColor(),
+            strokeWidth: 1.8
+          })
+        }
+        .width(48)
+        .height(48)
+        .justifyContent(FlexAlign.Center)
+        .onClick(() => this.onOpenPageSettings())
+      }
+      .width('100%')
+      .padding({ top: 50, left: 24, right: 18 })
     }
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.page_background'))
-  }
-
-  @Builder
-  private SearchCapsule() {
-    Row({ space: 12 }) {
-      AppIcon({ name: IconName.Search, glyphSize: 19, color: $r('app.color.text_secondary') })
-      Text($r('app.string.address_placeholder'))
-        .fontSize(16)
-        .fontColor($r('app.color.text_secondary'))
-    }
-    .width('100%')
-    .height(56)
-    .padding({ left: 22, right: 22 })
-    .margin({ top: 40 })
-    .borderRadius(28)
-    .backgroundColor($r('app.color.surface_panel'))
-    .border({ width: 1, color: $r('app.color.border') })
-    .shadow({ radius: 12, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: 2 })
-    .onClick(() => this.onOpenAddress())
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
   @Builder
   private SiteGrid() {
-    Column() {
-      Row() {
-        Text($r('app.string.frequent_sites'))
-          .fontSize(14)
-          .fontColor($r('app.color.text_secondary'))
-          .layoutWeight(1)
-        AppIcon({ name: IconName.Close, glyphSize: 15, color: $r('app.color.text_secondary') })
-          .onClick(() => this.onToggleQuickSites())
-      }
-      .width('100%')
+    Flex({ wrap: FlexWrap.Wrap }) {
+      ForEach(this.quickSites, (site: QuickSite) => {
+        Column({ space: 8 }) {
+          Text(site.badge)
+            .width(58)
+            .height(58)
+            .borderRadius(17)
+            .backgroundColor(tileColor(TILE_BACKGROUNDS, site.colorIndex))
+            .fontColor(tileColor(TILE_FOREGROUNDS, site.colorIndex))
+            .fontSize(22)
+            .fontWeight(FontWeight.Bold)
+            .textAlign(TextAlign.Center)
 
-      Flex({ wrap: FlexWrap.Wrap }) {
-        ForEach(this.quickSites, (site: QuickSite) => {
-          Column({ space: 9 }) {
-            Text(site.badge)
-              .width(52)
-              .height(52)
-              .borderRadius(16)
-              .backgroundColor(tileColor(TILE_BACKGROUNDS, site.colorIndex))
-              .fontColor(tileColor(TILE_FOREGROUNDS, site.colorIndex))
-              .fontSize(20)
-              .fontWeight(FontWeight.Medium)
-              .textAlign(TextAlign.Center)
+          Text(site.title)
+            .width('100%')
+            .fontSize(12.5)
+            .fontColor(this.primaryColor())
+            .textAlign(TextAlign.Center)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .width('25%')
+        .margin({ bottom: 22 })
+        .onClick(() => this.onOpenSite(site.url))
+        .gesture(
+          LongPressGesture({ repeat: false, duration: 450 })
+            .onAction(() => this.onRemoveSite(site.url))
+        )
+      }, (site: QuickSite) => site.url)
 
-            Text(site.title)
-              .fontSize(12.5)
-              .fontColor($r('app.color.text_primary'))
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-          }
-          .width('33.33%')
-          .margin({ bottom: 30 })
-          .onClick(() => this.onOpenSite(site.url))
-          .gesture(
-            LongPressGesture({ repeat: false, duration: 450 })
-              .onAction(() => this.onRemoveSite(site.url))
-          )
-        }, (site: QuickSite) => site.url)
+      Column({ space: 8 }) {
+        Column() {
+          AppIcon({ name: IconName.Plus, glyphSize: 36, color: this.primaryColor(), strokeWidth: 1.8 })
+        }
+        .width(58)
+        .height(58)
+        .justifyContent(FlexAlign.Center)
+        .borderRadius(17)
+        .backgroundColor(this.backgroundEnabled
+          ? $r('app.color.home_tile_background')
+          : $r('app.color.surface_subtle'))
+
+        Text($r('app.string.add_shortcut'))
+          .width('100%')
+          .fontSize(12.5)
+          .fontColor(this.primaryColor())
+          .textAlign(TextAlign.Center)
       }
-      .width('100%')
-      .margin({ top: 18 })
+      .width('25%')
+      .margin({ bottom: 22 })
+      .onClick(() => this.onOpenAddress())
     }
     .width('100%')
-    .margin({ top: 44 })
+    .padding({ left: 20, right: 20, bottom: 144 })
   }
 
-  @Builder
-  private WeeklyStat() {
-    Row({ space: 8 }) {
-      AppIcon({ name: IconName.Shield, glyphSize: 15, color: $r('app.color.accent') })
-      Text() {
-        Span($r('app.string.weekly_blocked_prefix'))
-        Span(' ')
-        Span(groupNumber(this.weeklyBlocked))
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
-        Span(' ')
-        Span($r('app.string.weekly_blocked_suffix'))
-      }
-      .fontSize(13)
-      .fontColor($r('app.color.text_secondary'))
-      .fontFeature('"tnum" 1')
-    }
-    .margin({ bottom: 70 })
-    .onClick(() => this.onOpenStats())
+  private primaryColor(): ResourceColor {
+    return this.backgroundEnabled ? $r('app.color.home_text_primary') : $r('app.color.text_primary');
   }
 }
