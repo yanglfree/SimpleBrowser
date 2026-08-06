@@ -147,6 +147,7 @@ struct Index {
         }
       });
       this.isReady = true;
+      this.promptExpiredTabs();
     } catch (error) {
       Logger.error(TAG, `Failed to initialize browser: ${String(error)}`);
       this.hasError = true;
@@ -156,6 +157,32 @@ struct Index {
   aboutToDisappear(): void {
     MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
+  }
+
+  private promptExpiredTabs(): void {
+    if (this.viewModel.expiredTabCount === 0) {
+      return;
+    }
+    try {
+      this.getUIContext().showAlertDialog({
+        title: $r('app.string.expired_tabs_title'),
+        message: $r('app.string.expired_tabs_message'),
+        primaryButton: {
+          value: $r('app.string.expired_tabs_restore'),
+          action: (): void => {
+            this.viewModel.restoreExpiredTabs().then((): void => this.syncState());
+          }
+        },
+        secondaryButton: {
+          value: $r('app.string.expired_tabs_archive'),
+          action: (): void => {
+            this.viewModel.archiveExpiredTabs();
+          }
+        }
+      });
+    } catch (error) {
+      Logger.warn(TAG, `Expired tab prompt unavailable: ${String(error)}`);
+    }
   }
 
   onBackPress(): boolean {

@@ -43,6 +43,10 @@
     { "name": "history_empty", "value": "暂无历史记录" },
     { "name": "tab_hibernated", "value": "标签已休眠以节省内存" },
     { "name": "tab_hibernated_restore", "value": "点击恢复页面" },
+    { "name": "expired_tabs_title", "value": "标签自动归档" },
+    { "name": "expired_tabs_message", "value": "部分长期未访问的标签已归档，可选择恢复。" },
+    { "name": "expired_tabs_archive", "value": "保留归档" },
+    { "name": "expired_tabs_restore", "value": "恢复标签" },
 
     { "name": "blocked_on_site", "value": "本站已拦截" },
     { "name": "blocked_cumulative_prefix", "value": "累计拦截" },

@@ -50,6 +50,7 @@ export class BrowserViewModel {
   tabs: BrowserTab[] = [];
   bookmarks: Bookmark[] = [];
   history: HistoryEntry[] = [];
+  expiredTabs: BrowserTab[] = [];
   settings: BrowserSettings = defaultBrowserSettings();
   activeTabId: string = '';
   private tabSequence: number = 0;
@@ -65,9 +66,15 @@ export class BrowserViewModel {
       const cutoff: number = expiryDays === TabExpiry.Never
         ? 0
         : Date.now() - Number(expiryDays) * 24 * 60 * 60 * 1000;
-      this.tabs = session.tabs
-        .filter((tab: BrowserTab): boolean => cutoff === 0 || tab.lastVisitedAt >= cutoff)
-        .map((tab: BrowserTab) => cloneTab(tab));
+      const sessionTabs: BrowserTab[] = session.tabs.map((tab: BrowserTab) => cloneTab(tab));
+      this.expiredTabs = cutoff === 0
+        ? []
+        : sessionTabs.filter((tab: BrowserTab): boolean => tab.lastVisitedAt < cutoff);
+      if (this.expiredTabs.length > 0) {
+        await this.repository.archiveTabs(this.expiredTabs);
+      }
+      this.tabs = sessionTabs.filter((tab: BrowserTab): boolean =>
+        cutoff === 0 || tab.lastVisitedAt >= cutoff);
       if (this.tabs.length === 0) {
         this.tabs = [this.createTab(HOME_URL, false)];
       }
@@ -146,6 +153,25 @@ export class BrowserViewModel {
 
   isTabSoftLimitReached(): boolean {
     return this.tabs.length >= this.settings.tabSoftLimit;
+  }
+
+  get expiredTabCount(): number {
+    return this.expiredTabs.length;
+  }
+
+  async archiveExpiredTabs(): Promise<void> {
+    this.expiredTabs = [];
+  }
+
+  async restoreExpiredTabs(): Promise<void> {
+    if (this.expiredTabs.length === 0) {
+      return;
+    }
+    const restored: BrowserTab[] = this.expiredTabs.map((tab: BrowserTab) => cloneTab(tab));
+    await this.repository.removeArchivedTabs(restored.map((tab: BrowserTab) => tab.id));
+    this.tabs = this.tabs.concat(restored);
+    this.expiredTabs = [];
+    this.persistSession();
   }
 
   /** Closing the last tab leaves a fresh start-page tab rather than an empty app. */

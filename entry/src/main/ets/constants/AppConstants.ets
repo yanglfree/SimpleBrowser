@@ -4,6 +4,7 @@ import { QuickSite } from '../models/BrowserModels';
 export const HOME_URL: string = 'browser://home';
 export const STORE_NAME: string = 'minimal_browser_store';
 export const SESSION_KEY: string = 'browser_session';
+export const TAB_ARCHIVE_KEY: string = 'tab_archive';
 export const APP_VERSION: string = '1.2.0';
 
 export const MAX_HISTORY_COUNT: number = 300;

@@ -3,7 +3,9 @@ import preferences from '@ohos.data.preferences';
 import {
   MAX_BOOKMARK_COUNT,
   MAX_HISTORY_COUNT,
+  MAX_TAB_COUNT,
   STORE_NAME,
+  TAB_ARCHIVE_KEY,
   WEEKLY_WINDOW_DAYS
 } from '../constants/AppConstants';
 import {
@@ -52,6 +54,7 @@ export class BrowserRepository {
   private allowedHosts: string[] = [];
   private hiddenQuickHosts: string[] = [];
   private session: BrowserSession | undefined;
+  private archivedTabs: BrowserTab[] = [];
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
     try {
@@ -64,6 +67,8 @@ export class BrowserRepository {
       this.allowedHosts = this.decode<string>(await store.get(ALLOWED_HOSTS_KEY, '[]'), ALLOWED_HOSTS_KEY);
       this.hiddenQuickHosts = this.decode<string>(await store.get(HIDDEN_QUICK_HOSTS_KEY, '[]'), HIDDEN_QUICK_HOSTS_KEY);
       this.session = this.decodeSession(await store.get(SESSION_KEY, ''));
+      this.archivedTabs = this.decode<BrowserTab>(await store.get(TAB_ARCHIVE_KEY, '[]'), TAB_ARCHIVE_KEY)
+        .map((tab: BrowserTab) => this.decodeTab(tab));
       this.settings = this.decodeSettings(await store.get(SETTINGS_KEY, ''));
       if (this.pruneHistory(this.settings.historyRetentionDays)) {
         await this.save(HISTORY_KEY, JSON.stringify(this.history));
@@ -95,6 +100,24 @@ export class BrowserRepository {
       tabs: this.session.tabs.map((tab: BrowserTab) => cloneTab(tab)),
       activeTabId: this.session.activeTabId
     };
+  }
+
+  getArchivedTabs(): BrowserTab[] {
+    return this.archivedTabs.map((tab: BrowserTab) => cloneTab(tab));
+  }
+
+  async archiveTabs(tabs: BrowserTab[]): Promise<void> {
+    const existing: BrowserTab[] = this.archivedTabs.filter((archived: BrowserTab) =>
+      !tabs.some((tab: BrowserTab) => tab.id === archived.id));
+    this.archivedTabs = tabs.map((tab: BrowserTab) => cloneTab(tab))
+      .concat(existing)
+      .slice(0, MAX_TAB_COUNT);
+    await this.save(TAB_ARCHIVE_KEY, JSON.stringify(this.archivedTabs));
+  }
+
+  async removeArchivedTabs(ids: string[]): Promise<void> {
+    this.archivedTabs = this.archivedTabs.filter((tab: BrowserTab) => !ids.includes(tab.id));
+    await this.save(TAB_ARCHIVE_KEY, JSON.stringify(this.archivedTabs));
   }
 
   async saveSession(session: BrowserSession): Promise<void> {
