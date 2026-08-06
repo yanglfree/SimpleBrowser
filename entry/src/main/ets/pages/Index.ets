@@ -4,6 +4,8 @@ import { image } from '@kit.ImageKit';
 import {
   DESKTOP_VIEWPORT_SCRIPT,
   FORCE_ZOOM_SCRIPT,
+  LONG_PRESS_TARGET_SCRIPT,
+  triggerDownloadScript,
   findCountScript,
   HOME_URL,
   READER_EXIT_SCRIPT,
@@ -48,6 +50,7 @@ import { FindSheet } from '../components/FindSheet';
 import { OmniCapsule } from '../components/OmniCapsule';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
 import { HistorySheet } from '../components/HistorySheet';
+import { LinkActionSheet } from '../components/LinkActionSheet';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
@@ -62,7 +65,7 @@ import { MemoryPressureService } from '../services/MemoryPressureService';
 import { DownloadService, DownloadTask } from '../services/DownloadService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
-import { WebHistoryEntry, WebKernelService } from '../services/WebKernelService';
+import { WebHistoryEntry, WebKernelService, WebLongPressTarget } from '../services/WebKernelService';
 import { AppContext } from '../utils/AppContext';
 import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
@@ -82,7 +85,8 @@ enum Overlay {
   History = 8,
   Share = 9,
   Downloads = 10,
-  Find = 11
+  Find = 11,
+  LinkActions = 12
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -139,6 +143,7 @@ struct Index {
   @State private findQuery: string = '';
   @State private findCurrent: number = 0;
   @State private findTotal: number = 0;
+  @State private longPressTarget: WebLongPressTarget | undefined = undefined;
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
   @State private history: HistoryEntry[] = [];
@@ -334,7 +339,8 @@ struct Index {
               onEdgeBack: (): void => { this.edgeNavigate(tab.id, true); },
               onEdgeForward: (): void => { this.edgeNavigate(tab.id, false); },
               onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); },
-              onScaleChange: (scale: number): void => { void this.handleScaleChange(tab.id, scale); }
+              onScaleChange: (scale: number): void => { void this.handleScaleChange(tab.id, scale); },
+              onLongPress: (): void => { void this.openLongPressActions(tab.id); }
             })
           } else {
             this.HibernatedTab(tab)
@@ -639,6 +645,13 @@ struct Index {
         onPrevious: (): void => { void this.findNextMatch(false); },
         onNext: (): void => { void this.findNextMatch(true); },
         onDismiss: (): void => { this.closeFind(); }
+      })
+    } else if (this.sheet === Overlay.LinkActions && this.longPressTarget !== undefined) {
+      LinkActionSheet({
+        target: this.longPressTarget,
+        isPrivate: this.activeTab()?.isPrivate === true,
+        onDismiss: (): void => this.closeLongPressActions(),
+        onAction: (key: string): void => { void this.performLongPressAction(key); }
       })
     } else if (this.sheet === Overlay.Share) {
       SharePanel({
@@ -1182,12 +1195,16 @@ struct Index {
     }
     const outcome: ShareOutcome = await ShareService.copy(tab.url);
     if (outcome === ShareOutcome.Copied) {
-      try {
-        this.getUIContext().getPromptAction().showToast({ message: $r('app.string.copied_link') });
-      } catch (error) {
-        Logger.warn(TAG, `Toast unavailable: ${String(error)}`);
-      }
+      this.showCopyToast();
       this.sheet = Overlay.None;
+    }
+  }
+
+  private showCopyToast(): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: $r('app.string.copied_link') });
+    } catch (error) {
+      Logger.warn(TAG, `Toast unavailable: ${String(error)}`);
     }
   }
 
@@ -1445,6 +1462,69 @@ struct Index {
     if (tab !== undefined && !tab.isPrivate) {
       await this.viewModel.rememberSiteZoom(tab.url, scale);
       this.settings = cloneSettings(this.viewModel.settings);
+    }
+  }
+
+  private async openLongPressActions(id: string): Promise<void> {
+    if (id !== this.activeTabId) {
+      return;
+    }
+    const controller: webview.WebviewController | undefined = this.controllers.get(id);
+    if (controller === undefined) {
+      return;
+    }
+    const target: WebLongPressTarget | undefined = await WebKernelService.getLongPressTarget(controller);
+    if (target === undefined) {
+      return;
+    }
+    this.longPressTarget = target;
+    this.sheet = Overlay.LinkActions;
+  }
+
+  private closeLongPressActions(): void {
+    this.longPressTarget = undefined;
+    this.sheet = Overlay.None;
+  }
+
+  private async performLongPressAction(key: string): Promise<void> {
+    const target: WebLongPressTarget | undefined = this.longPressTarget;
+    if (target === undefined) {
+      return;
+    }
+    if (key === 'link_open_background') {
+      const tab: BrowserTab | undefined = this.viewModel.addBackgroundTab(target.url, false);
+      if (tab !== undefined) {
+        void this.activateTab(tab.id);
+        this.syncState();
+      }
+      this.closeLongPressActions();
+      return;
+    }
+    if (key === 'link_copy') {
+      const outcome: ShareOutcome = await ShareService.copy(target.url);
+      if (outcome === ShareOutcome.Copied) {
+        this.showCopyToast();
+      }
+      this.closeLongPressActions();
+      return;
+    }
+    if (key === 'link_share' || key === 'image_share') {
+      await ShareService.share(AppContext.getContext(), target.url, target.title);
+      this.closeLongPressActions();
+      return;
+    }
+    if (key === 'link_save_later') {
+      await this.viewModel.saveUrlForLater(target.url, target.title);
+      this.syncState();
+      this.closeLongPressActions();
+      return;
+    }
+    if (key === 'image_save') {
+      const controller: webview.WebviewController | undefined = this.controllers.get(this.activeTabId);
+      if (controller !== undefined) {
+        await this.runScript(controller, triggerDownloadScript(target.url));
+      }
+      this.closeLongPressActions();
     }
   }
 
@@ -1714,6 +1794,7 @@ struct Index {
     }
 
     await this.runScript(controller, FORCE_ZOOM_SCRIPT);
+    await this.runScript(controller, LONG_PRESS_TARGET_SCRIPT);
 
     const faviconUrl: string = this.parseScriptString(
       await this.runScript(controller, READ_FAVICON_SCRIPT)

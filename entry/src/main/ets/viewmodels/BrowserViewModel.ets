@@ -153,6 +153,49 @@ export class BrowserViewModel {
     return tab;
   }
 
+  addBackgroundTab(url: string, isPrivate: boolean): BrowserTab | undefined {
+    if (this.tabs.length >= MAX_TAB_COUNT) {
+      Logger.warn(TAG, 'Tab limit reached');
+      return undefined;
+    }
+    const previousActiveTabId: string = this.activeTabId;
+    const tab: BrowserTab = this.createTab(url, isPrivate);
+    this.tabs = this.tabs.concat([tab]);
+    this.activeTabId = previousActiveTabId;
+    this.persistSession();
+    return tab;
+  }
+
+  async saveUrlForLater(url: string, title: string): Promise<void> {
+    if (url.length === 0 || isHomeUrl(url)) {
+      return;
+    }
+    const existing: SavedItem | undefined = this.savedItems.find((item: SavedItem) => item.url === url);
+    const now: number = Date.now();
+    if (existing === undefined) {
+      await this.repository.addSavedItem({
+        id: `saved-${now}`,
+        title: title.length > 0 ? title : displayHost(url),
+        url: url,
+        createdAt: now,
+        updatedAt: now,
+        isRead: false,
+        tags: []
+      });
+    } else {
+      await this.repository.updateSavedItem({
+        id: existing.id,
+        title: existing.title,
+        url: existing.url,
+        createdAt: existing.createdAt,
+        updatedAt: now,
+        isRead: false,
+        tags: existing.tags.slice(0)
+      });
+    }
+    this.savedItems = this.repository.getSavedItems();
+  }
+
   isTabSoftLimitReached(): boolean {
     return this.tabs.length >= this.settings.tabSoftLimit;
   }
@@ -428,31 +471,7 @@ export class BrowserViewModel {
   }
 
   async saveForLater(tab: BrowserTab): Promise<void> {
-    const existing: SavedItem | undefined = this.savedItems.find((item: SavedItem) => item.url === tab.url);
-    const now: number = Date.now();
-    if (existing === undefined) {
-      await this.repository.addSavedItem({
-        id: `saved-${now}`,
-        title: tab.title.length > 0 ? tab.title : displayHost(tab.url),
-        url: tab.url,
-        createdAt: now,
-        updatedAt: now,
-        isRead: false,
-        tags: []
-      });
-    } else {
-      const updated: SavedItem = {
-        id: existing.id,
-        title: existing.title,
-        url: existing.url,
-        createdAt: existing.createdAt,
-        updatedAt: now,
-        isRead: false,
-        tags: existing.tags.slice(0)
-      };
-      await this.repository.updateSavedItem(updated);
-    }
-    this.savedItems = this.repository.getSavedItems();
+    await this.saveUrlForLater(tab.url, tab.title);
   }
 
   isSaved(url: string): boolean {

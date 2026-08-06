@@ -37,6 +37,7 @@ export struct BrowserWebView {
   onEdgeForward: () => void = (): void => {};
   onAdsBlocked: (urls: string[]) => void = (_urls: string[]): void => {};
   onScaleChange: (scale: number) => void = (_scale: number): void => {};
+  onLongPress: () => void = (): void => {};
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
@@ -82,6 +83,10 @@ export struct BrowserWebView {
           .onActionUpdate((event: GestureEvent) => this.updatePullDistance(event))
           .onActionEnd((_event: GestureEvent) => this.finishPull())
           .onActionCancel(() => this.cancelPull())
+      )
+      .gesture(
+        LongPressGesture({ repeat: false, duration: 500 })
+          .onAction(() => this.onLongPress())
       )
 
       if (this.gesturesEnabled) {

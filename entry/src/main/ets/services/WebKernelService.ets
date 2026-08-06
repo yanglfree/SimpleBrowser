@@ -17,6 +17,23 @@ export interface WebHistoryEntry {
   step: number;
 }
 
+export enum WebLongPressKind {
+  Link = 0,
+  Image = 1
+}
+
+export interface WebLongPressTarget {
+  kind: WebLongPressKind;
+  url: string;
+  title: string;
+}
+
+interface LongPressPayload {
+  kind?: string;
+  url?: string;
+  title?: string;
+}
+
 /**
  * The narrow browser engine boundary. UI code deals in browser actions while
  * ArkWeb-specific controller calls stay in one place.
@@ -61,6 +78,44 @@ export class WebKernelService {
 
   static clearFind(controller: webview.WebviewController): void {
     WebKernelService.run('clearFind', (): void => controller.clearMatches());
+  }
+
+  static async getLongPressTarget(controller: webview.WebviewController): Promise<WebLongPressTarget | undefined> {
+    try {
+      const raw: string = await controller.runJavaScript('window.__mbLongPressTarget || ""');
+      let encoded: string = raw;
+      try {
+        const decoded: string = JSON.parse(raw) as string;
+        if (typeof decoded === 'string') {
+          encoded = decoded;
+        }
+      } catch (_error) {
+        // The ArkWeb bridge can return either a JSON string or its decoded value.
+      }
+      if (encoded.length === 0) {
+        return undefined;
+      }
+      const parsed: LongPressPayload = JSON.parse(encoded) as LongPressPayload;
+      if (parsed.url === undefined || !/^https?:/i.test(parsed.url)) {
+        return undefined;
+      }
+      const kind: WebLongPressKind | undefined = parsed.kind === 'image'
+        ? WebLongPressKind.Image
+        : parsed.kind === 'link'
+          ? WebLongPressKind.Link
+          : undefined;
+      if (kind === undefined) {
+        return undefined;
+      }
+      return { kind: kind, url: parsed.url, title: parsed.title ?? '' };
+    } catch (error) {
+      Logger.warn(TAG, `Unable to read long-press target: ${String(error)}`);
+      return undefined;
+    } finally {
+      WebKernelService.run('clearLongPressTarget', (): void => {
+        controller.runJavaScript('window.__mbLongPressTarget = ""');
+      });
+    }
   }
 
   static goBackBySteps(controller: webview.WebviewController, step: number): void {
