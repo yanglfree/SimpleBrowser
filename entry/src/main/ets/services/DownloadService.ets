@@ -1,7 +1,11 @@
 import { webview } from '@kit.ArkWeb';
+import { common, Want } from '@kit.AbilityKit';
 import { notificationManager } from '@kit.NotificationKit';
+import { fileUri } from '@kit.CoreFileKit';
 import environment from '@ohos.file.environment';
+import fs from '@ohos.file.fs';
 import { Logger } from '../utils/Logger';
+import { ShareService, ShareOutcome } from './ShareService';
 
 const TAG: string = 'DownloadService';
 
@@ -37,6 +41,7 @@ export class DownloadService {
   private static startedIds: string[] = [];
   private static listeners: DownloadListener[] = [];
   private static notifiedProgress: Map<string, number> = new Map();
+  private static downloadDirectory: string = '';
 
   static configure(): void {
     if (DownloadService.isConfigured) {
@@ -114,6 +119,44 @@ export class DownloadService {
     DownloadService.publishTasks();
   }
 
+  static async open(context: common.UIAbilityContext, task: DownloadTask): Promise<boolean> {
+    try {
+      const want: Want = {
+        action: 'ohos.want.action.viewData',
+        uri: fileUri.getUriFromPath(DownloadService.pathFor(task)),
+        type: DownloadService.mimeType(task.fileName)
+      };
+      await context.startAbility(want);
+      return true;
+    } catch (error) {
+      Logger.warn(TAG, `Unable to open downloaded file: ${String(error)}`);
+      return false;
+    }
+  }
+
+  static async share(context: common.UIAbilityContext, task: DownloadTask): Promise<ShareOutcome> {
+    return await ShareService.shareFile(context, DownloadService.pathFor(task), task.fileName);
+  }
+
+  static remove(id: string, deleteFile: boolean): void {
+    const task: DownloadTask | undefined = DownloadService.task(id);
+    if (task === undefined) {
+      return;
+    }
+    if (deleteFile) {
+      try {
+        fs.unlinkSync(DownloadService.pathFor(task));
+      } catch (error) {
+        Logger.warn(TAG, `Downloaded file was not removed: ${String(error)}`);
+      }
+    }
+    DownloadService.tasks = DownloadService.tasks.filter((item: DownloadTask) => item.id !== id);
+    DownloadService.items.delete(id);
+    DownloadService.startedIds = DownloadService.startedIds.filter((item: string) => item !== id);
+    DownloadService.notifiedProgress.delete(id);
+    DownloadService.publishTasks();
+  }
+
   private static enqueue(item: webview.WebDownloadItem): void {
     try {
       const id: string = item.getGuid();
@@ -166,7 +209,8 @@ export class DownloadService {
       if (DownloadService.startedIds.includes(task.id)) {
         webview.WebDownloadManager.resumeDownload(item);
       } else {
-        const targetPath: string = `${environment.getUserDownloadDir()}/${task.fileName}`;
+        DownloadService.downloadDirectory = environment.getUserDownloadDir();
+        const targetPath: string = `${DownloadService.downloadDirectory}/${task.fileName}`;
         item.start(targetPath);
         DownloadService.startedIds.push(task.id);
       }
@@ -280,5 +324,25 @@ export class DownloadService {
   private static safeFileName(value: string): string {
     const normalized: string = value.replace(/[\\/:*?"<>|]/g, '_').trim();
     return normalized.length > 0 ? normalized : `download-${Date.now()}`;
+  }
+
+  private static pathFor(task: DownloadTask): string {
+    return DownloadService.downloadDirectory.length > 0
+      ? `${DownloadService.downloadDirectory}/${task.fileName}`
+      : '';
+  }
+
+  private static mimeType(fileName: string): string {
+    const extension: string = fileName.split('.').pop()?.toLowerCase() ?? '';
+    if (extension === 'pdf') {
+      return 'application/pdf';
+    }
+    if (extension === 'png' || extension === 'jpg' || extension === 'jpeg' || extension === 'gif' || extension === 'webp') {
+      return `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+    }
+    if (extension === 'txt' || extension === 'md' || extension === 'json' || extension === 'csv') {
+      return 'text/plain';
+    }
+    return 'application/octet-stream';
   }
 }

@@ -643,7 +643,11 @@ struct Index {
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onPause: (id: string): void => DownloadService.pause(id),
         onResume: (id: string): void => DownloadService.resume(id),
-        onRetry: (id: string): void => DownloadService.retry(id)
+        onRetry: (id: string): void => DownloadService.retry(id),
+        onOpen: (task: DownloadTask): void => { void this.openDownload(task); },
+        onShare: (task: DownloadTask): void => { void this.shareDownload(task); },
+        onDeleteFile: (id: string): void => DownloadService.remove(id, true),
+        onDeleteRecord: (id: string): void => DownloadService.remove(id, false)
       })
         .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.Find) {
@@ -1234,6 +1238,14 @@ struct Index {
     } catch (error) {
       Logger.warn(TAG, `Page screenshot unavailable: ${String(error)}`);
     }
+  }
+
+  private async openDownload(task: DownloadTask): Promise<void> {
+    await DownloadService.open(AppContext.getContext(), task);
+  }
+
+  private async shareDownload(task: DownloadTask): Promise<void> {
+    await DownloadService.share(AppContext.getContext(), task);
   }
 
   private showCopyToast(): void {

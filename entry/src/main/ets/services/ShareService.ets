@@ -101,4 +101,37 @@ export class ShareService {
       }
     }
   }
+
+  static async shareFile(
+    context: common.UIAbilityContext,
+    path: string,
+    title: string
+  ): Promise<ShareOutcome> {
+    if (path.length === 0) {
+      return ShareOutcome.Failed;
+    }
+    try {
+      const record: systemShare.SharedRecord = {
+        utd: uniformTypeDescriptor.getUniformDataTypeByFilenameExtension(`.${ShareService.extension(path)}`),
+        uri: fileUri.getUriFromPath(path),
+        title: title.length > 0 ? title : path
+      };
+      const controller: systemShare.ShareController =
+        new systemShare.ShareController(new systemShare.SharedData(record));
+      await controller.show(context, {
+        selectionMode: systemShare.SelectionMode.SINGLE,
+        previewMode: systemShare.SharePreviewMode.DETAIL
+      });
+      return ShareOutcome.Shared;
+    } catch (error) {
+      Logger.warn(TAG, `File share unavailable: ${String(error)}`);
+      return ShareOutcome.Failed;
+    }
+  }
+
+  private static extension(path: string): string {
+    const name: string = path.split('/').pop() ?? '';
+    const dot: number = name.lastIndexOf('.');
+    return dot >= 0 && dot < name.length - 1 ? name.slice(dot + 1).toLowerCase() : 'octet-stream';
+  }
 }

@@ -8,6 +8,10 @@ export struct DownloadSheet {
   onPause: (id: string) => void = (_id: string): void => {};
   onResume: (id: string) => void = (_id: string): void => {};
   onRetry: (id: string) => void = (_id: string): void => {};
+  onOpen: (task: DownloadTask) => void = (_task: DownloadTask): void => {};
+  onShare: (task: DownloadTask) => void = (_task: DownloadTask): void => {};
+  onDeleteFile: (id: string) => void = (_id: string): void => {};
+  onDeleteRecord: (id: string) => void = (_id: string): void => {};
 
   build() {
     Column() {
@@ -101,6 +105,30 @@ export struct DownloadSheet {
             .fontSize(12)
             .fontColor($r('app.color.accent'))
             .onClick(() => this.onRetry(task.id))
+        }
+        if (task.status === DownloadTaskStatus.Completed) {
+          Text($r('app.string.download_open'))
+            .fontSize(12)
+            .fontColor($r('app.color.accent'))
+            .accessibilityText($r('app.string.download_open'))
+            .onClick(() => this.onOpen(task))
+          Text($r('app.string.download_share'))
+            .fontSize(12)
+            .fontColor($r('app.color.accent'))
+            .accessibilityText($r('app.string.download_share'))
+            .onClick(() => this.onShare(task))
+        }
+        Text($r('app.string.download_delete_record'))
+          .fontSize(12)
+          .fontColor($r('app.color.text_secondary'))
+          .accessibilityText($r('app.string.download_delete_record'))
+          .onClick(() => this.onDeleteRecord(task.id))
+        if (task.status === DownloadTaskStatus.Completed) {
+          Text($r('app.string.download_delete_file'))
+            .fontSize(12)
+            .fontColor($r('app.color.text_secondary'))
+            .accessibilityText($r('app.string.download_delete_file'))
+            .onClick(() => this.onDeleteFile(task.id))
         }
       }
       .width('100%')
