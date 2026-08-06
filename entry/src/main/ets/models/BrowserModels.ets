@@ -170,11 +170,19 @@ export interface BrowserSettings {
   liveWebViewLimit: number;
   downloadConcurrency: number;
   tabSoftLimit: number;
+  minimumFontSize: number;
+  siteZoomRatios: SiteZoomRatio[];
   appearance: AppearanceMode;
   clearCookiesOnTabClose: boolean;
   readerFontSize: number;
   readerLineHeight: number;
   readerPaper: ReaderPaper;
+}
+
+/** Persisted page scale in percent, keyed by the normalized host. */
+export interface SiteZoomRatio {
+  host: string;
+  percent: number;
 }
 
 /** A tile on the start page. `colorIndex` is 0-5 and maps to `site_tile_*` colors. */
@@ -240,6 +248,8 @@ export function defaultBrowserSettings(): BrowserSettings {
     liveWebViewLimit: 4,
     downloadConcurrency: 2,
     tabSoftLimit: 12,
+    minimumFontSize: 14,
+    siteZoomRatios: [],
     appearance: AppearanceMode.System,
     clearCookiesOnTabClose: false,
     readerFontSize: 17,
@@ -314,6 +324,11 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     liveWebViewLimit: settings.liveWebViewLimit,
     downloadConcurrency: settings.downloadConcurrency,
     tabSoftLimit: settings.tabSoftLimit,
+    minimumFontSize: settings.minimumFontSize,
+    siteZoomRatios: settings.siteZoomRatios.map((entry: SiteZoomRatio): SiteZoomRatio => ({
+      host: entry.host,
+      percent: entry.percent
+    })),
     appearance: settings.appearance,
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,
     readerFontSize: settings.readerFontSize,

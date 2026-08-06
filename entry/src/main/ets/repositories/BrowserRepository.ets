@@ -18,6 +18,7 @@ import {
   HistoryEntry,
   LoadErrorKind,
   SecurityState,
+  SiteZoomRatio,
   SiteBlockStats,
   addBlockStats,
   cloneBlockStats,
@@ -400,6 +401,15 @@ export class BrowserRepository {
         liveWebViewLimit: parsed.liveWebViewLimit ?? fallback.liveWebViewLimit,
         downloadConcurrency: parsed.downloadConcurrency ?? fallback.downloadConcurrency,
         tabSoftLimit: parsed.tabSoftLimit ?? fallback.tabSoftLimit,
+        minimumFontSize: parsed.minimumFontSize ?? fallback.minimumFontSize,
+        siteZoomRatios: Array.isArray(parsed.siteZoomRatios)
+          ? parsed.siteZoomRatios
+            .filter((entry: SiteZoomRatio): boolean => entry !== undefined && typeof entry.host === 'string')
+            .map((entry: SiteZoomRatio): SiteZoomRatio => ({
+              host: entry.host,
+              percent: entry.percent
+            }))
+          : fallback.siteZoomRatios,
         appearance: parsed.appearance ?? fallback.appearance,
         clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,
         readerFontSize: parsed.readerFontSize ?? fallback.readerFontSize,

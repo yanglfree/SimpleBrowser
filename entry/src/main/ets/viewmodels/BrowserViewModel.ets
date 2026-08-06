@@ -16,6 +16,7 @@ import {
   HistoryEntry,
   LoadErrorKind,
   SecurityState,
+  SiteZoomRatio,
   SiteBlockStats,
   QuickSite,
   Suggestion,
@@ -154,6 +155,39 @@ export class BrowserViewModel {
 
   isTabSoftLimitReached(): boolean {
     return this.tabs.length >= this.settings.tabSoftLimit;
+  }
+
+  siteZoomPercent(url: string): number {
+    if (url.length === 0 || isHomeUrl(url)) {
+      return 100;
+    }
+    const host: string = rawHost(url);
+    const entry: SiteZoomRatio | undefined = this.settings.siteZoomRatios.find(
+      (item: SiteZoomRatio): boolean => item.host === host);
+    return entry === undefined ? 100 : BrowserViewModel.clampZoomPercent(entry.percent);
+  }
+
+  async rememberSiteZoom(url: string, scale: number): Promise<void> {
+    if (url.length === 0 || isHomeUrl(url) || Number.isNaN(scale) || scale <= 0) {
+      return;
+    }
+    const host: string = rawHost(url);
+    if (host.length === 0) {
+      return;
+    }
+    const percent: number = BrowserViewModel.clampZoomPercent(Math.round(scale * 100));
+    const next: BrowserSettings = cloneSettings(this.settings);
+    const existing: SiteZoomRatio | undefined = next.siteZoomRatios.find(
+      (item: SiteZoomRatio): boolean => item.host === host);
+    if (existing === undefined) {
+      next.siteZoomRatios = next.siteZoomRatios.concat([{ host: host, percent: percent }]);
+    } else if (existing.percent === percent) {
+      return;
+    } else {
+      next.siteZoomRatios = next.siteZoomRatios.map((item: SiteZoomRatio): SiteZoomRatio =>
+        item.host === host ? { host: host, percent: percent } : item);
+    }
+    await this.updateSettings(next);
   }
 
   /** Returns the oldest disposable tabs needed to get back below the soft limit. */
@@ -464,6 +498,10 @@ export class BrowserViewModel {
     };
     await this.repository.updateSavedItem(updated);
     this.savedItems = this.repository.getSavedItems();
+  }
+
+  private static clampZoomPercent(percent: number): number {
+    return Math.min(300, Math.max(50, percent));
   }
 
   async updateSettings(settings: BrowserSettings): Promise<void> {

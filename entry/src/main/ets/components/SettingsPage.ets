@@ -22,7 +22,8 @@ enum PickerKind {
   LiveWebViewLimit = 6,
   DownloadConcurrency = 7,
   TabSoftLimit = 8,
-  ClearDataRange = 9
+  MinimumFontSize = 9,
+  ClearDataRange = 10
 }
 interface PickerOption {
   label: Resource;
@@ -95,6 +96,13 @@ const TAB_SOFT_LIMIT_LABELS: Resource[] = [
   $r('app.string.tab_soft_limit_twelve'),
   $r('app.string.tab_soft_limit_twenty'),
   $r('app.string.tab_soft_limit_forty')
+];
+
+const MINIMUM_FONT_SIZE_LABELS: Resource[] = [
+  $r('app.string.minimum_font_size_twelve'),
+  $r('app.string.minimum_font_size_fourteen'),
+  $r('app.string.minimum_font_size_sixteen'),
+  $r('app.string.minimum_font_size_eighteen')
 ];
 
 const CLEAR_DATA_RANGE_LABELS: Resource[] = [
@@ -292,6 +300,12 @@ export struct SettingsPage {
               this.tabSoftLimitLabel(),
               false,
               () => this.picker = PickerKind.TabSoftLimit
+            )
+            this.ValueRow(
+              $r('app.string.minimum_font_size'),
+              this.minimumFontSizeLabel(),
+              false,
+              () => this.picker = PickerKind.MinimumFontSize
             )
           }
           .groupCard()
@@ -535,6 +549,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.TabSoftLimit) {
       return optionsFrom(TAB_SOFT_LIMIT_LABELS);
     }
+    if (this.picker === PickerKind.MinimumFontSize) {
+      return optionsFrom(MINIMUM_FONT_SIZE_LABELS);
+    }
     if (this.picker === PickerKind.ClearDataRange) {
       return optionsFrom(CLEAR_DATA_RANGE_LABELS);
     }
@@ -563,6 +580,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.TabSoftLimit) {
       return this.tabSoftLimitIndex();
     }
+    if (this.picker === PickerKind.MinimumFontSize) {
+      return this.minimumFontSizeIndex();
+    }
     if (this.picker === PickerKind.ClearDataRange) {
       return this.clearDataRangeIndex();
     }
@@ -590,6 +610,8 @@ export struct SettingsPage {
       next.downloadConcurrency = this.downloadConcurrencyValue(value);
     } else if (this.picker === PickerKind.TabSoftLimit) {
       next.tabSoftLimit = this.tabSoftLimitValue(value);
+    } else if (this.picker === PickerKind.MinimumFontSize) {
+      next.minimumFontSize = this.minimumFontSizeValue(value);
     } else {
       next.appearance = value as AppearanceMode;
     }
@@ -727,6 +749,36 @@ export struct SettingsPage {
 
   private tabSoftLimitLabel(): Resource {
     return TAB_SOFT_LIMIT_LABELS[this.tabSoftLimitIndex()];
+  }
+
+  private minimumFontSizeIndex(): number {
+    if (this.settings.minimumFontSize === 12) {
+      return 0;
+    }
+    if (this.settings.minimumFontSize === 16) {
+      return 2;
+    }
+    if (this.settings.minimumFontSize === 18) {
+      return 3;
+    }
+    return 1;
+  }
+
+  private minimumFontSizeValue(index: number): number {
+    if (index === 0) {
+      return 12;
+    }
+    if (index === 2) {
+      return 16;
+    }
+    if (index === 3) {
+      return 18;
+    }
+    return 14;
+  }
+
+  private minimumFontSizeLabel(): Resource {
+    return MINIMUM_FONT_SIZE_LABELS[this.minimumFontSizeIndex()];
   }
 
   private saveSearchTemplate(template: string): void {

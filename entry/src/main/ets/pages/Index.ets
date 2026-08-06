@@ -3,6 +3,7 @@ import { webview } from '@kit.ArkWeb';
 import { image } from '@kit.ImageKit';
 import {
   DESKTOP_VIEWPORT_SCRIPT,
+  FORCE_ZOOM_SCRIPT,
   findCountScript,
   HOME_URL,
   READER_EXIT_SCRIPT,
@@ -314,6 +315,8 @@ struct Index {
             BrowserWebView({
               tab: tab,
               blockAds: this.settings.blockAds && !this.viewModel.isHostAllowed(tab.url),
+              minimumFontSize: this.settings.minimumFontSize,
+              initialZoomPercent: this.viewModel.siteZoomPercent(tab.url),
               controller: this.controllerFor(tab.id),
               kernelCallbacks: {
                 onPageBegin: (url: string): void => this.handlePageBegin(tab.id, url),
@@ -330,7 +333,8 @@ struct Index {
               onPullRefresh: (): void => { this.pullRefresh(tab.id); },
               onEdgeBack: (): void => { this.edgeNavigate(tab.id, true); },
               onEdgeForward: (): void => { this.edgeNavigate(tab.id, false); },
-              onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); }
+              onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); },
+              onScaleChange: (scale: number): void => { void this.handleScaleChange(tab.id, scale); }
             })
           } else {
             this.HibernatedTab(tab)
@@ -1433,6 +1437,17 @@ struct Index {
     this.syncState();
   }
 
+  private async handleScaleChange(id: string, scale: number): Promise<void> {
+    if (id !== this.activeTabId) {
+      return;
+    }
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (tab !== undefined && !tab.isPrivate) {
+      await this.viewModel.rememberSiteZoom(tab.url, scale);
+      this.settings = cloneSettings(this.viewModel.settings);
+    }
+  }
+
   private async injectCosmeticRules(id: string, pageUrl: string): Promise<void> {
     const script: string = AdsBlockService.cosmeticScriptFor(pageUrl);
     const controller: webview.WebviewController | undefined = this.controllers.get(id);
@@ -1697,6 +1712,8 @@ struct Index {
     if (controller === undefined || tab === undefined) {
       return;
     }
+
+    await this.runScript(controller, FORCE_ZOOM_SCRIPT);
 
     const faviconUrl: string = this.parseScriptString(
       await this.runScript(controller, READ_FAVICON_SCRIPT)

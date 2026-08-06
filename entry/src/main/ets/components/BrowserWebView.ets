@@ -22,6 +22,8 @@ export struct BrowserWebView {
   @Prop kernelCallbacks: WebKernelCallbacks;
   @Prop isAtTop: boolean = false;
   @Prop gesturesEnabled: boolean = true;
+  @Prop minimumFontSize: number = 14;
+  @Prop initialZoomPercent: number = 100;
   controller: webview.WebviewController = new webview.WebviewController();
   @State private pullDistance: number = 0;
   @State private edgeBackDistance: number = 0;
@@ -34,6 +36,7 @@ export struct BrowserWebView {
   onEdgeBack: () => void = (): void => {};
   onEdgeForward: () => void = (): void => {};
   onAdsBlocked: (urls: string[]) => void = (_urls: string[]): void => {};
+  onScaleChange: (scale: number) => void = (_scale: number): void => {};
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
@@ -43,6 +46,8 @@ export struct BrowserWebView {
       .onlineImageAccess(true)
       .imageAccess(true)
       .zoomAccess(true)
+      .minFontSize(this.minimumFontSize)
+      .initialScale(this.initialZoomPercent)
       .darkMode(WebDarkMode.Auto)
       .forceDarkAccess(true)
       .backgroundColor($r('app.color.content_background'))
@@ -64,6 +69,7 @@ export struct BrowserWebView {
         return { useSystemKeyboard: true };
       })
       .onTitleReceive((event: OnTitleReceiveEvent) => this.onTitleReceive(event.title))
+      .onScaleChange((event: OnScaleChangeEvent) => this.onScaleChange(event.newScale))
       .onAdsBlocked((details: AdsBlockedDetails) => this.onAdsBlocked(details.adsBlocked))
       .onErrorReceive((event: OnErrorReceiveEvent) => {
         const code: number = event.error.getErrorCode();
