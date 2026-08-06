@@ -5,6 +5,7 @@ import {
   DESKTOP_VIEWPORT_SCRIPT,
   HOME_URL,
   READER_EXIT_SCRIPT,
+  READ_FAVICON_SCRIPT,
   READ_SCROLL_POSITION_SCRIPT,
   READER_FONT_MAX,
   READER_FONT_MIN,
@@ -1034,6 +1035,15 @@ struct Index {
       return;
     }
 
+    const faviconUrl: string = this.parseScriptString(
+      await this.runScript(controller, READ_FAVICON_SCRIPT)
+    );
+    if (faviconUrl.length > 0 && faviconUrl !== tab.faviconUrl) {
+      this.viewModel.updateTab(id, { faviconUrl: faviconUrl });
+      this.syncTab(id);
+      this.viewModel.persistSession();
+    }
+
     if (this.viewModel.isHostAllowed(tab.url)) {
       await this.runScript(controller, RESTORE_HIDDEN_SCRIPT);
       return;
@@ -1095,6 +1105,19 @@ struct Index {
     } catch (error) {
       Logger.warn(TAG, `Unreadable script result: ${String(error)}`);
       return undefined;
+    }
+  }
+
+  private parseScriptString(raw: string): string {
+    const value: string = raw.trim();
+    if (value.length === 0) {
+      return '';
+    }
+    try {
+      const decoded: string = JSON.parse(value) as string;
+      return typeof decoded === 'string' ? decoded : '';
+    } catch (error) {
+      return value.replace(/^"|"$/g, '');
     }
   }
 

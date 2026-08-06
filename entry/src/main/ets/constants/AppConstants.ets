@@ -185,6 +185,16 @@ export const READ_SCROLL_POSITION_SCRIPT: string = `
   return String(Math.max(0, Math.round(window.scrollY || 0)));
 })();`;
 
+export const READ_FAVICON_SCRIPT: string = `
+(function() {
+  var links = document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"],link[rel="apple-touch-icon"]');
+  for (var i = 0; i < links.length; i++) {
+    var href = links[i].href || links[i].getAttribute('href') || '';
+    if (href.length > 0) return href;
+  }
+  return '';
+})();`;
+
 export function restoreScrollPositionScript(position: number): string {
   const safePosition: number = Math.max(0, Math.round(position));
   return `
