@@ -11,6 +11,12 @@ export interface WebKernelCallbacks {
   onError: (code: number, message: string) => void;
 }
 
+export interface WebHistoryEntry {
+  title: string;
+  url: string;
+  step: number;
+}
+
 /**
  * The narrow browser engine boundary. UI code deals in browser actions while
  * ArkWeb-specific controller calls stay in one place.
@@ -43,6 +49,33 @@ export class WebKernelService {
 
   static goForward(controller: webview.WebviewController): void {
     WebKernelService.run('goForward', (): void => controller.forward());
+  }
+
+  static goBackBySteps(controller: webview.WebviewController, step: number): void {
+    if (step >= 0) {
+      return;
+    }
+    WebKernelService.run('goBackBySteps', (): void => controller.backOrForward(step));
+  }
+
+  static getBackHistory(controller: webview.WebviewController): WebHistoryEntry[] {
+    try {
+      const list: webview.BackForwardList = controller.getBackForwardEntries();
+      const entries: WebHistoryEntry[] = [];
+      const firstIndex: number = Math.max(0, list.currentIndex - 12);
+      for (let index: number = list.currentIndex - 1; index >= firstIndex; index -= 1) {
+        const item: webview.HistoryItem = list.getItemAtIndex(index);
+        entries.push({
+          title: item.title.length > 0 ? item.title : item.historyUrl,
+          url: item.historyUrl,
+          step: index - list.currentIndex
+        });
+      }
+      return entries;
+    } catch (error) {
+      Logger.warn(TAG, `Unable to read back history: ${String(error)}`);
+      return [];
+    }
   }
 
   static canGoBack(controller: webview.WebviewController): boolean {

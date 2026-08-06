@@ -36,6 +36,7 @@ import { AddressSheet } from '../components/AddressSheet';
 import { BlockPanel } from '../components/BlockPanel';
 import { BrowserWebView } from '../components/BrowserWebView';
 import { OmniCapsule } from '../components/OmniCapsule';
+import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
@@ -46,7 +47,7 @@ import { TAB_LAUNCHER_RIGHT_MARGIN, TAB_LAUNCHER_TOP_MARGIN, TAB_WEB_BOTTOM_INSE
 import { PrivacyService } from '../services/PrivacyService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
-import { WebKernelService } from '../services/WebKernelService';
+import { WebHistoryEntry, WebKernelService } from '../services/WebKernelService';
 import { AppContext } from '../utils/AppContext';
 import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
@@ -61,7 +62,8 @@ enum Overlay {
   Tabs = 3,
   Block = 4,
   Settings = 5,
-  Security = 6
+  Security = 6,
+  NavigationHistory = 7
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -105,6 +107,7 @@ struct Index {
   @State private isSiteAllowed: boolean = false;
   @State private isActiveBookmarked: boolean = false;
   @State private thumbnails: TabThumbnail[] = [];
+  @State private backHistory: WebHistoryEntry[] = [];
 
   async aboutToAppear(): Promise<void> {
     try {
@@ -384,6 +387,8 @@ struct Index {
         isDesktop: this.activeTab()?.isDesktop === true,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onEscalate: (): void => { this.openTabs(); },
+        onBackLongPress: (): void => { this.openBackHistory(); },
+        onReloadLongPress: (): void => { this.forceReload(); },
         onAction: (key: string): void => { this.performAction(key); }
       })
         .transition(this.sheetTransition())
@@ -436,6 +441,13 @@ struct Index {
         url: this.activeTab()?.url ?? '',
         state: this.activeTab()?.securityState ?? SecurityState.Unknown,
         onDismiss: (): void => { this.sheet = Overlay.None; }
+      })
+        .transition(this.sheetTransition())
+    } else if (this.sheet === Overlay.NavigationHistory) {
+      NavigationHistorySheet({
+        entries: this.backHistory,
+        onDismiss: (): void => { this.sheet = Overlay.None; },
+        onSelect: (step: number): void => { this.selectBackHistory(step); }
       })
         .transition(this.sheetTransition())
     }
@@ -879,6 +891,33 @@ struct Index {
 
   private openSecurityDetails(): void {
     this.sheet = Overlay.Security;
+  }
+
+  private openBackHistory(): void {
+    const controller: webview.WebviewController | undefined = this.controllers.get(this.activeTabId);
+    if (controller === undefined) {
+      return;
+    }
+    this.backHistory = WebKernelService.getBackHistory(controller);
+    if (this.backHistory.length > 0) {
+      this.sheet = Overlay.NavigationHistory;
+    }
+  }
+
+  private selectBackHistory(step: number): void {
+    this.sheet = Overlay.None;
+    this.runOnActive((controller: webview.WebviewController) =>
+      WebKernelService.goBackBySteps(controller, step));
+  }
+
+  private forceReload(): void {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined || tab.isLoading) {
+      return;
+    }
+    this.sheet = Overlay.None;
+    this.runOnActive((controller: webview.WebviewController) =>
+      WebKernelService.reload(controller, true));
   }
 
   private errorTitle(): Resource {

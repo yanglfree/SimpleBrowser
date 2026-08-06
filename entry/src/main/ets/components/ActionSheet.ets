@@ -27,6 +27,8 @@ export struct ActionSheet {
   @Prop isDesktop: boolean = false;
   onDismiss: () => void = (): void => {};
   onEscalate: () => void = (): void => {};
+  onBackLongPress: () => void = (): void => {};
+  onReloadLongPress: () => void = (): void => {};
   onAction: (key: string) => void = (_key: string): void => {};
 
   build() {
@@ -80,26 +82,7 @@ export struct ActionSheet {
 
       Flex({ wrap: FlexWrap.Wrap }) {
         ForEach(this.actions(), (action: SheetAction) => {
-          Column({ space: 7 }) {
-            AppIcon({
-              name: action.icon,
-              glyphSize: 23,
-              color: action.active ? $r('app.color.accent') : $r('app.color.text_primary'),
-              filled: action.active && action.icon === IconName.Bookmark
-            })
-            Text(action.label)
-              .fontSize(11)
-              .fontColor(action.active ? $r('app.color.accent') : $r('app.color.text_secondary'))
-              .maxLines(1)
-          }
-          .width('25%')
-          .padding({ top: 12, bottom: 12 })
-          .opacity(action.enabled ? 1 : 0.35)
-          .onClick(() => {
-            if (action.enabled) {
-              this.onAction(action.key);
-            }
-          })
+          this.ActionCell(action)
         }, (action: SheetAction) => action.key)
       }
       .width('100%')
@@ -121,6 +104,62 @@ export struct ActionSheet {
           }
         })
     )
+  }
+
+  @Builder
+  private ActionCell(action: SheetAction) {
+    if (action.key === 'back' || action.key === 'reload') {
+      Column({ space: 7 }) {
+        this.ActionContent(action)
+      }
+      .width('25%')
+      .padding({ top: 12, bottom: 12 })
+      .opacity(action.enabled ? 1 : 0.35)
+      .gesture(
+        GestureGroup(GestureMode.Exclusive,
+          LongPressGesture({ repeat: false, duration: 450 })
+            .onAction(() => {
+              if (action.key === 'back' && action.enabled) {
+                this.onBackLongPress();
+              } else if (action.key === 'reload' && action.enabled && !this.isLoading) {
+                this.onReloadLongPress();
+              }
+            }),
+          TapGesture()
+            .onAction(() => {
+              if (action.enabled) {
+                this.onAction(action.key);
+              }
+            })
+        )
+      )
+    } else {
+      Column({ space: 7 }) {
+        this.ActionContent(action)
+      }
+      .width('25%')
+      .padding({ top: 12, bottom: 12 })
+      .opacity(action.enabled ? 1 : 0.35)
+      .onClick(() => {
+        if (action.enabled) {
+          this.onAction(action.key);
+        }
+      })
+    }
+  }
+
+  @Builder
+  private ActionContent(action: SheetAction) {
+    AppIcon({
+      name: action.icon,
+      glyphSize: 23,
+      color: action.active ? $r('app.color.accent') : $r('app.color.text_primary'),
+      filled: action.active && action.icon === IconName.Bookmark
+    })
+    Text(action.label)
+      .fontSize(11)
+      .fontColor(action.active ? $r('app.color.accent') : $r('app.color.text_secondary'))
+      .maxLines(1)
   }
 
   private actions(): SheetAction[] {
