@@ -803,10 +803,14 @@ struct Index {
   // ------------------------------------------------------------- web events
 
   private handlePageBegin(id: string, url: string): void {
+    const current: BrowserTab | undefined = this.viewModel.getTab(id);
+    const progress: number = current?.isLoading === true && current.progress > 0
+      ? current.progress
+      : 0;
     this.viewModel.updateTab(id, {
       url: url,
       isLoading: true,
-      progress: 0,
+      progress: progress,
       isReader: false,
       loadError: LoadErrorKind.None,
       securityState: Index.securityStateForUrl(url),

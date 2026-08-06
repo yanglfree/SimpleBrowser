@@ -25,6 +25,7 @@ export class WebKernelService {
   static reload(controller: webview.WebviewController, force: boolean = false): void {
     WebKernelService.run('reload', (): void => {
       if (force) {
+        controller.removeCache(true);
         controller.refresh();
       } else {
         controller.refresh();
