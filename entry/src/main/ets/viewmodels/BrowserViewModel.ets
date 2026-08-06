@@ -343,11 +343,23 @@ export class BrowserViewModel {
   async updateSettings(settings: BrowserSettings): Promise<void> {
     this.settings = cloneSettings(settings);
     await this.repository.saveSettings(this.settings);
+    await this.repository.applyHistoryRetention(this.settings.historyRetentionDays);
+    this.history = this.repository.getHistory();
     Logger.info(TAG, 'Browser settings updated');
   }
 
   async clearHistory(before: number = 0): Promise<void> {
     await this.repository.clearHistory(before);
+    this.history = this.repository.getHistory();
+  }
+
+  async removeHistoryEntry(id: string): Promise<void> {
+    await this.repository.removeHistoryEntry(id);
+    this.history = this.repository.getHistory();
+  }
+
+  async removeHistoryForHost(host: string): Promise<void> {
+    await this.repository.removeHistoryForHost(host);
     this.history = this.repository.getHistory();
   }
 

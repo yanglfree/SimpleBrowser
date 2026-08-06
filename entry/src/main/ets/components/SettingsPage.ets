@@ -18,7 +18,8 @@ enum PickerKind {
   SearchEngine = 2,
   Appearance = 3,
   TabExpiry = 4,
-  ClearDataRange = 5
+  HistoryRetention = 5,
+  ClearDataRange = 6
 }
 interface PickerOption {
   label: Resource;
@@ -63,6 +64,13 @@ const TAB_EXPIRY_LABELS: Resource[] = [
   $r('app.string.tab_expiry_one_day'),
   $r('app.string.tab_expiry_three_days'),
   $r('app.string.tab_expiry_seven_days')
+];
+
+const HISTORY_RETENTION_LABELS: Resource[] = [
+  $r('app.string.history_retention_never'),
+  $r('app.string.history_retention_one_day'),
+  $r('app.string.history_retention_seven_days'),
+  $r('app.string.history_retention_thirty_days')
 ];
 
 const CLEAR_DATA_RANGE_LABELS: Resource[] = [
@@ -257,6 +265,12 @@ export struct SettingsPage {
                 next.clearCookiesOnTabClose = !next.clearCookiesOnTabClose;
                 this.onChange(next);
               }
+            )
+            this.ValueRow(
+              $r('app.string.history_retention'),
+              this.historyRetentionLabel(),
+              true,
+              () => this.picker = PickerKind.HistoryRetention
             )
             this.ActionRow($r('app.string.clear_browsing_data'), false, () => this.openClearDataSheet())
             if (this.allowedHosts.length > 0) {
@@ -467,6 +481,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.TabExpiry) {
       return optionsFrom(TAB_EXPIRY_LABELS);
     }
+    if (this.picker === PickerKind.HistoryRetention) {
+      return optionsFrom(HISTORY_RETENTION_LABELS);
+    }
     if (this.picker === PickerKind.ClearDataRange) {
       return optionsFrom(CLEAR_DATA_RANGE_LABELS);
     }
@@ -482,6 +499,9 @@ export struct SettingsPage {
     }
     if (this.picker === PickerKind.TabExpiry) {
       return this.tabExpiryIndex();
+    }
+    if (this.picker === PickerKind.HistoryRetention) {
+      return this.historyRetentionIndex();
     }
     if (this.picker === PickerKind.ClearDataRange) {
       return this.clearDataRangeIndex();
@@ -502,6 +522,8 @@ export struct SettingsPage {
       next.searchEngine = value as SearchEngine;
     } else if (this.picker === PickerKind.TabExpiry) {
       next.tabExpiryDays = this.tabExpiryValue(value);
+    } else if (this.picker === PickerKind.HistoryRetention) {
+      next.historyRetentionDays = this.historyRetentionValue(value);
     } else {
       next.appearance = value as AppearanceMode;
     }
@@ -537,6 +559,36 @@ export struct SettingsPage {
 
   private tabExpiryLabel(): Resource {
     return TAB_EXPIRY_LABELS[this.tabExpiryIndex()];
+  }
+
+  private historyRetentionIndex(): number {
+    if (this.settings.historyRetentionDays === 1) {
+      return 1;
+    }
+    if (this.settings.historyRetentionDays === 7) {
+      return 2;
+    }
+    if (this.settings.historyRetentionDays === 30) {
+      return 3;
+    }
+    return 0;
+  }
+
+  private historyRetentionValue(index: number): number {
+    if (index === 1) {
+      return 1;
+    }
+    if (index === 2) {
+      return 7;
+    }
+    if (index === 3) {
+      return 30;
+    }
+    return 0;
+  }
+
+  private historyRetentionLabel(): Resource {
+    return HISTORY_RETENTION_LABELS[this.historyRetentionIndex()];
   }
 
   private saveSearchTemplate(template: string): void {

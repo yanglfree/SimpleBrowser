@@ -214,6 +214,13 @@ export struct ActionSheet {
         icon: IconName.Desktop,
         enabled: true,
         active: this.isDesktop
+      },
+      {
+        key: 'history',
+        label: $r('app.string.history_title'),
+        icon: IconName.Clock,
+        enabled: true,
+        active: false
       }
     ];
   }

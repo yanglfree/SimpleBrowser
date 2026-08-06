@@ -155,6 +155,7 @@ export interface BrowserSettings {
   autoHideToolbarEnabled: boolean;
   quickSitesEnabled: boolean;
   tabExpiryDays: TabExpiry;
+  historyRetentionDays: number;
   tabSoftLimit: number;
   appearance: AppearanceMode;
   clearCookiesOnTabClose: boolean;
@@ -222,6 +223,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     autoHideToolbarEnabled: true,
     quickSitesEnabled: true,
     tabExpiryDays: TabExpiry.SevenDays,
+    historyRetentionDays: 30,
     tabSoftLimit: 12,
     appearance: AppearanceMode.System,
     clearCookiesOnTabClose: false,
@@ -289,6 +291,7 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     autoHideToolbarEnabled: settings.autoHideToolbarEnabled,
     quickSitesEnabled: settings.quickSitesEnabled,
     tabExpiryDays: settings.tabExpiryDays,
+    historyRetentionDays: settings.historyRetentionDays,
     tabSoftLimit: settings.tabSoftLimit,
     appearance: settings.appearance,
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,

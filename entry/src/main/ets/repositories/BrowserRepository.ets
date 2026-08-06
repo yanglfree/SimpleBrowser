@@ -65,6 +65,9 @@ export class BrowserRepository {
       this.hiddenQuickHosts = this.decode<string>(await store.get(HIDDEN_QUICK_HOSTS_KEY, '[]'), HIDDEN_QUICK_HOSTS_KEY);
       this.session = this.decodeSession(await store.get(SESSION_KEY, ''));
       this.settings = this.decodeSettings(await store.get(SETTINGS_KEY, ''));
+      if (this.pruneHistory(this.settings.historyRetentionDays)) {
+        await this.save(HISTORY_KEY, JSON.stringify(this.history));
+      }
       this.pruneDailyStats();
     } catch (error) {
       this.store = undefined;
@@ -129,6 +132,21 @@ export class BrowserRepository {
     await this.save(BOOKMARKS_KEY, JSON.stringify(this.bookmarks));
   }
 
+  async removeHistoryEntry(id: string): Promise<void> {
+    this.history = this.history.filter((item: HistoryEntry) => item.id !== id);
+    await this.save(HISTORY_KEY, JSON.stringify(this.history));
+  }
+
+  async removeHistoryForHost(host: string): Promise<void> {
+    const normalized: string = host.toLowerCase();
+    this.history = this.history.filter((item: HistoryEntry) => {
+      const match: RegExpMatchArray | null = item.url.match(/^[a-z][a-z0-9+.-]*:\/\/([^/?#]+)/i);
+      const itemHost: string = match === null ? '' : match[1].split(':')[0].toLowerCase();
+      return itemHost !== normalized;
+    });
+    await this.save(HISTORY_KEY, JSON.stringify(this.history));
+  }
+
   /** Re-visiting a URL bumps its counter instead of adding a duplicate row. */
   async recordHistory(entry: HistoryEntry): Promise<void> {
     const previous: HistoryEntry | undefined =
@@ -137,6 +155,12 @@ export class BrowserRepository {
     merged.visitCount = (previous?.visitCount ?? 0) + 1;
     const filtered: HistoryEntry[] = this.history.filter((item: HistoryEntry) => item.url !== entry.url);
     this.history = [merged].concat(filtered).slice(0, MAX_HISTORY_COUNT);
+    this.pruneHistory(this.settings.historyRetentionDays);
+    await this.save(HISTORY_KEY, JSON.stringify(this.history));
+  }
+
+  async applyHistoryRetention(retentionDays: number): Promise<void> {
+    this.pruneHistory(retentionDays);
     await this.save(HISTORY_KEY, JSON.stringify(this.history));
   }
 
@@ -229,6 +253,17 @@ export class BrowserRepository {
       .map((item: DailyBlockCount) => cloneDailyCount(item));
   }
 
+  private pruneHistory(retentionDays: number): boolean {
+    if (retentionDays <= 0) {
+      return false;
+    }
+    const cutoff: number = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+    const retained: HistoryEntry[] = this.history.filter((item: HistoryEntry) => item.visitedAt >= cutoff);
+    const changed: boolean = retained.length !== this.history.length;
+    this.history = retained;
+    return changed;
+  }
+
   private async save(key: string, value: string): Promise<void> {
     if (this.store === undefined) {
       Logger.warn(TAG, `Skip save before initialization: ${key}`);
@@ -278,6 +313,7 @@ export class BrowserRepository {
         autoHideToolbarEnabled: parsed.autoHideToolbarEnabled ?? fallback.autoHideToolbarEnabled,
         quickSitesEnabled: parsed.quickSitesEnabled ?? fallback.quickSitesEnabled,
         tabExpiryDays: parsed.tabExpiryDays ?? fallback.tabExpiryDays,
+        historyRetentionDays: parsed.historyRetentionDays ?? fallback.historyRetentionDays,
         tabSoftLimit: parsed.tabSoftLimit ?? fallback.tabSoftLimit,
         appearance: parsed.appearance ?? fallback.appearance,
         clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,

@@ -21,6 +21,7 @@ import {
   BlockStats,
   BrowserSettings,
   BrowserTab,
+  HistoryEntry,
   QuickSite,
   ReaderPaper,
   RuleStrength,
@@ -28,6 +29,7 @@ import {
   LoadErrorKind,
   SecurityState,
   cloneSettings,
+  cloneHistoryEntry,
   cloneTab,
   defaultBrowserSettings,
   emptyBlockStats,
@@ -39,6 +41,7 @@ import { BlockPanel } from '../components/BlockPanel';
 import { BrowserWebView } from '../components/BrowserWebView';
 import { OmniCapsule } from '../components/OmniCapsule';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
+import { HistorySheet } from '../components/HistorySheet';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
@@ -65,7 +68,8 @@ enum Overlay {
   Block = 4,
   Settings = 5,
   Security = 6,
-  NavigationHistory = 7
+  NavigationHistory = 7,
+  History = 8
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -119,6 +123,7 @@ struct Index {
   @State private isActiveBookmarked: boolean = false;
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
+  @State private history: HistoryEntry[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
   private pageScrollOffsets: Map<string, number> = new Map();
@@ -517,6 +522,15 @@ struct Index {
         onSelect: (step: number): void => { this.selectBackHistory(step); }
       })
         .transition(this.sheetTransition())
+    } else if (this.sheet === Overlay.History) {
+      HistorySheet({
+        entries: this.history,
+        onDismiss: (): void => { this.sheet = Overlay.None; },
+        onSelect: (url: string): void => this.navigateTo(url),
+        onDelete: (id: string): void => { this.deleteHistory(id); },
+        onDeleteSite: (host: string): void => { this.deleteHistorySite(host); }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     }
   }
 
@@ -819,7 +833,24 @@ struct Index {
         WebKernelService.applyUserAgent(controller, isDesktop);
         WebKernelService.reload(controller);
       });
+      return;
     }
+    if (key === 'history') {
+      this.sheet = Overlay.History;
+    }
+  }
+
+  private async deleteHistory(id: string): Promise<void> {
+    await this.viewModel.removeHistoryEntry(id);
+    this.syncState();
+  }
+
+  private async deleteHistorySite(host: string): Promise<void> {
+    if (host.length === 0) {
+      return;
+    }
+    await this.viewModel.removeHistoryForHost(host);
+    this.syncState();
   }
 
   // ------------------------------------------------------------------ reader
@@ -1452,6 +1483,7 @@ struct Index {
     this.tabs = this.viewModel.tabs.map((tab: BrowserTab) => cloneTab(tab));
     this.activeTabId = this.viewModel.activeTabId;
     this.settings = cloneSettings(this.viewModel.settings);
+    this.history = this.viewModel.history.map((entry: HistoryEntry) => cloneHistoryEntry(entry));
     this.quickSites = this.viewModel.getQuickSites();
     this.weeklyBlocked = this.viewModel.getWeeklyBlocked();
     this.cumulativeBlocked = this.viewModel.getCumulativeBlocked();
