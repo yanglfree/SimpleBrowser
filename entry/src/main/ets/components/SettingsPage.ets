@@ -508,8 +508,17 @@ export struct SettingsPage {
 
   private filteredSearchEntries(): SettingsSearchEntry[] {
     const query: string = this.searchQuery.trim().toLowerCase();
-    return this.searchEntries().filter((entry: SettingsSearchEntry): boolean =>
-      entry.keywords.toLowerCase().includes(query));
+    const compactQuery: string = query.replace(/\s+/g, '');
+    return this.searchEntries().filter((entry: SettingsSearchEntry): boolean => {
+      const keywords: string = entry.keywords.toLowerCase();
+      if (keywords.includes(query) || keywords.replace(/\s+/g, '').includes(compactQuery)) {
+        return true;
+      }
+      // Chinese users commonly enter a phrase without spaces, while the index
+      // intentionally stores independent searchable terms.
+      return /[\u4e00-\u9fff]/.test(compactQuery) &&
+        compactQuery.split('').every((character: string): boolean => keywords.includes(character));
+    });
   }
 
   private searchEntries(): SettingsSearchEntry[] {
@@ -521,7 +530,7 @@ export struct SettingsPage {
       { key: 'search_suggestions', label: $r('app.string.search_suggestions'), keywords: '搜索 建议' },
       { key: 'gestures', label: $r('app.string.gestures_enabled'), keywords: '手势 滑动 操作' },
       { key: 'appearance', label: $r('app.string.appearance'), keywords: '外观 主题 深色 浅色' },
-      { key: 'web_dark_mode', label: $r('app.string.web_dark_mode'), keywords: '网页 深色 暗色 强制 站点 图片 视频' },
+      { key: 'web_dark_mode', label: $r('app.string.web_dark_mode'), keywords: '网页 深色 暗色 模式 强制 站点 图片 视频' },
       { key: 'tab_expiry', label: $r('app.string.tab_expiry'), keywords: '标签 清理 归档 过期' },
       { key: 'history_retention', label: $r('app.string.history_retention'), keywords: '历史 保留 清除' },
       { key: 'clear_data', label: $r('app.string.clear_browsing_data'), keywords: '历史 Cookie 缓存 权限 清除' },
