@@ -47,6 +47,7 @@ import { HistorySheet } from '../components/HistorySheet';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
+import { SharePanel } from '../components/SharePanel';
 import { StartPage } from '../components/StartPage';
 import { TabLauncher } from '../components/TabLauncher';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
@@ -73,7 +74,8 @@ enum Overlay {
   Settings = 5,
   Security = 6,
   NavigationHistory = 7,
-  History = 8
+  History = 8,
+  Share = 9
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -599,6 +601,16 @@ struct Index {
         onDeleteSite: (host: string): void => { this.deleteHistorySite(host); }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.Share) {
+      SharePanel({
+        title: this.activeTab()?.title ?? '',
+        host: displayHost(this.activeTab()?.url ?? ''),
+        onDismiss: (): void => { this.sheet = Overlay.None; },
+        onSystemShare: (): void => { void this.shareActivePage(); },
+        onCopy: (): void => { void this.copyActiveLink(); },
+        onSaveLater: (): void => { void this.saveActiveForLater(); }
+      })
+        .transition(this.sheetTransition())
     }
   }
 
@@ -973,16 +985,7 @@ struct Index {
       return;
     }
     if (key === 'share') {
-      this.sheet = Overlay.None;
-      const outcome: ShareOutcome =
-        await ShareService.share(AppContext.getContext(), tab.url, tab.title);
-      if (outcome === ShareOutcome.Copied) {
-        try {
-          this.getUIContext().getPromptAction().showToast({ message: $r('app.string.copied_link') });
-        } catch (error) {
-          Logger.warn(TAG, `Toast unavailable: ${String(error)}`);
-        }
-      }
+      this.sheet = Overlay.Share;
       return;
     }
     if (key === 'bookmark') {
@@ -1020,6 +1023,44 @@ struct Index {
     if (key === 'history') {
       this.sheet = Overlay.History;
     }
+  }
+
+  private async shareActivePage(): Promise<void> {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined) {
+      return;
+    }
+    const outcome: ShareOutcome = await ShareService.share(AppContext.getContext(), tab.url, tab.title);
+    if (outcome === ShareOutcome.Shared) {
+      this.sheet = Overlay.None;
+    }
+  }
+
+  private async copyActiveLink(): Promise<void> {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined) {
+      return;
+    }
+    const outcome: ShareOutcome = await ShareService.copy(tab.url);
+    if (outcome === ShareOutcome.Copied) {
+      try {
+        this.getUIContext().getPromptAction().showToast({ message: $r('app.string.copied_link') });
+      } catch (error) {
+        Logger.warn(TAG, `Toast unavailable: ${String(error)}`);
+      }
+      this.sheet = Overlay.None;
+    }
+  }
+
+  private async saveActiveForLater(): Promise<void> {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined) {
+      return;
+    }
+    await this.viewModel.saveForLater(tab);
+    this.isActiveBookmarked = this.viewModel.isSaved(tab.url);
+    this.isActiveSavedForLater = this.viewModel.isSavedForLater(tab.url);
+    this.sheet = Overlay.None;
   }
 
   private async deleteHistory(id: string): Promise<void> {
