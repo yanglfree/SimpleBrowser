@@ -9,6 +9,8 @@ import {
 import {
   BlockStats,
   Bookmark,
+  BrowserSession,
+  BrowserTab,
   BrowserSettings,
   DailyBlockCount,
   HistoryEntry,
@@ -20,10 +22,12 @@ import {
   cloneHistoryEntry,
   cloneSettings,
   cloneSiteStats,
+  cloneTab,
   defaultBrowserSettings,
   emptyBlockStats,
   totalBlocked
 } from '../models/BrowserModels';
+import { SESSION_KEY } from '../constants/AppConstants';
 import { recentDayKeys, todayKey } from '../utils/Formatting';
 import { Logger } from '../utils/Logger';
 
@@ -43,6 +47,7 @@ export class BrowserRepository {
   private siteStats: SiteBlockStats[] = [];
   private dailyStats: DailyBlockCount[] = [];
   private allowedHosts: string[] = [];
+  private session: BrowserSession | undefined;
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
     try {
@@ -53,6 +58,7 @@ export class BrowserRepository {
       this.siteStats = this.decode<SiteBlockStats>(await store.get(SITE_STATS_KEY, '[]'), SITE_STATS_KEY);
       this.dailyStats = this.decode<DailyBlockCount>(await store.get(DAILY_STATS_KEY, '[]'), DAILY_STATS_KEY);
       this.allowedHosts = this.decode<string>(await store.get(ALLOWED_HOSTS_KEY, '[]'), ALLOWED_HOSTS_KEY);
+      this.session = this.decodeSession(await store.get(SESSION_KEY, ''));
       this.settings = this.decodeSettings(await store.get(SETTINGS_KEY, ''));
       this.pruneDailyStats();
     } catch (error) {
@@ -71,6 +77,26 @@ export class BrowserRepository {
 
   getSettings(): BrowserSettings {
     return cloneSettings(this.settings);
+  }
+
+  getSession(): BrowserSession | undefined {
+    if (this.session === undefined) {
+      return undefined;
+    }
+    return {
+      tabs: this.session.tabs.map((tab: BrowserTab) => cloneTab(tab)),
+      activeTabId: this.session.activeTabId
+    };
+  }
+
+  async saveSession(session: BrowserSession): Promise<void> {
+    this.session = {
+      tabs: session.tabs
+        .filter((tab: BrowserTab) => !tab.isPrivate)
+        .map((tab: BrowserTab) => cloneTab(tab)),
+      activeTabId: session.activeTabId
+    };
+    await this.save(SESSION_KEY, JSON.stringify(this.session));
   }
 
   getAllowedHosts(): string[] {
@@ -231,6 +257,46 @@ export class BrowserRepository {
       Logger.warn(TAG, `Invalid settings payload: ${String(error)}`);
       return fallback;
     }
+  }
+
+  private decodeSession(value: preferences.ValueType): BrowserSession | undefined {
+    if (typeof value !== 'string' || value.length === 0) {
+      return undefined;
+    }
+    try {
+      const parsed: BrowserSession = JSON.parse(value) as BrowserSession;
+      if (!Array.isArray(parsed.tabs) || parsed.tabs.length === 0) {
+        return undefined;
+      }
+      return {
+        tabs: parsed.tabs.map((tab: BrowserTab): BrowserTab => this.decodeTab(tab)),
+        activeTabId: parsed.activeTabId
+      };
+    } catch (error) {
+      Logger.warn(TAG, `Invalid ${SESSION_KEY} payload: ${String(error)}`);
+      return undefined;
+    }
+  }
+
+  private decodeTab(tab: BrowserTab): BrowserTab {
+    const decoded: BrowserTab = {
+      id: tab.id,
+      url: tab.url,
+      title: tab.title ?? '',
+      isPrivate: false,
+      isLoading: false,
+      progress: 100,
+      isDesktop: tab.isDesktop ?? false,
+      isReader: false,
+      canGoBack: false,
+      canGoForward: false,
+      blocked: emptyBlockStats(),
+      faviconUrl: tab.faviconUrl ?? '',
+      lastVisitedAt: tab.lastVisitedAt ?? Date.now(),
+      scrollY: tab.scrollY ?? 0,
+      loadError: 0
+    };
+    return cloneTab(decoded);
   }
 
   /** Kept for symmetry with the other getters; used by the blocking panel. */

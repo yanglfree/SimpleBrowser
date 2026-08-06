@@ -36,6 +36,15 @@ export enum SuggestionKind {
   Search = 2
 }
 
+export enum LoadErrorKind {
+  None = 0,
+  Offline = 1,
+  Timeout = 2,
+  Dns = 3,
+  Certificate = 4,
+  Unknown = 5
+}
+
 /** Requests the blocker stopped, split by what they were. */
 export interface BlockStats {
   ads: number;
@@ -67,6 +76,10 @@ export interface BrowserTab {
   canGoBack: boolean;
   canGoForward: boolean;
   blocked: BlockStats;
+  faviconUrl: string;
+  lastVisitedAt: number;
+  scrollY: number;
+  loadError: LoadErrorKind;
 }
 
 export interface BrowserTabUpdate {
@@ -79,6 +92,15 @@ export interface BrowserTabUpdate {
   canGoBack?: boolean;
   canGoForward?: boolean;
   blocked?: BlockStats;
+  faviconUrl?: string;
+  lastVisitedAt?: number;
+  scrollY?: number;
+  loadError?: LoadErrorKind;
+}
+
+export interface BrowserSession {
+  tabs: BrowserTab[];
+  activeTabId: string;
 }
 
 export interface Bookmark {
@@ -176,7 +198,11 @@ export function cloneTab(tab: BrowserTab): BrowserTab {
     isReader: tab.isReader,
     canGoBack: tab.canGoBack,
     canGoForward: tab.canGoForward,
-    blocked: cloneBlockStats(tab.blocked)
+    blocked: cloneBlockStats(tab.blocked),
+    faviconUrl: tab.faviconUrl,
+    lastVisitedAt: tab.lastVisitedAt,
+    scrollY: tab.scrollY,
+    loadError: tab.loadError
   };
 }
 

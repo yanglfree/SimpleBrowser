@@ -9,10 +9,12 @@ import {
 import {
   BlockStats,
   Bookmark,
+  BrowserSession,
   BrowserSettings,
   BrowserTab,
   BrowserTabUpdate,
   HistoryEntry,
+  LoadErrorKind,
   QuickSite,
   Suggestion,
   SuggestionKind,
@@ -53,11 +55,33 @@ export class BrowserViewModel {
     this.bookmarks = this.repository.getBookmarks();
     this.history = this.repository.getHistory();
     this.settings = this.repository.getSettings();
-    this.tabs = [this.createTab(HOME_URL, false)];
-    this.activeTabId = this.tabs[0].id;
+    const session: BrowserSession | undefined = this.repository.getSession();
+    if (session !== undefined && session.tabs.length > 0) {
+      this.tabs = session.tabs.map((tab: BrowserTab) => cloneTab(tab));
+      this.activeTabId = this.tabs.some((tab: BrowserTab) => tab.id === session.activeTabId)
+        ? session.activeTabId
+        : this.tabs[0].id;
+      this.tabSequence = this.tabs.reduce((max: number, tab: BrowserTab): number => {
+        const value: number = Number(tab.id.replace('tab-', ''));
+        return Number.isNaN(value) ? max : Math.max(max, value);
+      }, 0);
+    } else {
+      this.tabs = [this.createTab(HOME_URL, false)];
+      this.activeTabId = this.tabs[0].id;
+    }
     await this.adsBlockService.initialize(context);
     this.adsBlockService.applyAllowedHosts(this.repository.getAllowedHosts());
     DownloadService.configure();
+  }
+
+  persistSession(): void {
+    const session: BrowserSession = {
+      tabs: this.tabs,
+      activeTabId: this.activeTabId
+    };
+    this.repository.saveSession(session).catch((error: Error): void => {
+      Logger.warn(TAG, `Failed to persist browser session: ${String(error)}`);
+    });
   }
 
   getActiveTab(): BrowserTab | undefined {
@@ -81,7 +105,11 @@ export class BrowserViewModel {
       isReader: false,
       canGoBack: false,
       canGoForward: false,
-      blocked: emptyBlockStats()
+      blocked: emptyBlockStats(),
+      faviconUrl: '',
+      lastVisitedAt: Date.now(),
+      scrollY: 0,
+      loadError: LoadErrorKind.None
     };
   }
 
@@ -93,6 +121,7 @@ export class BrowserViewModel {
     const tab: BrowserTab = this.createTab(url, isPrivate);
     this.tabs = this.tabs.concat([tab]);
     this.activeTabId = tab.id;
+    this.persistSession();
     return tab;
   }
 
@@ -112,17 +141,20 @@ export class BrowserViewModel {
     if (id === this.activeTabId) {
       this.activeTabId = this.tabs[Math.min(index, this.tabs.length - 1)].id;
     }
+    this.persistSession();
   }
 
   closeAllTabs(): void {
     const replacement: BrowserTab = this.createTab(HOME_URL, false);
     this.tabs = [replacement];
     this.activeTabId = replacement.id;
+    this.persistSession();
   }
 
   selectTab(id: string): void {
     if (this.tabs.some((tab: BrowserTab) => tab.id === id)) {
       this.activeTabId = id;
+      this.persistSession();
     }
   }
 
@@ -168,6 +200,22 @@ export class BrowserViewModel {
       }
       if (update.blocked !== undefined) {
         updated.blocked = cloneBlockStats(update.blocked);
+      }
+      if (update.faviconUrl !== undefined) {
+        updated.faviconUrl = update.faviconUrl;
+      }
+      if (update.lastVisitedAt !== undefined) {
+        updated.lastVisitedAt = update.lastVisitedAt;
+      }
+      if (update.scrollY !== undefined) {
+        updated.scrollY = update.scrollY;
+      }
+      if (update.loadError !== undefined) {
+        updated.loadError = update.loadError;
+      }
+      if (update.url !== undefined || update.title !== undefined || update.isDesktop !== undefined ||
+        update.isReader !== undefined || update.scrollY !== undefined || update.lastVisitedAt !== undefined) {
+        updated.lastVisitedAt = update.lastVisitedAt ?? updated.lastVisitedAt;
       }
       return updated;
     });

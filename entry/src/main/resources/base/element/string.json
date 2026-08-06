@@ -71,6 +71,17 @@
 
     { "name": "initialization_error", "value": "无法启动极简浏览器" },
     { "name": "retry", "value": "重试" },
-    { "name": "copied_link", "value": "链接已复制" }
+    { "name": "copied_link", "value": "链接已复制" },
+    { "name": "certificate_details", "value": "查看安全信息" },
+    { "name": "error_offline_title", "value": "当前处于离线状态" },
+    { "name": "error_offline_message", "value": "请检查网络连接后重试。" },
+    { "name": "error_timeout_title", "value": "页面响应超时" },
+    { "name": "error_timeout_message", "value": "服务器响应时间过长，请稍后重试。" },
+    { "name": "error_dns_title", "value": "找不到网站" },
+    { "name": "error_dns_message", "value": "域名解析失败，请确认地址正确。" },
+    { "name": "error_certificate_title", "value": "连接证书异常" },
+    { "name": "error_certificate_message", "value": "为保护你的隐私，浏览器不会自动绕过证书错误。" },
+    { "name": "error_unknown_title", "value": "页面加载失败" },
+    { "name": "error_unknown_message", "value": "无法完成页面加载，请稍后重试。" }
   ]
 }

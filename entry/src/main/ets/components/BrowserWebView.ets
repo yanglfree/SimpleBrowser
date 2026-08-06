@@ -1,7 +1,7 @@
 import { webview } from '@kit.ArkWeb';
 import { BrowserTab } from '../models/BrowserModels';
 import { AdsBlockService } from '../services/AdsBlockService';
-import { UserAgentService } from '../services/UserAgentService';
+import { WebKernelService } from '../services/WebKernelService';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'BrowserWebView';
@@ -22,6 +22,7 @@ export struct BrowserWebView {
   onTitleReceive: (title: string) => void = (_title: string): void => {};
   onProgressChange: (progress: number) => void = (_progress: number): void => {};
   onAdsBlocked: (urls: string[]) => void = (_urls: string[]): void => {};
+  onError: (code: number, message: string) => void = (_code: number, _message: string): void => {};
 
   build() {
     Web({ src: this.tab.url, controller: this.controller })
@@ -37,7 +38,7 @@ export struct BrowserWebView {
       .height('100%')
       .onControllerAttached(() => {
         this.adsBlockService.configure(this.controller, this.blockAds);
-        UserAgentService.apply(this.controller, this.tab.isDesktop);
+        WebKernelService.applyUserAgent(this.controller, this.tab.isDesktop);
       })
       .onPageBegin((event: OnPageBeginEvent) => this.onPageBegin(event.url))
       .onPageEnd((event: OnPageEndEvent) => this.onPageEnd(event.url))
@@ -45,7 +46,10 @@ export struct BrowserWebView {
       .onTitleReceive((event: OnTitleReceiveEvent) => this.onTitleReceive(event.title))
       .onAdsBlocked((details: AdsBlockedDetails) => this.onAdsBlocked(details.adsBlocked))
       .onErrorReceive((event: OnErrorReceiveEvent) => {
-        Logger.warn(TAG, `Load error ${event.error.getErrorCode()} for ${this.tab.url}`);
+        const code: number = event.error.getErrorCode();
+        const message: string = event.error.getErrorInfo();
+        Logger.warn(TAG, `Load error ${code}: ${message}`);
+        this.onError(code, message);
       })
   }
 }

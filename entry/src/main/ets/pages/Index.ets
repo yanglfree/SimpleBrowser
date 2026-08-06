@@ -21,6 +21,7 @@ import {
   ReaderPaper,
   RuleStrength,
   Suggestion,
+  LoadErrorKind,
   cloneSettings,
   cloneTab,
   defaultBrowserSettings,
@@ -41,7 +42,7 @@ import { TAB_LAUNCHER_RIGHT_MARGIN, TAB_LAUNCHER_TOP_MARGIN, TAB_WEB_BOTTOM_INSE
 import { PrivacyService } from '../services/PrivacyService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
-import { UserAgentService } from '../services/UserAgentService';
+import { WebKernelService } from '../services/WebKernelService';
 import { AppContext } from '../utils/AppContext';
 import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
@@ -171,7 +172,11 @@ struct Index {
             onDone: (): void => { this.exitReader(this.activeTabId); }
           })
         }
-        this.TabStack()
+        if (this.activeTab()?.loadError !== LoadErrorKind.None) {
+          this.PageErrorView()
+        } else {
+          this.TabStack()
+        }
       }
     }
     .width('100%')
@@ -219,7 +224,8 @@ struct Index {
               onPageEnd: (url: string): void => { this.handlePageEnd(tab.id, url); },
               onTitleReceive: (title: string): void => this.handleTitle(tab.id, title),
               onProgressChange: (progress: number): void => this.handleProgress(tab.id, progress),
-              onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); }
+              onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); },
+              onError: (code: number, message: string): void => this.handleLoadError(tab.id, code, message)
             })
           }
         }
@@ -265,6 +271,36 @@ struct Index {
         .fontSize(15)
         .fontColor($r('app.color.accent'))
         .onClick(() => this.retry())
+    }
+    .layoutWeight(1)
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  @Builder
+  private PageErrorView() {
+    Column({ space: 16 }) {
+      Text(this.errorTitle())
+        .fontSize(19)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+      Text(this.errorMessage())
+        .fontSize(14)
+        .fontColor($r('app.color.text_secondary'))
+        .textAlign(TextAlign.Center)
+        .padding({ left: 28, right: 28 })
+      Row({ space: 12 }) {
+        Text($r('app.string.retry'))
+          .fontSize(15)
+          .fontColor($r('app.color.accent'))
+          .onClick(() => this.retryPage())
+        if (this.activeTab()?.loadError === LoadErrorKind.Certificate) {
+          Text($r('app.string.certificate_details'))
+            .fontSize(15)
+            .fontColor($r('app.color.text_secondary'))
+            .onClick(() => this.openSecurityDetails())
+        }
+      }
     }
     .layoutWeight(1)
     .width('100%')
@@ -452,6 +488,7 @@ struct Index {
       canGoForward: false
     });
     this.controllers.delete(id);
+    this.viewModel.persistSession();
     this.syncState();
   }
 
@@ -554,18 +591,18 @@ struct Index {
     }
     if (key === 'back') {
       this.sheet = Overlay.None;
-      this.runOnActive((controller: webview.WebviewController) => controller.backward());
+      this.runOnActive((controller: webview.WebviewController) => WebKernelService.goBack(controller));
       return;
     }
     if (key === 'forward') {
       this.sheet = Overlay.None;
-      this.runOnActive((controller: webview.WebviewController) => controller.forward());
+      this.runOnActive((controller: webview.WebviewController) => WebKernelService.goForward(controller));
       return;
     }
     if (key === 'reload') {
       this.sheet = Overlay.None;
       this.runOnActive((controller: webview.WebviewController) =>
-        tab.isLoading ? controller.stop() : controller.refresh());
+        tab.isLoading ? WebKernelService.stop(controller) : WebKernelService.reload(controller));
       return;
     }
     if (key === 'share') {
@@ -601,8 +638,8 @@ struct Index {
       this.viewModel.updateTab(tab.id, { isDesktop: isDesktop });
       this.syncState();
       this.runOnActive((controller: webview.WebviewController) => {
-        UserAgentService.apply(controller, isDesktop);
-        controller.refresh();
+        WebKernelService.applyUserAgent(controller, isDesktop);
+        WebKernelService.reload(controller);
       });
     }
   }
@@ -714,16 +751,30 @@ struct Index {
   // ------------------------------------------------------------- web events
 
   private handlePageBegin(id: string, url: string): void {
-    this.viewModel.updateTab(id, { url: url, isLoading: true, progress: 0, isReader: false });
+    this.viewModel.updateTab(id, {
+      url: url,
+      isLoading: true,
+      progress: 0,
+      isReader: false,
+      loadError: LoadErrorKind.None,
+      lastVisitedAt: Date.now()
+    });
     this.syncTab(id);
   }
 
   private async handlePageEnd(id: string, url: string): Promise<void> {
-    this.viewModel.updateTab(id, { url: url, isLoading: false, progress: 100 });
+    this.viewModel.updateTab(id, {
+      url: url,
+      isLoading: false,
+      progress: 100,
+      loadError: LoadErrorKind.None,
+      lastVisitedAt: Date.now()
+    });
     this.refreshNavigationState(id);
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (tab !== undefined) {
       await this.viewModel.recordPageVisit(tab);
+      this.viewModel.persistSession();
     }
     await this.enhancePage(id);
     this.syncState();
@@ -737,8 +788,63 @@ struct Index {
   }
 
   private handleProgress(id: string, progress: number): void {
-    this.viewModel.updateTab(id, { progress: progress, isLoading: progress < 100 });
+    this.viewModel.updateTab(id, {
+      progress: Math.min(100, Math.max(0, progress)),
+      isLoading: progress < 100,
+      loadError: LoadErrorKind.None
+    });
     this.syncTab(id);
+  }
+
+  private handleLoadError(id: string, code: number, message: string): void {
+    const kind: LoadErrorKind = Index.errorKindFor(code, message);
+    this.viewModel.updateTab(id, {
+      isLoading: false,
+      loadError: kind
+    });
+    this.syncTab(id);
+  }
+
+  private retryPage(): void {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined) {
+      return;
+    }
+    this.viewModel.updateTab(tab.id, { loadError: LoadErrorKind.None, isLoading: true, progress: 0 });
+    this.syncTab(tab.id);
+    this.runOnActive((controller: webview.WebviewController) => WebKernelService.reload(controller, true));
+  }
+
+  private openSecurityDetails(): void {
+    this.sheet = Overlay.Block;
+  }
+
+  private errorTitle(): Resource {
+    const kind: LoadErrorKind = this.activeTab()?.loadError ?? LoadErrorKind.Unknown;
+    if (kind === LoadErrorKind.Offline) return $r('app.string.error_offline_title');
+    if (kind === LoadErrorKind.Timeout) return $r('app.string.error_timeout_title');
+    if (kind === LoadErrorKind.Dns) return $r('app.string.error_dns_title');
+    if (kind === LoadErrorKind.Certificate) return $r('app.string.error_certificate_title');
+    return $r('app.string.error_unknown_title');
+  }
+
+  private errorMessage(): Resource {
+    const kind: LoadErrorKind = this.activeTab()?.loadError ?? LoadErrorKind.Unknown;
+    if (kind === LoadErrorKind.Offline) return $r('app.string.error_offline_message');
+    if (kind === LoadErrorKind.Timeout) return $r('app.string.error_timeout_message');
+    if (kind === LoadErrorKind.Dns) return $r('app.string.error_dns_message');
+    if (kind === LoadErrorKind.Certificate) return $r('app.string.error_certificate_message');
+    return $r('app.string.error_unknown_message');
+  }
+
+  private static errorKindFor(code: number, message: string): LoadErrorKind {
+    const value: string = message.toLowerCase();
+    if (value.includes('certificate') || value.includes('ssl')) return LoadErrorKind.Certificate;
+    if (value.includes('dns') || value.includes('resolve')) return LoadErrorKind.Dns;
+    if (value.includes('timeout') || value.includes('timed out')) return LoadErrorKind.Timeout;
+    if (value.includes('offline') || value.includes('network')) return LoadErrorKind.Offline;
+    if (code === -7 || code === -21) return LoadErrorKind.Offline;
+    return LoadErrorKind.Unknown;
   }
 
   /**
