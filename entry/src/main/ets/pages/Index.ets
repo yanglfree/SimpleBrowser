@@ -31,6 +31,7 @@ import {
   QuickSite,
   ReaderPaper,
   RuleStrength,
+  SearchEngine,
   Suggestion,
   LoadErrorKind,
   SecurityState,
@@ -51,6 +52,7 @@ import { OmniCapsule } from '../components/OmniCapsule';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
 import { HistorySheet } from '../components/HistorySheet';
 import { LinkActionSheet } from '../components/LinkActionSheet';
+import { OnboardingSheet } from '../components/OnboardingSheet';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
@@ -87,7 +89,8 @@ enum Overlay {
   Share = 9,
   Downloads = 10,
   Find = 11,
-  LinkActions = 12
+  LinkActions = 12,
+  Onboarding = 13
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -173,6 +176,9 @@ struct Index {
       DownloadService.subscribe(this.downloadListener);
       this.isReady = true;
       this.promptExpiredTabs();
+      if (!this.settings.onboardingCompleted) {
+        this.sheet = Overlay.Onboarding;
+      }
     } catch (error) {
       Logger.error(TAG, `Failed to initialize browser: ${String(error)}`);
       this.hasError = true;
@@ -656,6 +662,13 @@ struct Index {
         isPrivate: this.activeTab()?.isPrivate === true,
         onDismiss: (): void => this.closeLongPressActions(),
         onAction: (key: string): void => { void this.performLongPressAction(key); }
+      })
+    } else if (this.sheet === Overlay.Onboarding) {
+      OnboardingSheet({
+        searchEngine: this.settings.searchEngine,
+        onSearchEngineChange: (engine: SearchEngine): void => this.setOnboardingSearchEngine(engine),
+        onFinish: (): void => { void this.finishOnboarding(); },
+        onSkip: (): void => { void this.finishOnboarding(); }
       })
     } else if (this.sheet === Overlay.Share) {
       SharePanel({
@@ -1370,6 +1383,20 @@ struct Index {
     } catch (error) {
       Logger.warn(TAG, `Bookmark import toast unavailable: ${String(error)}`);
     }
+  }
+
+  private setOnboardingSearchEngine(engine: SearchEngine): void {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.searchEngine = engine;
+    this.settings = next;
+  }
+
+  private async finishOnboarding(): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.onboardingCompleted = true;
+    await this.viewModel.updateSettings(next);
+    this.settings = cloneSettings(next);
+    this.sheet = Overlay.None;
   }
 
   private async exportBookmarks(): Promise<void> {

@@ -426,6 +426,7 @@ export class BrowserRepository {
               percent: entry.percent
             }))
           : fallback.siteZoomRatios,
+        onboardingCompleted: parsed.onboardingCompleted ?? fallback.onboardingCompleted,
         appearance: parsed.appearance ?? fallback.appearance,
         clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,
         readerFontSize: parsed.readerFontSize ?? fallback.readerFontSize,

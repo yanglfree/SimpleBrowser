@@ -172,6 +172,7 @@ export interface BrowserSettings {
   tabSoftLimit: number;
   minimumFontSize: number;
   siteZoomRatios: SiteZoomRatio[];
+  onboardingCompleted: boolean;
   appearance: AppearanceMode;
   clearCookiesOnTabClose: boolean;
   readerFontSize: number;
@@ -250,6 +251,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     tabSoftLimit: 12,
     minimumFontSize: 14,
     siteZoomRatios: [],
+    onboardingCompleted: false,
     appearance: AppearanceMode.System,
     clearCookiesOnTabClose: false,
     readerFontSize: 17,
@@ -329,6 +331,7 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
       host: entry.host,
       percent: entry.percent
     })),
+    onboardingCompleted: settings.onboardingCompleted,
     appearance: settings.appearance,
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,
     readerFontSize: settings.readerFontSize,
