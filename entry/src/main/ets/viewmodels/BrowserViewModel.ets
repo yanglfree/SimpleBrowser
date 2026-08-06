@@ -8,7 +8,7 @@ import {
 } from '../constants/AppConstants';
 import {
   BlockStats,
-  Bookmark,
+  SavedItem,
   BrowserSession,
   BrowserSettings,
   BrowserTab,
@@ -48,7 +48,7 @@ export class BrowserViewModel {
   readonly repository: BrowserRepository = new BrowserRepository();
   readonly adsBlockService: AdsBlockService = new AdsBlockService();
   tabs: BrowserTab[] = [];
-  bookmarks: Bookmark[] = [];
+  savedItems: SavedItem[] = [];
   history: HistoryEntry[] = [];
   expiredTabs: BrowserTab[] = [];
   settings: BrowserSettings = defaultBrowserSettings();
@@ -57,7 +57,7 @@ export class BrowserViewModel {
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
     await this.repository.initialize(context);
-    this.bookmarks = this.repository.getBookmarks();
+    this.savedItems = this.repository.getSavedItems();
     this.history = this.repository.getHistory();
     this.settings = this.repository.getSettings();
     const session: BrowserSession | undefined = this.repository.getSession();
@@ -348,26 +348,100 @@ export class BrowserViewModel {
       visitCount: 0
     });
     this.history = this.repository.getHistory();
+    await this.markSavedItemRead(tab.url);
   }
 
-  async toggleBookmark(tab: BrowserTab): Promise<boolean> {
-    const existing: Bookmark | undefined = this.bookmarks.find((item: Bookmark) => item.url === tab.url);
+  async toggleSaved(tab: BrowserTab): Promise<boolean> {
+    const existing: SavedItem | undefined = this.savedItems.find((item: SavedItem) => item.url === tab.url);
     if (existing !== undefined) {
-      await this.repository.removeBookmark(existing.id);
+      await this.repository.removeSavedItem(existing.id);
     } else {
-      await this.repository.addBookmark({
-        id: `bookmark-${Date.now()}`,
+      const now: number = Date.now();
+      await this.repository.addSavedItem({
+        id: `saved-${now}`,
         title: tab.title.length > 0 ? tab.title : displayHost(tab.url),
         url: tab.url,
-        createdAt: Date.now()
+        createdAt: now,
+        updatedAt: now,
+        isRead: true,
+        tags: []
       });
     }
-    this.bookmarks = this.repository.getBookmarks();
+    this.savedItems = this.repository.getSavedItems();
     return existing === undefined;
   }
 
-  isBookmarked(url: string): boolean {
-    return !isHomeUrl(url) && this.bookmarks.some((item: Bookmark) => item.url === url);
+  async saveForLater(tab: BrowserTab): Promise<void> {
+    const existing: SavedItem | undefined = this.savedItems.find((item: SavedItem) => item.url === tab.url);
+    const now: number = Date.now();
+    if (existing === undefined) {
+      await this.repository.addSavedItem({
+        id: `saved-${now}`,
+        title: tab.title.length > 0 ? tab.title : displayHost(tab.url),
+        url: tab.url,
+        createdAt: now,
+        updatedAt: now,
+        isRead: false,
+        tags: []
+      });
+    } else {
+      const updated: SavedItem = {
+        id: existing.id,
+        title: existing.title,
+        url: existing.url,
+        createdAt: existing.createdAt,
+        updatedAt: now,
+        isRead: false,
+        tags: existing.tags.slice(0)
+      };
+      await this.repository.updateSavedItem(updated);
+    }
+    this.savedItems = this.repository.getSavedItems();
+  }
+
+  isSaved(url: string): boolean {
+    return !isHomeUrl(url) && this.savedItems.some((item: SavedItem) => item.url === url);
+  }
+
+  isSavedForLater(url: string): boolean {
+    return !isHomeUrl(url) && this.savedItems.some((item: SavedItem) =>
+      item.url === url && !item.isRead);
+  }
+
+  async setSavedItemTags(url: string, tags: string[]): Promise<void> {
+    const existing: SavedItem | undefined = this.savedItems.find((item: SavedItem) => item.url === url);
+    if (existing === undefined) {
+      return;
+    }
+    const updated: SavedItem = {
+      id: existing.id,
+      title: existing.title,
+      url: existing.url,
+      createdAt: existing.createdAt,
+      updatedAt: Date.now(),
+      isRead: existing.isRead,
+      tags: tags.filter((tag: string) => tag.trim().length > 0).map((tag: string) => tag.trim())
+    };
+    await this.repository.updateSavedItem(updated);
+    this.savedItems = this.repository.getSavedItems();
+  }
+
+  private async markSavedItemRead(url: string): Promise<void> {
+    const existing: SavedItem | undefined = this.savedItems.find((item: SavedItem) => item.url === url);
+    if (existing === undefined || existing.isRead) {
+      return;
+    }
+    const updated: SavedItem = {
+      id: existing.id,
+      title: existing.title,
+      url: existing.url,
+      createdAt: existing.createdAt,
+      updatedAt: Date.now(),
+      isRead: true,
+      tags: existing.tags.slice(0)
+    };
+    await this.repository.updateSavedItem(updated);
+    this.savedItems = this.repository.getSavedItems();
   }
 
   async updateSettings(settings: BrowserSettings): Promise<void> {
@@ -462,7 +536,7 @@ export class BrowserViewModel {
         }
         results.push(BrowserViewModel.historySuggestion(entry));
       }
-      for (const bookmark of this.bookmarks) {
+      for (const bookmark of this.savedItems) {
         if (results.length >= MAX_SUGGESTION_COUNT) {
           break;
         }
@@ -485,7 +559,7 @@ export class BrowserViewModel {
         results.push(BrowserViewModel.historySuggestion(entry));
       }
     }
-    for (const bookmark of this.bookmarks) {
+    for (const bookmark of this.savedItems) {
       if (results.length >= MAX_SUGGESTION_COUNT) {
         break;
       }
@@ -515,7 +589,7 @@ export class BrowserViewModel {
     };
   }
 
-  private static bookmarkSuggestion(bookmark: Bookmark): Suggestion {
+  private static bookmarkSuggestion(bookmark: SavedItem): Suggestion {
     return {
       id: `bookmark-${bookmark.id}`,
       kind: SuggestionKind.Bookmark,

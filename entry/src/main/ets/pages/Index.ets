@@ -125,6 +125,7 @@ struct Index {
   @State private siteStats: BlockStats = emptyBlockStats();
   @State private isSiteAllowed: boolean = false;
   @State private isActiveBookmarked: boolean = false;
+  @State private isActiveSavedForLater: boolean = false;
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
   @State private history: HistoryEntry[] = [];
@@ -517,6 +518,7 @@ struct Index {
         canGoForward: this.activeTab()?.canGoForward === true,
         isLoading: this.activeTab()?.isLoading === true,
         isBookmarked: this.isActiveBookmarked,
+        isSavedForLater: this.isActiveSavedForLater,
         isReader: this.isActiveReader(),
         isDesktop: this.activeTab()?.isDesktop === true,
         onDismiss: (): void => { this.sheet = Overlay.None; },
@@ -984,8 +986,15 @@ struct Index {
       return;
     }
     if (key === 'bookmark') {
-      await this.viewModel.toggleBookmark(tab);
-      this.isActiveBookmarked = this.viewModel.isBookmarked(tab.url);
+      await this.viewModel.toggleSaved(tab);
+      this.isActiveBookmarked = this.viewModel.isSaved(tab.url);
+      this.isActiveSavedForLater = this.viewModel.isSavedForLater(tab.url);
+      return;
+    }
+    if (key === 'save_later') {
+      await this.viewModel.saveForLater(tab);
+      this.isActiveBookmarked = this.viewModel.isSaved(tab.url);
+      this.isActiveSavedForLater = this.viewModel.isSavedForLater(tab.url);
       return;
     }
     if (key === 'reader') {
@@ -1707,7 +1716,8 @@ struct Index {
     this.weeklyBlocked = this.viewModel.getWeeklyBlocked();
     this.cumulativeBlocked = this.viewModel.getCumulativeBlocked();
     const url: string = this.activeTab()?.url ?? '';
-    this.isActiveBookmarked = this.viewModel.isBookmarked(url);
+    this.isActiveBookmarked = this.viewModel.isSaved(url);
+    this.isActiveSavedForLater = this.viewModel.isSavedForLater(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
   }
 

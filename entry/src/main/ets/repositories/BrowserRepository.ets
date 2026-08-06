@@ -10,7 +10,7 @@ import {
 } from '../constants/AppConstants';
 import {
   BlockStats,
-  Bookmark,
+  SavedItem,
   BrowserSession,
   BrowserTab,
   BrowserSettings,
@@ -21,7 +21,7 @@ import {
   SiteBlockStats,
   addBlockStats,
   cloneBlockStats,
-  cloneBookmark,
+  cloneSavedItem,
   cloneDailyCount,
   cloneHistoryEntry,
   cloneSettings,
@@ -36,7 +36,8 @@ import { recentDayKeys, todayKey } from '../utils/Formatting';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'BrowserRepository';
-const BOOKMARKS_KEY: string = 'bookmarks';
+const SAVED_ITEMS_KEY: string = 'saved_items';
+const LEGACY_BOOKMARKS_KEY: string = 'bookmarks';
 const HISTORY_KEY: string = 'history';
 const SETTINGS_KEY: string = 'settings';
 const SITE_STATS_KEY: string = 'site_stats';
@@ -44,9 +45,16 @@ const DAILY_STATS_KEY: string = 'daily_stats';
 const ALLOWED_HOSTS_KEY: string = 'allowed_hosts';
 const HIDDEN_QUICK_HOSTS_KEY: string = 'hidden_quick_hosts';
 
+interface LegacyBookmark {
+  id: string;
+  title: string;
+  url: string;
+  createdAt?: number;
+}
+
 export class BrowserRepository {
   private store: preferences.Preferences | undefined;
-  private bookmarks: Bookmark[] = [];
+  private savedItems: SavedItem[] = [];
   private history: HistoryEntry[] = [];
   private settings: BrowserSettings = defaultBrowserSettings();
   private siteStats: SiteBlockStats[] = [];
@@ -60,7 +68,15 @@ export class BrowserRepository {
     try {
       this.store = await preferences.getPreferences(context, STORE_NAME);
       const store: preferences.Preferences = this.store;
-      this.bookmarks = this.decode<Bookmark>(await store.get(BOOKMARKS_KEY, '[]'), BOOKMARKS_KEY);
+      const savedItemsValue: preferences.ValueType = await store.get(SAVED_ITEMS_KEY, '');
+      if (typeof savedItemsValue === 'string' && savedItemsValue.length > 0) {
+        this.savedItems = this.decodeSavedItems(savedItemsValue, SAVED_ITEMS_KEY);
+      } else {
+        this.savedItems = this.decodeLegacyBookmarks(await store.get(LEGACY_BOOKMARKS_KEY, '[]'));
+        if (this.savedItems.length > 0) {
+          await this.save(SAVED_ITEMS_KEY, JSON.stringify(this.savedItems));
+        }
+      }
       this.history = this.decode<HistoryEntry>(await store.get(HISTORY_KEY, '[]'), HISTORY_KEY);
       this.siteStats = this.decode<SiteBlockStats>(await store.get(SITE_STATS_KEY, '[]'), SITE_STATS_KEY);
       this.dailyStats = this.decode<DailyBlockCount>(await store.get(DAILY_STATS_KEY, '[]'), DAILY_STATS_KEY);
@@ -80,8 +96,8 @@ export class BrowserRepository {
     }
   }
 
-  getBookmarks(): Bookmark[] {
-    return this.bookmarks.map((item: Bookmark) => cloneBookmark(item));
+  getSavedItems(): SavedItem[] {
+    return this.savedItems.map((item: SavedItem) => cloneSavedItem(item));
   }
 
   getHistory(): HistoryEntry[] {
@@ -144,15 +160,21 @@ export class BrowserRepository {
     await this.save(HIDDEN_QUICK_HOSTS_KEY, JSON.stringify(this.hiddenQuickHosts));
   }
 
-  async addBookmark(bookmark: Bookmark): Promise<void> {
-    const filtered: Bookmark[] = this.bookmarks.filter((item: Bookmark) => item.url !== bookmark.url);
-    this.bookmarks = [bookmark].concat(filtered).slice(0, MAX_BOOKMARK_COUNT);
-    await this.save(BOOKMARKS_KEY, JSON.stringify(this.bookmarks));
+  async addSavedItem(item: SavedItem): Promise<void> {
+    const filtered: SavedItem[] = this.savedItems.filter((saved: SavedItem) => saved.url !== item.url);
+    this.savedItems = [cloneSavedItem(item)].concat(filtered).slice(0, MAX_BOOKMARK_COUNT);
+    await this.save(SAVED_ITEMS_KEY, JSON.stringify(this.savedItems));
   }
 
-  async removeBookmark(id: string): Promise<void> {
-    this.bookmarks = this.bookmarks.filter((item: Bookmark) => item.id !== id);
-    await this.save(BOOKMARKS_KEY, JSON.stringify(this.bookmarks));
+  async updateSavedItem(item: SavedItem): Promise<void> {
+    this.savedItems = this.savedItems.map((saved: SavedItem) =>
+      saved.id === item.id ? cloneSavedItem(item) : saved);
+    await this.save(SAVED_ITEMS_KEY, JSON.stringify(this.savedItems));
+  }
+
+  async removeSavedItem(id: string): Promise<void> {
+    this.savedItems = this.savedItems.filter((item: SavedItem) => item.id !== id);
+    await this.save(SAVED_ITEMS_KEY, JSON.stringify(this.savedItems));
   }
 
   async removeHistoryEntry(id: string): Promise<void> {
@@ -312,6 +334,44 @@ export class BrowserRepository {
       Logger.warn(TAG, `Invalid ${key} payload: ${String(error)}`);
       return [];
     }
+  }
+
+  private decodeSavedItems(value: string, key: string): SavedItem[] {
+    try {
+      const parsed: SavedItem[] = JSON.parse(value) as SavedItem[];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed.filter((item: SavedItem) => item !== undefined && item.url !== undefined)
+        .map((item: SavedItem, index: number): SavedItem => ({
+          id: item.id ?? `saved-${index}-${Date.now()}`,
+          title: item.title ?? '',
+          url: item.url,
+          createdAt: item.createdAt ?? Date.now(),
+          updatedAt: item.updatedAt ?? item.createdAt ?? Date.now(),
+          isRead: item.isRead ?? true,
+          tags: Array.isArray(item.tags)
+            ? item.tags.filter((tag: string) => typeof tag === 'string')
+            : []
+        }));
+    } catch (error) {
+      Logger.warn(TAG, `Invalid ${key} payload: ${String(error)}`);
+      return [];
+    }
+  }
+
+  private decodeLegacyBookmarks(value: preferences.ValueType): SavedItem[] {
+    const legacy: LegacyBookmark[] = this.decode<LegacyBookmark>(value, LEGACY_BOOKMARKS_KEY);
+    return legacy.filter((item: LegacyBookmark) => item.url !== undefined)
+      .map((item: LegacyBookmark): SavedItem => ({
+        id: item.id,
+        title: item.title ?? '',
+        url: item.url,
+        createdAt: item.createdAt ?? Date.now(),
+        updatedAt: item.createdAt ?? Date.now(),
+        isRead: true,
+        tags: []
+      }));
   }
 
   /** Field-by-field so a payload written by an older build still loads. */

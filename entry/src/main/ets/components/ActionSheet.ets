@@ -23,6 +23,7 @@ export struct ActionSheet {
   @Prop canGoForward: boolean = false;
   @Prop isLoading: boolean = false;
   @Prop isBookmarked: boolean = false;
+  @Prop isSavedForLater: boolean = false;
   @Prop isReader: boolean = false;
   @Prop isDesktop: boolean = false;
   onDismiss: () => void = (): void => {};
@@ -195,11 +196,20 @@ export struct ActionSheet {
       {
         key: 'bookmark',
         label: this.isBookmarked
-          ? $r('app.string.action_bookmark_remove')
-          : $r('app.string.action_bookmark_add'),
+          ? $r('app.string.action_saved_remove')
+          : $r('app.string.action_saved_add'),
         icon: IconName.Bookmark,
         enabled: true,
         active: this.isBookmarked
+      },
+      {
+        key: 'save_later',
+        label: this.isSavedForLater
+          ? $r('app.string.action_save_later_saved')
+          : $r('app.string.action_save_later'),
+        icon: IconName.Reader,
+        enabled: true,
+        active: this.isSavedForLater
       },
       {
         key: 'reader',

@@ -36,6 +36,11 @@ export enum SuggestionKind {
   Search = 2
 }
 
+export enum SavedItemState {
+  Read = 0,
+  Unread = 1
+}
+
 export enum LoadErrorKind {
   None = 0,
   Offline = 1,
@@ -128,11 +133,15 @@ export interface BrowserSession {
   activeTabId: string;
 }
 
-export interface Bookmark {
+/** Unified bookmark/read-later entry. `isRead` replaces separate collections. */
+export interface SavedItem {
   id: string;
   title: string;
   url: string;
   createdAt: number;
+  updatedAt: number;
+  isRead: boolean;
+  tags: string[];
 }
 
 export interface HistoryEntry {
@@ -262,12 +271,15 @@ export function cloneTab(tab: BrowserTab): BrowserTab {
   };
 }
 
-export function cloneBookmark(bookmark: Bookmark): Bookmark {
+export function cloneSavedItem(item: SavedItem): SavedItem {
   return {
-    id: bookmark.id,
-    title: bookmark.title,
-    url: bookmark.url,
-    createdAt: bookmark.createdAt
+    id: item.id,
+    title: item.title,
+    url: item.url,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    isRead: item.isRead,
+    tags: item.tags.slice(0)
   };
 }
 
