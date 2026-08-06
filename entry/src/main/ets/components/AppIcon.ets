@@ -80,8 +80,6 @@ export struct AppIcon {
     Shape() {
       Path()
         .commands(COMMANDS[this.name as number])
-        .width(this.glyphSize)
-        .height(this.glyphSize)
     }
     .viewPort({ x: 0, y: 0, width: 24, height: 24 })
     .width(this.glyphSize)
