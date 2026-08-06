@@ -416,20 +416,20 @@ export class BrowserViewModel {
     const matches = (title: string, url: string): boolean =>
       title.toLowerCase().includes(needle) || url.toLowerCase().includes(needle);
 
-    for (const bookmark of this.bookmarks) {
-      if (results.length >= MAX_SUGGESTION_COUNT) {
-        break;
-      }
-      if (matches(bookmark.title, bookmark.url)) {
-        results.push(BrowserViewModel.bookmarkSuggestion(bookmark));
-      }
-    }
     for (const entry of this.history) {
       if (results.length >= MAX_SUGGESTION_COUNT) {
         break;
       }
-      if (matches(entry.title, entry.url) && !results.some((item: Suggestion) => item.url === entry.url)) {
+      if (matches(entry.title, entry.url)) {
         results.push(BrowserViewModel.historySuggestion(entry));
+      }
+    }
+    for (const bookmark of this.bookmarks) {
+      if (results.length >= MAX_SUGGESTION_COUNT) {
+        break;
+      }
+      if (matches(bookmark.title, bookmark.url) && !results.some((item: Suggestion) => item.url === bookmark.url)) {
+        results.push(BrowserViewModel.bookmarkSuggestion(bookmark));
       }
     }
     if (this.settings.searchSuggestionsEnabled && results.length < MAX_SUGGESTION_COUNT && !looksLikeUrl(trimmed)) {
