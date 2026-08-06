@@ -416,6 +416,8 @@ export class BrowserRepository {
         historyRetentionDays: parsed.historyRetentionDays ?? fallback.historyRetentionDays,
         liveWebViewLimit: parsed.liveWebViewLimit ?? fallback.liveWebViewLimit,
         downloadConcurrency: parsed.downloadConcurrency ?? fallback.downloadConcurrency,
+        largeDownloadThresholdMb: parsed.largeDownloadThresholdMb ?? fallback.largeDownloadThresholdMb,
+        wifiOnlyDownloads: parsed.wifiOnlyDownloads ?? fallback.wifiOnlyDownloads,
         tabSoftLimit: parsed.tabSoftLimit ?? fallback.tabSoftLimit,
         minimumFontSize: parsed.minimumFontSize ?? fallback.minimumFontSize,
         siteZoomRatios: Array.isArray(parsed.siteZoomRatios)

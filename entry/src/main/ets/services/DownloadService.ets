@@ -1,5 +1,6 @@
 import { webview } from '@kit.ArkWeb';
 import { common, Want } from '@kit.AbilityKit';
+import { connection } from '@kit.NetworkKit';
 import { notificationManager } from '@kit.NotificationKit';
 import { fileUri } from '@kit.CoreFileKit';
 import environment from '@ohos.file.environment';
@@ -42,6 +43,11 @@ export class DownloadService {
   private static listeners: DownloadListener[] = [];
   private static notifiedProgress: Map<string, number> = new Map();
   private static downloadDirectory: string = '';
+  private static largeDownloadThresholdBytes: number = 50 * 1024 * 1024;
+  private static wifiOnly: boolean = false;
+  private static policyPrompt: ((task: DownloadTask) => void) | undefined = undefined;
+  private static promptingIds: string[] = [];
+  private static approvedIds: string[] = [];
 
   static configure(): void {
     if (DownloadService.isConfigured) {
@@ -62,6 +68,42 @@ export class DownloadService {
 
   static setConcurrencyLimit(limit: number): void {
     DownloadService.maxConcurrent = Math.min(6, Math.max(1, Math.floor(limit)));
+    DownloadService.pump();
+  }
+
+  static configurePolicy(
+    thresholdMb: number,
+    wifiOnly: boolean,
+    prompt: (task: DownloadTask) => void
+  ): void {
+    DownloadService.largeDownloadThresholdBytes = Math.max(1, thresholdMb) * 1024 * 1024;
+    DownloadService.wifiOnly = wifiOnly;
+    DownloadService.policyPrompt = prompt;
+    DownloadService.pump();
+  }
+
+  static approve(id: string): void {
+    DownloadService.promptingIds = DownloadService.promptingIds.filter((item: string) => item !== id);
+    if (!DownloadService.approvedIds.includes(id)) {
+      DownloadService.approvedIds.push(id);
+    }
+    DownloadService.pump();
+  }
+
+  static cancelByPolicy(id: string): void {
+    const task: DownloadTask | undefined = DownloadService.task(id);
+    const item: webview.WebDownloadItem | undefined = DownloadService.items.get(id);
+    DownloadService.promptingIds = DownloadService.promptingIds.filter((item: string) => item !== id);
+    DownloadService.approvedIds = DownloadService.approvedIds.filter((item: string) => item !== id);
+    if (task !== undefined) {
+      task.status = DownloadTaskStatus.Canceled;
+      try {
+        item?.cancel();
+      } catch (error) {
+        Logger.warn(TAG, `Unable to cancel policy-blocked download: ${String(error)}`);
+      }
+      DownloadService.publishTasks();
+    }
     DownloadService.pump();
   }
 
@@ -154,6 +196,8 @@ export class DownloadService {
     DownloadService.items.delete(id);
     DownloadService.startedIds = DownloadService.startedIds.filter((item: string) => item !== id);
     DownloadService.notifiedProgress.delete(id);
+    DownloadService.promptingIds = DownloadService.promptingIds.filter((item: string) => item !== id);
+    DownloadService.approvedIds = DownloadService.approvedIds.filter((item: string) => item !== id);
     DownloadService.publishTasks();
   }
 
@@ -192,6 +236,13 @@ export class DownloadService {
         break;
       }
       if (task.status !== DownloadTaskStatus.Pending) {
+        continue;
+      }
+      if (DownloadService.needsPolicyPrompt(task)) {
+        if (!DownloadService.promptingIds.includes(task.id)) {
+          DownloadService.promptingIds.push(task.id);
+          DownloadService.policyPrompt?.(DownloadService.cloneTask(task));
+        }
         continue;
       }
       const item: webview.WebDownloadItem | undefined = DownloadService.items.get(task.id);
@@ -281,6 +332,31 @@ export class DownloadService {
 
   private static task(id: string): DownloadTask | undefined {
     return DownloadService.tasks.find((task: DownloadTask) => task.id === id);
+  }
+
+  private static needsPolicyPrompt(task: DownloadTask): boolean {
+    if (DownloadService.policyPrompt === undefined ||
+      DownloadService.approvedIds.includes(task.id) || DownloadService.isWifiConnected()) {
+      return false;
+    }
+    if (DownloadService.wifiOnly) {
+      return true;
+    }
+    return task.totalBytes > 0 && task.totalBytes >= DownloadService.largeDownloadThresholdBytes;
+  }
+
+  private static isWifiConnected(): boolean {
+    try {
+      const handle: connection.NetHandle = connection.getDefaultNetSync();
+      if (handle.netId === 0) {
+        return false;
+      }
+      const capabilities: connection.NetCapabilities = connection.getNetCapabilitiesSync(handle);
+      return capabilities.bearerTypes.includes(connection.NetBearType.BEARER_WIFI);
+    } catch (error) {
+      Logger.warn(TAG, `Unable to determine network type: ${String(error)}`);
+      return false;
+    }
   }
 
   private static publishTasks(): void {

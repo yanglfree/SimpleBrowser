@@ -169,6 +169,8 @@ export interface BrowserSettings {
   historyRetentionDays: number;
   liveWebViewLimit: number;
   downloadConcurrency: number;
+  largeDownloadThresholdMb: number;
+  wifiOnlyDownloads: boolean;
   tabSoftLimit: number;
   minimumFontSize: number;
   siteZoomRatios: SiteZoomRatio[];
@@ -248,6 +250,8 @@ export function defaultBrowserSettings(): BrowserSettings {
     historyRetentionDays: 30,
     liveWebViewLimit: 4,
     downloadConcurrency: 2,
+    largeDownloadThresholdMb: 50,
+    wifiOnlyDownloads: false,
     tabSoftLimit: 12,
     minimumFontSize: 14,
     siteZoomRatios: [],
@@ -325,6 +329,8 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     historyRetentionDays: settings.historyRetentionDays,
     liveWebViewLimit: settings.liveWebViewLimit,
     downloadConcurrency: settings.downloadConcurrency,
+    largeDownloadThresholdMb: settings.largeDownloadThresholdMb,
+    wifiOnlyDownloads: settings.wifiOnlyDownloads,
     tabSoftLimit: settings.tabSoftLimit,
     minimumFontSize: settings.minimumFontSize,
     siteZoomRatios: settings.siteZoomRatios.map((entry: SiteZoomRatio): SiteZoomRatio => ({

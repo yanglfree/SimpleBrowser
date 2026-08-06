@@ -173,6 +173,11 @@ struct Index {
           void this.reclaimForMemory(level);
         }
       });
+      DownloadService.configurePolicy(
+        this.settings.largeDownloadThresholdMb,
+        this.settings.wifiOnlyDownloads,
+        (task: DownloadTask): void => this.promptDownloadPolicy(task)
+      );
       DownloadService.subscribe(this.downloadListener);
       this.isReady = true;
       this.promptExpiredTabs();
@@ -1248,6 +1253,26 @@ struct Index {
     await DownloadService.share(AppContext.getContext(), task);
   }
 
+  private promptDownloadPolicy(task: DownloadTask): void {
+    try {
+      this.getUIContext().showAlertDialog({
+        title: $r('app.string.download_policy_title'),
+        message: `${task.fileName}${$r('app.string.download_policy_message')}`,
+        primaryButton: {
+          value: $r('app.string.download_policy_continue'),
+          action: (): void => DownloadService.approve(task.id)
+        },
+        secondaryButton: {
+          value: $r('app.string.cancel'),
+          action: (): void => DownloadService.cancelByPolicy(task.id)
+        }
+      });
+    } catch (error) {
+      Logger.warn(TAG, `Download policy prompt unavailable: ${String(error)}`);
+      DownloadService.cancelByPolicy(task.id);
+    }
+  }
+
   private showCopyToast(): void {
     try {
       this.getUIContext().getPromptAction().showToast({ message: $r('app.string.copied_link') });
@@ -1364,6 +1389,11 @@ struct Index {
     const appearanceChanged: boolean = next.appearance !== this.settings.appearance;
     await this.viewModel.updateSettings(next);
     this.settings = cloneSettings(next);
+    DownloadService.configurePolicy(
+      next.largeDownloadThresholdMb,
+      next.wifiOnlyDownloads,
+      (task: DownloadTask): void => this.promptDownloadPolicy(task)
+    );
     if (appearanceChanged) {
       ThemeService.apply(AppContext.getContext(), next.appearance);
     }

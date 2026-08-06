@@ -23,7 +23,8 @@ enum PickerKind {
   DownloadConcurrency = 7,
   TabSoftLimit = 8,
   MinimumFontSize = 9,
-  ClearDataRange = 10
+  ClearDataRange = 10,
+  LargeDownloadThreshold = 11
 }
 interface PickerOption {
   label: Resource;
@@ -109,6 +110,13 @@ const MINIMUM_FONT_SIZE_LABELS: Resource[] = [
   $r('app.string.minimum_font_size_fourteen'),
   $r('app.string.minimum_font_size_sixteen'),
   $r('app.string.minimum_font_size_eighteen')
+];
+
+const LARGE_DOWNLOAD_THRESHOLD_LABELS: Resource[] = [
+  $r('app.string.large_download_threshold_fifty'),
+  $r('app.string.large_download_threshold_one_hundred'),
+  $r('app.string.large_download_threshold_five_hundred'),
+  $r('app.string.large_download_threshold_one_thousand')
 ];
 
 const CLEAR_DATA_RANGE_LABELS: Resource[] = [
@@ -320,6 +328,22 @@ export struct SettingsPage {
               false,
               () => this.picker = PickerKind.DownloadConcurrency
             )
+            this.ValueRow(
+              $r('app.string.large_download_threshold'),
+              this.largeDownloadThresholdLabel(),
+              true,
+              () => this.picker = PickerKind.LargeDownloadThreshold
+            )
+            this.SwitchRow(
+              $r('app.string.wifi_only_downloads'),
+              this.settings.wifiOnlyDownloads,
+              true,
+              () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.wifiOnlyDownloads = !next.wifiOnlyDownloads;
+                this.onChange(next);
+              }
+            )
             this.ActionRow($r('app.string.bookmark_import_html'), false, () => this.onImportBookmarks())
             this.ActionRow($r('app.string.bookmark_export_html'), false, () => this.onExportBookmarks())
             this.ValueRow(
@@ -468,6 +492,7 @@ export struct SettingsPage {
       { key: 'history_retention', label: $r('app.string.history_retention'), keywords: '历史 保留 清除' },
       { key: 'clear_data', label: $r('app.string.clear_browsing_data'), keywords: '历史 Cookie 缓存 权限 清除' },
       { key: 'minimum_font_size', label: $r('app.string.minimum_font_size'), keywords: '网页 字号 字体 大字 无障碍' },
+      { key: 'large_downloads', label: $r('app.string.large_download_threshold'), keywords: '下载 大文件 流量 Wi-Fi 移动网络' },
       { key: 'bookmark_import', label: $r('app.string.bookmark_import_html'), keywords: '书签 导入 HTML' }
     ];
   }
@@ -503,6 +528,8 @@ export struct SettingsPage {
       this.openClearDataSheet();
     } else if (key === 'minimum_font_size') {
       this.picker = PickerKind.MinimumFontSize;
+    } else if (key === 'large_downloads') {
+      this.picker = PickerKind.LargeDownloadThreshold;
     } else if (key === 'bookmark_import') {
       this.onImportBookmarks();
     }
@@ -674,6 +701,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.MinimumFontSize) {
       return optionsFrom(MINIMUM_FONT_SIZE_LABELS);
     }
+    if (this.picker === PickerKind.LargeDownloadThreshold) {
+      return optionsFrom(LARGE_DOWNLOAD_THRESHOLD_LABELS);
+    }
     if (this.picker === PickerKind.ClearDataRange) {
       return optionsFrom(CLEAR_DATA_RANGE_LABELS);
     }
@@ -705,6 +735,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.MinimumFontSize) {
       return this.minimumFontSizeIndex();
     }
+    if (this.picker === PickerKind.LargeDownloadThreshold) {
+      return this.largeDownloadThresholdIndex();
+    }
     if (this.picker === PickerKind.ClearDataRange) {
       return this.clearDataRangeIndex();
     }
@@ -734,6 +767,8 @@ export struct SettingsPage {
       next.tabSoftLimit = this.tabSoftLimitValue(value);
     } else if (this.picker === PickerKind.MinimumFontSize) {
       next.minimumFontSize = this.minimumFontSizeValue(value);
+    } else if (this.picker === PickerKind.LargeDownloadThreshold) {
+      next.largeDownloadThresholdMb = this.largeDownloadThresholdValue(value);
     } else {
       next.appearance = value as AppearanceMode;
     }
@@ -901,6 +936,36 @@ export struct SettingsPage {
 
   private minimumFontSizeLabel(): Resource {
     return MINIMUM_FONT_SIZE_LABELS[this.minimumFontSizeIndex()];
+  }
+
+  private largeDownloadThresholdIndex(): number {
+    if (this.settings.largeDownloadThresholdMb === 100) {
+      return 1;
+    }
+    if (this.settings.largeDownloadThresholdMb === 500) {
+      return 2;
+    }
+    if (this.settings.largeDownloadThresholdMb === 1000) {
+      return 3;
+    }
+    return 0;
+  }
+
+  private largeDownloadThresholdValue(index: number): number {
+    if (index === 1) {
+      return 100;
+    }
+    if (index === 2) {
+      return 500;
+    }
+    if (index === 3) {
+      return 1000;
+    }
+    return 50;
+  }
+
+  private largeDownloadThresholdLabel(): Resource {
+    return LARGE_DOWNLOAD_THRESHOLD_LABELS[this.largeDownloadThresholdIndex()];
   }
 
   private saveSearchTemplate(template: string): void {
