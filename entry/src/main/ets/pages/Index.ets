@@ -144,6 +144,7 @@ struct Index {
   @State private isActiveBookmarked: boolean = false;
   @State private isActiveSavedForLater: boolean = false;
   @State private downloadTasks: DownloadTask[] = [];
+  @State private rulesLastUpdatedAt: number = 0;
   @State private findQuery: string = '';
   @State private findCurrent: number = 0;
   @State private findTotal: number = 0;
@@ -167,6 +168,7 @@ struct Index {
       await this.viewModel.initialize(AppContext.getContext());
       ThemeService.apply(AppContext.getContext(), this.viewModel.settings.appearance);
       this.syncState();
+      this.rulesLastUpdatedAt = this.viewModel.adsBlockService.lastUpdatedAt;
       this.liveTabIds = this.initialLiveTabIds();
       MemoryPressureService.register((level: number): void => {
         if (level >= 1) {
@@ -612,6 +614,7 @@ struct Index {
         allowedHosts: this.viewModel.getAllowedHosts(),
         currentHost: displayHost(this.activeTab()?.url ?? ''),
         currentHostDarkModeEnabled: !this.isDarkModeExcluded(this.activeTab()?.url ?? ''),
+        rulesLastUpdatedAt: this.rulesLastUpdatedAt,
         onChange: (settings: BrowserSettings): void => { this.applySettings(settings); },
         onResetGestures: (): void => { this.resetGestures(); },
         onClearData: (selection: ClearDataSelection): void => { this.clearBrowsingData(selection); },
@@ -619,6 +622,7 @@ struct Index {
         onExportBookmarks: (): void => { void this.exportBookmarks(); },
         onRemoveAllowedHost: (host: string): void => { void this.removeAllowedHost(host); },
         onToggleCurrentSiteDarkMode: (): void => { void this.toggleCurrentSiteDarkMode(); },
+        onUpdateRules: (): void => { void this.updateRules(); },
         onBack: (): void => { this.sheet = Overlay.None; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
@@ -1425,6 +1429,20 @@ struct Index {
     }
     await this.applySettings(next);
     this.runOnActive((controller: webview.WebviewController): void => controller.refresh());
+  }
+
+  private async updateRules(): Promise<void> {
+    const updated: boolean = await this.viewModel.adsBlockService.updateRules(true);
+    try {
+      if (updated) {
+        this.rulesLastUpdatedAt = this.viewModel.adsBlockService.lastUpdatedAt;
+        this.getUIContext().getPromptAction().showToast({ message: $r('app.string.rules_update_success') });
+      } else {
+        this.getUIContext().getPromptAction().showToast({ message: $r('app.string.rules_update_failed') });
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Rules update toast unavailable: ${String(error)}`);
+    }
   }
 
   private resetGestures(): void {

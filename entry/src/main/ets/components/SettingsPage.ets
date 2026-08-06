@@ -159,6 +159,7 @@ export struct SettingsPage {
   @Prop allowedHosts: string[] = [];
   @Prop currentHost: string = '';
   @Prop currentHostDarkModeEnabled: boolean = false;
+  @Prop rulesLastUpdatedAt: number = 0;
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
   onResetGestures: () => void = (): void => {};
   onClearData: (selection: ClearDataSelection) => void = (_selection: ClearDataSelection): void => {};
@@ -166,6 +167,7 @@ export struct SettingsPage {
   onExportBookmarks: () => void = (): void => {};
   onRemoveAllowedHost: (host: string) => void = (_host: string): void => {};
   onToggleCurrentSiteDarkMode: () => void = (): void => {};
+  onUpdateRules: () => void = (): void => {};
   onBack: () => void = (): void => {};
   @State private picker: PickerKind = PickerKind.None;
   @State private isEditingSearchTemplate: boolean = false;
@@ -224,6 +226,12 @@ export struct SettingsPage {
               RULE_STRENGTH_LABELS[this.settings.ruleStrength as number],
               false,
               () => this.picker = PickerKind.RuleStrength
+            )
+            this.ValueRowText(
+              $r('app.string.rules_update'),
+              this.rulesLastUpdatedLabel(),
+              false,
+              () => this.onUpdateRules()
             )
           }
           .groupCard()
@@ -1002,6 +1010,16 @@ export struct SettingsPage {
 
   private largeDownloadThresholdLabel(): Resource {
     return LARGE_DOWNLOAD_THRESHOLD_LABELS[this.largeDownloadThresholdIndex()];
+  }
+
+  private rulesLastUpdatedLabel(): ResourceStr {
+    if (this.rulesLastUpdatedAt <= 0) {
+      return $r('app.string.rules_update_never');
+    }
+    const date: Date = new Date(this.rulesLastUpdatedAt);
+    const hour: string = `${date.getHours()}`.padStart(2, '0');
+    const minute: string = `${date.getMinutes()}`.padStart(2, '0');
+    return `${date.getMonth() + 1}月${date.getDate()}日 ${hour}:${minute}`;
   }
 
   private saveSearchTemplate(template: string): void {
