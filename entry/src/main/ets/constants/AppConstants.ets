@@ -268,13 +268,21 @@ export function readerApplyScript(
 
   if (!S.active) {
     var candidates = document.querySelectorAll(
-      'article, main, [role="main"], [itemprop="articleBody"], .article, .article-content, ' +
-      '.post, .post-content, .entry-content, .story-body, #content'
+      'article, main, [role="main"], [itemprop="articleBody"], .article, .article-body, .article-content, ' +
+      '.post, .post-body, .post-content, .entry-content, .story-body, .story-content, .content, #content'
     );
     var best = null, bestScore = 0, bestLength = 0;
     for (var i = 0; i < candidates.length; i++) {
       var candidate = candidates[i];
-      var text = (candidate.innerText || '').trim();
+      var probe = candidate.cloneNode(true);
+      var probeNoise = probe.querySelectorAll(
+        'script,style,iframe,noscript,form,button,nav,aside,header,footer,' +
+        '[role="navigation"],[role="complementary"],[aria-label*="comment"]'
+      );
+      for (var noiseIndex = 0; noiseIndex < probeNoise.length; noiseIndex++) {
+        probeNoise[noiseIndex].remove();
+      }
+      var text = (probe.innerText || '').trim();
       var length = text.length;
       if (length < 240) continue;
       var paragraphs = candidate.querySelectorAll('p').length;
@@ -283,17 +291,40 @@ export function readerApplyScript(
       for (var linkIndex = 0; linkIndex < links; linkIndex++) {
         linkText += (candidate.querySelectorAll('a')[linkIndex].innerText || '').length;
       }
-      var score = length + Math.min(paragraphs, 80) * 80 - Math.min(linkText, length) * 0.25;
+      var punctuation = (text.match(/[。！？.!?]/g) || []).length;
+      var paragraphDensity = paragraphs === 0 ? 0 : Math.min(1, punctuation / paragraphs / 2);
+      var semanticBoost = /^(ARTICLE|MAIN)$/i.test(candidate.tagName) ? 240 : 0;
+      var score = length + Math.min(paragraphs, 80) * 70 + punctuation * 8 +
+        paragraphDensity * 260 + semanticBoost - Math.min(linkText, length) * 0.6;
       if (score > bestScore) {
         bestScore = score;
         bestLength = length;
         best = candidate;
       }
     }
+    if (!best || bestLength < 240) {
+      var paragraphNodes = document.querySelectorAll('p');
+      var fallback = document.createElement('div');
+      var fallbackLength = 0;
+      for (var paragraphIndex = 0; paragraphIndex < paragraphNodes.length; paragraphIndex++) {
+        var paragraph = paragraphNodes[paragraphIndex];
+        var paragraphText = (paragraph.innerText || '').trim();
+        if (paragraphText.length < 40) continue;
+        fallback.appendChild(paragraph.cloneNode(true));
+        fallbackLength += paragraphText.length;
+        if (fallbackLength >= 1600) break;
+      }
+      if (fallbackLength >= 240) {
+        best = fallback;
+        bestLength = fallbackLength;
+      }
+    }
     if (!best || bestLength < 240) return 'no-article';
 
-    var heading = document.querySelector('h1');
-    var headingText = heading ? heading.innerText : document.title;
+    var heading = best.querySelector ? best.querySelector('h1') : null;
+    var ogTitle = document.querySelector('meta[property="og:title"]');
+    var headingText = heading ? heading.innerText :
+      (ogTitle ? ogTitle.getAttribute('content') : document.title);
     var content = best.innerHTML;
 
     S.body = document.body.innerHTML;
@@ -311,8 +342,23 @@ export function readerApplyScript(
     var wrapper = document.createElement('div');
     wrapper.className = '__mb-reader-body';
     wrapper.innerHTML = content;
-    var noise = wrapper.querySelectorAll('script,style,iframe,noscript,form,button,nav,aside,video');
+    var noise = wrapper.querySelectorAll(
+      'script,style,iframe,noscript,form,button,nav,aside,header,footer,video,' +
+      '[role="navigation"],[role="complementary"],[aria-label*="comment"]'
+    );
     for (var n = 0; n < noise.length; n++) { noise[n].remove(); }
+    var chrome = wrapper.querySelectorAll(
+      '[class*="comment"],[class*="recommend"],[class*="related"],' +
+      '[class*="breadcrumb"],[class*="sidebar"],[class*="advert"],[id*="comment"]'
+    );
+    for (var chromeIndex = 0; chromeIndex < chrome.length; chromeIndex++) {
+      chrome[chromeIndex].remove();
+    }
+    if ((wrapper.innerText || '').trim().length < 240) {
+      document.body.innerHTML = S.body;
+      document.body.setAttribute('style', S.bodyStyle);
+      return 'no-article';
+    }
     article.appendChild(wrapper);
 
     document.body.appendChild(article);
