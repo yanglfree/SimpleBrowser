@@ -50,6 +50,7 @@ import { TabLauncher } from '../components/TabLauncher';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
 import { TAB_LAUNCHER_RIGHT_MARGIN, TAB_LAUNCHER_TOP_MARGIN, TAB_WEB_BOTTOM_INSET } from '../components/TabTokens';
 import { PrivacyService } from '../services/PrivacyService';
+import { AdsBlockService } from '../services/AdsBlockService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
 import { WebHistoryEntry, WebKernelService } from '../services/WebKernelService';
@@ -1043,6 +1044,9 @@ struct Index {
       lastVisitedAt: Date.now()
     });
     this.syncTab(id);
+    if (this.settings.blockAds) {
+      void this.injectCosmeticRules(id, url);
+    }
   }
 
   private async handlePageEnd(id: string, url: string): Promise<void> {
@@ -1063,6 +1067,15 @@ struct Index {
     }
     await this.enhancePage(id);
     this.syncState();
+  }
+
+  private async injectCosmeticRules(id: string, pageUrl: string): Promise<void> {
+    const script: string = AdsBlockService.cosmeticScriptFor(pageUrl);
+    const controller: webview.WebviewController | undefined = this.controllers.get(id);
+    if (script.length === 0 || controller === undefined) {
+      return;
+    }
+    await this.runScript(controller, script);
   }
 
   private handleTitle(id: string, title: string): void {

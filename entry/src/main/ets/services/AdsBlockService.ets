@@ -3,6 +3,7 @@ import { util } from '@kit.ArkTS';
 import { webview } from '@kit.ArkWeb';
 import fs from '@ohos.file.fs';
 import { Logger } from '../utils/Logger';
+import { CosmeticFilterService } from './CosmeticFilterService';
 import { RuleCache, RuleEngine, RuleMatchContext } from './RuleEngine';
 
 const TAG: string = 'AdsBlockService';
@@ -11,6 +12,7 @@ const RULE_CACHE_FILE_NAME: string = 'minimal-browser-easylist.cache.json';
 
 export class AdsBlockService {
   private static compiledEngine: RuleEngine | undefined;
+  private static cosmeticFilter: CosmeticFilterService | undefined;
   private rulesPath: string = '';
   private cachePath: string = '';
   private ruleEngine: RuleEngine | undefined;
@@ -25,6 +27,7 @@ export class AdsBlockService {
       this.cachePath = `${context.filesDir}/${RULE_CACHE_FILE_NAME}`;
       const content: Uint8Array = context.resourceManager.getRawFileContentSync('ads/easylist.txt');
       const rulesText: string = new util.TextDecoder().decodeToString(content);
+      AdsBlockService.cosmeticFilter = CosmeticFilterService.compile(rulesText);
       const fingerprint: number = RuleEngine.fingerprint(rulesText);
       const cachedEngine: RuleEngine | undefined = this.loadCompiledCache(fingerprint);
       const engine: RuleEngine = cachedEngine ?? RuleEngine.compile(rulesText);
@@ -55,6 +58,10 @@ export class AdsBlockService {
   shouldBlock(context: RuleMatchContext): boolean {
     const engine: RuleEngine | undefined = this.ruleEngine ?? AdsBlockService.compiledEngine;
     return engine?.shouldBlock(context) ?? false;
+  }
+
+  static cosmeticScriptFor(pageUrl: string): string {
+    return AdsBlockService.cosmeticFilter?.scriptFor(pageUrl) ?? '';
   }
 
   interceptRequest(
