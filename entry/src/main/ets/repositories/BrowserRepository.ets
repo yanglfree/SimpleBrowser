@@ -458,6 +458,7 @@ export class BrowserRepository {
             }))
           : fallback.sitePermissions,
         clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,
+        telemetryEnabled: parsed.telemetryEnabled ?? fallback.telemetryEnabled,
         readerFontSize: parsed.readerFontSize ?? fallback.readerFontSize,
         readerLineHeight: parsed.readerLineHeight ?? fallback.readerLineHeight,
         readerPaper: parsed.readerPaper ?? fallback.readerPaper

@@ -69,6 +69,14 @@ export enum SecurityState {
   CertificateError = 3
 }
 
+/** Parsed X.509 summary shown in the security panel. */
+export interface CertificateSummary {
+  subject: string;
+  issuer: string;
+  validFrom: string;
+  validTo: string;
+}
+
 export enum TabExpiry {
   OneDay = 1,
   ThreeDays = 3,
@@ -117,6 +125,7 @@ export interface BrowserTab {
   formDraft: string;
   loadError: LoadErrorKind;
   securityState: SecurityState;
+  certificate?: CertificateSummary;
 }
 
 export interface BrowserTabUpdate {
@@ -138,6 +147,7 @@ export interface BrowserTabUpdate {
   formDraft?: string;
   loadError?: LoadErrorKind;
   securityState?: SecurityState;
+  certificate?: CertificateSummary;
 }
 
 export interface BrowserSession {
@@ -192,6 +202,7 @@ export interface BrowserSettings {
   webDarkModeExcludedHosts: string[];
   sitePermissions: SitePermission[];
   clearCookiesOnTabClose: boolean;
+  telemetryEnabled: boolean;
   readerFontSize: number;
   readerLineHeight: number;
   readerPaper: ReaderPaper;
@@ -284,6 +295,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     webDarkModeExcludedHosts: [],
     sitePermissions: [],
     clearCookiesOnTabClose: false,
+    telemetryEnabled: true,
     readerFontSize: 17,
     readerLineHeight: 205,
     readerPaper: ReaderPaper.Sepia
@@ -311,7 +323,8 @@ export function cloneTab(tab: BrowserTab): BrowserTab {
     readerScrollSavedAt: tab.readerScrollSavedAt,
     formDraft: tab.formDraft,
     loadError: tab.loadError,
-    securityState: tab.securityState
+    securityState: tab.securityState,
+    certificate: tab.certificate
   };
 }
 
@@ -375,6 +388,7 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
       notifications: entry.notifications
     })),
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,
+    telemetryEnabled: settings.telemetryEnabled,
     readerFontSize: settings.readerFontSize,
     readerLineHeight: settings.readerLineHeight,
     readerPaper: settings.readerPaper

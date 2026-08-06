@@ -1,4 +1,4 @@
-import { SecurityState } from '../models/BrowserModels';
+import { SecurityState, CertificateSummary } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 
 @Component
@@ -6,6 +6,7 @@ export struct SecurityPanel {
   @Prop host: string = '';
   @Prop url: string = '';
   @Prop state: SecurityState = SecurityState.Unknown;
+  @Prop certificate: CertificateSummary | null = null;
   onDismiss: () => void = (): void => {};
 
   build() {
@@ -59,10 +60,17 @@ export struct SecurityPanel {
         }
         .width('100%')
 
-        Text($r('app.string.security_certificate_note'))
-          .width('100%')
-          .fontSize(13)
-          .fontColor($r('app.color.text_secondary'))
+        if (this.certificate !== null) {
+          Divider()
+            .strokeWidth(1)
+            .color($r('app.color.border'))
+          this.CertificateDetails()
+        } else {
+          Text($r('app.string.security_certificate_note'))
+            .width('100%')
+            .fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+        }
       }
       .width('100%')
       .padding({ top: 10, left: 28, right: 28, bottom: 46 })
@@ -72,6 +80,37 @@ export struct SecurityPanel {
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder
+  private CertificateDetails() {
+    Column({ space: 10 }) {
+      Text($r('app.string.security_certificate_summary'))
+        .fontSize(12)
+        .fontColor($r('app.color.text_secondary'))
+      this.CertificateRow($r('app.string.security_certificate_issuer'), this.certificate!.issuer)
+      this.CertificateRow($r('app.string.security_certificate_valid_from'), this.certificate!.validFrom)
+      this.CertificateRow($r('app.string.security_certificate_valid_to'), this.certificate!.validTo)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  private CertificateRow(label: Resource, value: string) {
+    Row({ space: 10 }) {
+      Text(label)
+        .fontSize(13)
+        .fontColor($r('app.color.text_secondary'))
+      Text(value)
+        .fontSize(13)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+        .maxLines(2)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .textAlign(TextAlign.End)
+    }
+    .width('100%')
   }
 
   private stateTitle(): Resource {

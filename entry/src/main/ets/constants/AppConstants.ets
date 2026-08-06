@@ -333,6 +333,26 @@ export const DESKTOP_VIEWPORT_SCRIPT: string = `
 })();`;
 
 /**
+ * Watches for password fields being focused. On insecure (HTTP) pages this is
+ * the only way to warn the user, since there is no browser-level indicator the
+ * page controls.
+ */
+export const PASSWORD_FIELD_WATCHER_SCRIPT: string = `
+(function() {
+  if (window.__mbPasswordWatcher) return 'watching';
+  window.__mbPasswordWatcher = true;
+  document.addEventListener('focusin', function(event) {
+    var target = event.target;
+    if (target && target.tagName === 'INPUT' && (target.type === 'password')) {
+      if (window.dolphinSecurity && window.dolphinSecurity.notifyPasswordFocus) {
+        window.dolphinSecurity.notifyPasswordFocus();
+      }
+    }
+  }, true);
+  return 'armed';
+})();`;
+
+/**
  * Extracts the article on first run, then restyles it. Called again on every
  * font-size / line-height / paper change without re-extracting.
  */

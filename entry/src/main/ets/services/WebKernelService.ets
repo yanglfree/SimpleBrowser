@@ -9,6 +9,7 @@ export interface WebKernelCallbacks {
   onProgressChange: (progress: number) => void;
   onPageEnd: (url: string) => void;
   onError: (code: number, message: string) => void;
+  onSslError: (code: SslError, chain: Array<Uint8Array>) => void;
 }
 
 export interface WebHistoryEntry {

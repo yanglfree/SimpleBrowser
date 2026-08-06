@@ -19,6 +19,7 @@ import {
   READER_FONT_STEP,
   RESTORE_HIDDEN_SCRIPT,
   TRACKER_BLOCK_SCRIPT,
+  PASSWORD_FIELD_WATCHER_SCRIPT,
   contentCleanupScript,
   readerApplyScript,
   restoreFormDraftScript,
@@ -36,6 +37,7 @@ import {
   Suggestion,
   LoadErrorKind,
   SecurityState,
+  CertificateSummary,
   SitePermission,
   SitePermissionDecision,
   cloneSettings,
@@ -66,12 +68,14 @@ import { TabLauncher } from '../components/TabLauncher';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
 import { TAB_LAUNCHER_RIGHT_MARGIN, TAB_LAUNCHER_TOP_MARGIN, TAB_WEB_BOTTOM_INSET } from '../components/TabTokens';
 import { PrivacyService } from '../services/PrivacyService';
+import { CertificateService } from '../services/CertificateService';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { MemoryPressureService } from '../services/MemoryPressureService';
 import { DownloadService, DownloadTask } from '../services/DownloadService';
 import { BookmarkTransferService } from '../services/BookmarkTransferService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
+import { TelemetryService } from '../services/TelemetryService';
 import { WebHistoryEntry, WebKernelService, WebLongPressTarget } from '../services/WebKernelService';
 import { AppContext } from '../utils/AppContext';
 import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress, rawHost } from '../utils/UrlUtils';
@@ -138,6 +142,7 @@ const ACCENT_HEX: string = '#2E6B5C';
 struct Index {
   private viewModel: BrowserViewModel = new BrowserViewModel();
   private controllers: Map<string, webview.WebviewController> = new Map();
+  private pageLoadStartedAt: Map<string, number> = new Map();
   @State private isReady: boolean = false;
   @State private hasError: boolean = false;
   @State private tabs: BrowserTab[] = [];
@@ -181,6 +186,7 @@ struct Index {
     try {
       await this.viewModel.initialize(AppContext.getContext());
       ThemeService.apply(AppContext.getContext(), this.viewModel.settings.appearance);
+      TelemetryService.setEnabled(this.viewModel.settings.telemetryEnabled);
       this.syncState();
       this.rulesLastUpdatedAt = this.viewModel.adsBlockService.lastUpdatedAt;
       this.liveTabIds = this.initialLiveTabIds();
@@ -358,7 +364,10 @@ struct Index {
                 onPageEnd: (url: string): void => { this.handlePageEnd(tab.id, url); },
                 onProgressChange: (progress: number): void => this.handleProgress(tab.id, progress),
                 onError: (code: number, message: string): void =>
-                  this.handleLoadError(tab.id, code, message)
+                  this.handleLoadError(tab.id, code, message),
+                onSslError: (code: SslError, chain: Array<Uint8Array>): void => {
+                  void this.handleSslError(tab.id, code, chain);
+                }
               },
               onTitleReceive: (title: string): void => this.handleTitle(tab.id, title),
               onScroll: (offsetY: number): void => this.handlePageScroll(tab.id, offsetY),
@@ -374,7 +383,8 @@ struct Index {
               onPermissionRequest: (event: OnPermissionRequestEvent): void =>
                 this.handlePermissionRequest(event),
               onGeolocationShow: (event: OnGeolocationShowEvent): void =>
-                this.handleGeolocationShow(event)
+                this.handleGeolocationShow(event),
+              onPasswordFieldFocus: (): void => { void this.handlePasswordFocusOnInsecurePage(tab.id); }
             })
           } else {
             this.HibernatedTab(tab)
@@ -641,6 +651,9 @@ struct Index {
         onExportBookmarks: (): void => { void this.exportBookmarks(); },
         onRemoveAllowedHost: (host: string): void => { void this.removeAllowedHost(host); },
         onRemoveSitePermission: (origin: string): void => { void this.removeSitePermission(origin); },
+        onUpdateSitePermission: (origin: string, kind: string, decision: SitePermissionDecision): void => {
+          void this.toggleSitePermissionDecision(origin, kind, decision);
+        },
         onToggleCurrentSiteDarkMode: (): void => { void this.toggleCurrentSiteDarkMode(); },
         onUpdateRules: (): void => { void this.updateRules(); },
         onBack: (): void => { this.sheet = Overlay.None; }
@@ -659,6 +672,7 @@ struct Index {
         host: displayHost(this.activeTab()?.url ?? ''),
         url: this.activeTab()?.url ?? '',
         state: this.activeTab()?.securityState ?? SecurityState.Unknown,
+        certificate: this.activeTab()?.certificate ?? null,
         onDismiss: (): void => { this.sheet = Overlay.None; }
       })
         .transition(this.sheetTransition())
@@ -1352,6 +1366,7 @@ struct Index {
     const applied: string = await this.runScript(controller, this.readerScript());
     if (applied.includes('no-article') || !applied.includes('reader')) {
       Logger.info(TAG, 'Reader mode found no article to reflow');
+      TelemetryService.reportReaderExtraction(false);
       try {
         this.getUIContext().getPromptAction().showToast({ message: $r('app.string.reader_mode_unavailable') });
       } catch (error) {
@@ -1359,6 +1374,7 @@ struct Index {
       }
       return;
     }
+    TelemetryService.reportReaderExtraction(true);
     this.viewModel.updateTab(id, { isReader: true });
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (tab !== undefined && tab.readerScrollY > 0) {
@@ -1424,6 +1440,7 @@ struct Index {
 
   private async applySettings(next: BrowserSettings): Promise<void> {
     const appearanceChanged: boolean = next.appearance !== this.settings.appearance;
+    TelemetryService.setEnabled(next.telemetryEnabled);
     await this.viewModel.updateSettings(next);
     this.settings = cloneSettings(next);
     DownloadService.configurePolicy(
@@ -1652,6 +1669,36 @@ struct Index {
     await this.applySettings(next);
   }
 
+  /**
+   * Cycles a single permission in the settings list. The stored decision is
+   * passed in as the *current* value so tapping always moves to the next one.
+   */
+  private async toggleSitePermissionDecision(
+    origin: string,
+    kind: string,
+    current: SitePermissionDecision
+  ): Promise<void> {
+    const nextDecision: SitePermissionDecision = current === SitePermissionDecision.Allow
+      ? SitePermissionDecision.Deny
+      : SitePermissionDecision.Allow;
+    const next: BrowserSettings = cloneSettings(this.settings);
+    const stored: SitePermission | undefined = next.sitePermissions.find(
+      (entry: SitePermission): boolean => entry.origin === origin);
+    if (stored === undefined) {
+      return;
+    }
+    if (kind === 'camera') {
+      stored.camera = nextDecision;
+    } else if (kind === 'microphone') {
+      stored.microphone = nextDecision;
+    } else if (kind === 'location') {
+      stored.location = nextDecision;
+    } else if (kind === 'notifications') {
+      stored.notifications = nextDecision;
+    }
+    await this.applySettings(next);
+  }
+
   private async toggleCurrentSiteDarkMode(): Promise<void> {
     const host: string = rawHost(this.activeTab()?.url ?? '');
     if (host.length === 0) {
@@ -1808,6 +1855,7 @@ struct Index {
   private handlePageBegin(id: string, url: string): void {
     this.dismissResumePrompt();
     this.pageScrollOffsets.set(id, 0);
+    this.pageLoadStartedAt.set(id, Date.now());
     if (id === this.activeTabId) {
       this.isActivePageAtTop = true;
     }
@@ -1832,6 +1880,10 @@ struct Index {
   }
 
   private async handlePageEnd(id: string, url: string): Promise<void> {
+    const startedAt: number | undefined = this.pageLoadStartedAt.get(id);
+    if (startedAt !== undefined) {
+      TelemetryService.recordPageLoad(displayHost(url), Date.now() - startedAt);
+    }
     this.viewModel.updateTab(id, {
       url: url,
       isLoading: false,
@@ -1854,7 +1906,32 @@ struct Index {
       }
     }
     await this.enhancePage(id);
+    if (Index.securityStateForUrl(url) === SecurityState.Insecure) {
+      const controller: webview.WebviewController | undefined = this.controllers.get(id);
+      if (controller !== undefined) {
+        await this.runScript(controller, PASSWORD_FIELD_WATCHER_SCRIPT);
+      }
+    }
     this.syncState();
+  }
+
+  /**
+   * Insecure pages can still contain password fields (login forms behind HTTP).
+   * When the user focuses one, ArkWeb raises our JS proxy and we warn once.
+   */
+  private async handlePasswordFocusOnInsecurePage(id: string): Promise<void> {
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (tab === undefined || id !== this.activeTabId ||
+      tab.securityState !== SecurityState.Insecure) {
+      return;
+    }
+    try {
+      await this.getUIContext().getPromptAction().showToast({
+        message: $r('app.string.security_password_warning')
+      });
+    } catch (error) {
+      Logger.warn(TAG, `Password warning toast unavailable: ${String(error)}`);
+    }
   }
 
   private async handleScaleChange(id: string, scale: number): Promise<void> {
@@ -2032,6 +2109,24 @@ struct Index {
       securityState: kind === LoadErrorKind.Certificate
         ? SecurityState.CertificateError
         : this.viewModel.getTab(id)?.securityState ?? SecurityState.Unknown
+    });
+    this.syncTab(id);
+  }
+
+  /**
+   * ArkWeb reports certificate problems separately from page load errors, with
+   * the DER certificate chain available so the panel can show a real summary.
+   */
+  private async handleSslError(id: string, code: SslError, chain: Array<Uint8Array>): Promise<void> {
+    if (code === SslError.Invalid) {
+      return;
+    }
+    Logger.warn(TAG, `SSL ${code} for tab ${id}`);
+    const summary: CertificateSummary | undefined = await CertificateService.summarizeChain(chain);
+    this.viewModel.updateTab(id, {
+      loadError: LoadErrorKind.Certificate,
+      securityState: SecurityState.CertificateError,
+      certificate: summary
     });
     this.syncTab(id);
   }

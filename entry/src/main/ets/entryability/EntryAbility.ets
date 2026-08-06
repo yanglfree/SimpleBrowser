@@ -6,12 +6,16 @@ import { ThemeService } from '../services/ThemeService';
 import { AppContext } from '../utils/AppContext';
 import { Logger } from '../utils/Logger';
 import { MemoryPressureService } from '../services/MemoryPressureService';
+import { TelemetryService } from '../services/TelemetryService';
 
 const TAG: string = 'EntryAbility';
 
 export default class EntryAbility extends UIAbility {
+  private createdAt: number = Date.now();
+
   onCreate(): void {
     AppContext.setContext(this.context);
+    TelemetryService.registerCrashObservers();
     Logger.info(TAG, 'Ability created');
   }
 
@@ -21,6 +25,7 @@ export default class EntryAbility extends UIAbility {
         Logger.error(TAG, `Failed to load page: ${JSON.stringify(error)}`);
         return;
       }
+      TelemetryService.recordStartup(Date.now() - this.createdAt);
       this.applyStoredAppearance();
       Logger.info(TAG, 'Browser page loaded');
     });
@@ -47,6 +52,7 @@ export default class EntryAbility extends UIAbility {
 
   onMemoryLevel(level: AbilityConstant.MemoryLevel): void {
     MemoryPressureService.notify(level as number);
+    TelemetryService.recordMemoryPressure(level as number);
   }
 
   onDestroy(): void {

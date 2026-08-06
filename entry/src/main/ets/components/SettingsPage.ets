@@ -170,6 +170,8 @@ export struct SettingsPage {
   onExportBookmarks: () => void = (): void => {};
   onRemoveAllowedHost: (host: string) => void = (_host: string): void => {};
   onRemoveSitePermission: (origin: string) => void = (_origin: string): void => {};
+  onUpdateSitePermission: (origin: string, kind: string, decision: SitePermissionDecision) => void =
+    (_origin: string, _kind: string, _decision: SitePermissionDecision): void => {};
   onToggleCurrentSiteDarkMode: () => void = (): void => {};
   onUpdateRules: () => void = (): void => {};
   onBack: () => void = (): void => {};
@@ -407,6 +409,16 @@ export struct SettingsPage {
               () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.clearCookiesOnTabClose = !next.clearCookiesOnTabClose;
+                this.onChange(next);
+              }
+            )
+            this.SwitchRow(
+              $r('app.string.telemetry_switch'),
+              this.settings.telemetryEnabled,
+              true,
+              () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.telemetryEnabled = !next.telemetryEnabled;
                 this.onChange(next);
               }
             )
@@ -712,10 +724,14 @@ export struct SettingsPage {
           .onClick(() => this.onRemoveSitePermission(permission.origin))
       }
       .width('100%')
-      this.PermissionStatusRow($r('app.string.site_permission_camera'), permission.camera)
-      this.PermissionStatusRow($r('app.string.site_permission_microphone'), permission.microphone)
-      this.PermissionStatusRow($r('app.string.site_permission_location'), permission.location)
-      this.PermissionStatusRow($r('app.string.site_permission_notifications'), permission.notifications)
+      this.PermissionStatusRow($r('app.string.site_permission_camera'), permission.camera,
+        () => this.onUpdateSitePermission(permission.origin, 'camera', permission.camera))
+      this.PermissionStatusRow($r('app.string.site_permission_microphone'), permission.microphone,
+        () => this.onUpdateSitePermission(permission.origin, 'microphone', permission.microphone))
+      this.PermissionStatusRow($r('app.string.site_permission_location'), permission.location,
+        () => this.onUpdateSitePermission(permission.origin, 'location', permission.location))
+      this.PermissionStatusRow($r('app.string.site_permission_notifications'), permission.notifications,
+        () => this.onUpdateSitePermission(permission.origin, 'notifications', permission.notifications))
     }
     .width('100%')
     .padding({ top: 10, bottom: 10 })
@@ -723,7 +739,11 @@ export struct SettingsPage {
   }
 
   @Builder
-  private PermissionStatusRow(label: Resource, decision: SitePermissionDecision) {
+  private PermissionStatusRow(
+    label: Resource,
+    decision: SitePermissionDecision,
+    onTap: () => void
+  ) {
     Row() {
       Text(label)
         .layoutWeight(1)
@@ -731,10 +751,26 @@ export struct SettingsPage {
         .fontColor($r('app.color.text_secondary'))
       Text(this.permissionDecisionLabel(decision))
         .fontSize(12.5)
-        .fontColor($r('app.color.text_secondary'))
+        .fontColor(this.permissionDecisionColor(decision))
+      AppIcon({
+        name: IconName.ChevronRight,
+        glyphSize: 13,
+        color: $r('app.color.text_secondary')
+      })
     }
     .width('100%')
-    .height(24)
+    .height(28)
+    .onClick(onTap)
+  }
+
+  private permissionDecisionColor(decision: SitePermissionDecision): ResourceColor {
+    if (decision === SitePermissionDecision.Allow) {
+      return $r('app.color.accent');
+    }
+    if (decision === SitePermissionDecision.Deny) {
+      return $r('app.color.danger');
+    }
+    return $r('app.color.text_secondary');
   }
 
   private permissionDecisionLabel(decision: SitePermissionDecision): Resource {

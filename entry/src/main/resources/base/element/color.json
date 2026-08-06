@@ -10,6 +10,7 @@
     { "name": "text_secondary", "value": "#8B877F" },
     { "name": "accent", "value": "#2E6B5C" },
     { "name": "accent_strong", "value": "#2E6B5C" },
+    { "name": "danger", "value": "#B3483B" },
     { "name": "scrim", "value": "#2E1A1A18" },
     { "name": "shadow_soft", "value": "#0F000000" },
     { "name": "capsule_background", "value": "#B8FFFFFF" },

@@ -44,6 +44,8 @@ export struct BrowserWebView {
     (_event: OnPermissionRequestEvent): void => {};
   onGeolocationShow: (event: OnGeolocationShowEvent) => void =
     (_event: OnGeolocationShowEvent): void => {};
+  onPasswordFieldFocus: () => void = (): void => {};
+  private securityBridge: DolphinSecurityBridge = new DolphinSecurityBridge();
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
@@ -63,6 +65,7 @@ export struct BrowserWebView {
       .onControllerAttached(() => {
         this.adsBlockService.configure(this.controller, this.blockAds);
         WebKernelService.applyUserAgent(this.controller, this.tab.isDesktop);
+        this.registerSecurityBridge();
       })
       .onPageBegin((event: OnPageBeginEvent) => this.kernelCallbacks.onPageBegin(event.url))
       .onPageEnd((event: OnPageEndEvent) => this.kernelCallbacks.onPageEnd(event.url))
@@ -85,6 +88,11 @@ export struct BrowserWebView {
         const message: string = event.error.getErrorInfo();
         Logger.warn(TAG, `Load error ${code}: ${message}`);
         this.kernelCallbacks.onError(code, message);
+      })
+      .onSslErrorEventReceive((event: OnSslErrorEventReceiveEvent) => {
+        const chain: Array<Uint8Array> = event.certChainData ?? [];
+        Logger.warn(TAG, `SSL error ${event.error} on ${this.tab.url}`);
+        this.kernelCallbacks.onSslError(event.error, chain);
       })
       .parallelGesture(
         PanGesture({ direction: PanDirection.Vertical, distance: 8 })
@@ -133,6 +141,17 @@ export struct BrowserWebView {
       return WebDarkMode.On;
     }
     return WebDarkMode.Auto;
+  }
+
+  private registerSecurityBridge(): void {
+    this.securityBridge.onPasswordFocus = (): void => this.onPasswordFieldFocus();
+    this.controller.registerJavaScriptProxy(
+      this.securityBridge,
+      'dolphinSecurity',
+      ['notifyPasswordFocus'],
+      ['notifyPasswordFocus']
+    );
+    Logger.info(TAG, 'Security bridge registered');
   }
 
   private shouldForceDark(): boolean {
@@ -229,5 +248,14 @@ export struct BrowserWebView {
 
   private cancelPull(): void {
     this.pullDistance = 0;
+  }
+}
+
+/** JS side of the security bridge; ArkWeb calls notifyPasswordFocus from page scripts. */
+class DolphinSecurityBridge {
+  onPasswordFocus: () => void = (): void => {};
+
+  notifyPasswordFocus(): void {
+    this.onPasswordFocus();
   }
 }
