@@ -31,24 +31,27 @@ export struct FindSheet {
           AppIcon({ name: IconName.ChevronLeft, glyphSize: 18, color: $r('app.color.text_primary') })
         }
         .width(40)
-        .height(40)
+        .height(44)
         .justifyContent(FlexAlign.Center)
         .opacity(this.total > 0 ? 1 : 0.35)
+        .accessibilityText($r('app.string.find_previous'))
         .onClick(() => this.onPrevious())
         Row() {
           AppIcon({ name: IconName.ChevronRight, glyphSize: 18, color: $r('app.color.text_primary') })
         }
         .width(40)
-        .height(40)
+        .height(44)
         .justifyContent(FlexAlign.Center)
         .opacity(this.total > 0 ? 1 : 0.35)
+        .accessibilityText($r('app.string.find_next'))
         .onClick(() => this.onNext())
         Row() {
           AppIcon({ name: IconName.Close, glyphSize: 16, color: $r('app.color.text_secondary') })
         }
         .width(40)
-        .height(40)
+        .height(44)
         .justifyContent(FlexAlign.Center)
+        .accessibilityText($r('app.string.cancel'))
         .onClick(() => this.onDismiss())
       }
       .width('100%')

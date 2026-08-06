@@ -93,6 +93,11 @@
     { "name": "no_allowed_hosts", "value": "暂无站点例外" },
 
     { "name": "reader_line_height", "value": "行距" },
+    { "name": "reader_paper_white", "value": "白色阅读背景" },
+    { "name": "reader_paper_sepia", "value": "米色阅读背景" },
+    { "name": "reader_paper_night", "value": "夜间阅读背景" },
+    { "name": "find_previous", "value": "上一个匹配项" },
+    { "name": "find_next", "value": "下一个匹配项" },
 
     { "name": "settings", "value": "设置" },
     { "name": "group_rules", "value": "拦截规则" },
@@ -147,6 +152,7 @@
     { "name": "bookmark_export_html", "value": "导出 HTML 书签" },
     { "name": "bookmark_imported_suffix", "value": " 个新书签已导入" },
     { "name": "bookmark_exported", "value": "书签已导出" },
+    { "name": "share_panel_screenshot", "value": "分享截图" },
     { "name": "onboarding_title", "value": "欢迎使用极简浏览器" },
     { "name": "onboarding_skip", "value": "跳过" },
     { "name": "onboarding_next", "value": "下一步" },

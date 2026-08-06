@@ -397,7 +397,7 @@ export struct SettingsPage {
         .fontSize(15)
         .fontColor($r('app.color.text_primary'))
         .layoutWeight(1)
-      AppSwitch({ checked: checked, onToggle: onToggle })
+      AppSwitch({ checked: checked, accessibilityLabel: label, onToggle: onToggle })
     }
     .width('100%')
     .height(56)

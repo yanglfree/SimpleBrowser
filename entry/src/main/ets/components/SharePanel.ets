@@ -7,6 +7,7 @@ export struct SharePanel {
   @Prop host: string = '';
   onDismiss: () => void = (): void => {};
   onSystemShare: () => void = (): void => {};
+  onScreenshotShare: () => void = (): void => {};
   onCopy: () => void = (): void => {};
   onSaveLater: () => void = (): void => {};
 
@@ -37,7 +38,7 @@ export struct SharePanel {
           AppIcon({ name: IconName.Close, glyphSize: 16, color: $r('app.color.text_secondary') })
         }
         .width(40)
-        .height(40)
+        .height(44)
         .justifyContent(FlexAlign.Center)
         .onClick(() => this.onDismiss())
       }
@@ -59,8 +60,9 @@ export struct SharePanel {
 
       Row({ space: 10 }) {
         this.Action(IconName.Share, $r('app.string.share_panel_system'), (): void => this.onSystemShare())
+        this.Action(IconName.Reader, $r('app.string.share_panel_screenshot'), (): void => this.onScreenshotShare())
         this.Action(IconName.ArrowUpLeft, $r('app.string.share_panel_copy'), (): void => this.onCopy())
-        this.Action(IconName.Reader, $r('app.string.share_panel_save_later'), (): void => this.onSaveLater())
+        this.Action(IconName.Bookmark, $r('app.string.share_panel_save_later'), (): void => this.onSaveLater())
       }
       .width('100%')
     }
@@ -89,6 +91,8 @@ export struct SharePanel {
     }
     .layoutWeight(1)
     .alignItems(HorizontalAlign.Center)
+    .constraintSize({ minHeight: 64 })
+    .accessibilityText(label)
     .onClick(onClick)
   }
 }

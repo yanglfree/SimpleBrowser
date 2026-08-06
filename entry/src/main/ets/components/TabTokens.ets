@@ -1,12 +1,12 @@
 export const TAB_CONTROL_GAP: number = 8;
-export const TAB_LAUNCHER_HEIGHT: number = 42;
+export const TAB_LAUNCHER_HEIGHT: number = 44;
 export const TAB_LAUNCHER_HORIZONTAL_PADDING: number = 14;
 export const TAB_LAUNCHER_RADIUS: number = 21;
 export const TAB_LAUNCHER_ICON_SIZE: number = 18;
 export const TAB_LAUNCHER_TEXT_SIZE: number = 12.5;
 export const TAB_LAUNCHER_TOP_MARGIN: number = 18;
 export const TAB_LAUNCHER_RIGHT_MARGIN: number = 24;
-export const TAB_CLOSE_HIT_SIZE: number = 40;
+export const TAB_CLOSE_HIT_SIZE: number = 44;
 export const TAB_CARD_CLOSE_ICON_SIZE: number = 13;
 export const TAB_CARD_CLOSE_SWIPE_DISTANCE: number = 44;
 export const TAB_CARD_RADIUS: number = 20;

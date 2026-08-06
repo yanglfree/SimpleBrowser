@@ -676,6 +676,7 @@ struct Index {
         host: displayHost(this.activeTab()?.url ?? ''),
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onSystemShare: (): void => { void this.shareActivePage(); },
+        onScreenshotShare: (): void => { void this.shareActiveScreenshot(); },
         onCopy: (): void => { void this.copyActiveLink(); },
         onSaveLater: (): void => { void this.saveActiveForLater(); }
       })
@@ -1214,6 +1215,24 @@ struct Index {
     if (outcome === ShareOutcome.Copied) {
       this.showCopyToast();
       this.sheet = Overlay.None;
+    }
+  }
+
+  private async shareActiveScreenshot(): Promise<void> {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined) {
+      return;
+    }
+    try {
+      const shot: image.PixelMap =
+        await this.getUIContext().getComponentSnapshot().get(`tab-view-${tab.id}`);
+      const outcome: ShareOutcome = await ShareService.shareImage(
+        AppContext.getContext(), shot, tab.title);
+      if (outcome === ShareOutcome.Shared) {
+        this.sheet = Overlay.None;
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Page screenshot unavailable: ${String(error)}`);
     }
   }
 

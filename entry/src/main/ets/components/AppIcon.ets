@@ -72,5 +72,51 @@ export struct AppIcon {
     .strokeWidth(this.filled ? 0 : this.strokeWidth)
     .strokeLineCap(LineCapStyle.Round)
     .strokeLineJoin(LineJoinStyle.Round)
+    .accessibilityText(this.accessibilityLabel())
+  }
+
+  private accessibilityLabel(): Resource {
+    switch (this.name) {
+      case IconName.Shield:
+      case IconName.ShieldCheck:
+        return $r('app.string.security_secure');
+      case IconName.ChevronLeft:
+      case IconName.ArrowLeft:
+        return $r('app.string.action_back');
+      case IconName.ChevronRight:
+        return $r('app.string.action_forward');
+      case IconName.ChevronUp:
+        return $r('app.string.action_share');
+      case IconName.Refresh:
+        return $r('app.string.action_reload');
+      case IconName.Share:
+        return $r('app.string.action_share');
+      case IconName.Bookmark:
+        return $r('app.string.action_bookmark_add');
+      case IconName.Reader:
+        return $r('app.string.action_reader');
+      case IconName.Desktop:
+        return $r('app.string.action_desktop');
+      case IconName.Search:
+        return $r('app.string.address_placeholder');
+      case IconName.Clock:
+        return $r('app.string.history_title');
+      case IconName.Close:
+        return $r('app.string.cancel');
+      case IconName.Plus:
+        return $r('app.string.new_tab');
+      case IconName.LineHeight:
+        return $r('app.string.reader_line_height');
+      case IconName.Stop:
+        return $r('app.string.action_stop');
+      case IconName.ArrowUpLeft:
+        return $r('app.string.share_panel_copy');
+      case IconName.Check:
+        return $r('app.string.done');
+      case IconName.Tabs:
+        return $r('app.string.tabs_count_suffix');
+      default:
+        return $r('app.string.app_name');
+    }
   }
 }

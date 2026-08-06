@@ -5,12 +5,13 @@ import { AppIcon, IconName } from './AppIcon';
 interface PaperSwatch {
   paper: ReaderPaper;
   color: Resource;
+  label: Resource;
 }
 
 const SWATCHES: PaperSwatch[] = [
-  { paper: ReaderPaper.White, color: $r('app.color.reader_paper_white') },
-  { paper: ReaderPaper.Sepia, color: $r('app.color.reader_paper_sepia') },
-  { paper: ReaderPaper.Night, color: $r('app.color.reader_paper_night') }
+  { paper: ReaderPaper.White, color: $r('app.color.reader_paper_white'), label: $r('app.string.reader_paper_white') },
+  { paper: ReaderPaper.Sepia, color: $r('app.color.reader_paper_sepia'), label: $r('app.string.reader_paper_sepia') },
+  { paper: ReaderPaper.Night, color: $r('app.color.reader_paper_night'), label: $r('app.string.reader_paper_night') }
 ];
 
 /**
@@ -32,6 +33,8 @@ export struct ReaderBar {
     Row() {
       Row({ space: 18 }) {
         Text('A−')
+          .constraintSize({ minWidth: 44, minHeight: 44 })
+          .textAlign(TextAlign.Center)
           .fontSize(13)
           .fontColor($r('app.color.text_secondary'))
           .opacity(this.canShrink ? 1 : 0.35)
@@ -41,6 +44,8 @@ export struct ReaderBar {
             }
           })
         Text('A+')
+          .constraintSize({ minWidth: 44, minHeight: 44 })
+          .textAlign(TextAlign.Center)
           .fontSize(17)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.text_primary'))
@@ -59,29 +64,39 @@ export struct ReaderBar {
           .fontSize(12)
           .fontColor($r('app.color.text_secondary'))
       }
+      .constraintSize({ minWidth: 44, minHeight: 44 })
+      .accessibilityText($r('app.string.reader_line_height'))
       .onClick(() => this.onCycleLineHeight())
 
       Row({ space: 10 }) {
         ForEach(SWATCHES, (swatch: PaperSwatch) => {
-          Circle()
-            .width(20)
-            .height(20)
-            .fill(swatch.color)
-            .stroke(this.paper === swatch.paper
-              ? $r('app.color.accent')
-              : $r('app.color.border'))
-            .strokeWidth(this.paper === swatch.paper ? 1.5 : 1)
-            .onClick(() => this.onPickPaper(swatch.paper))
+          Row() {
+            Circle()
+              .width(20)
+              .height(20)
+              .fill(swatch.color)
+              .stroke(this.paper === swatch.paper
+                ? $r('app.color.accent')
+                : $r('app.color.border'))
+              .strokeWidth(this.paper === swatch.paper ? 1.5 : 1)
+          }
+          .width(44)
+          .height(44)
+          .justifyContent(FlexAlign.Center)
+          .accessibilityText(swatch.label)
+          .onClick(() => this.onPickPaper(swatch.paper))
         }, (swatch: PaperSwatch) => `${swatch.paper}`)
       }
 
       Text($r('app.string.done'))
+        .constraintSize({ minWidth: 44, minHeight: 44 })
+        .textAlign(TextAlign.Center)
         .fontSize(13)
         .fontColor($r('app.color.text_secondary'))
         .onClick(() => this.onDone())
     }
     .width('100%')
-    .height(42)
+    .height(44)
     .padding({ left: 24, right: 24 })
     .justifyContent(FlexAlign.SpaceBetween)
     .backgroundColor($r('app.color.page_background'))
