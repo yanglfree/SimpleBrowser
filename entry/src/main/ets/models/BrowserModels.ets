@@ -94,6 +94,8 @@ export interface BrowserTab {
   lastVisitedAt: number;
   scrollY: number;
   readerScrollY: number;
+  scrollSavedAt: number;
+  readerScrollSavedAt: number;
   loadError: LoadErrorKind;
   securityState: SecurityState;
 }
@@ -112,6 +114,8 @@ export interface BrowserTabUpdate {
   lastVisitedAt?: number;
   scrollY?: number;
   readerScrollY?: number;
+  scrollSavedAt?: number;
+  readerScrollSavedAt?: number;
   loadError?: LoadErrorKind;
   securityState?: SecurityState;
 }
@@ -239,6 +243,8 @@ export function cloneTab(tab: BrowserTab): BrowserTab {
     lastVisitedAt: tab.lastVisitedAt,
     scrollY: tab.scrollY,
     readerScrollY: tab.readerScrollY,
+    scrollSavedAt: tab.scrollSavedAt,
+    readerScrollSavedAt: tab.readerScrollSavedAt,
     loadError: tab.loadError,
     securityState: tab.securityState
   };

@@ -7,6 +7,7 @@ import {
   READER_EXIT_SCRIPT,
   READ_FAVICON_SCRIPT,
   READ_SCROLL_POSITION_SCRIPT,
+  RESUME_WINDOW_DAYS,
   READER_FONT_MAX,
   READER_FONT_MIN,
   READER_FONT_STEP,
@@ -75,6 +76,12 @@ interface CleanupResult {
   cookieBanners?: number;
 }
 
+interface ResumeRequest {
+  tabId: string;
+  position: number;
+  isReader: boolean;
+}
+
 interface ReaderPalette {
   background: string;
   body: string;
@@ -110,6 +117,8 @@ struct Index {
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
   private pageScrollOffsets: Map<string, number> = new Map();
+  private persistedPageScrollOffsets: Map<string, number> = new Map();
+  @State private resumeRequest: ResumeRequest | undefined = undefined;
 
   async aboutToAppear(): Promise<void> {
     try {
@@ -186,6 +195,10 @@ struct Index {
           this.PageErrorView()
         } else {
           this.TabStack()
+          if (this.sheet === Overlay.None && this.resumeRequest !== undefined &&
+            this.resumeRequest.tabId === this.activeTabId) {
+            this.ResumePrompt(this.resumeRequest)
+          }
         }
       }
     }
@@ -317,6 +330,30 @@ struct Index {
     .layoutWeight(1)
     .width('100%')
     .justifyContent(FlexAlign.Center)
+  }
+
+  @Builder
+  private ResumePrompt(request: ResumeRequest) {
+    Row({ space: 12 }) {
+      Text($r('app.string.resume_reading_title'))
+        .fontSize(14)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text($r('app.string.resume_reading_continue'))
+        .fontSize(13)
+        .fontColor($r('app.color.accent'))
+        .onClick(() => this.continueResume(request))
+      Text($r('app.string.resume_reading_start_over'))
+        .fontSize(13)
+        .fontColor($r('app.color.text_secondary'))
+        .onClick(() => this.startResumeFromTop(request))
+    }
+    .width('100%')
+    .padding({ left: 18, right: 18, top: 12, bottom: 12 })
+    .backgroundColor($r('app.color.surface_panel'))
+    .border({ width: { top: 1 }, color: $r('app.color.border') })
   }
 
   // ---------------------------------------------------------------- capsule
@@ -572,20 +609,30 @@ struct Index {
   private async switchNeighbour(offset: number): Promise<void> {
     const next: string = this.viewModel.neighbourTabId(offset);
     if (next !== this.activeTabId) {
+      this.dismissResumePrompt();
       await this.captureScrollPosition(this.activeTabId);
       await this.captureThumbnail(this.activeTabId);
       this.viewModel.selectTab(next);
       this.syncState();
+      const selected: BrowserTab | undefined = this.viewModel.getActiveTab();
+      if (selected !== undefined) {
+        await this.prepareScrollResume(selected);
+      }
     }
   }
 
   private async selectTab(id: string): Promise<void> {
+    this.dismissResumePrompt();
     await this.captureScrollPosition(this.activeTabId);
     await this.captureThumbnail(this.activeTabId);
     this.viewModel.selectTab(id);
     this.sheet = Overlay.None;
     this.isCapsuleHidden = false;
     this.syncState();
+    const selected: BrowserTab | undefined = this.viewModel.getActiveTab();
+    if (selected !== undefined) {
+      await this.prepareScrollResume(selected);
+    }
   }
 
   private createTab(isPrivate: boolean): void {
@@ -717,7 +764,7 @@ struct Index {
     this.viewModel.updateTab(id, { isReader: true });
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (tab !== undefined && tab.readerScrollY > 0) {
-      await this.runScript(controller, restoreScrollPositionScript(tab.readerScrollY));
+      await this.prepareScrollResume(tab);
     }
     this.syncState();
   }
@@ -833,6 +880,7 @@ struct Index {
   // ------------------------------------------------------------- web events
 
   private handlePageBegin(id: string, url: string): void {
+    this.dismissResumePrompt();
     this.pageScrollOffsets.set(id, 0);
     this.showCapsule();
     const current: BrowserTab | undefined = this.viewModel.getTab(id);
@@ -865,7 +913,7 @@ struct Index {
     if (tab !== undefined) {
       await this.viewModel.recordPageVisit(tab);
       this.viewModel.persistSession();
-      await this.restoreScrollPosition(tab);
+      await this.prepareScrollResume(tab);
     }
     await this.enhancePage(id);
     this.syncState();
@@ -889,12 +937,25 @@ struct Index {
 
   private handlePageScroll(id: string, offsetY: number): void {
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
-    if (tab === undefined || id !== this.activeTabId || tab.isLoading ||
-      !this.settings.autoHideToolbarEnabled || this.sheet !== Overlay.None) {
+    if (tab === undefined || id !== this.activeTabId || tab.isLoading || this.sheet !== Overlay.None) {
       return;
     }
     const previous: number = this.pageScrollOffsets.get(id) ?? offsetY;
     this.pageScrollOffsets.set(id, offsetY);
+    const lastPersisted: number = this.persistedPageScrollOffsets.get(id) ?? 0;
+    if (Math.abs(offsetY - lastPersisted) >= 120 || offsetY <= 8) {
+      const savedAt: number = Date.now();
+      if (tab.isReader) {
+        this.viewModel.updateTab(id, { readerScrollY: offsetY, readerScrollSavedAt: savedAt });
+      } else {
+        this.viewModel.updateTab(id, { scrollY: offsetY, scrollSavedAt: savedAt });
+      }
+      this.persistedPageScrollOffsets.set(id, offsetY);
+      this.viewModel.persistSession();
+    }
+    if (!this.settings.autoHideToolbarEnabled) {
+      return;
+    }
     const delta: number = offsetY - previous;
     if (offsetY <= 8 || delta < -4) {
       this.showCapsule();
@@ -1180,17 +1241,66 @@ struct Index {
     if (Number.isNaN(position)) {
       return;
     }
-    this.viewModel.updateTab(id, tab.isReader ? { readerScrollY: position } : { scrollY: position });
+    const savedAt: number = Date.now();
+    if (tab.isReader) {
+      this.viewModel.updateTab(id, { readerScrollY: position, readerScrollSavedAt: savedAt });
+    } else {
+      this.viewModel.updateTab(id, { scrollY: position, scrollSavedAt: savedAt });
+    }
+    this.persistedPageScrollOffsets.set(id, position);
     this.viewModel.persistSession();
   }
 
-  private async restoreScrollPosition(tab: BrowserTab): Promise<void> {
+  private async prepareScrollResume(tab: BrowserTab): Promise<void> {
     const controller: webview.WebviewController | undefined = this.controllers.get(tab.id);
     const position: number = tab.isReader ? tab.readerScrollY : tab.scrollY;
+    const savedAt: number = tab.isReader ? tab.readerScrollSavedAt : tab.scrollSavedAt;
     if (controller === undefined || position <= 0) {
       return;
     }
-    await this.runScript(controller, restoreScrollPositionScript(position));
+    const windowMs: number = RESUME_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    if (savedAt <= 0 || Date.now() - savedAt > windowMs) {
+      this.clearScrollPosition(tab);
+      return;
+    }
+    if (tab.id === this.activeTabId) {
+      this.resumeRequest = { tabId: tab.id, position: position, isReader: tab.isReader };
+      return;
+    }
+    await this.applyScrollPosition(tab.id, position);
+  }
+
+  private async continueResume(request: ResumeRequest): Promise<void> {
+    this.resumeRequest = undefined;
+    await this.applyScrollPosition(request.tabId, request.position);
+  }
+
+  private startResumeFromTop(request: ResumeRequest): void {
+    const tab: BrowserTab | undefined = this.viewModel.getTab(request.tabId);
+    if (tab !== undefined) {
+      this.clearScrollPosition(tab);
+    }
+    this.resumeRequest = undefined;
+  }
+
+  private async applyScrollPosition(id: string, position: number): Promise<void> {
+    const controller: webview.WebviewController | undefined = this.controllers.get(id);
+    if (controller !== undefined && position > 0) {
+      await this.runScript(controller, restoreScrollPositionScript(position));
+    }
+  }
+
+  private clearScrollPosition(tab: BrowserTab): void {
+    if (tab.isReader) {
+      this.viewModel.updateTab(tab.id, { readerScrollY: 0, readerScrollSavedAt: 0 });
+    } else {
+      this.viewModel.updateTab(tab.id, { scrollY: 0, scrollSavedAt: 0 });
+    }
+    this.viewModel.persistSession();
+  }
+
+  private dismissResumePrompt(): void {
+    this.resumeRequest = undefined;
   }
 
   // ------------------------------------------------------------------ state

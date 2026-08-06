@@ -11,6 +11,7 @@ export const MAX_BOOKMARK_COUNT: number = 200;
 export const MAX_TAB_COUNT: number = 100;
 export const MAX_SUGGESTION_COUNT: number = 4;
 export const WEEKLY_WINDOW_DAYS: number = 7;
+export const RESUME_WINDOW_DAYS: number = 30;
 export const QUICK_SITE_COUNT: number = 6;
 
 export const DESKTOP_USER_AGENT: string =

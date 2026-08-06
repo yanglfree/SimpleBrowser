@@ -306,6 +306,8 @@ export class BrowserRepository {
       lastVisitedAt: tab.lastVisitedAt ?? Date.now(),
       scrollY: tab.scrollY ?? 0,
       readerScrollY: tab.readerScrollY ?? 0,
+      scrollSavedAt: tab.scrollSavedAt ?? 0,
+      readerScrollSavedAt: tab.readerScrollSavedAt ?? 0,
       loadError: LoadErrorKind.None,
       securityState: SecurityState.Unknown
     };

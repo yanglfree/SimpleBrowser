@@ -122,6 +122,8 @@ export class BrowserViewModel {
       lastVisitedAt: Date.now(),
       scrollY: 0,
       readerScrollY: 0,
+      scrollSavedAt: 0,
+      readerScrollSavedAt: 0,
       loadError: LoadErrorKind.None,
       securityState: SecurityState.Unknown
     };
@@ -230,6 +232,12 @@ export class BrowserViewModel {
       }
       if (update.readerScrollY !== undefined) {
         updated.readerScrollY = update.readerScrollY;
+      }
+      if (update.scrollSavedAt !== undefined) {
+        updated.scrollSavedAt = update.scrollSavedAt;
+      }
+      if (update.readerScrollSavedAt !== undefined) {
+        updated.readerScrollSavedAt = update.readerScrollSavedAt;
       }
       if (update.loadError !== undefined) {
         updated.loadError = update.loadError;
