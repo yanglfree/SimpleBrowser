@@ -47,6 +47,8 @@ export struct BrowserWebView {
       .onPageEnd((event: OnPageEndEvent) => this.kernelCallbacks.onPageEnd(event.url))
       .onProgressChange((event: OnProgressChangeEvent) =>
         this.kernelCallbacks.onProgressChange(event.newProgress))
+      .onInterceptRequest((event: OnInterceptRequestEvent): WebResourceResponse | null =>
+        this.adsBlockService.interceptRequest(event.request, this.tab.url, this.blockAds))
       .onScroll((event: OnScrollEvent) => this.onScroll(event.yOffset))
       .onInterceptKeyboardAttach((_info: WebKeyboardCallbackInfo): WebKeyboardOptions => {
         this.onKeyboardAttach();
