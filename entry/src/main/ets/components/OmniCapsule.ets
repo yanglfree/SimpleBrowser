@@ -15,6 +15,8 @@ export struct OmniCapsule {
   @Prop blockedCount: number = 0;
   @Prop isPrivate: boolean = false;
   @Prop securityState: SecurityState = SecurityState.Unknown;
+  @Prop previewHost: string = '';
+  @Prop isSwipeBoundary: boolean = false;
   @Prop gesturesEnabled: boolean = true;
   @Prop actionsGestureEnabled: boolean = true;
   @Prop tabSwitchGestureEnabled: boolean = true;
@@ -26,6 +28,7 @@ export struct OmniCapsule {
   onSwipeDown: () => void = (): void => {};
   onSwipeLeft: () => void = (): void => {};
   onSwipeRight: () => void = (): void => {};
+  onSwipePreview: (direction: number) => void = (_direction: number): void => {};
 
   build() {
     Row({ space: 10 }) {
@@ -77,7 +80,7 @@ export struct OmniCapsule {
           .onClick(() => this.onSwipeLeft())
       }
 
-      Text(this.host)
+      Text(this.previewHost.length > 0 ? this.previewHost : this.host)
         .fontSize(14)
         .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.text_primary'))
@@ -92,6 +95,7 @@ export struct OmniCapsule {
     .backdropBlur(20)
     .border({ width: 1, color: $r('app.color.border') })
     .shadow({ radius: 12, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: 2 })
+    .scale({ x: this.isSwipeBoundary ? 0.97 : 1, y: this.isSwipeBoundary ? 0.97 : 1 })
     .onClick(() => this.onTap())
     .gesture(
       GestureGroup(GestureMode.Exclusive,
@@ -102,7 +106,11 @@ export struct OmniCapsule {
             }
           }),
         PanGesture({ direction: PanDirection.All, distance: 6 })
-          .onActionEnd((event: GestureEvent) => this.resolveSwipe(event))
+          .onActionUpdate((event: GestureEvent) => this.resolveSwipePreview(event))
+          .onActionEnd((event: GestureEvent) => {
+            this.onSwipePreview(0);
+            this.resolveSwipe(event);
+          })
       )
     )
   }
@@ -136,5 +144,12 @@ export struct OmniCapsule {
         this.onSwipeRight();
       }
     }
+  }
+
+  private resolveSwipePreview(event: GestureEvent): void {
+    if (!this.gesturesEnabled || !this.tabSwitchGestureEnabled || Math.abs(event.offsetX) < 10) {
+      return;
+    }
+    this.onSwipePreview(event.offsetX < 0 ? 1 : -1);
   }
 }

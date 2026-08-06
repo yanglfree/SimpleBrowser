@@ -184,7 +184,10 @@ export class BrowserViewModel {
     if (index < 0 || this.tabs.length < 2) {
       return this.activeTabId;
     }
-    const next: number = (index + offset + this.tabs.length) % this.tabs.length;
+    const next: number = index + offset;
+    if (next < 0 || next >= this.tabs.length) {
+      return this.activeTabId;
+    }
     return this.tabs[next].id;
   }
 

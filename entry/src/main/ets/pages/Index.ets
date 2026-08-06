@@ -116,6 +116,8 @@ struct Index {
   @State private isActiveBookmarked: boolean = false;
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
+  @State private swipePreviewHost: string = '';
+  @State private isSwipeBoundary: boolean = false;
   private pageScrollOffsets: Map<string, number> = new Map();
   private persistedPageScrollOffsets: Map<string, number> = new Map();
   @State private resumeRequest: ResumeRequest | undefined = undefined;
@@ -391,6 +393,8 @@ struct Index {
           })
           OmniCapsule({
             host: displayHost(this.activeTab()?.url ?? ''),
+            previewHost: this.swipePreviewHost,
+            isSwipeBoundary: this.isSwipeBoundary,
             blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
             isPrivate: this.activeTab()?.isPrivate === true,
             securityState: this.activeTab()?.securityState ?? SecurityState.Unknown,
@@ -408,7 +412,8 @@ struct Index {
               }
             },
             onSwipeLeft: (): void => { this.switchNeighbour(1); },
-            onSwipeRight: (): void => { this.switchNeighbour(-1); }
+            onSwipeRight: (): void => { this.switchNeighbour(-1); },
+            onSwipePreview: (direction: number): void => { this.previewNeighbour(direction); }
           })
         }
           .margin({ bottom: 46 })
@@ -611,6 +616,7 @@ struct Index {
 
   private async switchNeighbour(offset: number): Promise<void> {
     const next: string = this.viewModel.neighbourTabId(offset);
+    this.clearSwipePreview();
     if (next !== this.activeTabId) {
       this.dismissResumePrompt();
       await this.captureScrollPosition(this.activeTabId);
@@ -622,6 +628,29 @@ struct Index {
         await this.prepareScrollResume(selected);
       }
     }
+  }
+
+  private previewNeighbour(direction: number): void {
+    if (direction === 0) {
+      this.clearSwipePreview();
+      return;
+    }
+    const next: string = this.viewModel.neighbourTabId(direction);
+    if (next === this.activeTabId) {
+      this.swipePreviewHost = displayHost(this.activeTab()?.url ?? '');
+      this.isSwipeBoundary = true;
+      return;
+    }
+    const tab: BrowserTab | undefined = this.viewModel.getTab(next);
+    this.swipePreviewHost = tab === undefined
+      ? ''
+      : (tab.title.length > 0 ? tab.title : displayHost(tab.url));
+    this.isSwipeBoundary = false;
+  }
+
+  private clearSwipePreview(): void {
+    this.swipePreviewHost = '';
+    this.isSwipeBoundary = false;
   }
 
   private async selectTab(id: string): Promise<void> {
