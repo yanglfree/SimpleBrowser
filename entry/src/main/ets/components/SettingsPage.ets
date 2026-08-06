@@ -71,8 +71,10 @@ function groupCard() {
 @Component
 export struct SettingsPage {
   @Prop settings: BrowserSettings = defaultBrowserSettings();
+  @Prop allowedHosts: string[] = [];
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
   onClearData: () => void = (): void => {};
+  onRemoveAllowedHost: (host: string) => void = (_host: string): void => {};
   onBack: () => void = (): void => {};
   @State private picker: PickerKind = PickerKind.None;
   @State private isEditingSearchTemplate: boolean = false;
@@ -186,6 +188,16 @@ export struct SettingsPage {
               }
             )
             this.ActionRow($r('app.string.clear_browsing_data'), false, () => this.confirmClear())
+            if (this.allowedHosts.length > 0) {
+              ForEach(this.allowedHosts, (host: string) => this.AllowedHostRow(host), (host: string) => host)
+            } else {
+              Text($r('app.string.no_allowed_hosts'))
+                .width('100%')
+                .height(44)
+                .fontSize(13)
+                .fontColor($r('app.color.text_secondary'))
+                .textAlign(TextAlign.Start)
+            }
           }
           .groupCard()
 
@@ -306,6 +318,23 @@ export struct SettingsPage {
       ? { width: { bottom: 1 }, color: $r('app.color.border') }
       : { width: 0 })
     .onClick(onTap)
+  }
+
+  @Builder
+  private AllowedHostRow(host: string) {
+    Row({ space: 10 }) {
+      Text(host)
+        .fontSize(14)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      AppIcon({ name: IconName.Close, glyphSize: 16, color: $r('app.color.text_secondary') })
+        .onClick(() => this.onRemoveAllowedHost(host))
+    }
+    .width('100%')
+    .height(44)
+    .border({ width: { bottom: 1 }, color: $r('app.color.border') })
   }
 
   /** Sub-screens would break the single-surface rule, so choices open as sheets. */

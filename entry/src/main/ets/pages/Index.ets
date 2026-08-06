@@ -423,8 +423,10 @@ struct Index {
     } else if (this.sheet === Overlay.Settings) {
       SettingsPage({
         settings: this.settings,
+        allowedHosts: this.viewModel.getAllowedHosts(),
         onChange: (settings: BrowserSettings): void => { this.applySettings(settings); },
         onClearData: (): void => { this.clearBrowsingData(); },
+        onRemoveAllowedHost: (host: string): void => { void this.removeAllowedHost(host); },
         onBack: (): void => { this.sheet = Overlay.None; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
@@ -771,6 +773,12 @@ struct Index {
     this.isSiteAllowed = allowed;
     this.reconfigureBlocking();
     this.runOnActive((controller: webview.WebviewController) => controller.refresh());
+  }
+
+  private async removeAllowedHost(host: string): Promise<void> {
+    await this.viewModel.removeAllowedHost(host);
+    this.isSiteAllowed = this.viewModel.isHostAllowed(this.activeTab()?.url ?? '');
+    this.syncState();
   }
 
   /** Pushes the current blocking policy into every live web view. */

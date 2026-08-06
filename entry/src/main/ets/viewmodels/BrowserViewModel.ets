@@ -270,8 +270,17 @@ export class BrowserViewModel {
     return this.repository.isHostAllowed(rawHost(url));
   }
 
+  getAllowedHosts(): string[] {
+    return this.repository.getAllowedHosts();
+  }
+
   async setHostAllowed(url: string, allowed: boolean): Promise<void> {
     await this.repository.setHostAllowed(rawHost(url), allowed);
+    this.adsBlockService.applyAllowedHosts(this.repository.getAllowedHosts());
+  }
+
+  async removeAllowedHost(host: string): Promise<void> {
+    await this.repository.setHostAllowed(host, false);
     this.adsBlockService.applyAllowedHosts(this.repository.getAllowedHosts());
   }
 

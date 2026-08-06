@@ -40,6 +40,7 @@
     { "name": "category_cookie_banners", "value": "Cookie 横幅" },
     { "name": "disable_blocking_on_site", "value": "在此站点关闭拦截" },
     { "name": "blocking_global_settings", "value": "拦截全局设置" },
+    { "name": "no_allowed_hosts", "value": "暂无站点例外" },
 
     { "name": "reader_line_height", "value": "行距" },
 
