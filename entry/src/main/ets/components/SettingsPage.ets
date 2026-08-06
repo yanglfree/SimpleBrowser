@@ -138,6 +138,8 @@ export struct SettingsPage {
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
   onResetGestures: () => void = (): void => {};
   onClearData: (selection: ClearDataSelection) => void = (_selection: ClearDataSelection): void => {};
+  onImportBookmarks: () => void = (): void => {};
+  onExportBookmarks: () => void = (): void => {};
   onRemoveAllowedHost: (host: string) => void = (_host: string): void => {};
   onBack: () => void = (): void => {};
   @State private picker: PickerKind = PickerKind.None;
@@ -295,6 +297,8 @@ export struct SettingsPage {
               false,
               () => this.picker = PickerKind.DownloadConcurrency
             )
+            this.ActionRow($r('app.string.bookmark_import_html'), false, () => this.onImportBookmarks())
+            this.ActionRow($r('app.string.bookmark_export_html'), false, () => this.onExportBookmarks())
             this.ValueRow(
               $r('app.string.tab_soft_limit'),
               this.tabSoftLimitLabel(),

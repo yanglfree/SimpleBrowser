@@ -167,6 +167,22 @@ export class BrowserRepository {
     await this.save(SAVED_ITEMS_KEY, JSON.stringify(this.savedItems));
   }
 
+  async mergeSavedItems(items: SavedItem[]): Promise<number> {
+    let imported: number = 0;
+    for (const item of items) {
+      if (this.savedItems.some((saved: SavedItem): boolean => saved.url === item.url)) {
+        continue;
+      }
+      this.savedItems.push(cloneSavedItem(item));
+      imported += 1;
+    }
+    this.savedItems = this.savedItems.slice(0, MAX_BOOKMARK_COUNT);
+    if (imported > 0) {
+      await this.save(SAVED_ITEMS_KEY, JSON.stringify(this.savedItems));
+    }
+    return imported;
+  }
+
   async updateSavedItem(item: SavedItem): Promise<void> {
     this.savedItems = this.savedItems.map((saved: SavedItem) =>
       saved.id === item.id ? cloneSavedItem(item) : saved);

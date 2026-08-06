@@ -63,6 +63,7 @@ import { PrivacyService } from '../services/PrivacyService';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { MemoryPressureService } from '../services/MemoryPressureService';
 import { DownloadService, DownloadTask } from '../services/DownloadService';
+import { BookmarkTransferService } from '../services/BookmarkTransferService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
 import { WebHistoryEntry, WebKernelService, WebLongPressTarget } from '../services/WebKernelService';
@@ -599,6 +600,8 @@ struct Index {
         onChange: (settings: BrowserSettings): void => { this.applySettings(settings); },
         onResetGestures: (): void => { this.resetGestures(); },
         onClearData: (selection: ClearDataSelection): void => { this.clearBrowsingData(selection); },
+        onImportBookmarks: (): void => { void this.importBookmarks(); },
+        onExportBookmarks: (): void => { void this.exportBookmarks(); },
         onRemoveAllowedHost: (host: string): void => { void this.removeAllowedHost(host); },
         onBack: (): void => { this.sheet = Overlay.None; }
       })
@@ -1351,6 +1354,35 @@ struct Index {
   private async removeQuickSite(url: string): Promise<void> {
     await this.viewModel.setQuickSiteHidden(url, true);
     this.syncState();
+  }
+
+  private async importBookmarks(): Promise<void> {
+    const importedItems = await BookmarkTransferService.importFromPicker(AppContext.getContext());
+    if (importedItems.length === 0) {
+      return;
+    }
+    const imported: number = await this.viewModel.importSavedItems(importedItems);
+    this.syncState();
+    try {
+      this.getUIContext().getPromptAction().showToast({
+        message: `${imported}${$r('app.string.bookmark_imported_suffix')}`
+      });
+    } catch (error) {
+      Logger.warn(TAG, `Bookmark import toast unavailable: ${String(error)}`);
+    }
+  }
+
+  private async exportBookmarks(): Promise<void> {
+    const exported: boolean = await BookmarkTransferService.exportToPicker(
+      AppContext.getContext(), this.viewModel.savedItems);
+    if (!exported) {
+      return;
+    }
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: $r('app.string.bookmark_exported') });
+    } catch (error) {
+      Logger.warn(TAG, `Bookmark export toast unavailable: ${String(error)}`);
+    }
   }
 
   private async toggleQuickSites(): Promise<void> {

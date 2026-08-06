@@ -196,6 +196,12 @@ export class BrowserViewModel {
     this.savedItems = this.repository.getSavedItems();
   }
 
+  async importSavedItems(items: SavedItem[]): Promise<number> {
+    const imported: number = await this.repository.mergeSavedItems(items);
+    this.savedItems = this.repository.getSavedItems();
+    return imported;
+  }
+
   isTabSoftLimitReached(): boolean {
     return this.tabs.length >= this.settings.tabSoftLimit;
   }
