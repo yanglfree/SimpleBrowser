@@ -12,6 +12,12 @@ export enum AppearanceMode {
   Dark = 2
 }
 
+export enum WebDarkModePreference {
+  System = 0,
+  Light = 1,
+  Dark = 2
+}
+
 export enum RuleStrength {
   Standard = 0,
   Strict = 1
@@ -176,6 +182,8 @@ export interface BrowserSettings {
   siteZoomRatios: SiteZoomRatio[];
   onboardingCompleted: boolean;
   appearance: AppearanceMode;
+  webDarkMode: WebDarkModePreference;
+  webDarkModeExcludedHosts: string[];
   clearCookiesOnTabClose: boolean;
   readerFontSize: number;
   readerLineHeight: number;
@@ -257,6 +265,8 @@ export function defaultBrowserSettings(): BrowserSettings {
     siteZoomRatios: [],
     onboardingCompleted: false,
     appearance: AppearanceMode.System,
+    webDarkMode: WebDarkModePreference.System,
+    webDarkModeExcludedHosts: [],
     clearCookiesOnTabClose: false,
     readerFontSize: 17,
     readerLineHeight: 205,
@@ -339,6 +349,8 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     })),
     onboardingCompleted: settings.onboardingCompleted,
     appearance: settings.appearance,
+    webDarkMode: settings.webDarkMode,
+    webDarkModeExcludedHosts: settings.webDarkModeExcludedHosts.slice(0),
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,
     readerFontSize: settings.readerFontSize,
     readerLineHeight: settings.readerLineHeight,

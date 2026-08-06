@@ -5,6 +5,7 @@ import {
   RuleStrength,
   SearchEngine,
   TabExpiry,
+  WebDarkModePreference,
   cloneSettings,
   defaultBrowserSettings
 } from '../models/BrowserModels';
@@ -24,7 +25,8 @@ enum PickerKind {
   TabSoftLimit = 8,
   MinimumFontSize = 9,
   ClearDataRange = 10,
-  LargeDownloadThreshold = 11
+  LargeDownloadThreshold = 11,
+  WebDarkMode = 12
 }
 interface PickerOption {
   label: Resource;
@@ -68,6 +70,12 @@ const APPEARANCE_LABELS: Resource[] = [
   $r('app.string.appearance_system'),
   $r('app.string.appearance_light'),
   $r('app.string.appearance_dark')
+];
+
+const WEB_DARK_MODE_LABELS: Resource[] = [
+  $r('app.string.web_dark_mode_system'),
+  $r('app.string.web_dark_mode_light'),
+  $r('app.string.web_dark_mode_dark')
 ];
 
 const TAB_EXPIRY_LABELS: Resource[] = [
@@ -149,12 +157,15 @@ function groupCard() {
 export struct SettingsPage {
   @Prop settings: BrowserSettings = defaultBrowserSettings();
   @Prop allowedHosts: string[] = [];
+  @Prop currentHost: string = '';
+  @Prop currentHostDarkModeEnabled: boolean = false;
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
   onResetGestures: () => void = (): void => {};
   onClearData: (selection: ClearDataSelection) => void = (_selection: ClearDataSelection): void => {};
   onImportBookmarks: () => void = (): void => {};
   onExportBookmarks: () => void = (): void => {};
   onRemoveAllowedHost: (host: string) => void = (_host: string): void => {};
+  onToggleCurrentSiteDarkMode: () => void = (): void => {};
   onBack: () => void = (): void => {};
   @State private picker: PickerKind = PickerKind.None;
   @State private isEditingSearchTemplate: boolean = false;
@@ -307,9 +318,23 @@ export struct SettingsPage {
             this.ValueRow(
               $r('app.string.appearance'),
               APPEARANCE_LABELS[this.settings.appearance as number],
-              false,
+              true,
               () => this.picker = PickerKind.Appearance
             )
+            this.ValueRow(
+              $r('app.string.web_dark_mode'),
+              WEB_DARK_MODE_LABELS[this.settings.webDarkMode as number],
+              this.currentHost.length > 0,
+              () => this.picker = PickerKind.WebDarkMode
+            )
+            if (this.currentHost.length > 0) {
+              this.SwitchRow(
+                $r('app.string.web_dark_mode_current_site'),
+                this.currentHostDarkModeEnabled,
+                true,
+                () => this.onToggleCurrentSiteDarkMode()
+              )
+            }
             this.ValueRow(
               $r('app.string.tab_expiry'),
               this.tabExpiryLabel(),
@@ -488,6 +513,7 @@ export struct SettingsPage {
       { key: 'search_suggestions', label: $r('app.string.search_suggestions'), keywords: '搜索 建议' },
       { key: 'gestures', label: $r('app.string.gestures_enabled'), keywords: '手势 滑动 操作' },
       { key: 'appearance', label: $r('app.string.appearance'), keywords: '外观 主题 深色 浅色' },
+      { key: 'web_dark_mode', label: $r('app.string.web_dark_mode'), keywords: '网页 深色 暗色 强制 站点 图片 视频' },
       { key: 'tab_expiry', label: $r('app.string.tab_expiry'), keywords: '标签 清理 归档 过期' },
       { key: 'history_retention', label: $r('app.string.history_retention'), keywords: '历史 保留 清除' },
       { key: 'clear_data', label: $r('app.string.clear_browsing_data'), keywords: '历史 Cookie 缓存 权限 清除' },
@@ -520,6 +546,8 @@ export struct SettingsPage {
       this.onChange(next);
     } else if (key === 'appearance') {
       this.picker = PickerKind.Appearance;
+    } else if (key === 'web_dark_mode') {
+      this.picker = PickerKind.WebDarkMode;
     } else if (key === 'tab_expiry') {
       this.picker = PickerKind.TabExpiry;
     } else if (key === 'history_retention') {
@@ -704,6 +732,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.LargeDownloadThreshold) {
       return optionsFrom(LARGE_DOWNLOAD_THRESHOLD_LABELS);
     }
+    if (this.picker === PickerKind.WebDarkMode) {
+      return optionsFrom(WEB_DARK_MODE_LABELS);
+    }
     if (this.picker === PickerKind.ClearDataRange) {
       return optionsFrom(CLEAR_DATA_RANGE_LABELS);
     }
@@ -738,6 +769,9 @@ export struct SettingsPage {
     if (this.picker === PickerKind.LargeDownloadThreshold) {
       return this.largeDownloadThresholdIndex();
     }
+    if (this.picker === PickerKind.WebDarkMode) {
+      return this.settings.webDarkMode as number;
+    }
     if (this.picker === PickerKind.ClearDataRange) {
       return this.clearDataRangeIndex();
     }
@@ -769,6 +803,8 @@ export struct SettingsPage {
       next.minimumFontSize = this.minimumFontSizeValue(value);
     } else if (this.picker === PickerKind.LargeDownloadThreshold) {
       next.largeDownloadThresholdMb = this.largeDownloadThresholdValue(value);
+    } else if (this.picker === PickerKind.WebDarkMode) {
+      next.webDarkMode = value as WebDarkModePreference;
     } else {
       next.appearance = value as AppearanceMode;
     }

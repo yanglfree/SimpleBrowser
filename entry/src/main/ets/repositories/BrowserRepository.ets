@@ -430,6 +430,12 @@ export class BrowserRepository {
           : fallback.siteZoomRatios,
         onboardingCompleted: parsed.onboardingCompleted ?? fallback.onboardingCompleted,
         appearance: parsed.appearance ?? fallback.appearance,
+        webDarkMode: parsed.webDarkMode ?? fallback.webDarkMode,
+        webDarkModeExcludedHosts: Array.isArray(parsed.webDarkModeExcludedHosts)
+          ? parsed.webDarkModeExcludedHosts
+            .filter((host: string): boolean => typeof host === 'string' && host.length > 0)
+            .map((host: string): string => host.toLowerCase())
+          : fallback.webDarkModeExcludedHosts,
         clearCookiesOnTabClose: parsed.clearCookiesOnTabClose ?? fallback.clearCookiesOnTabClose,
         readerFontSize: parsed.readerFontSize ?? fallback.readerFontSize,
         readerLineHeight: parsed.readerLineHeight ?? fallback.readerLineHeight,

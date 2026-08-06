@@ -70,7 +70,7 @@ import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
 import { WebHistoryEntry, WebKernelService, WebLongPressTarget } from '../services/WebKernelService';
 import { AppContext } from '../utils/AppContext';
-import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress } from '../utils/UrlUtils';
+import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress, rawHost } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
 import { BrowserViewModel } from '../viewmodels/BrowserViewModel';
 
@@ -334,6 +334,8 @@ struct Index {
               blockAds: this.settings.blockAds && !this.viewModel.isHostAllowed(tab.url),
               minimumFontSize: this.settings.minimumFontSize,
               initialZoomPercent: this.viewModel.siteZoomPercent(tab.url),
+              webDarkMode: this.settings.webDarkMode,
+              darkModeExcluded: this.isDarkModeExcluded(tab.url),
               controller: this.controllerFor(tab.id),
               kernelCallbacks: {
                 onPageBegin: (url: string): void => this.handlePageBegin(tab.id, url),
@@ -608,12 +610,15 @@ struct Index {
       SettingsPage({
         settings: this.settings,
         allowedHosts: this.viewModel.getAllowedHosts(),
+        currentHost: displayHost(this.activeTab()?.url ?? ''),
+        currentHostDarkModeEnabled: !this.isDarkModeExcluded(this.activeTab()?.url ?? ''),
         onChange: (settings: BrowserSettings): void => { this.applySettings(settings); },
         onResetGestures: (): void => { this.resetGestures(); },
         onClearData: (selection: ClearDataSelection): void => { this.clearBrowsingData(selection); },
         onImportBookmarks: (): void => { void this.importBookmarks(); },
         onExportBookmarks: (): void => { void this.exportBookmarks(); },
         onRemoveAllowedHost: (host: string): void => { void this.removeAllowedHost(host); },
+        onToggleCurrentSiteDarkMode: (): void => { void this.toggleCurrentSiteDarkMode(); },
         onBack: (): void => { this.sheet = Overlay.None; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
@@ -1399,6 +1404,27 @@ struct Index {
     }
     await this.enforceLiveWebViewLimit(this.liveWebViewLimit());
     this.reconfigureBlocking();
+  }
+
+  private isDarkModeExcluded(url: string): boolean {
+    const host: string = rawHost(url);
+    return host.length > 0 && this.settings.webDarkModeExcludedHosts.includes(host);
+  }
+
+  private async toggleCurrentSiteDarkMode(): Promise<void> {
+    const host: string = rawHost(this.activeTab()?.url ?? '');
+    if (host.length === 0) {
+      return;
+    }
+    const next: BrowserSettings = cloneSettings(this.settings);
+    const index: number = next.webDarkModeExcludedHosts.indexOf(host);
+    if (index >= 0) {
+      next.webDarkModeExcludedHosts.splice(index, 1);
+    } else {
+      next.webDarkModeExcludedHosts.push(host);
+    }
+    await this.applySettings(next);
+    this.runOnActive((controller: webview.WebviewController): void => controller.refresh());
   }
 
   private resetGestures(): void {

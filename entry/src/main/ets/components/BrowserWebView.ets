@@ -1,5 +1,5 @@
 import { webview } from '@kit.ArkWeb';
-import { BrowserTab } from '../models/BrowserModels';
+import { BrowserTab, WebDarkModePreference } from '../models/BrowserModels';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { WebKernelCallbacks, WebKernelService } from '../services/WebKernelService';
 import { Logger } from '../utils/Logger';
@@ -24,6 +24,8 @@ export struct BrowserWebView {
   @Prop gesturesEnabled: boolean = true;
   @Prop minimumFontSize: number = 14;
   @Prop initialZoomPercent: number = 100;
+  @Prop webDarkMode: WebDarkModePreference = WebDarkModePreference.System;
+  @Prop darkModeExcluded: boolean = false;
   controller: webview.WebviewController = new webview.WebviewController();
   @State private pullDistance: number = 0;
   @State private edgeBackDistance: number = 0;
@@ -49,8 +51,8 @@ export struct BrowserWebView {
       .zoomAccess(true)
       .minFontSize(this.minimumFontSize)
       .initialScale(this.initialZoomPercent)
-      .darkMode(WebDarkMode.Auto)
-      .forceDarkAccess(true)
+      .darkMode(this.webDarkModeValue())
+      .forceDarkAccess(this.shouldForceDark())
       .backgroundColor($r('app.color.content_background'))
       .width('100%')
       .height('100%')
@@ -115,6 +117,20 @@ export struct BrowserWebView {
     }
       .width('100%')
       .height('100%')
+  }
+
+  private webDarkModeValue(): WebDarkMode {
+    if (this.darkModeExcluded || this.webDarkMode === WebDarkModePreference.Light) {
+      return WebDarkMode.Off;
+    }
+    if (this.webDarkMode === WebDarkModePreference.Dark) {
+      return WebDarkMode.On;
+    }
+    return WebDarkMode.Auto;
+  }
+
+  private shouldForceDark(): boolean {
+    return !this.darkModeExcluded && this.webDarkMode !== WebDarkModePreference.Light;
   }
 
   @Builder
