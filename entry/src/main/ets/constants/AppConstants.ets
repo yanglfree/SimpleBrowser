@@ -19,7 +19,8 @@ export const DESKTOP_USER_AGENT: string =
 
 /** Reader typography bounds. Line height is stored x100 to stay an integer. */
 export const READER_FONT_MIN: number = 15;
-export const READER_FONT_MAX: number = 23;
+/** Four persisted sizes: 15, 17, 19 and 21sp. */
+export const READER_FONT_MAX: number = 21;
 export const READER_FONT_STEP: number = 2;
 export const READER_LINE_HEIGHTS: number[] = [170, 205, 240];
 
