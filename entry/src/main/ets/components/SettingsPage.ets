@@ -10,6 +10,7 @@ import {
 } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 import { AppSwitch } from './AppSwitch';
+import { SearchTemplateSheet } from './SearchTemplateSheet';
 
 enum PickerKind {
   None = 0,
@@ -74,6 +75,7 @@ export struct SettingsPage {
   onClearData: () => void = (): void => {};
   onBack: () => void = (): void => {};
   @State private picker: PickerKind = PickerKind.None;
+  @State private isEditingSearchTemplate: boolean = false;
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
@@ -117,6 +119,14 @@ export struct SettingsPage {
               SEARCH_ENGINE_LABELS[this.settings.searchEngine as number],
               true,
               () => this.picker = PickerKind.SearchEngine
+            )
+            this.ValueRowText(
+              $r('app.string.custom_search_template'),
+              this.settings.customSearchTemplate.length > 0
+                ? this.settings.customSearchTemplate
+                : $r('app.string.custom_search_template_off'),
+              true,
+              () => this.isEditingSearchTemplate = true
             )
             this.SwitchRow(
               $r('app.string.search_suggestions'),
@@ -198,6 +208,13 @@ export struct SettingsPage {
       if (this.picker !== PickerKind.None) {
         this.Picker()
       }
+      if (this.isEditingSearchTemplate) {
+        SearchTemplateSheet({
+          initialValue: this.settings.customSearchTemplate,
+          onSave: (template: string): void => this.saveSearchTemplate(template),
+          onDismiss: (): void => { this.isEditingSearchTemplate = false; }
+        })
+      }
     }
     .width('100%')
     .height('100%')
@@ -252,7 +269,7 @@ export struct SettingsPage {
   }
 
   @Builder
-  private ValueRowText(label: Resource, value: string, divided: boolean, onTap: () => void) {
+  private ValueRowText(label: Resource, value: ResourceStr, divided: boolean, onTap: () => void) {
     Row() {
       Text(label)
         .fontSize(15)
@@ -406,6 +423,13 @@ export struct SettingsPage {
 
   private tabExpiryLabel(): Resource {
     return TAB_EXPIRY_LABELS[this.tabExpiryIndex()];
+  }
+
+  private saveSearchTemplate(template: string): void {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.customSearchTemplate = template;
+    this.isEditingSearchTemplate = false;
+    this.onChange(next);
   }
 
   private confirmClear(): void {

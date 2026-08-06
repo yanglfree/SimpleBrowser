@@ -249,6 +249,7 @@ export class BrowserRepository {
         blockTrackers: parsed.blockTrackers ?? fallback.blockTrackers,
         ruleStrength: parsed.ruleStrength ?? fallback.ruleStrength,
         searchEngine: parsed.searchEngine ?? fallback.searchEngine,
+        customSearchTemplate: parsed.customSearchTemplate ?? fallback.customSearchTemplate,
         searchSuggestionsEnabled: parsed.searchSuggestionsEnabled ?? fallback.searchSuggestionsEnabled,
         gesturesEnabled: parsed.gesturesEnabled ?? fallback.gesturesEnabled,
         autoHideToolbarEnabled: parsed.autoHideToolbarEnabled ?? fallback.autoHideToolbarEnabled,

@@ -513,7 +513,11 @@ struct Index {
   }
 
   private submitAddress(query: string): void {
-    const target: string = normalizeAddress(query, this.settings.searchEngine);
+    const target: string = normalizeAddress(
+      query,
+      this.settings.searchEngine,
+      this.settings.customSearchTemplate
+    );
     if (isHomeUrl(target)) {
       this.sheet = Overlay.None;
       return;

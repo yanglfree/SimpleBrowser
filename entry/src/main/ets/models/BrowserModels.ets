@@ -141,6 +141,7 @@ export interface BrowserSettings {
   blockTrackers: boolean;
   ruleStrength: RuleStrength;
   searchEngine: SearchEngine;
+  customSearchTemplate: string;
   searchSuggestionsEnabled: boolean;
   gesturesEnabled: boolean;
   autoHideToolbarEnabled: boolean;
@@ -201,6 +202,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     blockTrackers: true,
     ruleStrength: RuleStrength.Standard,
     searchEngine: SearchEngine.Bing,
+    customSearchTemplate: '',
     searchSuggestionsEnabled: false,
     gesturesEnabled: true,
     autoHideToolbarEnabled: true,
@@ -261,6 +263,7 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     blockTrackers: settings.blockTrackers,
     ruleStrength: settings.ruleStrength,
     searchEngine: settings.searchEngine,
+    customSearchTemplate: settings.customSearchTemplate,
     searchSuggestionsEnabled: settings.searchSuggestionsEnabled,
     gesturesEnabled: settings.gesturesEnabled,
     autoHideToolbarEnabled: settings.autoHideToolbarEnabled,

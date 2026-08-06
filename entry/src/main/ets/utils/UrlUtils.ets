@@ -42,7 +42,7 @@ export function looksLikeUrl(input: string): boolean {
   return dot > 0 && dot < value.length - 1;
 }
 
-export function normalizeAddress(input: string, engine: SearchEngine): string {
+export function normalizeAddress(input: string, engine: SearchEngine, customTemplate: string = ''): string {
   const value: string = input.trim();
   if (value.length === 0) {
     return HOME_URL;
@@ -53,14 +53,15 @@ export function normalizeAddress(input: string, engine: SearchEngine): string {
   if (looksLikeUrl(value)) {
     return `https://${value}`;
   }
-  return searchUrl(value, engine);
+  return searchUrl(value, engine, customTemplate);
 }
 
-export function searchUrl(query: string, engine: SearchEngine): string {
+export function searchUrl(query: string, engine: SearchEngine, customTemplate: string = ''): string {
   const value: string = query.trim();
   const parts: string[] = value.split(/\s+/);
   let resolvedEngine: SearchEngine = engine;
   let searchTerms: string = value;
+  let hasPrefix: boolean = false;
   if (parts.length > 1) {
     const prefix: SearchPrefix | undefined = SEARCH_PREFIXES.find(
       (item: SearchPrefix): boolean => item.prefix === parts[0].toLowerCase()
@@ -68,7 +69,12 @@ export function searchUrl(query: string, engine: SearchEngine): string {
     if (prefix !== undefined) {
       resolvedEngine = prefix.engine;
       searchTerms = value.substring(parts[0].length).trim();
+      hasPrefix = true;
     }
+  }
+  const template: string = customTemplate.trim();
+  if (!hasPrefix && template.includes('%s')) {
+    return template.replace('%s', encodeURIComponent(searchTerms));
   }
   return `${searchEndpoint(resolvedEngine)}${encodeURIComponent(searchTerms)}`;
 }

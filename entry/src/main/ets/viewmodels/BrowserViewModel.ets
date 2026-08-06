@@ -414,7 +414,7 @@ export class BrowserViewModel {
         kind: SuggestionKind.Search,
         title: trimmed,
         subtitle: '',
-        url: searchUrl(trimmed, this.settings.searchEngine)
+        url: searchUrl(trimmed, this.settings.searchEngine, this.settings.customSearchTemplate)
       });
     }
     return results;
