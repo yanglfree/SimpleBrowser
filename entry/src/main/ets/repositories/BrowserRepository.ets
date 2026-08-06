@@ -14,6 +14,7 @@ import {
   BrowserSettings,
   DailyBlockCount,
   HistoryEntry,
+  LoadErrorKind,
   SiteBlockStats,
   addBlockStats,
   cloneBlockStats,
@@ -294,7 +295,7 @@ export class BrowserRepository {
       faviconUrl: tab.faviconUrl ?? '',
       lastVisitedAt: tab.lastVisitedAt ?? Date.now(),
       scrollY: tab.scrollY ?? 0,
-      loadError: 0
+      loadError: LoadErrorKind.None
     };
     return cloneTab(decoded);
   }
