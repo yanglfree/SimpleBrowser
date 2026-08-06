@@ -355,6 +355,9 @@ struct Index {
             isPrivate: this.activeTab()?.isPrivate === true,
             securityState: this.activeTab()?.securityState ?? SecurityState.Unknown,
             gesturesEnabled: this.settings.gesturesEnabled,
+            actionsGestureEnabled: this.settings.gesturesEnabled && this.settings.gestureActionsEnabled,
+            tabSwitchGestureEnabled: this.settings.gesturesEnabled && this.settings.gestureTabSwitchEnabled,
+            blockingGestureEnabled: this.settings.gesturesEnabled && this.settings.gestureBlockingEnabled,
             onTap: (): void => this.openAddress(),
             onSecurityTap: (): void => this.openSecurityDetails(),
             onLongPress: (): void => this.openBlockPanel(),
@@ -434,6 +437,7 @@ struct Index {
         settings: this.settings,
         allowedHosts: this.viewModel.getAllowedHosts(),
         onChange: (settings: BrowserSettings): void => { this.applySettings(settings); },
+        onResetGestures: (): void => { this.resetGestures(); },
         onClearData: (): void => { this.clearBrowsingData(); },
         onRemoveAllowedHost: (host: string): void => { void this.removeAllowedHost(host); },
         onBack: (): void => { this.sheet = Overlay.None; }
@@ -781,6 +785,15 @@ struct Index {
       ThemeService.apply(AppContext.getContext(), next.appearance);
     }
     this.reconfigureBlocking();
+  }
+
+  private resetGestures(): void {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.gesturesEnabled = true;
+    next.gestureActionsEnabled = true;
+    next.gestureTabSwitchEnabled = true;
+    next.gestureBlockingEnabled = true;
+    void this.applySettings(next);
   }
 
   private async toggleSiteBlocking(): Promise<void> {

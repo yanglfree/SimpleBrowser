@@ -73,6 +73,7 @@ export struct SettingsPage {
   @Prop settings: BrowserSettings = defaultBrowserSettings();
   @Prop allowedHosts: string[] = [];
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
+  onResetGestures: () => void = (): void => {};
   onClearData: () => void = (): void => {};
   onRemoveAllowedHost: (host: string) => void = (_host: string): void => {};
   onBack: () => void = (): void => {};
@@ -150,6 +151,37 @@ export struct SettingsPage {
                 this.onChange(next);
               }
             )
+            this.SwitchRow(
+              $r('app.string.gesture_actions'),
+              this.settings.gestureActionsEnabled,
+              true,
+              () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.gestureActionsEnabled = !next.gestureActionsEnabled;
+                this.onChange(next);
+              }
+            )
+            this.SwitchRow(
+              $r('app.string.gesture_tab_switch'),
+              this.settings.gestureTabSwitchEnabled,
+              true,
+              () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.gestureTabSwitchEnabled = !next.gestureTabSwitchEnabled;
+                this.onChange(next);
+              }
+            )
+            this.SwitchRow(
+              $r('app.string.gesture_blocking'),
+              this.settings.gestureBlockingEnabled,
+              true,
+              () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.gestureBlockingEnabled = !next.gestureBlockingEnabled;
+                this.onChange(next);
+              }
+            )
+            this.ActionRow($r('app.string.restore_gesture_defaults'), false, () => this.onResetGestures())
             this.SwitchRow(
               $r('app.string.auto_hide_toolbar'),
               this.settings.autoHideToolbarEnabled,

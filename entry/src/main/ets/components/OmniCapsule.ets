@@ -16,6 +16,9 @@ export struct OmniCapsule {
   @Prop isPrivate: boolean = false;
   @Prop securityState: SecurityState = SecurityState.Unknown;
   @Prop gesturesEnabled: boolean = true;
+  @Prop actionsGestureEnabled: boolean = true;
+  @Prop tabSwitchGestureEnabled: boolean = true;
+  @Prop blockingGestureEnabled: boolean = true;
   onTap: () => void = (): void => {};
   onSecurityTap: () => void = (): void => {};
   onLongPress: () => void = (): void => {};
@@ -41,6 +44,15 @@ export struct OmniCapsule {
         .fontColor($r('app.color.text_primary'))
         .fontFeature('"tnum" 1')
 
+      if (!this.blockingGestureEnabled) {
+        AppIcon({
+          name: IconName.ShieldCheck,
+          glyphSize: 17,
+          color: $r('app.color.accent')
+        })
+          .onClick(() => this.onLongPress())
+      }
+
       Divider()
         .vertical(true)
         .height(16)
@@ -51,6 +63,18 @@ export struct OmniCapsule {
         Text($r('app.string.private_badge'))
           .fontSize(11)
           .fontColor($r('app.color.text_secondary'))
+      }
+
+      if (!this.actionsGestureEnabled) {
+        AppIcon({ name: IconName.ChevronUp, glyphSize: 17, color: $r('app.color.text_primary') })
+          .onClick(() => this.onSwipeUp())
+      }
+
+      if (!this.tabSwitchGestureEnabled) {
+        AppIcon({ name: IconName.ChevronLeft, glyphSize: 17, color: $r('app.color.text_primary') })
+          .onClick(() => this.onSwipeRight())
+        AppIcon({ name: IconName.ChevronRight, glyphSize: 17, color: $r('app.color.text_primary') })
+          .onClick(() => this.onSwipeLeft())
       }
 
       Text(this.host)
@@ -72,7 +96,11 @@ export struct OmniCapsule {
     .gesture(
       GestureGroup(GestureMode.Exclusive,
         LongPressGesture({ repeat: false, duration: 450 })
-          .onAction(() => this.onLongPress()),
+          .onAction(() => {
+            if (this.gesturesEnabled && this.blockingGestureEnabled) {
+              this.onLongPress();
+            }
+          }),
         PanGesture({ direction: PanDirection.All, distance: 6 })
           .onActionEnd((event: GestureEvent) => this.resolveSwipe(event))
       )
@@ -93,16 +121,20 @@ export struct OmniCapsule {
     const dy: number = event.offsetY;
     if (Math.abs(dy) >= Math.abs(dx)) {
       if (dy <= -SWIPE_THRESHOLD) {
-        this.onSwipeUp();
+        if (this.actionsGestureEnabled) {
+          this.onSwipeUp();
+        }
       } else if (dy >= SWIPE_THRESHOLD) {
         this.onSwipeDown();
       }
       return;
     }
-    if (dx <= -SWIPE_THRESHOLD) {
-      this.onSwipeLeft();
-    } else if (dx >= SWIPE_THRESHOLD) {
-      this.onSwipeRight();
+    if (this.tabSwitchGestureEnabled) {
+      if (dx <= -SWIPE_THRESHOLD) {
+        this.onSwipeLeft();
+      } else if (dx >= SWIPE_THRESHOLD) {
+        this.onSwipeRight();
+      }
     }
   }
 }

@@ -144,6 +144,9 @@ export interface BrowserSettings {
   customSearchTemplate: string;
   searchSuggestionsEnabled: boolean;
   gesturesEnabled: boolean;
+  gestureActionsEnabled: boolean;
+  gestureTabSwitchEnabled: boolean;
+  gestureBlockingEnabled: boolean;
   autoHideToolbarEnabled: boolean;
   tabExpiryDays: TabExpiry;
   tabSoftLimit: number;
@@ -205,6 +208,9 @@ export function defaultBrowserSettings(): BrowserSettings {
     customSearchTemplate: '',
     searchSuggestionsEnabled: false,
     gesturesEnabled: true,
+    gestureActionsEnabled: true,
+    gestureTabSwitchEnabled: true,
+    gestureBlockingEnabled: true,
     autoHideToolbarEnabled: true,
     tabExpiryDays: TabExpiry.SevenDays,
     tabSoftLimit: 12,
@@ -266,6 +272,9 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     customSearchTemplate: settings.customSearchTemplate,
     searchSuggestionsEnabled: settings.searchSuggestionsEnabled,
     gesturesEnabled: settings.gesturesEnabled,
+    gestureActionsEnabled: settings.gestureActionsEnabled,
+    gestureTabSwitchEnabled: settings.gestureTabSwitchEnabled,
+    gestureBlockingEnabled: settings.gestureBlockingEnabled,
     autoHideToolbarEnabled: settings.autoHideToolbarEnabled,
     tabExpiryDays: settings.tabExpiryDays,
     tabSoftLimit: settings.tabSoftLimit,
