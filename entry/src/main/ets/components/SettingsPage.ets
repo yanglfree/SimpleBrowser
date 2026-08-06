@@ -30,6 +30,12 @@ interface PickerOption {
   value: number;
 }
 
+interface SettingsSearchEntry {
+  key: string;
+  label: Resource;
+  keywords: string;
+}
+
 export enum ClearDataRange {
   All = 0,
   Today = 1,
@@ -150,6 +156,7 @@ export struct SettingsPage {
   @State private clearCache: boolean = true;
   @State private clearPermissions: boolean = true;
   @State private clearDataRange: ClearDataRange = ClearDataRange.All;
+  @State private searchQuery: string = '';
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
@@ -165,6 +172,22 @@ export struct SettingsPage {
           }
           .width('100%')
 
+          TextInput({ text: this.searchQuery, placeholder: $r('app.string.settings_search_placeholder') })
+            .width('100%')
+            .height(46)
+            .margin({ top: 16 })
+            .padding({ left: 14, right: 14 })
+            .fontSize(15)
+            .fontColor($r('app.color.text_primary'))
+            .placeholderColor($r('app.color.text_secondary'))
+            .backgroundColor($r('app.color.surface_subtle'))
+            .borderRadius(12)
+            .accessibilityText($r('app.string.settings_search_placeholder'))
+            .onChange((value: string): void => { this.searchQuery = value; })
+
+          if (this.searchQuery.trim().length > 0) {
+            this.SearchResults()
+          } else {
           this.GroupLabel($r('app.string.group_rules'), 22)
           Column() {
             this.SwitchRow($r('app.string.block_ads'), this.settings.blockAds, true, () => {
@@ -351,6 +374,7 @@ export struct SettingsPage {
             this.ValueRowText($r('app.string.about_app'), APP_VERSION, false, () => this.showAbout())
           }
           .groupCard()
+          }
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
@@ -388,6 +412,100 @@ export struct SettingsPage {
       .fontColor($r('app.color.text_secondary'))
       .padding({ left: 4, right: 4 })
       .margin({ top: top })
+  }
+
+  @Builder
+  private SearchResults() {
+    Column({ space: 8 }) {
+      Text($r('app.string.settings_search_results'))
+        .width('100%')
+        .margin({ top: 18, bottom: 4 })
+        .fontSize(13)
+        .fontColor($r('app.color.text_secondary'))
+      ForEach(this.filteredSearchEntries(), (entry: SettingsSearchEntry) => {
+        Row() {
+          Text(entry.label)
+            .fontSize(15)
+            .fontColor($r('app.color.text_primary'))
+            .layoutWeight(1)
+          AppIcon({ name: IconName.ChevronRight, glyphSize: 16, color: $r('app.color.text_secondary') })
+        }
+        .width('100%')
+        .height(56)
+        .padding({ left: 16, right: 16 })
+        .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+        .accessibilityText(entry.label)
+        .onClick(() => this.performSearchAction(entry.key))
+      }, (entry: SettingsSearchEntry) => entry.key)
+      if (this.filteredSearchEntries().length === 0) {
+        Text($r('app.string.settings_search_empty'))
+          .width('100%')
+          .height(56)
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+          .textAlign(TextAlign.Center)
+      }
+    }
+    .width('100%')
+  }
+
+  private filteredSearchEntries(): SettingsSearchEntry[] {
+    const query: string = this.searchQuery.trim().toLowerCase();
+    return this.searchEntries().filter((entry: SettingsSearchEntry): boolean =>
+      entry.keywords.toLowerCase().includes(query));
+  }
+
+  private searchEntries(): SettingsSearchEntry[] {
+    return [
+      { key: 'block_ads', label: $r('app.string.block_ads'), keywords: '广告 拦截 规则' },
+      { key: 'block_trackers', label: $r('app.string.block_trackers'), keywords: '追踪器 隐私 拦截' },
+      { key: 'rule_strength', label: $r('app.string.rule_strength'), keywords: '规则 强度 标准 严格' },
+      { key: 'search_engine', label: $r('app.string.default_search_engine'), keywords: '搜索 引擎 默认 必应 百度 谷歌' },
+      { key: 'search_suggestions', label: $r('app.string.search_suggestions'), keywords: '搜索 建议' },
+      { key: 'gestures', label: $r('app.string.gestures_enabled'), keywords: '手势 滑动 操作' },
+      { key: 'appearance', label: $r('app.string.appearance'), keywords: '外观 主题 深色 浅色' },
+      { key: 'tab_expiry', label: $r('app.string.tab_expiry'), keywords: '标签 清理 归档 过期' },
+      { key: 'history_retention', label: $r('app.string.history_retention'), keywords: '历史 保留 清除' },
+      { key: 'clear_data', label: $r('app.string.clear_browsing_data'), keywords: '历史 Cookie 缓存 权限 清除' },
+      { key: 'minimum_font_size', label: $r('app.string.minimum_font_size'), keywords: '网页 字号 字体 大字 无障碍' },
+      { key: 'bookmark_import', label: $r('app.string.bookmark_import_html'), keywords: '书签 导入 HTML' }
+    ];
+  }
+
+  private performSearchAction(key: string): void {
+    if (key === 'block_ads') {
+      const next: BrowserSettings = cloneSettings(this.settings);
+      next.blockAds = !next.blockAds;
+      this.onChange(next);
+    } else if (key === 'block_trackers') {
+      const next: BrowserSettings = cloneSettings(this.settings);
+      next.blockTrackers = !next.blockTrackers;
+      this.onChange(next);
+    } else if (key === 'rule_strength') {
+      this.picker = PickerKind.RuleStrength;
+    } else if (key === 'search_engine') {
+      this.picker = PickerKind.SearchEngine;
+    } else if (key === 'search_suggestions') {
+      const next: BrowserSettings = cloneSettings(this.settings);
+      next.searchSuggestionsEnabled = !next.searchSuggestionsEnabled;
+      this.onChange(next);
+    } else if (key === 'gestures') {
+      const next: BrowserSettings = cloneSettings(this.settings);
+      next.gesturesEnabled = !next.gesturesEnabled;
+      this.onChange(next);
+    } else if (key === 'appearance') {
+      this.picker = PickerKind.Appearance;
+    } else if (key === 'tab_expiry') {
+      this.picker = PickerKind.TabExpiry;
+    } else if (key === 'history_retention') {
+      this.picker = PickerKind.HistoryRetention;
+    } else if (key === 'clear_data') {
+      this.openClearDataSheet();
+    } else if (key === 'minimum_font_size') {
+      this.picker = PickerKind.MinimumFontSize;
+    } else if (key === 'bookmark_import') {
+      this.onImportBookmarks();
+    }
   }
 
   @Builder

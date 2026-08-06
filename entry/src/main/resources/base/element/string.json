@@ -100,6 +100,9 @@
     { "name": "find_next", "value": "下一个匹配项" },
 
     { "name": "settings", "value": "设置" },
+    { "name": "settings_search_placeholder", "value": "搜索设置" },
+    { "name": "settings_search_results", "value": "匹配的设置" },
+    { "name": "settings_search_empty", "value": "没有匹配的设置" },
     { "name": "group_rules", "value": "拦截规则" },
     { "name": "group_general", "value": "通用" },
     { "name": "group_privacy", "value": "隐私" },
