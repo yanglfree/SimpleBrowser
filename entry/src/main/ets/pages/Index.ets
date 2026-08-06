@@ -307,7 +307,10 @@ struct Index {
               onScroll: (offsetY: number): void => this.handlePageScroll(tab.id, offsetY),
               onKeyboardAttach: (): void => { this.showCapsule(); },
               isAtTop: tab.id === this.activeTabId && this.isActivePageAtTop,
+              gesturesEnabled: this.settings.gesturesEnabled,
               onPullRefresh: (): void => { this.pullRefresh(tab.id); },
+              onEdgeBack: (): void => { this.edgeNavigate(tab.id, true); },
+              onEdgeForward: (): void => { this.edgeNavigate(tab.id, false); },
               onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); }
             })
           } else {
@@ -1239,6 +1242,19 @@ struct Index {
       return;
     }
     await this.runScript(controller, script);
+  }
+
+  private edgeNavigate(id: string, isBack: boolean): void {
+    if (id !== this.activeTabId) {
+      return;
+    }
+    this.runOnActive((controller: webview.WebviewController) => {
+      if (isBack) {
+        WebKernelService.goBack(controller);
+      } else {
+        WebKernelService.goForward(controller);
+      }
+    });
   }
 
   private handleTitle(id: string, title: string): void {

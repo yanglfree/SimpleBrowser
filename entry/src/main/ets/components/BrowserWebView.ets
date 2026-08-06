@@ -3,8 +3,12 @@ import { BrowserTab } from '../models/BrowserModels';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { WebKernelCallbacks, WebKernelService } from '../services/WebKernelService';
 import { Logger } from '../utils/Logger';
+import { AppIcon, IconName } from './AppIcon';
 
 const TAG: string = 'BrowserWebView';
+const EDGE_NAV_WIDTH: number = 28;
+const EDGE_NAV_THRESHOLD: number = 56;
+const EDGE_NAV_MAX_DISTANCE: number = 76;
 
 /**
  * Thin wrapper around ArkWeb. It reports events upwards and owns no policy —
@@ -17,13 +21,18 @@ export struct BrowserWebView {
   @Prop blockAds: boolean;
   @Prop kernelCallbacks: WebKernelCallbacks;
   @Prop isAtTop: boolean = false;
+  @Prop gesturesEnabled: boolean = true;
   controller: webview.WebviewController = new webview.WebviewController();
   @State private pullDistance: number = 0;
+  @State private edgeBackDistance: number = 0;
+  @State private edgeForwardDistance: number = 0;
   private adsBlockService: AdsBlockService = new AdsBlockService();
   onTitleReceive: (title: string) => void = (_title: string): void => {};
   onScroll: (offsetY: number) => void = (_offsetY: number): void => {};
   onKeyboardAttach: () => void = (): void => {};
   onPullRefresh: () => void = (): void => {};
+  onEdgeBack: () => void = (): void => {};
+  onEdgeForward: () => void = (): void => {};
   onAdsBlocked: (urls: string[]) => void = (_urls: string[]): void => {};
 
   build() {
@@ -69,6 +78,11 @@ export struct BrowserWebView {
           .onActionCancel(() => this.cancelPull())
       )
 
+      if (this.gesturesEnabled) {
+        this.EdgeRail(true)
+        this.EdgeRail(false)
+      }
+
       if (this.pullDistance > 0) {
         Row({ space: 8 }) {
           if (this.pullDistance >= 64) {
@@ -90,6 +104,77 @@ export struct BrowserWebView {
     }
       .width('100%')
       .height('100%')
+  }
+
+  @Builder
+  private EdgeRail(isBack: boolean) {
+    Row() {
+      if (this.edgeDistance(isBack) > 0) {
+        AppIcon({
+          name: isBack ? IconName.ChevronLeft : IconName.ChevronRight,
+          glyphSize: 21,
+          color: this.edgeDistance(isBack) >= EDGE_NAV_THRESHOLD && this.canNavigate(isBack)
+            ? $r('app.color.accent')
+            : $r('app.color.text_secondary')
+        })
+      }
+    }
+    .width(EDGE_NAV_WIDTH)
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .align(isBack ? Alignment.TopStart : Alignment.TopEnd)
+    .translate({
+      x: isBack ? this.edgeBackDistance * 0.55 : -this.edgeForwardDistance * 0.55
+    })
+    .gesture(
+      PanGesture({ direction: PanDirection.Horizontal, distance: 6 })
+        .onActionUpdate((event: GestureEvent) => this.updateEdgeDistance(isBack, event))
+        .onActionEnd((_event: GestureEvent) => this.finishEdgeNavigation(isBack))
+        .onActionCancel(() => this.cancelEdgeNavigation(isBack))
+    )
+  }
+
+  private canNavigate(isBack: boolean): boolean {
+    return isBack ? this.tab.canGoBack : this.tab.canGoForward;
+  }
+
+  private edgeDistance(isBack: boolean): number {
+    return isBack ? this.edgeBackDistance : this.edgeForwardDistance;
+  }
+
+  private updateEdgeDistance(isBack: boolean, event: GestureEvent): void {
+    const travel: number = isBack
+      ? Math.max(0, event.offsetX)
+      : Math.max(0, -event.offsetX);
+    const distance: number = this.canNavigate(isBack)
+      ? Math.min(EDGE_NAV_MAX_DISTANCE, travel)
+      : Math.min(18, travel * 0.25);
+    if (isBack) {
+      this.edgeBackDistance = distance;
+    } else {
+      this.edgeForwardDistance = distance;
+    }
+  }
+
+  private finishEdgeNavigation(isBack: boolean): void {
+    const distance: number = isBack ? this.edgeBackDistance : this.edgeForwardDistance;
+    const shouldNavigate: boolean = distance >= EDGE_NAV_THRESHOLD && this.canNavigate(isBack);
+    this.cancelEdgeNavigation(isBack);
+    if (shouldNavigate) {
+      if (isBack) {
+        this.onEdgeBack();
+      } else {
+        this.onEdgeForward();
+      }
+    }
+  }
+
+  private cancelEdgeNavigation(isBack: boolean): void {
+    if (isBack) {
+      this.edgeBackDistance = 0;
+    } else {
+      this.edgeForwardDistance = 0;
+    }
   }
 
   private updatePullDistance(event: GestureEvent): void {
