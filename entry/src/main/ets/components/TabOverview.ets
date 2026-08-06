@@ -13,6 +13,7 @@ import {
   TAB_CARD_RADIUS,
   TAB_CARD_SHADOW_OFFSET_Y,
   TAB_CARD_SHADOW_RADIUS,
+  TAB_CARD_SWITCH_SWIPE_DISTANCE,
   TAB_CARD_SWIPE_DISTANCE,
   TAB_CARD_TITLE_SIZE,
   TAB_CLOSE_HIT_SIZE,
@@ -25,12 +26,13 @@ import {
   TAB_NEW_BUTTON_TEXT_SIZE,
   TAB_OVERVIEW_ACTION_SIZE,
   TAB_OVERVIEW_GRID_BOTTOM,
-  TAB_OVERVIEW_GRID_GAP,
   TAB_OVERVIEW_HEADER_BOTTOM,
   TAB_OVERVIEW_HEADER_HORIZONTAL,
   TAB_OVERVIEW_HEADER_TOP,
   TAB_OVERVIEW_TITLE_SIZE,
   TAB_PRIVATE_GESTURE_DURATION,
+  TAB_STACK_HEIGHT,
+  TAB_STACK_OFFSET,
   TAB_THUMB_HEIGHT
 } from './TabTokens';
 
@@ -52,6 +54,7 @@ export struct TabOverview {
   /** Snapshots captured when a tab was last on screen; absent for a cold tab. */
   thumbnails: TabThumbnail[] = [];
   onSelect: (id: string) => void = (_id: string): void => {};
+  onSwitch: (direction: number) => void = (_direction: number): void => {};
   onClose: (id: string) => void = (_id: string): void => {};
   onCloseAll: () => void = (): void => {};
   onNewTab: () => void = (): void => {};
@@ -86,8 +89,8 @@ export struct TabOverview {
         })
 
         Scroll() {
-          Column() {
-            this.TabGrid(this.tabs)
+          Column({ space: 12 }) {
+            this.TabStack(this.tabs)
 
             if (this.privateTabs.length > 0) {
               Text($r('app.string.private_badge'))
@@ -101,7 +104,7 @@ export struct TabOverview {
                   right: TAB_OVERVIEW_HEADER_HORIZONTAL,
                   bottom: TAB_OVERVIEW_HEADER_BOTTOM
                 })
-              this.TabGrid(this.privateTabs)
+              this.TabStack(this.privateTabs)
             }
           }
           .width('100%')
@@ -120,17 +123,13 @@ export struct TabOverview {
   }
 
   @Builder
-  private TabGrid(tabs: BrowserTab[]) {
-    Grid() {
-      ForEach(tabs, (tab: BrowserTab) => {
-        GridItem() {
-          this.TabCard(tab)
-        }
+  private TabStack(tabs: BrowserTab[]) {
+    Stack({ alignContent: Alignment.Top }) {
+      ForEach(this.stackTabs(tabs), (tab: BrowserTab, index: number) => {
+        this.TabCard(tab, index, tabs.length)
       }, (tab: BrowserTab) => tab.id)
     }
-    .columnsTemplate('1fr 1fr')
-    .columnsGap(TAB_OVERVIEW_GRID_GAP)
-    .rowsGap(TAB_OVERVIEW_GRID_GAP)
+    .height(TAB_STACK_HEIGHT)
     .padding({
       left: TAB_OVERVIEW_HEADER_HORIZONTAL,
       right: TAB_OVERVIEW_HEADER_HORIZONTAL,
@@ -140,7 +139,7 @@ export struct TabOverview {
   }
 
   @Builder
-  private TabCard(tab: BrowserTab) {
+  private TabCard(tab: BrowserTab, stackIndex: number = 0, stackCount: number = 1) {
     Column() {
       Row() {
         Text(this.cardTitle(tab))
@@ -190,12 +189,25 @@ export struct TabOverview {
       offsetX: 0,
       offsetY: TAB_CARD_SHADOW_OFFSET_Y
     })
+    .align(Alignment.Top)
+    .translate({ y: Math.min(stackIndex, 3) * TAB_STACK_OFFSET })
+    .scale({
+      x: 1 - Math.min(stackIndex, 3) * 0.035,
+      y: 1 - Math.min(stackIndex, 3) * 0.035
+    })
+    .zIndex(stackCount - stackIndex)
+    .animation({ duration: 180, curve: Curve.FastOutSlowIn })
     .onClick(() => this.onSelect(tab.id))
     .gesture(
-      PanGesture({ direction: PanDirection.Horizontal, distance: TAB_CARD_SWIPE_DISTANCE })
+      PanGesture({ direction: PanDirection.All, distance: TAB_CARD_SWIPE_DISTANCE })
         .onActionEnd((event: GestureEvent) => {
-          if (event.offsetX <= -TAB_CARD_CLOSE_SWIPE_DISTANCE) {
+          const horizontal: boolean = Math.abs(event.offsetX) > Math.abs(event.offsetY);
+          if (!horizontal && event.offsetY <= -TAB_CARD_CLOSE_SWIPE_DISTANCE) {
             this.onClose(tab.id);
+          } else if (horizontal && event.offsetX <= -TAB_CARD_SWITCH_SWIPE_DISTANCE) {
+            this.onSwitch(1);
+          } else if (horizontal && event.offsetX >= TAB_CARD_SWITCH_SWIPE_DISTANCE) {
+            this.onSwitch(-1);
           }
         })
     )
@@ -292,6 +304,12 @@ export struct TabOverview {
 
   private thumbnailsFor(id: string): TabThumbnail[] {
     return this.thumbnails.filter((item: TabThumbnail) => item.id === id);
+  }
+
+  private stackTabs(tabs: BrowserTab[]): BrowserTab[] {
+    const active: BrowserTab[] = tabs.filter((tab: BrowserTab) => tab.id === this.activeTabId);
+    const inactive: BrowserTab[] = tabs.filter((tab: BrowserTab) => tab.id !== this.activeTabId);
+    return active.concat(inactive);
   }
 
   private cardTitle(tab: BrowserTab): ResourceStr {

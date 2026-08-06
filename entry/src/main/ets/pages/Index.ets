@@ -544,6 +544,7 @@ struct Index {
         activeTabId: this.activeTabId,
         thumbnails: this.thumbnails,
         onSelect: (id: string): void => { this.selectTab(id); },
+        onSwitch: (direction: number): void => { this.switchOverviewTab(direction); },
         onClose: (id: string): void => this.closeTab(id),
         onCloseAll: (): void => this.closeAllTabs(),
         onNewTab: (): void => this.createTab(false),
@@ -872,6 +873,18 @@ struct Index {
     if (selected !== undefined) {
       await this.prepareScrollResume(selected);
     }
+  }
+
+  private switchOverviewTab(direction: number): void {
+    if (this.tabs.length < 2) {
+      return;
+    }
+    const currentIndex: number = this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId);
+    if (currentIndex < 0) {
+      return;
+    }
+    const nextIndex: number = (currentIndex + direction + this.tabs.length) % this.tabs.length;
+    void this.selectTab(this.tabs[nextIndex].id);
   }
 
   private createTab(isPrivate: boolean): void {
