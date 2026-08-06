@@ -14,6 +14,7 @@
     { "name": "address_placeholder", "value": "搜索或输入网址" },
     { "name": "weekly_blocked_prefix", "value": "本周已拦截" },
     { "name": "weekly_blocked_suffix", "value": "条广告" },
+    { "name": "frequent_sites", "value": "常访问" },
 
     { "name": "action_back", "value": "后退" },
     { "name": "action_forward", "value": "前进" },
@@ -69,6 +70,7 @@
     { "name": "gesture_blocking", "value": "长按打开拦截面板" },
     { "name": "restore_gesture_defaults", "value": "恢复手势默认" },
     { "name": "auto_hide_toolbar", "value": "滚动自动隐藏工具栏" },
+    { "name": "show_quick_sites", "value": "显示常访问站点" },
     { "name": "tab_expiry", "value": "标签自动清理" },
     { "name": "tab_expiry_never", "value": "永不" },
     { "name": "tab_expiry_one_day", "value": "24 小时" },

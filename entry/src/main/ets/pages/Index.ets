@@ -233,9 +233,12 @@ struct Index {
           if (isHomeUrl(tab.url)) {
             StartPage({
               quickSites: this.quickSites,
+              quickSitesEnabled: this.settings.quickSitesEnabled,
               weeklyBlocked: this.weeklyBlocked,
               onOpenAddress: (): void => this.openAddress(),
               onOpenSite: (url: string): void => this.navigateTo(url),
+              onRemoveSite: (url: string): void => { void this.removeQuickSite(url); },
+              onToggleQuickSites: (): void => { void this.toggleQuickSites(); },
               onOpenStats: (): void => { this.sheet = Overlay.Settings; }
             })
           } else {
@@ -856,6 +859,17 @@ struct Index {
     await this.viewModel.removeAllowedHost(host);
     this.isSiteAllowed = this.viewModel.isHostAllowed(this.activeTab()?.url ?? '');
     this.syncState();
+  }
+
+  private async removeQuickSite(url: string): Promise<void> {
+    await this.viewModel.setQuickSiteHidden(url, true);
+    this.syncState();
+  }
+
+  private async toggleQuickSites(): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.quickSitesEnabled = false;
+    await this.applySettings(next);
   }
 
   /** Pushes the current blocking policy into every live web view. */

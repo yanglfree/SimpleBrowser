@@ -32,9 +32,12 @@ function tileColor(palette: Resource[], index: number): Resource {
 @Component
 export struct StartPage {
   @Prop quickSites: QuickSite[] = [];
+  @Prop quickSitesEnabled: boolean = true;
   @Prop weeklyBlocked: number = 0;
   onOpenAddress: () => void = (): void => {};
   onOpenSite: (url: string) => void = (_url: string): void => {};
+  onRemoveSite: (url: string) => void = (_url: string): void => {};
+  onToggleQuickSites: () => void = (): void => {};
   /**
    * The start page has no capsule, so the statistics line doubles as the way
    * into the global blocking settings — otherwise a fresh launch, which starts
@@ -58,7 +61,9 @@ export struct StartPage {
             .margin({ top: 8 })
 
           this.SearchCapsule()
-          this.SiteGrid()
+          if (this.quickSitesEnabled) {
+            this.SiteGrid()
+          }
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
@@ -98,29 +103,47 @@ export struct StartPage {
 
   @Builder
   private SiteGrid() {
-    Flex({ wrap: FlexWrap.Wrap }) {
-      ForEach(this.quickSites, (site: QuickSite) => {
-        Column({ space: 9 }) {
-          Text(site.badge)
-            .width(52)
-            .height(52)
-            .borderRadius(16)
-            .backgroundColor(tileColor(TILE_BACKGROUNDS, site.colorIndex))
-            .fontColor(tileColor(TILE_FOREGROUNDS, site.colorIndex))
-            .fontSize(20)
-            .fontWeight(FontWeight.Medium)
-            .textAlign(TextAlign.Center)
+    Column() {
+      Row() {
+        Text($r('app.string.frequent_sites'))
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+          .layoutWeight(1)
+        AppIcon({ name: IconName.Close, glyphSize: 15, color: $r('app.color.text_secondary') })
+          .onClick(() => this.onToggleQuickSites())
+      }
+      .width('100%')
 
-          Text(site.title)
-            .fontSize(12.5)
-            .fontColor($r('app.color.text_primary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .width('33.33%')
-        .margin({ bottom: 30 })
-        .onClick(() => this.onOpenSite(site.url))
-      }, (site: QuickSite) => site.url)
+      Flex({ wrap: FlexWrap.Wrap }) {
+        ForEach(this.quickSites, (site: QuickSite) => {
+          Column({ space: 9 }) {
+            Text(site.badge)
+              .width(52)
+              .height(52)
+              .borderRadius(16)
+              .backgroundColor(tileColor(TILE_BACKGROUNDS, site.colorIndex))
+              .fontColor(tileColor(TILE_FOREGROUNDS, site.colorIndex))
+              .fontSize(20)
+              .fontWeight(FontWeight.Medium)
+              .textAlign(TextAlign.Center)
+
+            Text(site.title)
+              .fontSize(12.5)
+              .fontColor($r('app.color.text_primary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          .width('33.33%')
+          .margin({ bottom: 30 })
+          .onClick(() => this.onOpenSite(site.url))
+          .gesture(
+            LongPressGesture({ repeat: false, duration: 450 })
+              .onAction(() => this.onRemoveSite(site.url))
+          )
+        }, (site: QuickSite) => site.url)
+      }
+      .width('100%')
+      .margin({ top: 18 })
     }
     .width('100%')
     .margin({ top: 44 })

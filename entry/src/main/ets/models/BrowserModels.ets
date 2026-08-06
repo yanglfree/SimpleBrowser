@@ -152,6 +152,7 @@ export interface BrowserSettings {
   gestureTabSwitchEnabled: boolean;
   gestureBlockingEnabled: boolean;
   autoHideToolbarEnabled: boolean;
+  quickSitesEnabled: boolean;
   tabExpiryDays: TabExpiry;
   tabSoftLimit: number;
   appearance: AppearanceMode;
@@ -216,6 +217,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     gestureTabSwitchEnabled: true,
     gestureBlockingEnabled: true,
     autoHideToolbarEnabled: true,
+    quickSitesEnabled: true,
     tabExpiryDays: TabExpiry.SevenDays,
     tabSoftLimit: 12,
     appearance: AppearanceMode.System,
@@ -282,6 +284,7 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     gestureTabSwitchEnabled: settings.gestureTabSwitchEnabled,
     gestureBlockingEnabled: settings.gestureBlockingEnabled,
     autoHideToolbarEnabled: settings.autoHideToolbarEnabled,
+    quickSitesEnabled: settings.quickSitesEnabled,
     tabExpiryDays: settings.tabExpiryDays,
     tabSoftLimit: settings.tabSoftLimit,
     appearance: settings.appearance,

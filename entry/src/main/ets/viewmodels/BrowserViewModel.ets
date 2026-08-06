@@ -282,6 +282,10 @@ export class BrowserViewModel {
     return this.repository.getAllowedHosts();
   }
 
+  async setQuickSiteHidden(url: string, hidden: boolean): Promise<void> {
+    await this.repository.setQuickHostHidden(rawHost(url), hidden);
+  }
+
   async setHostAllowed(url: string, allowed: boolean): Promise<void> {
     await this.repository.setHostAllowed(rawHost(url), allowed);
     this.adsBlockService.applyAllowedHosts(this.repository.getAllowedHosts());
@@ -366,17 +370,20 @@ export class BrowserViewModel {
         badge: siteBadge(item.title, item.url),
         colorIndex: BrowserViewModel.colorIndexFor(item.host)
       }));
+    const hiddenHosts: string[] = this.repository.getHiddenQuickHosts();
+    const visibleSites: QuickSite[] = sites.filter((site: QuickSite): boolean =>
+      !hiddenHosts.includes(rawHost(site.url)));
 
     for (const fallback of DEFAULT_QUICK_SITES) {
-      if (sites.length >= QUICK_SITE_COUNT) {
+      if (visibleSites.length >= QUICK_SITE_COUNT) {
         break;
       }
       const host: string = rawHost(fallback.url);
-      if (!sites.some((site: QuickSite) => rawHost(site.url) === host)) {
-        sites.push(fallback);
+      if (!hiddenHosts.includes(host) && !visibleSites.some((site: QuickSite) => rawHost(site.url) === host)) {
+        visibleSites.push(fallback);
       }
     }
-    return sites;
+    return visibleSites;
   }
 
   /**

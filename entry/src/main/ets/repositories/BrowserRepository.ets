@@ -40,6 +40,7 @@ const SETTINGS_KEY: string = 'settings';
 const SITE_STATS_KEY: string = 'site_stats';
 const DAILY_STATS_KEY: string = 'daily_stats';
 const ALLOWED_HOSTS_KEY: string = 'allowed_hosts';
+const HIDDEN_QUICK_HOSTS_KEY: string = 'hidden_quick_hosts';
 
 export class BrowserRepository {
   private store: preferences.Preferences | undefined;
@@ -49,6 +50,7 @@ export class BrowserRepository {
   private siteStats: SiteBlockStats[] = [];
   private dailyStats: DailyBlockCount[] = [];
   private allowedHosts: string[] = [];
+  private hiddenQuickHosts: string[] = [];
   private session: BrowserSession | undefined;
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
@@ -60,6 +62,7 @@ export class BrowserRepository {
       this.siteStats = this.decode<SiteBlockStats>(await store.get(SITE_STATS_KEY, '[]'), SITE_STATS_KEY);
       this.dailyStats = this.decode<DailyBlockCount>(await store.get(DAILY_STATS_KEY, '[]'), DAILY_STATS_KEY);
       this.allowedHosts = this.decode<string>(await store.get(ALLOWED_HOSTS_KEY, '[]'), ALLOWED_HOSTS_KEY);
+      this.hiddenQuickHosts = this.decode<string>(await store.get(HIDDEN_QUICK_HOSTS_KEY, '[]'), HIDDEN_QUICK_HOSTS_KEY);
       this.session = this.decodeSession(await store.get(SESSION_KEY, ''));
       this.settings = this.decodeSettings(await store.get(SETTINGS_KEY, ''));
       this.pruneDailyStats();
@@ -103,6 +106,16 @@ export class BrowserRepository {
 
   getAllowedHosts(): string[] {
     return this.allowedHosts.slice(0);
+  }
+
+  getHiddenQuickHosts(): string[] {
+    return this.hiddenQuickHosts.slice(0);
+  }
+
+  async setQuickHostHidden(host: string, hidden: boolean): Promise<void> {
+    const without: string[] = this.hiddenQuickHosts.filter((item: string) => item !== host);
+    this.hiddenQuickHosts = hidden ? without.concat([host]) : without;
+    await this.save(HIDDEN_QUICK_HOSTS_KEY, JSON.stringify(this.hiddenQuickHosts));
   }
 
   async addBookmark(bookmark: Bookmark): Promise<void> {
@@ -256,6 +269,7 @@ export class BrowserRepository {
         gestureTabSwitchEnabled: parsed.gestureTabSwitchEnabled ?? fallback.gestureTabSwitchEnabled,
         gestureBlockingEnabled: parsed.gestureBlockingEnabled ?? fallback.gestureBlockingEnabled,
         autoHideToolbarEnabled: parsed.autoHideToolbarEnabled ?? fallback.autoHideToolbarEnabled,
+        quickSitesEnabled: parsed.quickSitesEnabled ?? fallback.quickSitesEnabled,
         tabExpiryDays: parsed.tabExpiryDays ?? fallback.tabExpiryDays,
         tabSoftLimit: parsed.tabSoftLimit ?? fallback.tabSoftLimit,
         appearance: parsed.appearance ?? fallback.appearance,

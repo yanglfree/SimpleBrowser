@@ -192,6 +192,16 @@ export struct SettingsPage {
                 this.onChange(next);
               }
             )
+            this.SwitchRow(
+              $r('app.string.show_quick_sites'),
+              this.settings.quickSitesEnabled,
+              true,
+              () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.quickSitesEnabled = !next.quickSitesEnabled;
+                this.onChange(next);
+              }
+            )
             this.ValueRow(
               $r('app.string.appearance'),
               APPEARANCE_LABELS[this.settings.appearance as number],
