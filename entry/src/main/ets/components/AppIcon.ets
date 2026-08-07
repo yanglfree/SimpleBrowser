@@ -1,6 +1,6 @@
 /**
- * The design's icon set, drawn as SVG paths on a 24x24 view port so every glyph
- * keeps the source stroke weight no matter what size it is rendered at.
+ * The design's icon set, authored as SVG paths on a 24x24 grid so every glyph
+ * keeps the source proportions and stroke weight at any render size.
  */
 export enum IconName {
   Shield = 0,
@@ -67,6 +67,74 @@ const COMMANDS: string[] = [
   'M12 3a4 4 0 0 0-4 4v5a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6'
 ];
 
+/** The grid every command string above is authored on. */
+const GLYPH_GRID: number = 24;
+
+const SCALED_COMMANDS: Map<string, string> = new Map<string, string>();
+
+/**
+ * `Path` measures itself in vp but reads its commands in px, so a 24-grid glyph
+ * has to be rescaled to the requested size *and* converted to px — otherwise it
+ * draws at 24px, roughly a third of its box on a 3x display.
+ */
+function glyphCommands(name: IconName, glyphSize: number): string {
+  const glyphPx: number = vp2px(glyphSize);
+  const key: string = `${name as number}@${glyphPx}`;
+  const cached: string | undefined = SCALED_COMMANDS.get(key);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const scaled: string = scaleCommands(COMMANDS[name as number], glyphPx / GLYPH_GRID);
+  SCALED_COMMANDS.set(key, scaled);
+  return scaled;
+}
+
+function scaleCommands(commands: string, scale: number): string {
+  const tokens: RegExpMatchArray | null = commands.match(/[a-zA-Z]|-?\d*\.?\d+/g);
+  if (tokens === null) {
+    return commands;
+  }
+  const parts: string[] = [];
+  let verb: string = '';
+  let param: number = 0;
+  for (const token of tokens) {
+    if (isVerb(token)) {
+      verb = token;
+      param = 0;
+      parts.push(token);
+      continue;
+    }
+    if (isArcSetting(verb, param)) {
+      parts.push(token);
+    } else {
+      parts.push(round(Number.parseFloat(token) * scale));
+    }
+    param += 1;
+  }
+  return parts.join(' ');
+}
+
+/**
+ * Three of an arc's seven parameters — the x-axis rotation and the two flags —
+ * describe shape rather than length, so scaling them would bend the curve.
+ */
+function isArcSetting(verb: string, param: number): boolean {
+  if (verb !== 'a' && verb !== 'A') {
+    return false;
+  }
+  const slot: number = param % 7;
+  return slot === 2 || slot === 3 || slot === 4;
+}
+
+function isVerb(token: string): boolean {
+  const code: number = token.charCodeAt(0);
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+function round(value: number): string {
+  return (Math.round(value * 1000) / 1000).toString();
+}
+
 @Component
 export struct AppIcon {
   @Prop name: IconName = IconName.Shield;
@@ -74,22 +142,20 @@ export struct AppIcon {
   @Prop color: ResourceColor = $r('app.color.text_primary');
   /** Solid glyph — used for the bookmarked state. */
   @Prop filled: boolean = false;
+  /** Stroke weight on the 24-grid; scaled with the glyph so weight stays proportional. */
   @Prop strokeWidth: number = 1.5;
 
   build() {
-    Shape() {
-      Path()
-        .commands(COMMANDS[this.name as number])
-    }
-    .viewPort({ x: 0, y: 0, width: 24, height: 24 })
-    .width(this.glyphSize)
-    .height(this.glyphSize)
-    .fill(this.filled ? this.color : Color.Transparent)
-    .stroke(this.color)
-    .strokeWidth(this.filled ? 0 : this.strokeWidth)
-    .strokeLineCap(LineCapStyle.Round)
-    .strokeLineJoin(LineJoinStyle.Round)
-    .accessibilityText(this.accessibilityLabel())
+    Path()
+      .commands(glyphCommands(this.name, this.glyphSize))
+      .width(this.glyphSize)
+      .height(this.glyphSize)
+      .fill(this.filled ? this.color : Color.Transparent)
+      .stroke(this.color)
+      .strokeWidth(this.filled ? 0 : this.strokeWidth * this.glyphSize / GLYPH_GRID)
+      .strokeLineCap(LineCapStyle.Round)
+      .strokeLineJoin(LineJoinStyle.Round)
+      .accessibilityText(this.accessibilityLabel())
   }
 
   private accessibilityLabel(): Resource {
