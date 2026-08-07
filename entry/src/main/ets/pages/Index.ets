@@ -1,5 +1,6 @@
 import { webview } from '@kit.ArkWeb';
 import { abilityAccessCtrl, PermissionRequestResult, Permissions } from '@kit.AbilityKit';
+import { window } from '@kit.ArkUI';
 
 import { image } from '@kit.ImageKit';
 import {
@@ -13,6 +14,7 @@ import {
   READ_FAVICON_SCRIPT,
   READ_FORM_DRAFT_SCRIPT,
   READ_SCROLL_POSITION_SCRIPT,
+  RESUME_PROMPT_TIMEOUT_MS,
   RESUME_WINDOW_DAYS,
   READER_FONT_MAX,
   READER_FONT_MIN,
@@ -50,6 +52,7 @@ import {
 } from '../models/BrowserModels';
 import { ActionSheet } from '../components/ActionSheet';
 import { AddressSheet } from '../components/AddressSheet';
+import { AppIcon, IconName } from '../components/AppIcon';
 import { BlockPanel } from '../components/BlockPanel';
 import { BrowserWebView } from '../components/BrowserWebView';
 import { DownloadSheet } from '../components/DownloadSheet';
@@ -67,7 +70,12 @@ import { SecurityPanel } from '../components/SecurityPanel';
 import { SharePanel } from '../components/SharePanel';
 import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
-import { TAB_WEB_BOTTOM_INSET } from '../components/TabTokens';
+import {
+  DOCK_COLLAPSED_HEIGHT,
+  DOCK_HEIGHT,
+  TAB_WEB_BOTTOM_INSET,
+  TAB_WEB_BOTTOM_INSET_COMPACT
+} from '../components/TabTokens';
 import { PrivacyService } from '../services/PrivacyService';
 import { CertificateService } from '../services/CertificateService';
 import { AdsBlockService } from '../services/AdsBlockService';
@@ -175,18 +183,22 @@ struct Index {
   @State private liveTabIds: string[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
+  /** Status bar height in vp; the browser draws behind the system bars. */
+  @State private topInset: number = 0;
   private isTabSoftLimitPromptVisible: boolean = false;
   private pendingPermissionRequest: PermissionRequest | undefined = undefined;
   private pendingGeolocation: OnGeolocationShowEvent | undefined = undefined;
   private pageScrollOffsets: Map<string, number> = new Map();
   private persistedPageScrollOffsets: Map<string, number> = new Map();
   @State private resumeRequest: ResumeRequest | undefined = undefined;
+  private resumeToken: number = 0;
   private downloadListener: (tasks: DownloadTask[]) => void = (tasks: DownloadTask[]): void => {
     this.downloadTasks = tasks;
   };
 
   async aboutToAppear(): Promise<void> {
     try {
+      await this.measureTopInset();
       await this.viewModel.initialize(AppContext.getContext());
       ThemeService.apply(AppContext.getContext(), this.viewModel.settings.appearance);
       TelemetryService.setEnabled(this.viewModel.settings.telemetryEnabled);
@@ -212,6 +224,20 @@ struct Index {
     } catch (error) {
       Logger.error(TAG, `Failed to initialize browser: ${String(error)}`);
       this.hasError = true;
+    }
+  }
+
+  /**
+   * Fullscreen surfaces (the tab overview) sit behind the status bar, so they
+   * need its height to keep their header clear of the clock and indicators.
+   */
+  private async measureTopInset(): Promise<void> {
+    try {
+      const mainWindow: window.Window = await window.getLastWindow(AppContext.getContext());
+      const area: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+      this.topInset = px2vp(area.topRect.height);
+    } catch (error) {
+      Logger.warn(TAG, `Failed to read the status bar height: ${String(error)}`);
     }
   }
 
@@ -273,6 +299,8 @@ struct Index {
       this.ContentLayer()
 
       if (this.isReady && !this.hasError) {
+        this.ErrorLayer()
+        this.ResumeLayer()
         this.CapsuleLayer()
         this.OverlayLayer()
       }
@@ -306,15 +334,7 @@ struct Index {
             onDone: (): void => { void this.exitReader(this.activeTabId); }
           })
         }
-        if (this.activeTab()?.loadError !== LoadErrorKind.None) {
-          this.PageErrorView()
-        } else {
-          this.TabStack()
-          if (this.sheet === Overlay.None && this.resumeRequest !== undefined &&
-            this.resumeRequest.tabId === this.activeTabId) {
-            this.ResumePrompt(this.resumeRequest)
-          }
-        }
+        this.TabStack()
       }
     }
     .width('100%')
@@ -395,7 +415,7 @@ struct Index {
         .id(`tab-view-${tab.id}`)
         .width('100%')
         .height('100%')
-        .padding({ bottom: isHomeUrl(tab.url) ? 0 : TAB_WEB_BOTTOM_INSET })
+        .padding({ bottom: isHomeUrl(tab.url) ? 0 : this.webBottomInset() })
         .visibility(tab.id === this.activeTabId ? Visibility.Visible : Visibility.Hidden)
       }, (tab: BrowserTab) =>
         `${tab.id}-${isHomeUrl(tab.url) ? 'home' : (this.isTabLive(tab.id) ? 'live' : 'sleep')}`)
@@ -456,58 +476,90 @@ struct Index {
     .justifyContent(FlexAlign.Center)
   }
 
+  /**
+   * Covers the failed page rather than unmounting it. Replacing the tab stack
+   * tore down every live kernel, which is what left a failed tab unable to load
+   * the next address until the user hit retry. It also has to live outside the
+   * tab ForEach: those items are keyed and reused, so a change of error state
+   * inside one would never be drawn.
+   */
   @Builder
-  private PageErrorView() {
-    Column({ space: 16 }) {
-      Text(this.errorTitle())
-        .fontSize(19)
-        .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.text_primary'))
-      Text(this.errorMessage())
-        .fontSize(14)
-        .fontColor($r('app.color.text_secondary'))
-        .textAlign(TextAlign.Center)
-        .padding({ left: 28, right: 28 })
-      Row({ space: 12 }) {
-        Text($r('app.string.retry'))
-          .fontSize(15)
-          .fontColor($r('app.color.accent'))
-          .onClick(() => this.retryPage())
-        if (this.activeTab()?.loadError === LoadErrorKind.Certificate) {
-          Text($r('app.string.certificate_details'))
+  private ErrorLayer() {
+    if (!this.isActiveHome() && this.activeErrorKind() !== LoadErrorKind.None) {
+      Column({ space: 16 }) {
+        Text(this.errorTitle(this.activeErrorKind()))
+          .fontSize(19)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+        Text(this.errorMessage(this.activeErrorKind()))
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+          .textAlign(TextAlign.Center)
+          .padding({ left: 28, right: 28 })
+        Row({ space: 12 }) {
+          Text($r('app.string.retry'))
             .fontSize(15)
-            .fontColor($r('app.color.text_secondary'))
-            .onClick(() => this.openSecurityDetails())
+            .fontColor($r('app.color.accent'))
+            .onClick(() => this.retryPage())
+          if (this.activeErrorKind() === LoadErrorKind.Certificate) {
+            Text($r('app.string.certificate_details'))
+              .fontSize(15)
+              .fontColor($r('app.color.text_secondary'))
+              .onClick(() => this.openSecurityDetails())
+          }
         }
       }
+      .width('100%')
+      .height('100%')
+      .padding({ bottom: this.webBottomInset() })
+      .backgroundColor($r('app.color.page_background'))
+      .justifyContent(FlexAlign.Center)
     }
-    .layoutWeight(1)
-    .width('100%')
-    .justifyContent(FlexAlign.Center)
+  }
+
+  /**
+   * A snackbar riding just above the dock rather than a band stacked into the page:
+   * it offers the one action worth a tap, dismisses itself, and never competes with
+   * the toolbar for space.
+   */
+  @Builder
+  private ResumeLayer() {
+    if (this.sheet === Overlay.None && this.resumeRequest !== undefined &&
+      this.resumeRequest.tabId === this.activeTabId) {
+      this.ResumePrompt(this.resumeRequest)
+    }
   }
 
   @Builder
   private ResumePrompt(request: ResumeRequest) {
-    Row({ space: 12 }) {
+    Row({ space: 10 }) {
       Text($r('app.string.resume_reading_title'))
-        .fontSize(14)
+        .fontSize(13.5)
         .fontColor($r('app.color.text_primary'))
         .layoutWeight(1)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       Text($r('app.string.resume_reading_continue'))
-        .fontSize(13)
+        .fontSize(13.5)
+        .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.accent'))
+        .padding({ left: 6, right: 6 })
         .onClick(() => this.continueResume(request))
-      Text($r('app.string.resume_reading_start_over'))
-        .fontSize(13)
-        .fontColor($r('app.color.text_secondary'))
+      AppIcon({ name: IconName.Close, glyphSize: 15, color: $r('app.color.text_secondary') })
+        .width(24)
+        .accessibilityText($r('app.string.resume_reading_start_over'))
         .onClick(() => this.startResumeFromTop(request))
     }
-    .width('100%')
-    .padding({ left: 18, right: 18, top: 12, bottom: 12 })
+    .height(44)
+    .margin({ left: 14, right: 14, bottom: this.dockHeight() + 8 })
+    .padding({ left: 16, right: 12 })
+    .borderRadius(22)
     .backgroundColor($r('app.color.surface_panel'))
-    .border({ width: { top: 1 }, color: $r('app.color.border') })
+    .backdropBlur(24)
+    .border({ width: 1, color: $r('app.color.border') })
+    .shadow({ radius: 16, color: $r('app.color.shadow_soft'), offsetY: 3 })
+    .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
+      .combine(TransitionEffect.translate({ y: 16 })))
   }
 
   // ---------------------------------------------------------------- capsule
@@ -515,44 +567,52 @@ struct Index {
   @Builder
   private CapsuleLayer() {
     if (this.sheet === Overlay.None) {
-      if (this.isCapsuleHidden && !this.isActiveHome()) {
-        Row()
-          .width('100%')
-          .height(28)
-          .gesture(
-            PanGesture({ direction: PanDirection.Up, distance: 8 })
-              .onActionEnd(() => { this.showCapsule(); })
-          )
-      } else {
-        BrowserDock({
-          isHome: this.isActiveHome(),
-          host: displayHost(this.activeTab()?.url ?? ''),
-          tabCount: this.tabs.length,
-          canGoBack: this.activeTab()?.canGoBack === true,
-          canGoForward: this.activeTab()?.canGoForward === true,
-          gesturesEnabled: this.settings.gesturesEnabled,
-          actionsGestureEnabled: this.settings.gestureActionsEnabled,
-          tabSwitchGestureEnabled: this.settings.gestureTabSwitchEnabled,
-          blockingGestureEnabled: this.settings.gestureBlockingEnabled,
-          onOpenAddress: (): void => this.openAddress(),
-          onBack: (): void => { void this.performAction('back'); },
-          onForward: (): void => { void this.performAction('forward'); },
-          onNewTab: (): void => this.createTab(false),
-          onOpenTabs: (): void => { void this.openTabs(); },
-          onOpenMenu: (): void => { this.sheet = Overlay.Actions; },
-          onOpenBlocking: (): void => this.openBlockPanel(),
-          onHide: (): void => {
-            if (this.settings.autoHideToolbarEnabled && !this.isActiveHome()) {
-              this.isCapsuleHidden = true;
-            }
-          },
-          onSwitchPrevious: (): void => { void this.switchNeighbour(-1); },
-          onSwitchNext: (): void => { void this.switchNeighbour(1); }
-        })
-          .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
-            .combine(TransitionEffect.translate({ y: 24 })))
-      }
+      BrowserDock({
+        isHome: this.isActiveHome(),
+        collapsed: this.isDockCollapsed(),
+        host: displayHost(this.activeTab()?.url ?? ''),
+        tabCount: this.tabs.length,
+        blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
+        isLoading: this.activeTab()?.isLoading === true,
+        canGoBack: this.activeTab()?.canGoBack === true,
+        canGoForward: this.activeTab()?.canGoForward === true,
+        gesturesEnabled: this.settings.gesturesEnabled,
+        actionsGestureEnabled: this.settings.gestureActionsEnabled,
+        tabSwitchGestureEnabled: this.settings.gestureTabSwitchEnabled,
+        blockingGestureEnabled: this.settings.gestureBlockingEnabled,
+        onOpenAddress: (): void => this.openAddress(),
+        onBack: (): void => { void this.performAction('back'); },
+        onForward: (): void => { void this.performAction('forward'); },
+        onNewTab: (): void => this.createTab(false),
+        onOpenTabs: (): void => { void this.openTabs(); },
+        onOpenMenu: (): void => { this.sheet = Overlay.Actions; },
+        onOpenBlocking: (): void => this.openBlockPanel(),
+        onReload: (): void => { void this.performAction('reload'); },
+        onHide: (): void => {
+          if (this.settings.autoHideToolbarEnabled && !this.isActiveHome()) {
+            this.setCapsuleHidden(true);
+          }
+        },
+        onShow: (): void => this.showCapsule(),
+        onSwitchPrevious: (): void => { void this.switchNeighbour(-1); },
+        onSwitchNext: (): void => { void this.switchNeighbour(1); }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
+          .combine(TransitionEffect.translate({ y: 24 })))
     }
+  }
+
+  /** Home never collapses — there is no page to give the height back to. */
+  private isDockCollapsed(): boolean {
+    return this.isCapsuleHidden && !this.isActiveHome();
+  }
+
+  private dockHeight(): number {
+    return this.isDockCollapsed() ? DOCK_COLLAPSED_HEIGHT : DOCK_HEIGHT;
+  }
+
+  private webBottomInset(): number {
+    return this.settings.autoHideToolbarEnabled ? TAB_WEB_BOTTOM_INSET_COMPACT : TAB_WEB_BOTTOM_INSET;
   }
 
   // --------------------------------------------------------------- overlays
@@ -598,6 +658,7 @@ struct Index {
         tabs: this.normalTabs(),
         privateTabs: this.privateTabs(),
         activeTabId: this.activeTabId,
+        topInset: this.topInset,
         thumbnails: this.thumbnails,
         onSelect: (id: string): void => { this.selectTab(id); },
         onSwitch: (direction: number): void => { this.switchOverviewTab(direction); },
@@ -907,8 +968,15 @@ struct Index {
     this.isCapsuleHidden = false;
     if (isHomeUrl(tab.url)) {
       // The Web component is created lazily, with the target as its initial src.
+      // Leaving the start page also takes the tab out of the "home is always
+      // live" case, so it has to join the live set in the same frame or it
+      // renders as hibernated instead of loading.
       this.viewModel.updateTab(tab.id, { url: url, isLoading: true, progress: 0 });
+      if (!this.liveTabIds.includes(tab.id)) {
+        this.liveTabIds = this.liveTabIds.concat([tab.id]);
+      }
       this.syncState();
+      void this.enforceLiveWebViewLimit(this.liveWebViewLimit());
       return;
     }
     this.runOnActive((controller: webview.WebviewController) => controller.loadUrl(url));
@@ -1906,11 +1974,16 @@ struct Index {
       progress: progress,
       isReader: false,
       loadError: LoadErrorKind.None,
+      // The badge counts what was stopped on the page in front of the user, so
+      // it starts again with the document. Per-site totals live in the panel.
+      blocked: emptyBlockStats(),
       securityState: Index.securityStateForUrl(url),
       lastVisitedAt: Date.now()
     });
     this.syncTab(id);
-    if (this.settings.blockAds) {
+    // Element hiding follows the same policy as the network blocker: a site the
+    // user allow-listed gets neither.
+    if (this.settings.blockAds && !this.viewModel.isHostAllowed(url)) {
       void this.injectCosmeticRules(id, url);
     }
   }
@@ -1920,11 +1993,13 @@ struct Index {
     if (startedAt !== undefined) {
       TelemetryService.recordPageLoad(displayHost(url), Date.now() - startedAt);
     }
+    // Chromium commits an error page like any other document, so this fires
+    // after a failure too. Clearing the error here would wipe what the kernel
+    // just reported; the start of the next navigation is what clears it.
     this.viewModel.updateTab(id, {
       url: url,
       isLoading: false,
       progress: 100,
-      loadError: LoadErrorKind.None,
       securityState: Index.securityStateForUrl(url),
       lastVisitedAt: Date.now()
     });
@@ -2010,8 +2085,9 @@ struct Index {
     if (key === 'link_open_background') {
       const tab: BrowserTab | undefined = this.viewModel.addBackgroundTab(target.url, false);
       if (tab !== undefined) {
-        void this.activateTab(tab.id);
+        // syncState first: activateTab looks the tab up in the synced list.
         this.syncState();
+        void this.activateTab(tab.id);
       }
       this.closeLongPressActions();
       return;
@@ -2074,10 +2150,12 @@ struct Index {
   }
 
   private handleProgress(id: string, progress: number): void {
+    // Progress keeps ticking while the kernel commits its own error page, so
+    // this must not clear the error the kernel just reported. Only the start of
+    // a navigation clears it.
     this.viewModel.updateTab(id, {
       progress: WebKernelService.clampProgress(progress),
-      isLoading: progress < 100,
-      loadError: LoadErrorKind.None
+      isLoading: progress < 100
     });
     this.syncTab(id);
   }
@@ -2129,12 +2207,22 @@ struct Index {
     if (offsetY <= 8 || delta < -4) {
       this.showCapsule();
     } else if (offsetY > 36 && delta > 4) {
-      this.isCapsuleHidden = true;
+      this.setCapsuleHidden(true);
     }
   }
 
   private showCapsule(): void {
-    this.isCapsuleHidden = false;
+    this.setCapsuleHidden(false);
+  }
+
+  /** Collapse and expand are the same motion in both directions, so animate both. */
+  private setCapsuleHidden(hidden: boolean): void {
+    if (this.isCapsuleHidden === hidden) {
+      return;
+    }
+    this.getUIContext().animateTo({ duration: 180, curve: Curve.EaseOut }, (): void => {
+      this.isCapsuleHidden = hidden;
+    });
   }
 
   private handleLoadError(id: string, code: number, message: string): void {
@@ -2208,8 +2296,11 @@ struct Index {
       WebKernelService.reload(controller, true));
   }
 
-  private errorTitle(): Resource {
-    const kind: LoadErrorKind = this.activeTab()?.loadError ?? LoadErrorKind.Unknown;
+  private activeErrorKind(): LoadErrorKind {
+    return this.activeTab()?.loadError ?? LoadErrorKind.None;
+  }
+
+  private errorTitle(kind: LoadErrorKind): Resource {
     if (kind === LoadErrorKind.Offline) {
       return $r('app.string.error_offline_title');
     }
@@ -2225,8 +2316,7 @@ struct Index {
     return $r('app.string.error_unknown_title');
   }
 
-  private errorMessage(): Resource {
-    const kind: LoadErrorKind = this.activeTab()?.loadError ?? LoadErrorKind.Unknown;
+  private errorMessage(kind: LoadErrorKind): Resource {
     if (kind === LoadErrorKind.Offline) {
       return $r('app.string.error_offline_message');
     }
@@ -2475,13 +2565,14 @@ struct Index {
     }
     if (tab.id === this.activeTabId) {
       this.resumeRequest = { tabId: tab.id, position: position, isReader: tab.isReader };
+      this.scheduleResumeDismissal(tab.id);
       return;
     }
     await this.applyScrollPosition(tab.id, position);
   }
 
   private async continueResume(request: ResumeRequest): Promise<void> {
-    this.resumeRequest = undefined;
+    this.dismissResumePrompt();
     await this.applyScrollPosition(request.tabId, request.position);
   }
 
@@ -2490,7 +2581,7 @@ struct Index {
     if (tab !== undefined) {
       this.clearScrollPosition(tab);
     }
-    this.resumeRequest = undefined;
+    this.dismissResumePrompt();
   }
 
   private async applyScrollPosition(id: string, position: number): Promise<void> {
@@ -2510,7 +2601,19 @@ struct Index {
   }
 
   private dismissResumePrompt(): void {
+    this.resumeToken += 1;
     this.resumeRequest = undefined;
+  }
+
+  /** Ignoring the snackbar keeps the saved position; only the close button drops it. */
+  private scheduleResumeDismissal(tabId: string): void {
+    this.resumeToken += 1;
+    const token: number = this.resumeToken;
+    setTimeout((): void => {
+      if (token === this.resumeToken && this.resumeRequest?.tabId === tabId) {
+        this.resumeRequest = undefined;
+      }
+    }, RESUME_PROMPT_TIMEOUT_MS);
   }
 
   // ------------------------------------------------------------------ state

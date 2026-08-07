@@ -8,6 +8,7 @@
     { "name": "border", "value": "#E5E2DB" },
     { "name": "text_primary", "value": "#1A1A18" },
     { "name": "text_secondary", "value": "#8B877F" },
+    { "name": "dock_icon", "value": "#6E6A62" },
     { "name": "accent", "value": "#2E6B5C" },
     { "name": "accent_strong", "value": "#2E6B5C" },
     { "name": "danger", "value": "#B3483B" },

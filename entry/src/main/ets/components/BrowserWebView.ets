@@ -9,6 +9,8 @@ const TAG: string = 'BrowserWebView';
 const EDGE_NAV_WIDTH: number = 28;
 const EDGE_NAV_THRESHOLD: number = 56;
 const EDGE_NAV_MAX_DISTANCE: number = 76;
+/** net::ERR_ABORTED — a load that was replaced, not one that failed. */
+const ERR_ABORTED: number = -3;
 
 /**
  * Thin wrapper around ArkWeb. It reports events upwards and owns no policy —
@@ -86,6 +88,19 @@ export struct BrowserWebView {
       .onErrorReceive((event: OnErrorReceiveEvent) => {
         const code: number = event.error.getErrorCode();
         const message: string = event.error.getErrorInfo();
+        // ArkWeb reports every failed resource here — images, XHR, iframes, and
+        // anything the blocker cancelled. Only the main document failing means
+        // the page failed; treating a subresource as fatal replaces a perfectly
+        // readable page with the error view.
+        if (!event.request.isMainFrame()) {
+          Logger.debug(TAG, `Subresource error ${code}: ${message}`);
+          return;
+        }
+        if (code === ERR_ABORTED) {
+          // A load the user or a redirect superseded; the replacement is already
+          // on its way.
+          return;
+        }
         Logger.warn(TAG, `Load error ${code}: ${message}`);
         this.kernelCallbacks.onError(code, message);
       })

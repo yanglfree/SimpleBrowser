@@ -13,6 +13,8 @@ export const MAX_TAB_COUNT: number = 100;
 export const MAX_SUGGESTION_COUNT: number = 6;
 export const WEEKLY_WINDOW_DAYS: number = 7;
 export const RESUME_WINDOW_DAYS: number = 30;
+/** The resume snackbar is an offer, not a question: it leaves on its own. */
+export const RESUME_PROMPT_TIMEOUT_MS: number = 7000;
 export const QUICK_SITE_COUNT: number = 6;
 
 export const DESKTOP_USER_AGENT: string =
@@ -254,13 +256,21 @@ export function triggerDownloadScript(url: string): string {
   })();`;
 }
 
-/** Undoes the tracker/cleanup passes for a site the user allow-listed. */
+/**
+ * Undoes the tracker/cleanup passes for a site the user allow-listed, including
+ * the cosmetic stylesheet — leaving it behind would keep hiding elements on a
+ * site whose blocking the user just switched off.
+ */
 export const RESTORE_HIDDEN_SCRIPT: string = `
 (function() {
   var nodes = document.querySelectorAll('[__mbCleaned]');
   for (var i = 0; i < nodes.length; i++) {
     nodes[i].removeAttribute('__mbCleaned');
     nodes[i].style.removeProperty('display');
+  }
+  var style = document.getElementById('__minimalBrowserCosmeticRules');
+  if (style && style.parentNode) {
+    style.parentNode.removeChild(style);
   }
   return 'restored';
 })();`;

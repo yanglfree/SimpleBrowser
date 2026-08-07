@@ -21,8 +21,8 @@ export const TAB_CARD_SHADOW_OFFSET_Y: number = 2;
 export const TAB_CARD_SWIPE_DISTANCE: number = 8;
 export const TAB_CARD_SWITCH_SWIPE_DISTANCE: number = 56;
 export const TAB_THUMB_HEIGHT: number = 170;
-export const TAB_STACK_HEIGHT: number = 420;
-export const TAB_STACK_OFFSET: number = 12;
+/** Header (top padding + one title line + bottom padding) plus the thumbnail. */
+export const TAB_CARD_HEIGHT: number = 206;
 export const TAB_OVERVIEW_TITLE_SIZE: number = 20;
 export const TAB_OVERVIEW_ACTION_SIZE: number = 14;
 export const TAB_OVERVIEW_HEADER_TOP: number = 22;
@@ -37,4 +37,22 @@ export const TAB_PRIVATE_GESTURE_DURATION: number = 450;
 export const TAB_NEW_BUTTON_HEIGHT: number = 52;
 export const TAB_NEW_BUTTON_HORIZONTAL_PADDING: number = 20;
 export const TAB_NEW_BUTTON_RADIUS: number = 26;
-export const TAB_WEB_BOTTOM_INSET: number = 128;
+
+/** Bottom dock: one 46vp row plus the 10vp it sits above the screen edge. */
+export const DOCK_ROW_HEIGHT: number = 46;
+export const DOCK_SLOT_WIDTH: number = 40;
+export const DOCK_ICON_SIZE: number = 28;
+/** Outlined square holding the tab count, the way every mobile browser draws it. */
+export const DOCK_BADGE_SIZE: number = 24;
+export const DOCK_HEIGHT: number = 56;
+/** Scrolled-away state: a host-only pill, not an invisible strip. */
+export const DOCK_COLLAPSED_PILL_HEIGHT: number = 30;
+export const DOCK_COLLAPSED_HEIGHT: number = 38;
+
+/**
+ * The page reserves only what the dock occupies at its smallest. When the dock is
+ * pinned it reserves the full bar; when it auto-hides the expanded bar floats over
+ * the last few vp of the page, the way Safari does, so nothing reflows on scroll.
+ */
+export const TAB_WEB_BOTTOM_INSET: number = DOCK_HEIGHT + 4;
+export const TAB_WEB_BOTTOM_INSET_COMPACT: number = DOCK_COLLAPSED_HEIGHT + 4;

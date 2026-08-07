@@ -10,6 +10,7 @@ import {
   TAB_CARD_HEADER_BOTTOM,
   TAB_CARD_HEADER_HORIZONTAL,
   TAB_CARD_HEADER_TOP,
+  TAB_CARD_HEIGHT,
   TAB_CARD_RADIUS,
   TAB_CARD_SHADOW_OFFSET_Y,
   TAB_CARD_SHADOW_RADIUS,
@@ -26,13 +27,12 @@ import {
   TAB_NEW_BUTTON_TEXT_SIZE,
   TAB_OVERVIEW_ACTION_SIZE,
   TAB_OVERVIEW_GRID_BOTTOM,
+  TAB_OVERVIEW_GRID_GAP,
   TAB_OVERVIEW_HEADER_BOTTOM,
   TAB_OVERVIEW_HEADER_HORIZONTAL,
   TAB_OVERVIEW_HEADER_TOP,
   TAB_OVERVIEW_TITLE_SIZE,
   TAB_PRIVATE_GESTURE_DURATION,
-  TAB_STACK_HEIGHT,
-  TAB_STACK_OFFSET,
   TAB_THUMB_HEIGHT
 } from './TabTokens';
 
@@ -40,6 +40,19 @@ import {
 export interface TabThumbnail {
   id: string;
   shot: image.PixelMap;
+}
+
+/**
+ * @Builder parameters have to arrive as one object — the `$$` by-reference form —
+ * for the builder to re-render. Passed as plain values, a grid keeps showing the
+ * tabs it was first handed no matter how many the user closes.
+ */
+interface TabListParams {
+  tabs: BrowserTab[];
+}
+
+interface TabCardParams {
+  tab: BrowserTab;
 }
 
 /**
@@ -51,6 +64,8 @@ export struct TabOverview {
   @Prop tabs: BrowserTab[] = [];
   @Prop privateTabs: BrowserTab[] = [];
   @Prop activeTabId: string = '';
+  /** Status bar height — the overview is drawn behind the system bars. */
+  @Prop topInset: number = 0;
   /** Snapshots captured when a tab was last on screen; absent for a cold tab. */
   thumbnails: TabThumbnail[] = [];
   onSelect: (id: string) => void = (_id: string): void => {};
@@ -82,15 +97,15 @@ export struct TabOverview {
         }
         .width('100%')
         .padding({
-          top: TAB_OVERVIEW_HEADER_TOP,
+          top: TAB_OVERVIEW_HEADER_TOP + this.topInset,
           left: TAB_OVERVIEW_HEADER_HORIZONTAL,
           right: TAB_OVERVIEW_HEADER_HORIZONTAL,
           bottom: TAB_OVERVIEW_HEADER_BOTTOM
         })
 
         Scroll() {
-          Column({ space: 12 }) {
-            this.TabStack(this.tabs)
+          Column() {
+            this.TabGrid({ tabs: this.tabs })
 
             if (this.privateTabs.length > 0) {
               Text($r('app.string.private_badge'))
@@ -104,7 +119,7 @@ export struct TabOverview {
                   right: TAB_OVERVIEW_HEADER_HORIZONTAL,
                   bottom: TAB_OVERVIEW_HEADER_BOTTOM
                 })
-              this.TabStack(this.privateTabs)
+              this.TabGrid({ tabs: this.privateTabs })
             }
           }
           .width('100%')
@@ -123,13 +138,20 @@ export struct TabOverview {
   }
 
   @Builder
-  private TabStack(tabs: BrowserTab[]) {
-    Stack({ alignContent: Alignment.Top }) {
-      ForEach(this.stackTabs(tabs), (tab: BrowserTab, index: number) => {
-        this.TabCard(tab, index, tabs.length)
-      }, (tab: BrowserTab) => tab.id)
+  private TabGrid($$: TabListParams) {
+    Grid() {
+      ForEach($$.tabs, (tab: BrowserTab) => {
+        GridItem() {
+          this.TabCard({ tab: tab })
+        }
+      }, (tab: BrowserTab) => `${tab.id}-${tab.url}-${tab.title}`)
     }
-    .height(TAB_STACK_HEIGHT)
+    .columnsTemplate('1fr 1fr')
+    .columnsGap(TAB_OVERVIEW_GRID_GAP)
+    .rowsGap(TAB_OVERVIEW_GRID_GAP)
+    // The grid sits in a Scroll, so it cannot inherit a height — it is measured
+    // from the row count instead, and the outer Scroll does the scrolling.
+    .height(this.gridHeight($$.tabs.length))
     .padding({
       left: TAB_OVERVIEW_HEADER_HORIZONTAL,
       right: TAB_OVERVIEW_HEADER_HORIZONTAL,
@@ -139,13 +161,13 @@ export struct TabOverview {
   }
 
   @Builder
-  private TabCard(tab: BrowserTab, stackIndex: number = 0, stackCount: number = 1) {
+  private TabCard($$: TabCardParams) {
     Column() {
       Row() {
-        Text(this.cardTitle(tab))
+        Text(this.cardTitle($$.tab))
           .fontSize(TAB_CARD_TITLE_SIZE)
           .fontWeight(FontWeight.Medium)
-          .fontColor(tab.id === this.activeTabId
+          .fontColor($$.tab.id === this.activeTabId
             ? $r('app.color.text_primary')
             : $r('app.color.text_secondary'))
           .maxLines(1)
@@ -159,11 +181,11 @@ export struct TabOverview {
             color: $r('app.color.text_secondary')
           })
         }
-          .id(`close-tab-${tab.id}`)
+          .id(`close-tab-${$$.tab.id}`)
           .width(TAB_CLOSE_HIT_SIZE)
           .height(TAB_CLOSE_HIT_SIZE)
           .justifyContent(FlexAlign.Center)
-          .onClick(() => this.onClose(tab.id))
+          .onClick(() => this.onClose($$.tab.id))
       }
       .width('100%')
       .padding({
@@ -173,15 +195,16 @@ export struct TabOverview {
         bottom: TAB_CARD_HEADER_BOTTOM
       })
 
-      this.Thumbnail(tab)
+      this.Thumbnail({ tab: $$.tab })
     }
     .width('100%')
+    .height(TAB_CARD_HEIGHT)
     .clip(true)
     .borderRadius(TAB_CARD_RADIUS)
     .backgroundColor($r('app.color.surface_panel'))
     .border({
-      width: tab.id === this.activeTabId ? TAB_CARD_ACTIVE_BORDER : TAB_CARD_BORDER,
-      color: tab.id === this.activeTabId ? $r('app.color.accent') : $r('app.color.border')
+      width: $$.tab.id === this.activeTabId ? TAB_CARD_ACTIVE_BORDER : TAB_CARD_BORDER,
+      color: $$.tab.id === this.activeTabId ? $r('app.color.accent') : $r('app.color.border')
     })
     .shadow({
       radius: TAB_CARD_SHADOW_RADIUS,
@@ -189,21 +212,13 @@ export struct TabOverview {
       offsetX: 0,
       offsetY: TAB_CARD_SHADOW_OFFSET_Y
     })
-    .align(Alignment.Top)
-    .translate({ y: Math.min(stackIndex, 3) * TAB_STACK_OFFSET })
-    .scale({
-      x: 1 - Math.min(stackIndex, 3) * 0.035,
-      y: 1 - Math.min(stackIndex, 3) * 0.035
-    })
-    .zIndex(stackCount - stackIndex)
-    .animation({ duration: 180, curve: Curve.FastOutSlowIn })
-    .onClick(() => this.onSelect(tab.id))
+    .onClick(() => this.onSelect($$.tab.id))
     .gesture(
       PanGesture({ direction: PanDirection.All, distance: TAB_CARD_SWIPE_DISTANCE })
         .onActionEnd((event: GestureEvent) => {
           const horizontal: boolean = Math.abs(event.offsetX) > Math.abs(event.offsetY);
           if (!horizontal && event.offsetY <= -TAB_CARD_CLOSE_SWIPE_DISTANCE) {
-            this.onClose(tab.id);
+            this.onClose($$.tab.id);
           } else if (horizontal && event.offsetX <= -TAB_CARD_SWITCH_SWIPE_DISTANCE) {
             this.onSwitch(1);
           } else if (horizontal && event.offsetX >= TAB_CARD_SWITCH_SWIPE_DISTANCE) {
@@ -214,19 +229,19 @@ export struct TabOverview {
   }
 
   @Builder
-  private Thumbnail(tab: BrowserTab) {
+  private Thumbnail($$: TabCardParams) {
     Column() {
       // ForEach over a 0-or-1 element list: renders the snapshot when there is
       // one without handing a possibly-undefined PixelMap to Image().
-      ForEach(this.thumbnailsFor(tab.id), (item: TabThumbnail) => {
+      ForEach(this.thumbnailsFor($$.tab.id), (item: TabThumbnail) => {
         Image(item.shot)
           .width('100%')
           .height(TAB_THUMB_HEIGHT)
           .objectFit(ImageFit.Cover)
       }, (item: TabThumbnail) => item.id)
 
-      if (this.thumbnailsFor(tab.id).length === 0) {
-        this.ThumbnailPlaceholder(tab)
+      if (this.thumbnailsFor($$.tab.id).length === 0) {
+        this.ThumbnailPlaceholder({ tab: $$.tab })
       }
     }
     .width('100%')
@@ -238,7 +253,7 @@ export struct TabOverview {
 
   /** Shown until the tab has been on screen once and could be snapshotted. */
   @Builder
-  private ThumbnailPlaceholder(tab: BrowserTab) {
+  private ThumbnailPlaceholder($$: TabCardParams) {
     Column({ space: 8 }) {
       Row()
         .width('40%')
@@ -271,7 +286,7 @@ export struct TabOverview {
     .height('100%')
     .alignItems(HorizontalAlign.Start)
     .padding({ top: 12, left: 12, right: 12 })
-    .opacity(tab.isPrivate ? 0.5 : 1)
+    .opacity($$.tab.isPrivate ? 0.5 : 1)
   }
 
   @Builder
@@ -306,10 +321,10 @@ export struct TabOverview {
     return this.thumbnails.filter((item: TabThumbnail) => item.id === id);
   }
 
-  private stackTabs(tabs: BrowserTab[]): BrowserTab[] {
-    const active: BrowserTab[] = tabs.filter((tab: BrowserTab) => tab.id === this.activeTabId);
-    const inactive: BrowserTab[] = tabs.filter((tab: BrowserTab) => tab.id !== this.activeTabId);
-    return active.concat(inactive);
+  private gridHeight(count: number): number {
+    const rows: number = Math.ceil(count / 2);
+    const cards: number = rows * TAB_CARD_HEIGHT + Math.max(rows - 1, 0) * TAB_OVERVIEW_GRID_GAP;
+    return cards + TAB_OVERVIEW_GRID_BOTTOM;
   }
 
   private cardTitle(tab: BrowserTab): ResourceStr {
