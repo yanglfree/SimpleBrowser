@@ -22,10 +22,6 @@ hvigorw assembleHap
 
 The local build is configured with a debug signing profile (`build-profile.json5`). Connect a HarmonyOS device or simulator before installing the HAP for manual UI verification.
 
-## Agent harness
-
-[`harness/`](harness/) contains a standalone, typed CLI for AI agents to install and launch the app, locate ArkUI controls semantically, drive real-device input, and collect screenshots, layout trees, and JSON run reports. See [`harness/README.md`](harness/README.md) for the protocol and scenario format.
-
 ## Scope boundary
 
 AI page assistance, sync, extension distribution, VPN/DNS filtering, and a full remote EasyList update service are intentionally outside this V1 implementation. The bundled rule file (`entry/src/main/resources/rawfile/ads/easylist.txt`) is a small, auditable starter set; production distribution should replace it with a verified subscription and an update signature policy.
