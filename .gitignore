@@ -4,5 +4,10 @@ entry/build/
 oh_modules/
 oh-package-lock.json5
 *.hap
+harness/.venv/
+harness/artifacts/
+harness/.pytest_cache/
+harness/.ruff_cache/
+harness/**/__pycache__/
 *.p7b
 *.p12

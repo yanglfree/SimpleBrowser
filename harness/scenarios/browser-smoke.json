@@ -1,0 +1,51 @@
+{
+  "name": "browser-smoke",
+  "bundle": "com.youdroid.dolphin",
+  "ability": "EntryAbility",
+  "capture_each_step": true,
+  "steps": [
+    {
+      "action": "launch",
+      "reset": false
+    },
+    {
+      "action": "assert_visible",
+      "locator": {
+        "kind": "id",
+        "value": "browser-address"
+      }
+    },
+    {
+      "action": "tap",
+      "locator": {
+        "kind": "id",
+        "value": "browser-address"
+      }
+    },
+    {
+      "action": "assert_visible",
+      "locator": {
+        "kind": "id",
+        "value": "address-input"
+      }
+    },
+    {
+      "action": "snapshot",
+      "name": "address-sheet"
+    },
+    {
+      "action": "tap",
+      "locator": {
+        "kind": "text",
+        "value": "取消"
+      }
+    },
+    {
+      "action": "assert_visible",
+      "locator": {
+        "kind": "id",
+        "value": "browser-address"
+      }
+    }
+  ]
+}
