@@ -18,6 +18,24 @@ export default function cosmeticFilterServiceTest(): void {
       expect(service.selectorsFor('https://other.example/post').includes('.sponsored')).assertFalse();
     });
 
+    it('serves subdomains from the rules filed under their parent', 0, (): void => {
+      const service: CosmeticFilterService = CosmeticFilterService.compile([
+        'example.com##.promo',
+        'other.com##.unrelated'
+      ].join('\n'));
+
+      expect(service.selectorsFor('https://m.news.example.com/a').includes('.promo')).assertTrue();
+      expect(service.selectorsFor('https://example.com/a').includes('.promo')).assertTrue();
+      expect(service.selectorsFor('https://notexample.com/a').includes('.promo')).assertFalse();
+      expect(service.selectorsFor('https://example.com/a').includes('.unrelated')).assertFalse();
+    });
+
+    it('keeps child combinators, which are safe inside a stylesheet', 0, (): void => {
+      const service: CosmeticFilterService = CosmeticFilterService.compile('##.wrap > .ad');
+
+      expect(service.selectorsFor('https://example.com/').includes('.wrap > .ad')).assertTrue();
+    });
+
     it('creates an early stylesheet injection script', 0, (): void => {
       const service: CosmeticFilterService = CosmeticFilterService.compile('##.ad-slot');
       const script: string = service.scriptFor('https://example.com');

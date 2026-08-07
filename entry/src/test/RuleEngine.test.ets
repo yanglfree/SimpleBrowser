@@ -16,6 +16,30 @@ export default function ruleEngineTest(): void {
       expect(engine.shouldBlock({ url: 'https://cdn.example.com/content.js' })).assertFalse();
     });
 
+    it('reads a path rule as a substring, not as a regex literal', 0, (): void => {
+      const engine: RuleEngine = RuleEngine.compile([
+        '/in/track?data=',
+        '/a/?ad='
+      ].join('\n'));
+
+      expect(engine.shouldBlock({ url: 'https://stats.example/in/track?data=1' })).assertTrue();
+      expect(engine.shouldBlock({ url: 'https://cn.bing.com' })).assertFalse();
+      expect(engine.shouldBlock({ url: 'https://example.com' })).assertFalse();
+    });
+
+    it('keeps options attached to a regex rule out of its pattern', 0, (): void => {
+      const engine: RuleEngine = RuleEngine.compile('/banner[0-9]+/$script');
+
+      expect(engine.shouldBlock({
+        url: 'https://cdn.example/banner42.js',
+        resourceType: 'script'
+      })).assertTrue();
+      expect(engine.shouldBlock({
+        url: 'https://cdn.example/banner42.css',
+        resourceType: 'stylesheet'
+      })).assertFalse();
+    });
+
     it('gives exception rules priority over blocking rules', 0, (): void => {
       const engine: RuleEngine = RuleEngine.compile([
         '||ads.example.com^',
@@ -50,16 +74,49 @@ export default function ruleEngineTest(): void {
       })).assertFalse();
     });
 
-    it('restores matching behavior from the compiled cache shape', 0, (): void => {
-      const source: string = '||cache.example^\n@@||cache.example/ok^';
-      const engine: RuleEngine = RuleEngine.compile(source);
-      const restored: RuleEngine | undefined = RuleEngine.fromCache(
-        engine.serialize(RuleEngine.fingerprint(source))
-      );
+    it('anchors a domain rule to the host rather than the whole url', 0, (): void => {
+      const engine: RuleEngine = RuleEngine.compile('||doubleclick.net^');
 
-      expect(restored !== undefined).assertTrue();
-      expect(restored?.shouldBlock({ url: 'https://cache.example/ad.js' })).assertTrue();
-      expect(restored?.shouldBlock({ url: 'https://cache.example/ok/ad.js' })).assertFalse();
+      expect(engine.shouldBlock({ url: 'https://ad.doubleclick.net/x.js' })).assertTrue();
+      expect(engine.shouldBlock({ url: 'https://a.b.doubleclick.net/x.js' })).assertTrue();
+      expect(engine.shouldBlock({ url: 'https://notdoubleclick.net/x.js' })).assertFalse();
+      expect(engine.shouldBlock({
+        url: 'https://safe.example/redir?u=/doubleclick.net/x'
+      })).assertFalse();
+    });
+
+    it('drops rules whose options do not mean "block this request"', 0, (): void => {
+      const engine: RuleEngine = RuleEngine.compile([
+        '||pop.example^$popup',
+        '||param.example^$removeparam=utm_source',
+        '||csp.example^$csp=script-src \'self\'',
+        '||future.example^$totally-unknown-option',
+        '||kept.example^$important,third-party'
+      ].join('\n'));
+
+      expect(engine.shouldBlock({ url: 'https://pop.example/page' })).assertFalse();
+      expect(engine.shouldBlock({ url: 'https://param.example/a?utm_source=x' })).assertFalse();
+      expect(engine.shouldBlock({ url: 'https://csp.example/a.js' })).assertFalse();
+      expect(engine.shouldBlock({ url: 'https://future.example/a.js' })).assertFalse();
+      expect(engine.shouldBlock({
+        url: 'https://kept.example/a.js',
+        pageUrl: 'https://news.example/article'
+      })).assertTrue();
+    });
+
+    it('accepts uBlock shorthands for resource types', 0, (): void => {
+      const engine: RuleEngine = RuleEngine.compile('||api.example^$xhr,3p');
+
+      expect(engine.shouldBlock({
+        url: 'https://api.example/data.json',
+        pageUrl: 'https://news.example/article',
+        resourceType: 'xmlhttprequest'
+      })).assertTrue();
+      expect(engine.shouldBlock({
+        url: 'https://api.example/main.js',
+        pageUrl: 'https://news.example/article',
+        resourceType: 'script'
+      })).assertFalse();
     });
 
     it('disables a rule paired with the AdGuard badfilter option', 0, (): void => {

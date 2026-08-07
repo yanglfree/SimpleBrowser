@@ -22,13 +22,6 @@ export interface SerializedRule {
   firstPartyOnly: boolean;
 }
 
-export interface RuleCache {
-  version: number;
-  fingerprint: number;
-  blocked: SerializedRule[];
-  exceptions: SerializedRule[];
-}
-
 interface RuntimeRule extends SerializedRule {
   matcher: RegExp;
 }
@@ -43,8 +36,47 @@ interface ParsedOptions {
   ignored: boolean;
 }
 
-const RULE_CACHE_VERSION: number = 1;
 const GENERIC_INDEX_KEY: string = '*';
+
+const RESOURCE_TYPES: string[] = [
+  'script', 'image', 'stylesheet', 'object', 'subdocument', 'xmlhttprequest',
+  'object-subrequest', 'media', 'font', 'websocket', 'document', 'ping', 'other'
+];
+
+/** uBlock/AdGuard shorthands for the option names EasyList spells out. */
+const RESOURCE_TYPE_ALIASES: Map<string, string> = new Map<string, string>([
+  ['xhr', 'xmlhttprequest'],
+  ['frame', 'subdocument'],
+  ['css', 'stylesheet'],
+  ['doc', 'document'],
+  ['beacon', 'ping']
+]);
+
+/**
+ * Options that constrain nothing we can act on but leave the rule a plain
+ * block: keeping them costs nothing, dropping the rule would lose coverage.
+ */
+const NEUTRAL_OPTIONS: string[] = [
+  'important', 'match-case', '~match-case', 'all', 'empty', 'mp4', 'strict1p', 'strict3p'
+];
+
+/**
+ * Options that mean something other than "block this request" — a popup-only
+ * rule, a query-string edit, a CSP header. Treating them as blocks is how an
+ * ad blocker starts breaking pages, so the rules carrying them are dropped
+ * rather than approximated.
+ */
+const UNSUPPORTED_OPTIONS: string[] = [
+  'badfilter', 'generichide', 'genericblock', 'ghide', 'elemhide', 'ehide',
+  'specifichide', 'shide', 'popup', 'popunder', 'inline-script', 'inline-font',
+  'jsinject', 'urlblock', 'content', 'extension', 'stealth', 'cookie', 'network'
+];
+
+/** Same, for the `name=value` forms. */
+const UNSUPPORTED_VALUE_OPTIONS: string[] = [
+  'csp', 'removeparam', 'queryprune', 'replace', 'redirect-rule', 'permissions',
+  'urltransform', 'header', 'denyallow', 'method', 'to', 'app', 'stealth'
+];
 
 /**
  * Parses and matches the network subset of EasyList/AdGuard syntax.
@@ -98,38 +130,8 @@ export class RuleEngine {
     return new RuleEngine(blocked, exceptions);
   }
 
-  static fromCache(cache: RuleCache): RuleEngine | undefined {
-    if (cache.version !== RULE_CACHE_VERSION) {
-      return undefined;
-    }
-    const blocked: RuntimeRule[] = RuleEngine.restoreRules(cache.blocked);
-    const exceptions: RuntimeRule[] = RuleEngine.restoreRules(cache.exceptions);
-    if (blocked.length !== cache.blocked.length || exceptions.length !== cache.exceptions.length) {
-      return undefined;
-    }
-    return new RuleEngine(blocked, exceptions);
-  }
-
-  static fingerprint(text: string): number {
-    let hash: number = 2166136261;
-    for (let index: number = 0; index < text.length; index += 1) {
-      hash ^= text.charCodeAt(index);
-      hash = Math.imul(hash, 16777619) >>> 0;
-    }
-    return hash;
-  }
-
   get ruleCount(): number {
     return this.blockedRules.length + this.exceptionRules.length;
-  }
-
-  serialize(fingerprint: number): RuleCache {
-    return {
-      version: RULE_CACHE_VERSION,
-      fingerprint: fingerprint,
-      blocked: this.blockedRules.map((rule: RuntimeRule): SerializedRule => RuleEngine.serialized(rule)),
-      exceptions: this.exceptionRules.map((rule: RuntimeRule): SerializedRule => RuleEngine.serialized(rule))
-    };
   }
 
   match(context: RuleMatchContext): RuleMatchResult {
@@ -197,7 +199,7 @@ export class RuleEngine {
       return undefined;
     }
 
-    const regexRule: boolean = pattern.startsWith('/') && pattern.lastIndexOf('/') > 0;
+    const regexRule: boolean = RuleEngine.isRegexLiteral(pattern);
     const regexSource: string = regexRule
       ? RuleEngine.regexSourceFromLiteral(pattern)
       : RuleEngine.regexSourceFromPattern(normalized, domainAnchor, startsWith, endsWith);
@@ -217,10 +219,26 @@ export class RuleEngine {
     };
   }
 
+  /**
+   * A rule is a regular expression only when the whole pattern is wrapped in
+   * slashes. Most EasyList path rules — `/in/track?data=`, `/a/?ad=` — merely
+   * start with one, and reading those as regexes turns them into `/in/` and
+   * `/a/`, which match nearly every URL and blank out whole pages.
+   */
+  private static isRegexLiteral(pattern: string): boolean {
+    return pattern.length > 2 && pattern.startsWith('/') && pattern.endsWith('/');
+  }
+
   private static optionStart(line: string): number {
     if (line.startsWith('/')) {
       const closingSlash: number = line.lastIndexOf('/');
-      return closingSlash > 0 ? line.indexOf('$', closingSlash) : line.indexOf('$');
+      // Options of a regex rule start right after its closing slash.
+      if (closingSlash > 0 && line.charAt(closingSlash + 1) === '$') {
+        return closingSlash + 1;
+      }
+      if (closingSlash === line.length - 1) {
+        return -1;
+      }
     }
     return line.indexOf('$');
   }
@@ -253,21 +271,59 @@ export class RuleEngine {
       return parsed;
     }
     for (const option of text.toLowerCase().split(',')) {
-      if (option === 'badfilter' || option === 'generichide' || option === 'genericblock') {
-        parsed.ignored = true;
-      } else if (option === 'third-party') {
-        parsed.thirdPartyOnly = true;
-      } else if (option === '~third-party') {
-        parsed.firstPartyOnly = true;
-      } else if (option.startsWith('domain=')) {
-        RuleEngine.parseDomainOptions(option.slice(7), parsed);
-      } else if (RuleEngine.isResourceType(option)) {
-        parsed.resourceTypes.push(option);
-      } else if (option.startsWith('~') && RuleEngine.isResourceType(option.slice(1))) {
-        parsed.excludedResourceTypes.push(option.slice(1));
-      }
+      RuleEngine.applyOption(option.trim(), parsed);
     }
     return parsed;
+  }
+
+  /**
+   * Anything this does not recognise drops the rule. Guessing wrong in the
+   * permissive direction blocks a request the list never asked to block, and a
+   * broken page is a worse failure than a missed ad.
+   */
+  private static applyOption(option: string, parsed: ParsedOptions): void {
+    if (option.length === 0 || NEUTRAL_OPTIONS.includes(option)) {
+      return;
+    }
+    const separator: number = option.indexOf('=');
+    if (separator > 0) {
+      const name: string = option.slice(0, separator);
+      const value: string = option.slice(separator + 1);
+      if (name === 'domain' || name === 'from') {
+        RuleEngine.parseDomainOptions(value, parsed);
+      } else if (name !== 'redirect' && name !== 'rewrite') {
+        // redirect/rewrite still block the request before substituting a stub.
+        parsed.ignored = true;
+      }
+      if (UNSUPPORTED_VALUE_OPTIONS.includes(name)) {
+        parsed.ignored = true;
+      }
+      return;
+    }
+    if (UNSUPPORTED_OPTIONS.includes(option) || UNSUPPORTED_VALUE_OPTIONS.includes(option)) {
+      parsed.ignored = true;
+      return;
+    }
+    if (option === 'third-party' || option === '3p') {
+      parsed.thirdPartyOnly = true;
+      return;
+    }
+    if (option === '~third-party' || option === 'first-party' || option === '1p' || option === '~3p') {
+      parsed.firstPartyOnly = true;
+      return;
+    }
+    const negated: boolean = option.startsWith('~');
+    const bare: string = negated ? option.slice(1) : option;
+    const resolved: string = RESOURCE_TYPE_ALIASES.get(bare) ?? bare;
+    if (!RuleEngine.isResourceType(resolved)) {
+      parsed.ignored = true;
+      return;
+    }
+    if (negated) {
+      parsed.excludedResourceTypes.push(resolved);
+    } else {
+      parsed.resourceTypes.push(resolved);
+    }
   }
 
   private static parseDomainOptions(value: string, target: ParsedOptions): void {
@@ -284,11 +340,7 @@ export class RuleEngine {
   }
 
   private static isResourceType(value: string): boolean {
-    const types: string[] = [
-      'script', 'image', 'stylesheet', 'object', 'subdocument', 'xmlhttprequest',
-      'object-subrequest', 'media', 'font', 'websocket', 'document', 'ping', 'other'
-    ];
-    return types.includes(value);
+    return RESOURCE_TYPES.includes(value);
   }
 
   private static regexSourceFromLiteral(pattern: string): string {
@@ -307,7 +359,10 @@ export class RuleEngine {
   ): string {
     let source: string = startsWith ? '^' : '';
     if (domainAnchor) {
-      source += '(^|[/:.])';
+      // `||` anchors to a label boundary of the *host*. Matching a bare
+      // separator instead would fire on the path too, so `||doubleclick.net^`
+      // would block `https://safe.example/redir?u=/doubleclick.net/x`.
+      source += '^[a-z][a-z0-9+.-]*:\\/\\/(?:[^\\/?#]*\\.)?';
     }
     for (let index: number = 0; index < pattern.length; index += 1) {
       const character: string = pattern.charAt(index);
@@ -329,12 +384,27 @@ export class RuleEngine {
     return '.+?()[]{}\\$|'.includes(character) ? `\\${character}` : character;
   }
 
+  /**
+   * The bucket a rule is filed under. Picking the longest literal rather than
+   * the first one matters: leading words like `banner` or `track` are shared by
+   * thousands of rules, so a request would drag every one of them through a
+   * regex. On the shipped list this roughly halves candidates per request.
+   */
   private static indexKey(pattern: string, regexRule: boolean): string {
     if (regexRule) {
       return GENERIC_INDEX_KEY;
     }
     const literals: RegExpMatchArray | null = pattern.toLowerCase().match(/[a-z0-9]{3,}/g);
-    return literals === null || literals.length === 0 ? GENERIC_INDEX_KEY : literals[0];
+    if (literals === null || literals.length === 0) {
+      return GENERIC_INDEX_KEY;
+    }
+    let longest: string = literals[0];
+    for (const literal of literals) {
+      if (literal.length > longest.length) {
+        longest = literal;
+      }
+    }
+    return longest;
   }
 
   private static toRuntimeRule(rule: SerializedRule): RuntimeRule | undefined {
@@ -354,31 +424,6 @@ export class RuleEngine {
     } catch (_error) {
       return undefined;
     }
-  }
-
-  private static restoreRules(rules: SerializedRule[]): RuntimeRule[] {
-    const restored: RuntimeRule[] = [];
-    for (const rule of rules) {
-      const runtime: RuntimeRule | undefined = RuleEngine.toRuntimeRule(rule);
-      if (runtime !== undefined) {
-        restored.push(runtime);
-      }
-    }
-    return restored;
-  }
-
-  private static serialized(rule: RuntimeRule): SerializedRule {
-    return {
-      source: rule.source,
-      regexSource: rule.regexSource,
-      indexKey: rule.indexKey,
-      domains: rule.domains,
-      excludedDomains: rule.excludedDomains,
-      resourceTypes: rule.resourceTypes,
-      excludedResourceTypes: rule.excludedResourceTypes,
-      thirdPartyOnly: rule.thirdPartyOnly,
-      firstPartyOnly: rule.firstPartyOnly
-    };
   }
 
   private buildIndex(rules: RuntimeRule[], index: Map<string, RuntimeRule[]>): void {
