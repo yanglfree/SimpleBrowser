@@ -62,6 +62,21 @@ export default function cosmeticFilterServiceTest(): void {
       expect(script).assertContain('display:none!important');
     });
 
+    it('keeps host rules ahead of generic ones', 0, (): void => {
+      // Adding the Chinese subscriptions pushes the generic pool past the cap;
+      // filling from that end would drop the rules written for the page.
+      const lines: string[] = [];
+      for (let index: number = 0; index < 40; index += 1) {
+        lines.push(`##.generic-${index}`);
+      }
+      lines.push('news.example##.site-specific-ad');
+      const service: CosmeticFilterService = CosmeticFilterService.compile(lines.join('\n'));
+
+      const selectors: string[] = service.selectorsFor('https://news.example/article');
+      expect(selectors[0]).assertEqual('.site-specific-ad');
+      expect(selectors.includes('.generic-0')).assertTrue();
+    });
+
     it('carries the stylesheet into shadow roots', 0, (): void => {
       // Component-built sites keep their ad slots several roots deep, where a
       // stylesheet in the document cannot reach them.

@@ -142,6 +142,20 @@ export default function ruleEngineTest(): void {
       })).assertFalse();
     });
 
+    it('keeps one copy of a rule the subscriptions both carry', 0, (): void => {
+      // AdGuard's Chinese list contains EasyList China outright, so the merged
+      // text repeats thousands of rules.
+      const engine: RuleEngine = RuleEngine.compile([
+        '||ads.example^',
+        '||ads.example^',
+        '||other.example^'
+      ].join('\n'));
+
+      expect(engine.shouldBlock({ url: 'https://ads.example/a.js' })).assertTrue();
+      expect(engine.shouldBlock({ url: 'https://other.example/a.js' })).assertTrue();
+      expect(engine.shouldBlock({ url: 'https://safe.example/a.js' })).assertFalse();
+    });
+
     it('disables a rule paired with the AdGuard badfilter option', 0, (): void => {
       const engine: RuleEngine = RuleEngine.compile([
         '||disabled.example^',

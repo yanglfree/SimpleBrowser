@@ -3,7 +3,22 @@
 ! Description: Rules for sites the upstream subscriptions miss, mostly Chinese
 !   portals and first-party-hosted ad SDKs. Every rule here is written against
 !   markup that was read from the live page, not guessed from a screenshot.
-! Expires: never (bundled, appended to whatever the subscriptions say)
+! Expires: never — this list is ours. It is appended to whatever the
+!   subscriptions say, fenced by markers, so it survives both the copy stored on
+!   disk and every remote refresh. Set SUPPLEMENT_URL in AdsBlockService to
+!   publish it and rules land without an app release.
+!
+! 维护方式 — 用户反馈某站广告没拦住时：
+!   1. 用检查器找到广告节点。挑一个**结构性**的锚点：自定义元素名、
+!      card-type / data-* 这类属性、稳定的 id。不要用随机生成的 class
+!      （如 .css-1x9k2j），下次构建就变了。
+!   2. 写成 域名##选择器，多个域名用逗号分隔，写在下面对应的小节里。
+!      网络规则用 ||host^path 的形式，优先拦广告 SDK / 接口——从源头掐掉
+!      比隐藏节点干净，也不会留下空位。
+!   3. 把依据写进注释：从哪读到的、为什么这么写。上游改版时，
+!      后来的人靠它判断规则是过时了还是本来就写错了。
+!   4. 站点规则会被逐元素内联隐藏（能穿透 shadow DOM），
+!      每站上限 64 条，所以要精确，不要广撒网。
 
 ! ---------------------------------------------------------------- MSN 门户
 ! EasyList blocks ||adsdk.microsoft.com^, but MSN only loads the Xandr SDK from

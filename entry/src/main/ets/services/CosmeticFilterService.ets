@@ -48,20 +48,26 @@ export class CosmeticFilterService {
       }
     }
 
+    // Host rules go in first. They are the ones written against this page, and
+    // the cap is reached by generic rules long before it is reached by them —
+    // filling from the generic end would quietly drop the rules that matter.
     const selectors: string[] = [];
     const seen: Set<string> = new Set<string>();
-    for (const selector of this.resolvedGenericSelectors()) {
-      if (!exceptions.has(selector) && !seen.has(selector)) {
-        seen.add(selector);
-        selectors.push(selector);
-      }
-    }
     for (const rules of hostRules) {
       for (const selector of rules.selectors) {
         if (!exceptions.has(selector) && !seen.has(selector)) {
           seen.add(selector);
           selectors.push(selector);
         }
+      }
+    }
+    for (const selector of this.resolvedGenericSelectors()) {
+      if (selectors.length >= MAX_SELECTORS) {
+        break;
+      }
+      if (!exceptions.has(selector) && !seen.has(selector)) {
+        seen.add(selector);
+        selectors.push(selector);
       }
     }
     return selectors.length > MAX_SELECTORS ? selectors.slice(0, MAX_SELECTORS) : selectors;

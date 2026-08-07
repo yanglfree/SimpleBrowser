@@ -13,24 +13,59 @@ const RULE_UPDATED_FILE_NAME: string = 'minimal-browser-easylist.updated-at';
 const RULE_UPDATE_INTERVAL_MS: number = 3 * 24 * 60 * 60 * 1000;
 
 interface RuleSource {
-  /** Snapshot shipped in the HAP, used until the first successful update. */
-  rawfile: string;
+  name: string;
+  /**
+   * Snapshot shipped in the HAP. Only the two lists the browser cannot sensibly
+   * run without carry one — bundling every subscription would add megabytes to
+   * the package to cover the minutes before the first refresh lands.
+   */
+  rawfile?: string;
   url: string;
+  /**
+   * A failed fetch of a required list abandons the refresh and keeps the list
+   * already in use. The rest are best-effort: one unreachable host must not
+   * cost the user every other update, and some of these are not reliably
+   * reachable from the mainland.
+   */
+  required: boolean;
 }
 
 /**
- * The subscriptions the browser blocks with. EasyList alone barely covers the
- * Chinese sites on the start page, so EasyList China rides along with it; the
- * two are concatenated into the single file ArkWeb's native blocker reads.
+ * The subscriptions the browser blocks with. EasyList is the base and EasyList
+ * China covers what it misses on Chinese sites; both ship in the HAP so a cold
+ * install blocks something before its first refresh. The rest arrive over the
+ * network: EasyPrivacy for trackers, AdGuard's Chinese list (a superset of
+ * EasyList China maintained on a faster cycle), and CJX's list for the
+ * mainland-specific nags neither of the others carries. Everything is
+ * concatenated into the single file ArkWeb's native blocker reads.
  */
 const RULE_SOURCES: RuleSource[] = [
   {
+    name: 'EasyList',
     rawfile: 'ads/easylist.txt',
-    url: 'https://easylist-downloads.adblockplus.org/easylist.txt'
+    url: 'https://easylist-downloads.adblockplus.org/easylist.txt',
+    required: true
   },
   {
+    name: 'EasyList China',
     rawfile: 'ads/easylistchina.txt',
-    url: 'https://easylist-downloads.adblockplus.org/easylistchina.txt'
+    url: 'https://easylist-downloads.adblockplus.org/easylistchina.txt',
+    required: true
+  },
+  {
+    name: 'EasyPrivacy',
+    url: 'https://easylist-downloads.adblockplus.org/easyprivacy.txt',
+    required: false
+  },
+  {
+    name: 'AdGuard Chinese',
+    url: 'https://filters.adtidy.org/extension/ublock/filters/224.txt',
+    required: false
+  },
+  {
+    name: "CJX's Annoyance",
+    url: 'https://raw.githubusercontent.com/cjx82630/cjxlist/master/cjx-annoyance.txt',
+    required: false
   }
 ];
 
@@ -44,6 +79,14 @@ const RULE_SOURCES: RuleSource[] = [
 const SUPPLEMENT_RAWFILE: string = 'ads/dolphin-supplement.txt';
 const SUPPLEMENT_BEGIN: string = '! >>> dolphin-supplement';
 const SUPPLEMENT_END: string = '! <<< dolphin-supplement';
+const SUPPLEMENT_FILE_NAME: string = 'dolphin-supplement.txt';
+/**
+ * Where the supplement is published, if it is. Point this at the hosted copy to
+ * answer "site X still shows ads" by adding a selector and refreshing rather
+ * than by shipping a release; leave it empty and the copy in the HAP is used.
+ * A fetched copy is kept on disk, so it survives a restart without the network.
+ */
+const SUPPLEMENT_URL: string = '';
 
 export class AdsBlockService {
   private static compiledEngine: RuleEngine | undefined;
@@ -52,6 +95,7 @@ export class AdsBlockService {
   private static supplement: string = '';
   private rulesPath: string = '';
   private updatedAtPath: string = '';
+  private supplementPath: string = '';
   private ruleEngine: RuleEngine | undefined;
   private isInitialized: boolean = false;
   private updating: boolean = false;
@@ -71,7 +115,8 @@ export class AdsBlockService {
     try {
       this.rulesPath = `${context.filesDir}/${RULE_FILE_NAME}`;
       this.updatedAtPath = `${context.filesDir}/${RULE_UPDATED_FILE_NAME}`;
-      AdsBlockService.supplement = await AdsBlockService.readRawFile(context, SUPPLEMENT_RAWFILE);
+      this.supplementPath = `${context.filesDir}/${SUPPLEMENT_FILE_NAME}`;
+      AdsBlockService.supplement = await this.readSupplement(context);
       const rulesText: string = AdsBlockService.withSupplement(
         await this.readPersistedRules(await AdsBlockService.readBundledRules(context))
       );
@@ -251,8 +296,9 @@ export class AdsBlockService {
     }
     this.updating = true;
     try {
+      await this.updateSupplement();
       const rulesText: string = AdsBlockService.withSupplement(
-        await AdsBlockService.fetchRemoteRules()
+        AdsBlockService.dedupe(await AdsBlockService.fetchRemoteRules())
       );
       const engine: RuleEngine = RuleEngine.compile(rulesText);
       if (rulesText.trim().length === 0 || engine.ruleCount === 0) {
@@ -276,9 +322,45 @@ export class AdsBlockService {
   private static async readBundledRules(context: common.UIAbilityContext): Promise<string> {
     const parts: string[] = [];
     for (const source of RULE_SOURCES) {
-      parts.push(await AdsBlockService.readRawFile(context, source.rawfile));
+      const rawfile: string | undefined = source.rawfile;
+      if (rawfile !== undefined) {
+        parts.push(await AdsBlockService.readRawFile(context, rawfile));
+      }
     }
     return parts.join('\n');
+  }
+
+  /**
+   * The newest supplement we have: the one fetched last, else the one in the
+   * HAP. A hosted copy that fails to parse as rules would be worse than none,
+   * so a stored copy that has gone empty falls back to the bundled text.
+   */
+  private async readSupplement(context: common.UIAbilityContext): Promise<string> {
+    const bundled: string = await AdsBlockService.readRawFile(context, SUPPLEMENT_RAWFILE);
+    try {
+      if (!await fs.access(this.supplementPath)) {
+        return bundled;
+      }
+      const stored: string = await fs.readText(this.supplementPath);
+      return stored.trim().length > 0 ? stored : bundled;
+    } catch (_error) {
+      return bundled;
+    }
+  }
+
+  /** Refreshes the supplement from its own URL, when one is configured. */
+  private async updateSupplement(): Promise<void> {
+    if (SUPPLEMENT_URL.length === 0) {
+      return;
+    }
+    try {
+      const text: string = await AdsBlockService.fetchRules(SUPPLEMENT_URL);
+      AdsBlockService.supplement = text;
+      await AdsBlockService.writeText(this.supplementPath, text);
+      Logger.info(TAG, 'Supplement updated');
+    } catch (error) {
+      Logger.warn(TAG, `Keeping the current supplement: ${String(error)}`);
+    }
   }
 
   /** Replaces any previously appended supplement with the one shipped now. */
@@ -312,9 +394,44 @@ export class AdsBlockService {
   private static async fetchRemoteRules(): Promise<string> {
     const parts: string[] = [];
     for (const source of RULE_SOURCES) {
-      parts.push(await AdsBlockService.fetchRules(source.url));
+      try {
+        parts.push(await AdsBlockService.fetchRules(source.url));
+      } catch (error) {
+        if (source.required) {
+          throw new Error(`${source.name} is unavailable: ${String(error)}`);
+        }
+        Logger.warn(TAG, `Skipping ${source.name}: ${String(error)}`);
+      }
     }
     return parts.join('\n');
+  }
+
+  /**
+   * The subscriptions overlap — AdGuard's Chinese list contains EasyList China
+   * outright — so identical lines are collapsed before anything parses them.
+   * That shrinks what ArkWeb reads, what the engine compiles, and what both
+   * hold afterwards, for one pass over the text.
+   */
+  private static dedupe(rulesText: string): string {
+    const seen: Set<string> = new Set<string>();
+    const kept: string[] = [];
+    for (const line of rulesText.split('\n')) {
+      const trimmed: string = line.trim();
+      if (trimmed.length === 0) {
+        continue;
+      }
+      // Comments carry list titles and the supplement's fences; they are cheap
+      // and worth keeping intact.
+      if (trimmed.startsWith('!')) {
+        kept.push(trimmed);
+        continue;
+      }
+      if (!seen.has(trimmed)) {
+        seen.add(trimmed);
+        kept.push(trimmed);
+      }
+    }
+    return kept.join('\n');
   }
 
   private static async fetchRules(url: string): Promise<string> {
