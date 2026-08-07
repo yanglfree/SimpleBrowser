@@ -64,7 +64,10 @@ const RULE_SOURCES: RuleSource[] = [
   },
   {
     name: "CJX's Annoyance",
-    url: 'https://raw.githubusercontent.com/cjx82630/cjxlist/master/cjx-annoyance.txt',
+    // Served through jsDelivr rather than raw.githubusercontent.com, which is
+    // not reachable from the mainland — on the test device that source was
+    // skipped on every refresh.
+    url: 'https://cdn.jsdelivr.net/gh/cjx82630/cjxlist@master/cjx-annoyance.txt',
     required: false
   }
 ];
