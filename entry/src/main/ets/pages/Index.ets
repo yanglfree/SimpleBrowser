@@ -576,6 +576,7 @@ struct Index {
         collapsed: this.isDockCollapsed(),
         host: displayHost(this.activeTab()?.url ?? ''),
         tabCount: this.tabs.length,
+        activeTabIndex: this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId),
         blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
         isLoading: this.activeTab()?.isLoading === true,
         canGoBack: this.activeTab()?.canGoBack === true,

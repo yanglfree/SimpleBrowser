@@ -70,6 +70,17 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
   larger windows and remains edge-to-edge on phones.
 - **Motion**: 180ms opacity entry; no decorative card motion.
 
+### Address-bar tab indicator
+
+- **Structure**: a compact row on the address capsule's lower edge; the active tab
+  uses a short ink-green segment and neighboring tabs use muted dots.
+- **Visibility**: shown only when horizontal tab switching is enabled and at least
+  two tabs are open; a single tab never reserves indicator space.
+- **Overflow**: at most five positions are visible, centered around the active tab
+  where possible, so large sessions do not compete with the address text.
+- **Motion**: state changes are immediate; the indicator explains the existing
+  swipe gesture and does not add decorative animation.
+
 ## 6. Motion & Interaction
 
 Taps are the primary path for tabs, address entry, and actions. Existing gestures

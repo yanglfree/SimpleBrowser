@@ -74,6 +74,11 @@ export const DOCK_ICON_SIZE: number = 28;
 /** Outlined square holding the tab count, the way every mobile browser draws it. */
 export const DOCK_BADGE_SIZE: number = 24;
 export const DOCK_HEIGHT: number = 56;
+export const DOCK_TAB_INDICATOR_LIMIT: number = 5;
+export const DOCK_TAB_INDICATOR_ACTIVE_WIDTH: number = 12;
+export const DOCK_TAB_INDICATOR_DOT_SIZE: number = 4;
+export const DOCK_TAB_INDICATOR_GAP: number = 3;
+export const DOCK_TAB_INDICATOR_BOTTOM_INSET: number = 4;
 /** Scrolled-away state: a host-only pill, not an invisible strip. */
 export const DOCK_COLLAPSED_PILL_HEIGHT: number = 30;
 export const DOCK_COLLAPSED_HEIGHT: number = 38;

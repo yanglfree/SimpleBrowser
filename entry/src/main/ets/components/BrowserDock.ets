@@ -5,7 +5,12 @@ import {
   DOCK_HEIGHT,
   DOCK_ICON_SIZE,
   DOCK_ROW_HEIGHT,
-  DOCK_SLOT_WIDTH
+  DOCK_SLOT_WIDTH,
+  DOCK_TAB_INDICATOR_ACTIVE_WIDTH,
+  DOCK_TAB_INDICATOR_BOTTOM_INSET,
+  DOCK_TAB_INDICATOR_DOT_SIZE,
+  DOCK_TAB_INDICATOR_GAP,
+  DOCK_TAB_INDICATOR_LIMIT
 } from './TabTokens';
 
 const SWIPE_THRESHOLD: number = 26;
@@ -22,6 +27,7 @@ export struct BrowserDock {
   @Prop collapsed: boolean = false;
   @Prop host: string = '';
   @Prop tabCount: number = 1;
+  @Prop activeTabIndex: number = 0;
   @Prop blockedCount: number = 0;
   @Prop isLoading: boolean = false;
   @Prop canGoBack: boolean = false;
@@ -75,50 +81,58 @@ export struct BrowserDock {
       // Shield, address, reload — the three things a page-level bar owes the
       // user. On the start page there is nothing to shield or reload, so the
       // placeholder gets the pill to itself.
-      Row() {
-        if (!this.isHome && this.blockedCount > 0) {
-          Row({ space: 3 }) {
-            AppIcon({
-              name: IconName.ShieldCheck,
-              glyphSize: 16,
-              color: $r('app.color.accent'),
-              strokeWidth: 1.8
-            })
-            Text(`${this.blockedCount}`)
-              .fontSize(12)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.accent'))
-              .fontFeature('"tnum" 1')
+      Stack({ alignContent: Alignment.Bottom }) {
+        Row() {
+          if (!this.isHome && this.blockedCount > 0) {
+            Row({ space: 3 }) {
+              AppIcon({
+                name: IconName.ShieldCheck,
+                glyphSize: 16,
+                color: $r('app.color.accent'),
+                strokeWidth: 1.8
+              })
+              Text(`${this.blockedCount}`)
+                .fontSize(12)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.accent'))
+                .fontFeature('"tnum" 1')
+            }
+            .height(DOCK_ROW_HEIGHT)
+            .padding({ left: 4, right: 4 })
+            .accessibilityText($r('app.string.blocked_on_site'))
+            .onClick(() => this.onOpenBlocking())
           }
-          .height(DOCK_ROW_HEIGHT)
-          .padding({ left: 4, right: 4 })
-          .accessibilityText($r('app.string.blocked_on_site'))
-          .onClick(() => this.onOpenBlocking())
+
+          Text(this.isHome ? $r('app.string.address_placeholder') : this.host)
+            .layoutWeight(1)
+            .fontSize(15)
+            .fontWeight(this.isHome ? FontWeight.Regular : FontWeight.Medium)
+            .fontColor(this.primaryColor())
+            .textAlign(TextAlign.Center)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          if (!this.isHome) {
+            Column() {
+              AppIcon({
+                name: this.isLoading ? IconName.Stop : IconName.Refresh,
+                glyphSize: 19,
+                color: this.iconColor(),
+                strokeWidth: 1.8
+              })
+            }
+            .width(28)
+            .height(DOCK_ROW_HEIGHT)
+            .justifyContent(FlexAlign.Center)
+            .accessibilityText(this.isLoading ? $r('app.string.action_stop') : $r('app.string.action_reload'))
+            .onClick(() => this.onReload())
+          }
         }
+        .width('100%')
+        .height('100%')
 
-        Text(this.isHome ? $r('app.string.address_placeholder') : this.host)
-          .layoutWeight(1)
-          .fontSize(15)
-          .fontWeight(this.isHome ? FontWeight.Regular : FontWeight.Medium)
-          .fontColor(this.primaryColor())
-          .textAlign(TextAlign.Center)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-        if (!this.isHome) {
-          Column() {
-            AppIcon({
-              name: this.isLoading ? IconName.Stop : IconName.Refresh,
-              glyphSize: 19,
-              color: this.iconColor(),
-              strokeWidth: 1.8
-            })
-          }
-          .width(28)
-          .height(DOCK_ROW_HEIGHT)
-          .justifyContent(FlexAlign.Center)
-          .accessibilityText(this.isLoading ? $r('app.string.action_stop') : $r('app.string.action_reload'))
-          .onClick(() => this.onReload())
+        if (this.canSwitchTabs()) {
+          this.TabSwipeIndicator()
         }
       }
       .id('browser-address')
@@ -177,6 +191,29 @@ export struct BrowserDock {
           .onActionEnd((event: GestureEvent) => this.resolveVerticalSwipe(event))
       )
     )
+  }
+
+  @Builder
+  private TabSwipeIndicator() {
+    Row({ space: DOCK_TAB_INDICATOR_GAP }) {
+      ForEach(this.visibleTabIndices(), (index: number) => {
+        Row()
+          .id(`tab-swipe-indicator-${index}`)
+          .width(index === this.activeTabIndex
+            ? DOCK_TAB_INDICATOR_ACTIVE_WIDTH
+            : DOCK_TAB_INDICATOR_DOT_SIZE)
+          .height(DOCK_TAB_INDICATOR_DOT_SIZE)
+          .borderRadius(DOCK_TAB_INDICATOR_DOT_SIZE / 2)
+          .backgroundColor(index === this.activeTabIndex
+            ? this.tabIndicatorActiveColor()
+            : this.tabIndicatorInactiveColor())
+      }, (index: number) => `tab-swipe-indicator-${index}`)
+    }
+    .id('tab-swipe-indicator')
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .margin({ bottom: DOCK_TAB_INDICATOR_BOTTOM_INSET })
+    .hitTestBehavior(HitTestMode.None)
   }
 
   /**
@@ -248,6 +285,30 @@ export struct BrowserDock {
    */
   private iconColor(): ResourceColor {
     return this.isHome ? $r('app.color.home_text_secondary') : $r('app.color.dock_icon');
+  }
+
+  private canSwitchTabs(): boolean {
+    return this.gesturesEnabled && this.tabSwitchGestureEnabled && this.tabCount > 1;
+  }
+
+  private visibleTabIndices(): number[] {
+    const visibleCount: number = Math.min(this.tabCount, DOCK_TAB_INDICATOR_LIMIT);
+    const halfWindow: number = Math.floor(visibleCount / 2);
+    const maxStart: number = Math.max(0, this.tabCount - visibleCount);
+    const start: number = Math.min(Math.max(0, this.activeTabIndex - halfWindow), maxStart);
+    const indices: number[] = [];
+    for (let index: number = start; index < start + visibleCount; index++) {
+      indices.push(index);
+    }
+    return indices;
+  }
+
+  private tabIndicatorActiveColor(): ResourceColor {
+    return this.isHome ? $r('app.color.home_text_primary') : $r('app.color.accent');
+  }
+
+  private tabIndicatorInactiveColor(): ResourceColor {
+    return this.isHome ? $r('app.color.home_text_secondary') : $r('app.color.border');
   }
 
   private resolveVerticalSwipe(event: GestureEvent): void {
