@@ -1,0 +1,29 @@
+[Adblock Plus 2.0]
+! Title: Dolphin supplement
+! Description: Rules for sites the upstream subscriptions miss, mostly Chinese
+!   portals and first-party-hosted ad SDKs. Every rule here is written against
+!   markup that was read from the live page, not guessed from a screenshot.
+! Expires: never (bundled, appended to whatever the subscriptions say)
+
+! ---------------------------------------------------------------- MSN 门户
+! EasyList blocks ||adsdk.microsoft.com^, but MSN only loads the Xandr SDK from
+! there when its own asset copy is off:
+!   Q("1s-ast-msnassets")
+!     ? "https://assets.msn.com/staticsb/statics/latest/js/thirdparty/adsdk/ast/1.10.80/ast.js"
+!     : "https://adsdk.microsoft.com/ast/ast.js"
+! The first-party path is what serves the CN feed, so the blocklist never sees
+! an ad request. Only the vendored third-party SDK directory is blocked; the
+! rest of assets.msn.com carries the site's own scripts, icons and styles.
+||assets.msn.com^*/thirdparty/adsdk/
+
+! The feed marks its ad slots on the card host itself. Read off the live page:
+!   <csm-card card-type="nativead" class="card-container" style="grid-area:slot2"
+!             data-t='{"n":"NativeAd","t":13,...}' size="_1x_2y">
+! and the server-rendered variant of the same slot:
+!   <csm-native-ad-card class="card-container" style="grid-area:slot2">
+! Both sit several shadow roots deep, so they only hide because the injected
+! stylesheet is planted in every root — see CosmeticFilterService.
+! EasyList carries msn.com rules for none of this and no msn.cn rules at all.
+msn.cn,msn.com##csm-card[card-type="nativead"]
+msn.cn,msn.com##csm-native-ad-card
+msn.cn,msn.com##display-ads

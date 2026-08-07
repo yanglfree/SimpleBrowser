@@ -36,6 +36,23 @@ export default function cosmeticFilterServiceTest(): void {
       expect(service.selectorsFor('https://example.com/').includes('.wrap > .ad')).assertTrue();
     });
 
+    it('hides a custom element that reserves an ad slot', 0, (): void => {
+      // MSN's feed places each ad as its own element in the light DOM, and the
+      // .cn portal shares nothing with the msn.com rules EasyList carries.
+      const service: CosmeticFilterService = CosmeticFilterService.compile([
+        'msn.cn,msn.com##csm-native-ad-card',
+        'msn.cn,msn.com##csm-card[card-type="nativead"]'
+      ].join('\n'));
+
+      const selectors: string[] = service.selectorsFor('https://www.msn.cn/zh-cn/feed');
+      expect(selectors.includes('csm-native-ad-card')).assertTrue();
+      expect(selectors.includes('csm-card[card-type="nativead"]')).assertTrue();
+      expect(service.selectorsFor('https://www.msn.com/en-us/news')
+        .includes('csm-native-ad-card')).assertTrue();
+      expect(service.selectorsFor('https://example.com/')
+        .includes('csm-native-ad-card')).assertFalse();
+    });
+
     it('creates an early stylesheet injection script', 0, (): void => {
       const service: CosmeticFilterService = CosmeticFilterService.compile('##.ad-slot');
       const script: string = service.scriptFor('https://example.com');
@@ -43,6 +60,16 @@ export default function cosmeticFilterServiceTest(): void {
       expect(script).assertContain('__minimalBrowserCosmeticRules');
       expect(script).assertContain('.ad-slot');
       expect(script).assertContain('display:none!important');
+    });
+
+    it('carries the stylesheet into shadow roots', 0, (): void => {
+      // Component-built sites keep their ad slots several roots deep, where a
+      // stylesheet in the document cannot reach them.
+      const script: string = CosmeticFilterService.compile('##.ad-slot')
+        .scriptFor('https://example.com');
+
+      expect(script).assertContain('attachShadow');
+      expect(script).assertContain('shadowRoot');
     });
   });
 }

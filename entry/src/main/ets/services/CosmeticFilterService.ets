@@ -13,6 +13,12 @@ interface CosmeticRuleSet {
 const MAX_SELECTORS: number = 20000;
 /** Payloads are keyed by host; a browsing session touches few hosts at a time. */
 const PAYLOAD_CACHE_LIMIT: number = 24;
+/**
+ * How many host rules the in-page pass will match element by element. Sites
+ * carry a handful; the cap keeps a pathological entry from turning every DOM
+ * change into a long selector match.
+ */
+const HOST_SELECTOR_LIMIT: number = 64;
 
 /** Compiles the selector subset of EasyList/AdGuard cosmetic rules. */
 export class CosmeticFilterService {
@@ -61,30 +67,135 @@ export class CosmeticFilterService {
     return selectors.length > MAX_SELECTORS ? selectors.slice(0, MAX_SELECTORS) : selectors;
   }
 
+  /**
+   * Only the rules written for this host. Inside a shadow root a stylesheet can
+   * lose to the component's own `:host` rule, so those matches have to be hidden
+   * element by element — affordable for a handful of site rules, not for the
+   * thousands of generic ones.
+   */
+  hostSelectorsFor(pageUrl: string): string[] {
+    const hostRules: CosmeticRuleSet[] = this.rulesForHost(rawHost(pageUrl));
+    const exceptions: Set<string> = new Set<string>();
+    for (const rules of hostRules) {
+      for (const selector of rules.exceptions) {
+        exceptions.add(selector);
+      }
+    }
+    const selectors: string[] = [];
+    for (const rules of hostRules) {
+      for (const selector of rules.selectors) {
+        if (!exceptions.has(selector) && !selectors.includes(selector)) {
+          selectors.push(selector);
+        }
+      }
+    }
+    return selectors.slice(0, HOST_SELECTOR_LIMIT);
+  }
+
   scriptFor(pageUrl: string): string {
     const payload: string = this.payloadFor(rawHost(pageUrl));
     if (payload.length === 0) {
       return '';
     }
+    const hostSelectors: string[] = this.hostSelectorsFor(pageUrl);
+    const hostPayload: string = JSON.stringify(hostSelectors.join(','));
     // The stylesheet is assembled inside the page: sending selectors costs a
     // fraction of sending the expanded CSS across the bridge.
-    return `(function(selectors) {
-  var root = document.head || document.documentElement;
-  if (!root) return 'no-root';
+    //
+    // A stylesheet in the document does not cross a shadow boundary, and sites
+    // built out of web components — MSN's feed, for one — keep every card
+    // several roots deep, ad slots included. So the same sheet is planted in
+    // each shadow root as well: attachShadow is wrapped to catch the roots the
+    // page has yet to create, and the roots that already exist are swept once.
+    return `(function(selectors, hostSelectors) {
   var id = '__minimalBrowserCosmeticRules';
-  var style = document.getElementById(id);
-  if (!style) {
-    style = document.createElement('style');
-    style.id = id;
-    root.appendChild(style);
-  }
-  var parts = [];
+  var css = '';
   for (var i = 0; i < selectors.length; i++) {
-    parts.push(selectors[i] + '{display:none!important;}');
+    css += selectors[i] + '{display:none!important;}';
   }
-  style.textContent = parts.join('');
-  return JSON.stringify({ selectors: selectors.length });
-})(${payload});`;
+  var roots = [];
+  var observer = null;
+
+  function plant(root) {
+    if (!root || root.__mbCosmetic === css) return false;
+    var container = root === document ? (document.head || document.documentElement) : root;
+    if (!container) return false;
+    var style = root === document ? document.getElementById(id) : root.__mbCosmeticNode;
+    if (!style || !style.isConnected) {
+      style = document.createElement('style');
+      style.id = id;
+      container.appendChild(style);
+      if (root !== document) root.__mbCosmeticNode = style;
+    }
+    style.textContent = css;
+    root.__mbCosmetic = css;
+    roots.push(root);
+    // Changes inside a shadow root do not reach an observer watching the
+    // document, so every root the sheet lands in is watched in its own right.
+    if (observer) observer.observe(root === document ? document.documentElement : root,
+      { childList: true, subtree: true });
+    return true;
+  }
+
+  /**
+   * A sheet in the root that holds the element still loses to the component's
+   * own :host rule when that one is !important: on important declarations the
+   * inner tree wins. Inline beats both, so the site's own rules are applied
+   * element by element. Only the roots we planted in are visited, and only with
+   * the handful of selectors written for this host.
+   */
+  function hideMatches() {
+    if (!hostSelectors) return;
+    for (var r = 0; r < roots.length; r++) {
+      var matches;
+      try { matches = roots[r].querySelectorAll(hostSelectors); } catch (e) { continue; }
+      for (var k = 0; k < matches.length; k++) {
+        var el = matches[k];
+        if (el.getAttribute('__mbCleaned') === null) {
+          el.setAttribute('__mbCleaned', '');
+          el.style.setProperty('display', 'none', 'important');
+        }
+      }
+    }
+  }
+
+  if (!window.__mbCosmeticObserver) {
+    var pending = false;
+    observer = new MutationObserver(function() {
+      if (pending) return;
+      pending = true;
+      setTimeout(function() { pending = false; try { hideMatches(); } catch (e) {} }, 300);
+    });
+    window.__mbCosmeticObserver = observer;
+  } else {
+    observer = window.__mbCosmeticObserver;
+  }
+
+  plant(document);
+  var proto = Element.prototype;
+  if (!proto.__mbShadowPatched && typeof proto.attachShadow === 'function') {
+    var original = proto.attachShadow;
+    proto.attachShadow = function(init) {
+      var root = original.call(this, init);
+      try { plant(root); } catch (e) {}
+      return root;
+    };
+    proto.__mbShadowPatched = true;
+  }
+  // Roots that already existed when this ran — the page's bootstrap, mostly.
+  // Everything created afterwards arrives through the attachShadow wrapper, so
+  // this walk happens once instead of on a timer.
+  (function discover(root, depth) {
+    if (depth > 12) return;
+    var all = root.querySelectorAll('*');
+    for (var j = 0; j < all.length; j++) {
+      var shadow = all[j].shadowRoot;
+      if (shadow) { plant(shadow); discover(shadow, depth + 1); }
+    }
+  })(document, 0);
+  hideMatches();
+  return JSON.stringify({ selectors: selectors.length, roots: roots.length });
+})(${payload}, ${hostPayload});`;
   }
 
   /**

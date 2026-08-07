@@ -119,6 +119,29 @@ export default function ruleEngineTest(): void {
       })).assertFalse();
     });
 
+    it('blocks an ad SDK a site vendors under its own asset domain', 0, (): void => {
+      // MSN loads the Xandr SDK from its own host, which is how its feed ads
+      // survive EasyList's ||adsdk.microsoft.com^.
+      const engine: RuleEngine = RuleEngine.compile('||assets.msn.com^*/thirdparty/adsdk/');
+
+      expect(engine.shouldBlock({
+        url: 'https://assets.msn.com/staticsb/statics/latest/js/thirdparty/adsdk/ast/1.10.80/ast.js',
+        pageUrl: 'https://www.msn.cn/zh-cn/feed',
+        resourceType: 'script'
+      })).assertTrue();
+      // The same host serves the site's own code, which must keep loading.
+      expect(engine.shouldBlock({
+        url: 'https://assets.msn.com/staticsb/statics/latest/js/main.js',
+        pageUrl: 'https://www.msn.cn/zh-cn/feed',
+        resourceType: 'script'
+      })).assertFalse();
+      expect(engine.shouldBlock({
+        url: 'https://assets.msn.com/staticsb/statics/latest/fluent-icons/search_24_regular.svg',
+        pageUrl: 'https://www.msn.cn/zh-cn/feed',
+        resourceType: 'image'
+      })).assertFalse();
+    });
+
     it('disables a rule paired with the AdGuard badfilter option', 0, (): void => {
       const engine: RuleEngine = RuleEngine.compile([
         '||disabled.example^',

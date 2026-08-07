@@ -34,9 +34,22 @@ const RULE_SOURCES: RuleSource[] = [
   }
 ];
 
+/**
+ * Our own rules for what the subscriptions miss. It has no upstream to fetch,
+ * and the list the browser actually runs on may come from disk or the network
+ * rather than the HAP, so it is fenced with markers and re-applied to whatever
+ * text is in hand: strip the old region, append the shipped one. Without that
+ * the supplement would only ever reach a device that had never stored a list.
+ */
+const SUPPLEMENT_RAWFILE: string = 'ads/dolphin-supplement.txt';
+const SUPPLEMENT_BEGIN: string = '! >>> dolphin-supplement';
+const SUPPLEMENT_END: string = '! <<< dolphin-supplement';
+
 export class AdsBlockService {
   private static compiledEngine: RuleEngine | undefined;
   private static cosmeticFilter: CosmeticFilterService | undefined;
+  /** Read once from the HAP, re-appended after every remote refresh. */
+  private static supplement: string = '';
   private rulesPath: string = '';
   private updatedAtPath: string = '';
   private ruleEngine: RuleEngine | undefined;
@@ -58,8 +71,9 @@ export class AdsBlockService {
     try {
       this.rulesPath = `${context.filesDir}/${RULE_FILE_NAME}`;
       this.updatedAtPath = `${context.filesDir}/${RULE_UPDATED_FILE_NAME}`;
-      const rulesText: string = await this.readPersistedRules(
-        await AdsBlockService.readBundledRules(context)
+      AdsBlockService.supplement = await AdsBlockService.readRawFile(context, SUPPLEMENT_RAWFILE);
+      const rulesText: string = AdsBlockService.withSupplement(
+        await this.readPersistedRules(await AdsBlockService.readBundledRules(context))
       );
       this.updatedAt = await this.readUpdatedAt();
       await this.writeRulesAtomically(rulesText);
@@ -237,7 +251,9 @@ export class AdsBlockService {
     }
     this.updating = true;
     try {
-      const rulesText: string = await AdsBlockService.fetchRemoteRules();
+      const rulesText: string = AdsBlockService.withSupplement(
+        await AdsBlockService.fetchRemoteRules()
+      );
       const engine: RuleEngine = RuleEngine.compile(rulesText);
       if (rulesText.trim().length === 0 || engine.ruleCount === 0) {
         throw new Error('Remote rules are empty');
@@ -258,17 +274,34 @@ export class AdsBlockService {
   }
 
   private static async readBundledRules(context: common.UIAbilityContext): Promise<string> {
-    const decoder: util.TextDecoder = new util.TextDecoder();
     const parts: string[] = [];
     for (const source of RULE_SOURCES) {
-      try {
-        const content: Uint8Array = await context.resourceManager.getRawFileContent(source.rawfile);
-        parts.push(decoder.decodeToString(content));
-      } catch (error) {
-        Logger.error(TAG, `Missing bundled rule file ${source.rawfile}: ${String(error)}`);
-      }
+      parts.push(await AdsBlockService.readRawFile(context, source.rawfile));
     }
     return parts.join('\n');
+  }
+
+  /** Replaces any previously appended supplement with the one shipped now. */
+  private static withSupplement(rulesText: string): string {
+    const begin: number = rulesText.indexOf(SUPPLEMENT_BEGIN);
+    const end: number = rulesText.lastIndexOf(SUPPLEMENT_END);
+    const base: string = begin >= 0 && end > begin
+      ? rulesText.slice(0, begin) + rulesText.slice(end + SUPPLEMENT_END.length)
+      : rulesText;
+    if (AdsBlockService.supplement.trim().length === 0) {
+      return base;
+    }
+    return `${base.trimEnd()}\n${SUPPLEMENT_BEGIN}\n${AdsBlockService.supplement.trim()}\n${SUPPLEMENT_END}\n`;
+  }
+
+  private static async readRawFile(context: common.UIAbilityContext, path: string): Promise<string> {
+    try {
+      const content: Uint8Array = await context.resourceManager.getRawFileContent(path);
+      return new util.TextDecoder().decodeToString(content);
+    } catch (error) {
+      Logger.error(TAG, `Missing bundled rule file ${path}: ${String(error)}`);
+      return '';
+    }
   }
 
   /**
