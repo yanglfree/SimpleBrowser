@@ -38,6 +38,35 @@ export const TAB_NEW_BUTTON_HEIGHT: number = 52;
 export const TAB_NEW_BUTTON_HORIZONTAL_PADDING: number = 20;
 export const TAB_NEW_BUTTON_RADIUS: number = 26;
 
+/** Recent-tab dock: a compact bridge between gesture switching and the full overview. */
+export const RECENT_TABS_DOCK_RADIUS: number = 24;
+export const RECENT_TABS_DOCK_MAX_WIDTH: number = 560;
+export const RECENT_TABS_DOCK_SHADOW_RADIUS: number = 20;
+export const RECENT_TABS_DOCK_SHADOW_OFFSET_Y: number = -2;
+export const RECENT_TABS_DOCK_HORIZONTAL_PADDING: number = 16;
+export const RECENT_TABS_DOCK_TOP_PADDING: number = 10;
+export const RECENT_TABS_DOCK_BOTTOM_PADDING: number = 24;
+export const RECENT_TABS_DOCK_SECTION_GAP: number = 14;
+export const RECENT_TABS_DOCK_HEADER_SIZE: number = 16;
+export const RECENT_TABS_DOCK_ACTION_SIZE: number = 13;
+export const RECENT_TABS_DOCK_ACTION_VERTICAL_PADDING: number = 8;
+export const RECENT_TABS_DOCK_ACTION_LEFT_PADDING: number = 10;
+export const RECENT_TABS_DOCK_HANDLE_WIDTH: number = 36;
+export const RECENT_TABS_DOCK_HANDLE_HEIGHT: number = 4;
+export const RECENT_TABS_DOCK_LIST_HEIGHT: number = 76;
+export const RECENT_TAB_CARD_WIDTH: number = 112;
+export const RECENT_TAB_CARD_HEIGHT: number = 72;
+export const RECENT_TAB_CARD_RADIUS: number = 16;
+export const RECENT_TAB_CARD_TITLE_SIZE: number = 13;
+export const RECENT_TAB_CARD_META_SIZE: number = 11;
+export const RECENT_TAB_CARD_GAP: number = 10;
+export const RECENT_TAB_CARD_CONTENT_GAP: number = 5;
+export const RECENT_TAB_CARD_HORIZONTAL_PADDING: number = 12;
+export const RECENT_TAB_ACTIVE_DOT_SIZE: number = 6;
+export const RECENT_TAB_NEW_ICON_SIZE: number = 20;
+export const RECENT_TAB_NEW_CONTENT_GAP: number = 6;
+export const RECENT_TAB_LIMIT: number = 5;
+
 /** Bottom dock: one 46vp row plus the 10vp it sits above the screen edge. */
 export const DOCK_ROW_HEIGHT: number = 46;
 export const DOCK_SLOT_WIDTH: number = 40;

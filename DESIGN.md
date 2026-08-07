@@ -57,10 +57,23 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
 - **States**: select, close, close-all, new tab, and long-press new private tab.
 - **Motion**: 200ms opacity transition when entering or leaving the overview.
 
+### Recent tabs dock
+
+- **Structure**: a bottom sheet with the active tab, up to four recently used tabs
+  from the same privacy mode, a compact new-tab tile, and an explicit path to the
+  complete overview.
+- **Entry**: long-press the tab counter. A normal tap continues to open the complete
+  overview, so the gesture is an accelerator rather than the only path.
+- **States**: active tab, recent tab, private working set, horizontal overflow, and
+  background-tap dismissal.
+- **Spacing**: 112vp tab cards in a horizontal list; the panel is capped at 560vp on
+  larger windows and remains edge-to-edge on phones.
+- **Motion**: 180ms opacity entry; no decorative card motion.
+
 ## 6. Motion & Interaction
 
 Taps are the primary path for tabs, address entry, and actions. Existing gestures
-remain as shortcuts: capsule swipes switch tabs, action sheets escalate, and tab
+remain as shortcuts: address-bar swipes switch tabs, action sheets escalate, and tab
 cards can swipe left to close. A gesture must never be the only discoverable route
 to a core browser task.
 

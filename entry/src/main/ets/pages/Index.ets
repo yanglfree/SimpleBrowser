@@ -65,6 +65,7 @@ import { OnboardingSheet } from '../components/OnboardingSheet';
 import { PermissionSheet } from '../components/PermissionSheet';
 import { PageSettingsPanel } from '../components/PageSettingsPanel';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
+import { RecentTabsDock } from '../components/RecentTabsDock';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
 import { SharePanel } from '../components/SharePanel';
@@ -74,7 +75,8 @@ import {
   DOCK_COLLAPSED_HEIGHT,
   DOCK_HEIGHT,
   TAB_WEB_BOTTOM_INSET,
-  TAB_WEB_BOTTOM_INSET_COMPACT
+  TAB_WEB_BOTTOM_INSET_COMPACT,
+  RECENT_TAB_LIMIT
 } from '../components/TabTokens';
 import { PrivacyService } from '../services/PrivacyService';
 import { CertificateService } from '../services/CertificateService';
@@ -110,7 +112,8 @@ enum Overlay {
   Onboarding = 13,
   Permission = 14,
   PageSettings = 15,
-  Favorites = 16
+  Favorites = 16,
+  RecentTabs = 17
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -157,6 +160,7 @@ struct Index {
   @State private isReady: boolean = false;
   @State private hasError: boolean = false;
   @State private tabs: BrowserTab[] = [];
+  @State private recentTabs: BrowserTab[] = [];
   @State private activeTabId: string = '';
   @State private settings: BrowserSettings = defaultBrowserSettings();
   @State private sheet: Overlay = Overlay.None;
@@ -583,8 +587,8 @@ struct Index {
         onOpenAddress: (): void => this.openAddress(),
         onBack: (): void => { void this.performAction('back'); },
         onForward: (): void => { void this.performAction('forward'); },
-        onNewTab: (): void => this.createTab(false),
         onOpenTabs: (): void => { void this.openTabs(); },
+        onOpenRecentTabs: (): void => { this.sheet = Overlay.RecentTabs; },
         onOpenMenu: (): void => { this.sheet = Overlay.Actions; },
         onOpenBlocking: (): void => this.openBlockPanel(),
         onReload: (): void => { void this.performAction('reload'); },
@@ -619,7 +623,17 @@ struct Index {
 
   @Builder
   private OverlayLayer() {
-    if (this.sheet === Overlay.Actions) {
+    if (this.sheet === Overlay.RecentTabs) {
+      RecentTabsDock({
+        tabs: this.recentTabs,
+        activeTabId: this.activeTabId,
+        onDismiss: (): void => { this.sheet = Overlay.None; },
+        onSelect: (id: string): void => { void this.selectTab(id); },
+        onOpenAll: (): void => { void this.openTabs(); },
+        onNewTab: (): void => this.createTab(this.activeTab()?.isPrivate === true)
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 180 }))
+    } else if (this.sheet === Overlay.Actions) {
       ActionSheet({
         host: displayHost(this.activeTab()?.url ?? ''),
         blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
@@ -2621,6 +2635,7 @@ struct Index {
   private syncState(): void {
     this.tabs = this.viewModel.tabs.map((tab: BrowserTab) => cloneTab(tab));
     this.activeTabId = this.viewModel.activeTabId;
+    this.recentTabs = this.viewModel.recentTabs(RECENT_TAB_LIMIT);
     this.settings = cloneSettings(this.viewModel.settings);
     this.history = this.viewModel.history.map((entry: HistoryEntry) => cloneHistoryEntry(entry));
     this.quickSites = this.viewModel.getQuickSites();

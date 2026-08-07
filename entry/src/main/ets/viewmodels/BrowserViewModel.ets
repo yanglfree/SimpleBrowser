@@ -325,6 +325,27 @@ export class BrowserViewModel {
     return this.tabs[next].id;
   }
 
+  /** Current tab first, followed by recently visited tabs from the same privacy mode. */
+  recentTabs(limit: number): BrowserTab[] {
+    const active: BrowserTab | undefined = this.getActiveTab();
+    if (active === undefined || limit <= 0) {
+      return [];
+    }
+    return this.tabs
+      .filter((tab: BrowserTab): boolean => tab.isPrivate === active.isPrivate)
+      .sort((left: BrowserTab, right: BrowserTab): number => {
+        if (left.id === active.id) {
+          return -1;
+        }
+        if (right.id === active.id) {
+          return 1;
+        }
+        return right.lastVisitedAt - left.lastVisitedAt;
+      })
+      .slice(0, limit)
+      .map((tab: BrowserTab): BrowserTab => cloneTab(tab));
+  }
+
   updateTab(id: string, update: BrowserTabUpdate): void {
     this.tabs = this.tabs.map((tab: BrowserTab) => {
       if (tab.id !== id) {

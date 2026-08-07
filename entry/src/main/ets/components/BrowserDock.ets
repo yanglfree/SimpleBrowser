@@ -33,8 +33,8 @@ export struct BrowserDock {
   onOpenAddress: () => void = (): void => {};
   onBack: () => void = (): void => {};
   onForward: () => void = (): void => {};
-  onNewTab: () => void = (): void => {};
   onOpenTabs: () => void = (): void => {};
+  onOpenRecentTabs: () => void = (): void => {};
   onOpenMenu: () => void = (): void => {};
   onOpenBlocking: () => void = (): void => {};
   /** Reload, or stop while a load is in flight — the page decides which. */
@@ -133,6 +133,10 @@ export struct BrowserDock {
         color: this.isHome ? $r('app.color.home_control_border') : $r('app.color.border')
       })
       .onClick(() => this.onOpenAddress())
+      .gesture(
+        PanGesture({ direction: PanDirection.Horizontal, distance: 6 })
+          .onActionEnd((event: GestureEvent) => this.resolveTabSwipe(event))
+      )
 
       // The count sits inside its own outline instead of on top of the stacked-
       // card glyph, where the digits and the strokes were fighting for the same
@@ -153,7 +157,7 @@ export struct BrowserDock {
       .onClick(() => this.onOpenTabs())
       .gesture(
         LongPressGesture({ repeat: false, duration: 450 })
-          .onAction(() => this.onNewTab())
+          .onAction(() => this.onOpenRecentTabs())
       )
 
       this.NavButton(IconName.Menu, true, $r('app.string.tools_menu'), this.onOpenMenu)
@@ -169,8 +173,8 @@ export struct BrowserDock {
               this.onOpenBlocking();
             }
           }),
-        PanGesture({ direction: PanDirection.All, distance: 6 })
-          .onActionEnd((event: GestureEvent) => this.resolveSwipe(event))
+        PanGesture({ direction: PanDirection.Vertical, distance: 6 })
+          .onActionEnd((event: GestureEvent) => this.resolveVerticalSwipe(event))
       )
     )
   }
@@ -246,23 +250,23 @@ export struct BrowserDock {
     return this.isHome ? $r('app.color.home_text_secondary') : $r('app.color.dock_icon');
   }
 
-  private resolveSwipe(event: GestureEvent): void {
+  private resolveVerticalSwipe(event: GestureEvent): void {
     if (!this.gesturesEnabled) {
       return;
     }
-    const dx: number = event.offsetX;
     const dy: number = event.offsetY;
-    if (Math.abs(dy) >= Math.abs(dx)) {
-      if (dy <= -SWIPE_THRESHOLD && this.actionsGestureEnabled) {
-        this.onOpenMenu();
-      } else if (dy >= SWIPE_THRESHOLD) {
-        this.onHide();
-      }
+    if (dy <= -SWIPE_THRESHOLD && this.actionsGestureEnabled) {
+      this.onOpenMenu();
+    } else if (dy >= SWIPE_THRESHOLD) {
+      this.onHide();
+    }
+  }
+
+  private resolveTabSwipe(event: GestureEvent): void {
+    if (!this.gesturesEnabled || !this.tabSwitchGestureEnabled) {
       return;
     }
-    if (!this.tabSwitchGestureEnabled) {
-      return;
-    }
+    const dx: number = event.offsetX;
     if (dx <= -SWIPE_THRESHOLD) {
       this.onSwitchNext();
     } else if (dx >= SWIPE_THRESHOLD) {
