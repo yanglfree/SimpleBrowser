@@ -252,7 +252,7 @@
     { "name": "clear_data_cache", "value": "网页缓存" },
     { "name": "clear_data_permissions", "value": "站点权限与例外" },
     { "name": "clear_data_time_range", "value": "时间范围" },
-    { "name": "clear_data_range_note", "value": "时间范围作用于历史记录；Cookie、网页存储和缓存按系统能力清除全部时间。" },
+    { "name": "clear_data_range_note", "value": "时间范围仅影响历史记录；其余所选数据会全部清除。" },
     { "name": "clear_data_all_time", "value": "全部时间" },
     { "name": "clear_data_today", "value": "今天" },
     { "name": "clear_data_seven_days", "value": "最近 7 天" },

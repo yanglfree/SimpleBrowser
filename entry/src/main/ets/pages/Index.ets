@@ -705,6 +705,7 @@ struct Index {
     } else if (this.sheet === Overlay.Settings) {
       SettingsPage({
         settings: this.settings,
+        topInset: this.topInset,
         allowedHosts: this.viewModel.getAllowedHosts(),
         sitePermissions: this.settings.sitePermissions,
         currentHost: displayHost(this.activeTab()?.url ?? ''),

@@ -8,8 +8,7 @@ import {
   SitePermissionDecision,
   TabExpiry,
   WebDarkModePreference,
-  cloneSettings,
-  defaultBrowserSettings
+  cloneSettings
 } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 import { AppSwitch } from './AppSwitch';
@@ -39,6 +38,19 @@ interface SettingsSearchEntry {
   key: string;
   label: Resource;
   keywords: string;
+}
+
+interface SwitchRowParams {
+  label: Resource;
+  checked: boolean;
+  divided: boolean;
+  onToggle: () => void;
+}
+
+interface ClearDataSwitchRowParams {
+  label: Resource;
+  checked: boolean;
+  onToggle: () => void;
 }
 
 export enum ClearDataRange {
@@ -157,7 +169,8 @@ function groupCard() {
  */
 @Component
 export struct SettingsPage {
-  @Prop settings: BrowserSettings = defaultBrowserSettings();
+  @Link settings: BrowserSettings;
+  @Prop topInset: number = 0;
   @Prop allowedHosts: string[] = [];
   @Prop sitePermissions: SitePermission[] = [];
   @Prop currentHost: string = '';
@@ -217,15 +230,25 @@ export struct SettingsPage {
           } else {
           this.GroupLabel($r('app.string.group_rules'), 22)
           Column() {
-            this.SwitchRow($r('app.string.block_ads'), this.settings.blockAds, true, () => {
-              const next: BrowserSettings = cloneSettings(this.settings);
-              next.blockAds = !next.blockAds;
-              this.onChange(next);
+            this.SwitchRow({
+              label: $r('app.string.block_ads'),
+              checked: this.settings.blockAds,
+              divided: true,
+              onToggle: () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.blockAds = !next.blockAds;
+                this.onChange(next);
+              }
             })
-            this.SwitchRow($r('app.string.block_trackers'), this.settings.blockTrackers, true, () => {
-              const next: BrowserSettings = cloneSettings(this.settings);
-              next.blockTrackers = !next.blockTrackers;
-              this.onChange(next);
+            this.SwitchRow({
+              label: $r('app.string.block_trackers'),
+              checked: this.settings.blockTrackers,
+              divided: true,
+              onToggle: () => {
+                const next: BrowserSettings = cloneSettings(this.settings);
+                next.blockTrackers = !next.blockTrackers;
+                this.onChange(next);
+              }
             })
             this.ValueRow(
               $r('app.string.rule_strength'),
@@ -258,77 +281,77 @@ export struct SettingsPage {
               true,
               () => this.isEditingSearchTemplate = true
             )
-            this.SwitchRow(
-              $r('app.string.search_suggestions'),
-              this.settings.searchSuggestionsEnabled,
-              true,
-              () => {
+            this.SwitchRow({
+              label: $r('app.string.search_suggestions'),
+              checked: this.settings.searchSuggestionsEnabled,
+              divided: true,
+              onToggle: () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.searchSuggestionsEnabled = !next.searchSuggestionsEnabled;
                 this.onChange(next);
               }
-            )
-            this.SwitchRow(
-              $r('app.string.gestures_enabled'),
-              this.settings.gesturesEnabled,
-              true,
-              () => {
+            })
+            this.SwitchRow({
+              label: $r('app.string.gestures_enabled'),
+              checked: this.settings.gesturesEnabled,
+              divided: true,
+              onToggle: () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.gesturesEnabled = !next.gesturesEnabled;
                 this.onChange(next);
               }
-            )
-            this.SwitchRow(
-              $r('app.string.gesture_actions'),
-              this.settings.gestureActionsEnabled,
-              true,
-              () => {
+            })
+            this.SwitchRow({
+              label: $r('app.string.gesture_actions'),
+              checked: this.settings.gestureActionsEnabled,
+              divided: true,
+              onToggle: () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.gestureActionsEnabled = !next.gestureActionsEnabled;
                 this.onChange(next);
               }
-            )
-            this.SwitchRow(
-              $r('app.string.gesture_tab_switch'),
-              this.settings.gestureTabSwitchEnabled,
-              true,
-              () => {
+            })
+            this.SwitchRow({
+              label: $r('app.string.gesture_tab_switch'),
+              checked: this.settings.gestureTabSwitchEnabled,
+              divided: true,
+              onToggle: () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.gestureTabSwitchEnabled = !next.gestureTabSwitchEnabled;
                 this.onChange(next);
               }
-            )
-            this.SwitchRow(
-              $r('app.string.gesture_blocking'),
-              this.settings.gestureBlockingEnabled,
-              true,
-              () => {
+            })
+            this.SwitchRow({
+              label: $r('app.string.gesture_blocking'),
+              checked: this.settings.gestureBlockingEnabled,
+              divided: true,
+              onToggle: () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.gestureBlockingEnabled = !next.gestureBlockingEnabled;
                 this.onChange(next);
               }
-            )
+            })
             this.ActionRow($r('app.string.restore_gesture_defaults'), false, () => this.onResetGestures())
-            this.SwitchRow(
-              $r('app.string.auto_hide_toolbar'),
-              this.settings.autoHideToolbarEnabled,
-              true,
-              () => {
+            this.SwitchRow({
+              label: $r('app.string.auto_hide_toolbar'),
+              checked: this.settings.autoHideToolbarEnabled,
+              divided: true,
+              onToggle: () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.autoHideToolbarEnabled = !next.autoHideToolbarEnabled;
                 this.onChange(next);
               }
-            )
-            this.SwitchRow(
-              $r('app.string.show_quick_sites'),
-              this.settings.quickSitesEnabled,
-              true,
-              () => {
+            })
+            this.SwitchRow({
+              label: $r('app.string.show_quick_sites'),
+              checked: this.settings.quickSitesEnabled,
+              divided: true,
+              onToggle: () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.quickSitesEnabled = !next.quickSitesEnabled;
                 this.onChange(next);
               }
-            )
+            })
             this.ValueRow(
               $r('app.string.appearance'),
               APPEARANCE_LABELS[this.settings.appearance as number],
@@ -342,12 +365,12 @@ export struct SettingsPage {
               () => this.picker = PickerKind.WebDarkMode
             )
             if (this.currentHost.length > 0) {
-              this.SwitchRow(
-                $r('app.string.web_dark_mode_current_site'),
-                this.currentHostDarkModeEnabled,
-                true,
-                () => this.onToggleCurrentSiteDarkMode()
-              )
+              this.SwitchRow({
+                label: $r('app.string.web_dark_mode_current_site'),
+                checked: this.currentHostDarkModeEnabled,
+                divided: true,
+                onToggle: () => this.onToggleCurrentSiteDarkMode()
+              })
             }
             this.ValueRow(
               $r('app.string.tab_expiry'),
@@ -373,16 +396,16 @@ export struct SettingsPage {
               true,
               () => this.picker = PickerKind.LargeDownloadThreshold
             )
-            this.SwitchRow(
-              $r('app.string.wifi_only_downloads'),
-              this.settings.wifiOnlyDownloads,
-              true,
-              () => {
+            this.SwitchRow({
+              label: $r('app.string.wifi_only_downloads'),
+              checked: this.settings.wifiOnlyDownloads,
+              divided: true,
+              onToggle: () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.wifiOnlyDownloads = !next.wifiOnlyDownloads;
                 this.onChange(next);
               }
-            )
+            })
             this.ActionRow($r('app.string.bookmark_import_html'), false, () => this.onImportBookmarks())
             this.ActionRow($r('app.string.bookmark_export_html'), false, () => this.onExportBookmarks())
             this.ValueRow(
@@ -402,26 +425,26 @@ export struct SettingsPage {
 
           this.GroupLabel($r('app.string.group_privacy'), 20)
           Column() {
-            this.SwitchRow(
-              $r('app.string.clear_cookies_on_tab_close'),
-              this.settings.clearCookiesOnTabClose,
-              true,
-              () => {
+            this.SwitchRow({
+              label: $r('app.string.clear_cookies_on_tab_close'),
+              checked: this.settings.clearCookiesOnTabClose,
+              divided: true,
+              onToggle: () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.clearCookiesOnTabClose = !next.clearCookiesOnTabClose;
                 this.onChange(next);
               }
-            )
-            this.SwitchRow(
-              $r('app.string.telemetry_switch'),
-              this.settings.telemetryEnabled,
-              true,
-              () => {
+            })
+            this.SwitchRow({
+              label: $r('app.string.telemetry_switch'),
+              checked: this.settings.telemetryEnabled,
+              divided: true,
+              onToggle: () => {
                 const next: BrowserSettings = cloneSettings(this.settings);
                 next.telemetryEnabled = !next.telemetryEnabled;
                 this.onChange(next);
               }
-            )
+            })
             this.ValueRow(
               $r('app.string.history_retention'),
               this.historyRetentionLabel(),
@@ -493,6 +516,7 @@ export struct SettingsPage {
     }
     .width('100%')
     .height('100%')
+    .padding({ top: this.topInset })
     .backgroundColor($r('app.color.page_background'))
   }
 
@@ -615,17 +639,17 @@ export struct SettingsPage {
   }
 
   @Builder
-  private SwitchRow(label: Resource, checked: boolean, divided: boolean, onToggle: () => void) {
+  private SwitchRow($$: SwitchRowParams) {
     Row() {
-      Text(label)
+      Text($$.label)
         .fontSize(15)
         .fontColor($r('app.color.text_primary'))
         .layoutWeight(1)
-      AppSwitch({ checked: checked, accessibilityLabel: label, onToggle: onToggle })
+      AppSwitch({ checked: $$.checked, accessibilityLabel: $$.label, onToggle: $$.onToggle })
     }
     .width('100%')
     .height(56)
-    .border(divided
+    .border($$.divided
       ? { width: { bottom: 1 }, color: $r('app.color.border') }
       : { width: 0 })
   }
@@ -1215,14 +1239,26 @@ export struct SettingsPage {
           .fontColor($r('app.color.text_secondary'))
           .width('100%')
           .margin({ top: 6, bottom: 8 })
-        this.ClearDataSwitchRow($r('app.string.clear_data_history'), this.clearHistory,
-          () => this.clearHistory = !this.clearHistory)
-        this.ClearDataSwitchRow($r('app.string.clear_data_cookies'), this.clearCookies,
-          () => this.clearCookies = !this.clearCookies)
-        this.ClearDataSwitchRow($r('app.string.clear_data_cache'), this.clearCache,
-          () => this.clearCache = !this.clearCache)
-        this.ClearDataSwitchRow($r('app.string.clear_data_permissions'), this.clearPermissions,
-          () => this.clearPermissions = !this.clearPermissions)
+        this.ClearDataSwitchRow({
+          label: $r('app.string.clear_data_history'),
+          checked: this.clearHistory,
+          onToggle: () => this.clearHistory = !this.clearHistory
+        })
+        this.ClearDataSwitchRow({
+          label: $r('app.string.clear_data_cookies'),
+          checked: this.clearCookies,
+          onToggle: () => this.clearCookies = !this.clearCookies
+        })
+        this.ClearDataSwitchRow({
+          label: $r('app.string.clear_data_cache'),
+          checked: this.clearCache,
+          onToggle: () => this.clearCache = !this.clearCache
+        })
+        this.ClearDataSwitchRow({
+          label: $r('app.string.clear_data_permissions'),
+          checked: this.clearPermissions,
+          onToggle: () => this.clearPermissions = !this.clearPermissions
+        })
         Row() {
           Text($r('app.string.clear_data_time_range'))
             .fontSize(15)
@@ -1270,13 +1306,13 @@ export struct SettingsPage {
   }
 
   @Builder
-  private ClearDataSwitchRow(label: Resource, checked: boolean, onToggle: () => void) {
+  private ClearDataSwitchRow($$: ClearDataSwitchRowParams) {
     Row() {
-      Text(label)
+      Text($$.label)
         .fontSize(15)
         .fontColor($r('app.color.text_primary'))
         .layoutWeight(1)
-      AppSwitch({ checked: checked, onToggle: onToggle })
+      AppSwitch({ checked: $$.checked, accessibilityLabel: $$.label, onToggle: $$.onToggle })
     }
     .width('100%')
     .height(48)
