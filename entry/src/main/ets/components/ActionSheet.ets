@@ -9,6 +9,19 @@ interface SheetAction {
   featured: boolean;
 }
 
+const ACTION_SHEET_PAGE_COUNT: number = 2;
+const ACTION_SHEET_GRID_HEIGHT: number = 160;
+const ACTION_SHEET_MAX_DRAG: number = 180;
+export const ACTION_SHEET_DISMISS_THRESHOLD: number = 64;
+
+export function clampedActionSheetDrag(offsetY: number): number {
+  return Math.min(ACTION_SHEET_MAX_DRAG, Math.max(0, offsetY));
+}
+
+export function shouldDismissActionSheet(offsetY: number): boolean {
+  return offsetY >= ACTION_SHEET_DISMISS_THRESHOLD;
+}
+
 @Component
 export struct ActionSheet {
   @Prop host: string = '';
@@ -17,6 +30,8 @@ export struct ActionSheet {
   @Prop isBookmarked: boolean = false;
   @Prop isReader: boolean = false;
   @Prop isDesktop: boolean = false;
+  @State private page: number = 0;
+  @State private dragOffset: number = 0;
   onDismiss: () => void = (): void => {};
   onAction: (key: string) => void = (_key: string): void => {};
 
@@ -81,25 +96,39 @@ export struct ActionSheet {
       .padding({ left: 16, right: 16 })
       .borderRadius(18)
       .backgroundColor(this.cardColor())
+      .accessibilityText($r('app.string.blocked_on_site'))
+      .onClick(() => {
+        if (!this.isHome) {
+          this.onAction('blocking');
+        }
+      })
 
-      Flex({ wrap: FlexWrap.Wrap }) {
-        ForEach(this.actions(), (action: SheetAction) => {
-          this.ActionCell(action)
-        }, (action: SheetAction) => action.key)
+      Swiper() {
+        this.ActionPage(this.primaryActions())
+        this.ActionPage(this.secondaryActions())
       }
       .width('100%')
+      .height(ACTION_SHEET_GRID_HEIGHT)
+      .index(this.page)
+      .indicator(false)
+      .loop(false)
+      .duration(220)
+      .onChange((index: number): void => {
+        this.page = index;
+      })
 
       Row({ space: 8 }) {
-        Row()
-          .width(32)
-          .height(4)
-          .borderRadius(2)
-          .backgroundColor(this.primaryColor())
-        Row()
-          .width(14)
-          .height(4)
-          .borderRadius(2)
-          .backgroundColor(this.handleColor())
+        ForEach(this.pageIndices(), (index: number) => {
+          Row()
+            .width(index === this.page ? 32 : 14)
+            .height(4)
+            .borderRadius(2)
+            .backgroundColor(index === this.page ? this.primaryColor() : this.handleColor())
+            .animation({ duration: 220, curve: Curve.EaseOut })
+            .onClick(() => {
+              this.page = index;
+            })
+        }, (index: number) => `action-page-${index}`)
       }
     }
     .width('100%')
@@ -108,6 +137,26 @@ export struct ActionSheet {
     .backgroundColor(this.panelColor())
     .borderRadius({ topLeft: 28, topRight: 28 })
     .shadow({ radius: 18, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: -4 })
+    .translate({ y: this.dragOffset })
+    .gesture(
+      PanGesture({ direction: PanDirection.Vertical, distance: 6 })
+        .onActionUpdate((event: GestureEvent): void => {
+          this.dragOffset = clampedActionSheetDrag(event.offsetY);
+        })
+        .onActionEnd((event: GestureEvent): void => this.finishDrag(event.offsetY))
+        .onActionCancel((): void => this.restorePanel())
+    )
+  }
+
+  @Builder
+  private ActionPage(actions: SheetAction[]) {
+    Flex({ wrap: FlexWrap.Wrap }) {
+      ForEach(actions, (action: SheetAction) => {
+        this.ActionCell(action)
+      }, (action: SheetAction) => action.key)
+    }
+    .width('100%')
+    .height(ACTION_SHEET_GRID_HEIGHT)
   }
 
   @Builder
@@ -116,9 +165,9 @@ export struct ActionSheet {
       AppIcon({
         name: action.icon,
         glyphSize: 30,
-        color: action.featured || action.active ? $r('app.color.accent_strong') : this.primaryColor(),
+        color: action.featured || action.active ? $r('app.color.accent_strong') : this.secondaryColor(),
         filled: action.active && action.icon === IconName.Bookmark,
-        strokeWidth: 1.7
+        strokeWidth: 1.25
       })
       Text(action.label)
         .width('100%')
@@ -139,7 +188,7 @@ export struct ActionSheet {
     })
   }
 
-  private actions(): SheetAction[] {
+  private primaryActions(): SheetAction[] {
     return [
       this.action('favorites', $r('app.string.favorites'), IconName.Bookmark, true, false, true),
       this.action('history', $r('app.string.history_title'), IconName.Clock, true, false, true),
@@ -149,13 +198,40 @@ export struct ActionSheet {
       this.action('private', $r('app.string.new_private_tab'), IconName.Incognito, true, false, false),
       this.action('bookmark', $r('app.string.edit_favorites'), IconName.Bookmark,
         !this.isHome, this.isBookmarked, false),
-      this.action('tabs', $r('app.string.recent_tabs'), IconName.Tabs, true, false, false),
+      this.action('tabs', $r('app.string.recent_tabs_title'), IconName.Tabs, true, false, false)
+    ];
+  }
+
+  private secondaryActions(): SheetAction[] {
+    return [
       this.action('desktop', $r('app.string.action_desktop'), IconName.Desktop,
         !this.isHome, this.isDesktop, false),
       this.action('find', $r('app.string.find_title'), IconName.Search, !this.isHome, false, false),
       this.action('reader', $r('app.string.action_reader'), IconName.Reader, !this.isHome, this.isReader, false),
       this.action('share', $r('app.string.action_share'), IconName.Share, !this.isHome, false, false)
     ];
+  }
+
+  private pageIndices(): number[] {
+    const indices: number[] = [];
+    for (let index: number = 0; index < ACTION_SHEET_PAGE_COUNT; index += 1) {
+      indices.push(index);
+    }
+    return indices;
+  }
+
+  private finishDrag(offsetY: number): void {
+    if (shouldDismissActionSheet(offsetY)) {
+      this.onDismiss();
+      return;
+    }
+    this.restorePanel();
+  }
+
+  private restorePanel(): void {
+    this.getUIContext().animateTo({ duration: 180, curve: Curve.EaseOut }, (): void => {
+      this.dragOffset = 0;
+    });
   }
 
   private action(

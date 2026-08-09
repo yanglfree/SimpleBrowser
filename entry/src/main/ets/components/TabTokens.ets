@@ -81,7 +81,7 @@ export const DOCK_TAB_INDICATOR_GAP: number = 3;
 export const DOCK_TAB_INDICATOR_BOTTOM_INSET: number = 4;
 /** Scrolled-away state: a host-only pill, not an invisible strip. */
 export const DOCK_COLLAPSED_PILL_HEIGHT: number = 30;
-export const DOCK_COLLAPSED_HEIGHT: number = 38;
+export const DOCK_COLLAPSED_HEIGHT: number = DOCK_COLLAPSED_PILL_HEIGHT;
 
 /**
  * The page reserves only what the dock occupies at its smallest. When the dock is

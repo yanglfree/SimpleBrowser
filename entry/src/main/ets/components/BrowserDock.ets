@@ -241,7 +241,6 @@ export struct BrowserDock {
     }
     .width('100%')
     .height(DOCK_COLLAPSED_PILL_HEIGHT)
-    .margin({ bottom: 8 })
     .justifyContent(FlexAlign.Center)
     .onClick(() => this.onShow())
     .gesture(

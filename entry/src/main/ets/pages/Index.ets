@@ -150,6 +150,9 @@ const READER_PALETTES: ReaderPalette[] = [
 ];
 
 const ACCENT_HEX: string = '#2E6B5C';
+const TAB_SWITCH_ANIMATION_DURATION: number = 220;
+const TAB_SWITCH_ANIMATION_DISTANCE: number = 28;
+const TAB_SWITCH_DOCK_DISTANCE: number = 10;
 
 @Entry
 @Component
@@ -187,6 +190,7 @@ struct Index {
   @State private liveTabIds: string[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
+  @State private tabSwitchOffset: number = 0;
   /** Status bar height in vp; the browser draws behind the system bars. */
   @State private topInset: number = 0;
   private isTabSoftLimitPromptVisible: boolean = false;
@@ -420,7 +424,10 @@ struct Index {
         .width('100%')
         .height('100%')
         .padding({ bottom: isHomeUrl(tab.url) ? 0 : this.webBottomInset() })
-        .visibility(tab.id === this.activeTabId ? Visibility.Visible : Visibility.Hidden)
+        .opacity(tab.id === this.activeTabId ? 1 : 0)
+        .translate({ x: this.tabTransitionOffset(tab.id) })
+        .zIndex(tab.id === this.activeTabId ? 1 : 0)
+        .hitTestBehavior(tab.id === this.activeTabId ? HitTestMode.Default : HitTestMode.None)
       }, (tab: BrowserTab) =>
         `${tab.id}-${isHomeUrl(tab.url) ? 'home' : (this.isTabLive(tab.id) ? 'live' : 'sleep')}`)
     }
@@ -602,6 +609,7 @@ struct Index {
         onSwitchPrevious: (): void => { void this.switchNeighbour(-1); },
         onSwitchNext: (): void => { void this.switchNeighbour(1); }
       })
+        .translate({ x: this.tabSwitchOffset })
         .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
           .combine(TransitionEffect.translate({ y: 24 })))
     }
@@ -1052,18 +1060,50 @@ struct Index {
     const next: string = this.viewModel.neighbourTabId(offset);
     this.clearSwipePreview();
     if (next !== this.activeTabId) {
-      await this.activateTab(next);
-      this.dismissResumePrompt();
       await this.captureScrollPosition(this.activeTabId);
       await this.captureThumbnail(this.activeTabId);
-      this.viewModel.selectTab(next);
-      this.viewModel.updateTab(next, { lastVisitedAt: Date.now() });
-      this.syncState();
+      await this.activateTab(next);
+      this.dismissResumePrompt();
+      await this.animateTabSwitch(next, offset);
       const selected: BrowserTab | undefined = this.viewModel.getActiveTab();
       if (selected !== undefined) {
         await this.prepareScrollResume(selected);
       }
     }
+  }
+
+  private async animateTabSwitch(next: string, direction: number): Promise<void> {
+    this.getUIContext().animateTo({
+      duration: TAB_SWITCH_ANIMATION_DURATION,
+      curve: Curve.FastOutSlowIn
+    }, (): void => {
+      this.viewModel.selectTab(next);
+      this.viewModel.updateTab(next, { lastVisitedAt: Date.now() });
+      this.syncState();
+      this.tabSwitchOffset = -direction * TAB_SWITCH_DOCK_DISTANCE;
+    });
+    await this.waitForAnimation();
+    this.getUIContext().animateTo({
+      duration: 120,
+      curve: Curve.EaseOut
+    }, (): void => {
+      this.tabSwitchOffset = 0;
+    });
+  }
+
+  private waitForAnimation(): Promise<void> {
+    return new Promise<void>((resolve: () => void): void => {
+      setTimeout(resolve, TAB_SWITCH_ANIMATION_DURATION);
+    });
+  }
+
+  private tabTransitionOffset(id: string): number {
+    const activeIndex: number = this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId);
+    const tabIndex: number = this.tabs.findIndex((tab: BrowserTab) => tab.id === id);
+    if (activeIndex < 0 || tabIndex === activeIndex) {
+      return 0;
+    }
+    return tabIndex < activeIndex ? -TAB_SWITCH_ANIMATION_DISTANCE : TAB_SWITCH_ANIMATION_DISTANCE;
   }
 
   private previewNeighbour(direction: number): void {
@@ -1255,6 +1295,10 @@ struct Index {
     }
     if (key === 'settings') {
       this.sheet = Overlay.Settings;
+      return;
+    }
+    if (key === 'blocking') {
+      this.openBlockPanel();
       return;
     }
     if (key === 'home') {

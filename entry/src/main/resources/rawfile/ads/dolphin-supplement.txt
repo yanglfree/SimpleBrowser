@@ -42,3 +42,5 @@
 msn.cn,msn.com##csm-card[card-type="nativead"]
 msn.cn,msn.com##csm-native-ad-card
 msn.cn,msn.com##display-ads
+! The 2026-08 feed revision renamed the live card to this versioned element.
+msn.cn,msn.com##cs-native-ad-card-28
