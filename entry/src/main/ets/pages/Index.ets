@@ -258,7 +258,7 @@ struct Index {
     DownloadService.unsubscribe(this.downloadListener);
     MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
-    void PrivacyService.flushCookies();
+    PrivacyService.flushCookies();
   }
 
   private promptExpiredTabs(): void {
@@ -1248,9 +1248,12 @@ struct Index {
       PrivacyService.clearPrivateSiteData(this.privateControllers([tab]));
     } else {
       // A login's session cookie may not have hit ArkWeb's periodic disk flush.
-      void PrivacyService.flushCookies();
+      PrivacyService.flushCookies();
     }
     this.viewModel.closeTab(id);
+    // Pre-create the replacement tab's controller before destroying the old
+    // one, so the ArkWeb engine never restarts and flushes fresh cookies away.
+    this.controllerFor(this.viewModel.activeTabId);
     this.controllers.delete(id);
     this.liveTabIds = this.liveTabIds.filter((tabId: string) => tabId !== id);
     this.thumbnails = this.thumbnails.filter((item: TabThumbnail) => item.id !== id);
@@ -1263,8 +1266,10 @@ struct Index {
   private closeAllTabs(): void {
     void this.captureScrollPosition(this.activeTabId);
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
-    void PrivacyService.flushCookies();
+    PrivacyService.flushCookies();
     this.viewModel.closeAllTabs();
+    // Warm a controller for the fresh home tab before nuking every existing one.
+    this.controllerFor(this.viewModel.activeTabId);
     this.controllers.clear();
     this.liveTabIds = [];
     this.thumbnails = [];
@@ -2137,7 +2142,7 @@ struct Index {
     this.refreshNavigationState(id);
     // The login flow often finishes here; persist cookies now rather than wait
     // for ArkWeb's 30s disk flush so a quick tab close keeps the session.
-    void PrivacyService.flushCookies();
+    PrivacyService.flushCookies();
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (tab !== undefined) {
       await this.viewModel.recordPageVisit(tab);
