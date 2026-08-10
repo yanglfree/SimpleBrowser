@@ -1269,6 +1269,9 @@ struct Index {
       PrivacyService.clearCookies();
     }
     this.syncState();
+    if (this.sheet === Overlay.Tabs && this.tabs.length <= 1 && isHomeUrl(this.activeTab()?.url ?? '')) {
+      this.sheet = Overlay.None;
+    }
   }
 
   private closeAllTabs(): void {
