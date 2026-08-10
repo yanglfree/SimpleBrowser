@@ -1,4 +1,5 @@
 import { webview } from '@kit.ArkWeb';
+import { scrolledFromTopScript } from '../constants/AppConstants';
 import { BrowserTab, WebDarkModePreference } from '../models/BrowserModels';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { WebKernelCallbacks, WebKernelService } from '../services/WebKernelService';
@@ -30,6 +31,8 @@ export struct BrowserWebView {
   @Prop darkModeExcluded: boolean = false;
   controller: webview.WebviewController = new webview.WebviewController();
   @State private pullDistance: number = 0;
+  @State private pullBlocked: boolean = false;
+  private pullQueryId: number = 0;
   @State private edgeBackDistance: number = 0;
   @State private edgeForwardDistance: number = 0;
   private adsBlockService: AdsBlockService = new AdsBlockService();
@@ -111,6 +114,7 @@ export struct BrowserWebView {
       })
       .parallelGesture(
         PanGesture({ direction: PanDirection.Vertical, distance: 8 })
+          .onActionStart((event: GestureEvent) => this.startPull(event))
           .onActionUpdate((event: GestureEvent) => this.updatePullDistance(event))
           .onActionEnd((_event: GestureEvent) => this.finishPull())
           .onActionCancel(() => this.cancelPull())
@@ -244,8 +248,37 @@ export struct BrowserWebView {
     }
   }
 
+  private startPull(event: GestureEvent): void {
+    // Block optimistically: while the scroll-state query is in flight the pull
+    // indicator must stay hidden, or a downward drag on a scrolled list would
+    // flash it before the query can veto the gesture.
+    this.pullBlocked = true;
+    this.pullDistance = 0;
+    const queryId: number = ++this.pullQueryId;
+    const finger: FingerInfo | undefined = event.fingerList.length > 0 ? event.fingerList[0] : undefined;
+    const x: number = finger !== undefined ? finger.localX : -1;
+    const y: number = finger !== undefined ? finger.localY : -1;
+    const script: string = scrolledFromTopScript(x, y);
+    this.controller.runJavaScript(script)
+      .then((raw: string) => {
+        if (queryId !== this.pullQueryId) {
+          return;
+        }
+        this.pullBlocked = raw.indexOf('1') >= 0;
+        if (this.pullBlocked) {
+          this.pullDistance = 0;
+        }
+      })
+      .catch((_error: Error) => {
+        if (queryId === this.pullQueryId) {
+          // Fall back to the isAtTop gate when the query fails.
+          this.pullBlocked = false;
+        }
+      });
+  }
+
   private updatePullDistance(event: GestureEvent): void {
-    if (!this.isAtTop || this.tab.isLoading || event.offsetY <= 0 ||
+    if (this.pullBlocked || !this.isAtTop || this.tab.isLoading || event.offsetY <= 0 ||
       Math.abs(event.offsetY) < Math.abs(event.offsetX)) {
       this.pullDistance = 0;
       return;
@@ -256,6 +289,7 @@ export struct BrowserWebView {
   private finishPull(): void {
     const shouldRefresh: boolean = this.pullDistance >= 64 && this.isAtTop && !this.tab.isLoading;
     this.pullDistance = 0;
+    this.pullBlocked = false;
     if (shouldRefresh) {
       this.onPullRefresh();
     }
@@ -263,6 +297,7 @@ export struct BrowserWebView {
 
   private cancelPull(): void {
     this.pullDistance = 0;
+    this.pullBlocked = false;
   }
 }
 

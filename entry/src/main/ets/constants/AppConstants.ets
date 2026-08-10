@@ -302,6 +302,44 @@ export const READ_SCROLL_POSITION_SCRIPT: string = `
   return String(Math.max(0, Math.round(window.scrollY || 0)));
 })();`;
 
+/**
+ * Reports '1' when the content under the given viewport point is scrolled away
+ * from the top — the document itself or any scrollable ancestor of the touched
+ * element. The document-level onScroll event never fires for inner scroll
+ * containers, so without this check a downward drag on a scrolled list would
+ * be mistaken for a pull-to-refresh. Falls back to scanning every scrollable
+ * element when no point is supplied, and to '1' (block the pull) on error so
+ * the gesture errs on the side of not refreshing mid-list.
+ */
+export function scrolledFromTopScript(x: number, y: number): string {
+  const px: number = Math.max(0, Math.round(x));
+  const py: number = Math.max(0, Math.round(y));
+  const usePoint: boolean = x >= 0 && y >= 0;
+  const pointQuery: string = usePoint
+    ? `
+    var el = document.elementFromPoint(${px}, ${py});
+    while (el && el !== doc) {
+      if (el.scrollTop > 8) return '1';
+      el = el.parentElement;
+    }`
+    : `
+    var all = document.querySelectorAll('*');
+    for (var i = 0; i < all.length; i++) {
+      var node = all[i];
+      if (node.scrollTop > 8 && node.scrollHeight - node.clientHeight > 8) return '1';
+    }`;
+  return `
+(function() {
+  try {
+    var doc = document.scrollingElement || document.documentElement;
+    if (doc.scrollTop > 8) return '1';${pointQuery}
+    return '0';
+  } catch (e) {
+    return '1';
+  }
+})();`;
+}
+
 export const READ_FORM_DRAFT_SCRIPT: string = `
 (function() {
   var fields = document.querySelectorAll('input:not([type="password"]),textarea,select');
