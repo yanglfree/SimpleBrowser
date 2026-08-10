@@ -9,6 +9,14 @@ interface SheetAction {
   featured: boolean;
 }
 
+interface QuickAction {
+  key: string;
+  label: Resource;
+  icon: IconName;
+  enabled: boolean;
+  active: boolean;
+}
+
 const ACTION_SHEET_PAGE_COUNT: number = 2;
 const ACTION_SHEET_GRID_HEIGHT: number = 160;
 const ACTION_SHEET_MAX_DRAG: number = 180;
@@ -24,7 +32,6 @@ export function shouldDismissActionSheet(offsetY: number): boolean {
 
 @Component
 export struct ActionSheet {
-  @Prop host: string = '';
   @Prop blockedCount: number = 0;
   @Prop isHome: boolean = false;
   @Prop isBookmarked: boolean = false;
@@ -58,50 +65,7 @@ export struct ActionSheet {
         .borderRadius(2)
         .backgroundColor(this.handleColor())
 
-      Row({ space: 14 }) {
-        Image($r('app.media.app_icon'))
-          .width(46)
-          .height(46)
-          .borderRadius(14)
-
-        Column({ space: 4 }) {
-          Text(this.isHome ? $r('app.string.browser_profile_title') : this.host)
-            .width('100%')
-            .fontSize(17)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(this.primaryColor())
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text() {
-            if (this.isHome) {
-              Span($r('app.string.browser_profile_subtitle'))
-            } else {
-              Span(`${this.blockedCount}`)
-              Span(' ')
-              Span($r('app.string.blocked_cumulative_suffix'))
-            }
-          }
-            .width('100%')
-            .fontSize(13)
-            .fontColor(this.secondaryColor())
-            .maxLines(1)
-        }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-
-        AppIcon({ name: IconName.ChevronRight, glyphSize: 18, color: this.secondaryColor() })
-      }
-      .width('100%')
-      .height(68)
-      .padding({ left: 16, right: 16 })
-      .borderRadius(18)
-      .backgroundColor(this.cardColor())
-      .accessibilityText($r('app.string.blocked_on_site'))
-      .onClick(() => {
-        if (!this.isHome) {
-          this.onAction('blocking');
-        }
-      })
+      this.QuickActions()
 
       Swiper() {
         this.ActionPage(this.primaryActions())
@@ -130,6 +94,10 @@ export struct ActionSheet {
             })
         }, (index: number) => `action-page-${index}`)
       }
+
+      if (!this.isHome) {
+        this.BlockingRow()
+      }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Center)
@@ -146,6 +114,84 @@ export struct ActionSheet {
         .onActionEnd((event: GestureEvent): void => this.finishDrag(event.offsetY))
         .onActionCancel((): void => this.restorePanel())
     )
+  }
+
+  @Builder
+  private QuickActions() {
+    Scroll() {
+      Row({ space: 10 }) {
+        ForEach(this.quickActions(), (action: QuickAction) => {
+          this.QuickActionCell(action)
+        }, (action: QuickAction) => `quick-${action.key}`)
+      }
+      .width('100%')
+      .padding({ left: 2, right: 2 })
+    }
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .width('100%')
+    .height(70)
+    .align(Alignment.Top)
+  }
+
+  @Builder
+  private QuickActionCell(action: QuickAction) {
+    Column({ space: 6 }) {
+      AppIcon({
+        name: action.icon,
+        glyphSize: 26,
+        color: action.active ? $r('app.color.accent_strong') : this.secondaryColor(),
+        filled: action.active && action.icon === IconName.Bookmark,
+        strokeWidth: 1.25
+      })
+      Text(action.label)
+        .width('100%')
+        .fontSize(10.5)
+        .fontColor(action.active ? $r('app.color.accent_strong') : this.primaryColor())
+        .textAlign(TextAlign.Center)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width(72)
+    .height(68)
+    .justifyContent(FlexAlign.Center)
+    .borderRadius(16)
+    .backgroundColor(this.cardColor())
+    .opacity(action.enabled ? 1 : 0.5)
+    .onClick(() => {
+      if (action.enabled) {
+        this.onAction(action.key);
+      }
+    })
+  }
+
+  /** Blocking stats, demoted to a single row so the quick actions own the top. */
+  @Builder
+  private BlockingRow() {
+    Row({ space: 10 }) {
+      AppIcon({ name: IconName.ShieldCheck, glyphSize: 17, color: $r('app.color.accent') })
+      Text() {
+        Span($r('app.string.blocked_on_site'))
+        Span(' ')
+        Span(`${this.blockedCount}`)
+        Span(' ')
+        Span($r('app.string.blocked_cumulative_suffix'))
+      }
+      .fontSize(13.5)
+      .fontColor(this.secondaryColor())
+      .maxLines(1)
+      .textOverflow({ overflow: TextOverflow.Ellipsis })
+      .layoutWeight(1)
+      AppIcon({ name: IconName.ChevronRight, glyphSize: 17, color: this.secondaryColor() })
+    }
+    .width('100%')
+    .height(48)
+    .padding({ left: 14, right: 14 })
+    .borderRadius(14)
+    .backgroundColor(this.cardColor())
+    .accessibilityText($r('app.string.blocked_on_site'))
+    .onClick(() => this.onAction('blocking'))
   }
 
   @Builder
@@ -196,9 +242,23 @@ export struct ActionSheet {
       this.action('settings', $r('app.string.settings'), IconName.Settings, true, false, true),
       this.action('home', $r('app.string.home'), IconName.Home, !this.isHome, this.isHome, false),
       this.action('private', $r('app.string.new_private_tab'), IconName.Incognito, true, false, false),
-      this.action('bookmark', $r('app.string.edit_favorites'), IconName.Bookmark,
-        !this.isHome, this.isBookmarked, false),
       this.action('tabs', $r('app.string.recent_tabs_title'), IconName.Tabs, true, false, false)
+    ];
+  }
+
+  private quickActions(): QuickAction[] {
+    return [
+      {
+        key: 'bookmark',
+        label: this.isBookmarked ? $r('app.string.action_bookmark_remove') : $r('app.string.action_bookmark_add'),
+        icon: IconName.Bookmark,
+        enabled: !this.isHome,
+        active: this.isBookmarked
+      },
+      { key: 'history', label: $r('app.string.history_title'), icon: IconName.Clock, enabled: true, active: false },
+      { key: 'downloads', label: $r('app.string.download_title'), icon: IconName.Download, enabled: true, active: false },
+      { key: 'recent_tabs', label: $r('app.string.recent_tabs_title'), icon: IconName.Tabs, enabled: true, active: false },
+      { key: 'settings', label: $r('app.string.settings'), icon: IconName.Settings, enabled: true, active: false }
     ];
   }
 

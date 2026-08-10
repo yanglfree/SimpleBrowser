@@ -24,6 +24,10 @@ interface MemoryPayload {
   level: number;
 }
 
+interface ActionUsagePayload {
+  action: string;
+}
+
 interface ReaderPayload {
   success: boolean;
 }
@@ -109,6 +113,15 @@ export class TelemetryService {
       message: TelemetryService.trim(error.message, 240)
     };
     TelemetryService.writeEvent('crash', payload);
+  }
+
+  /** Menu/quick-action invocation; feeds the usage-ranking design without PII. */
+  static reportActionUsage(key: string): void {
+    if (key.length === 0) {
+      return;
+    }
+    const payload: ActionUsagePayload = { action: TelemetryService.trim(key, 40) };
+    TelemetryService.writeEvent('action_usage', payload);
   }
 
   private static writeEvent(eventName: string, params: Object): void {

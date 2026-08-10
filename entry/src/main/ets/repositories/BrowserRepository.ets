@@ -47,6 +47,7 @@ const SITE_STATS_KEY: string = 'site_stats';
 const DAILY_STATS_KEY: string = 'daily_stats';
 const ALLOWED_HOSTS_KEY: string = 'allowed_hosts';
 const HIDDEN_QUICK_HOSTS_KEY: string = 'hidden_quick_hosts';
+const ACTION_USAGE_KEY: string = 'action_usage';
 
 interface LegacyBookmark {
   id: string;
@@ -64,6 +65,7 @@ export class BrowserRepository {
   private dailyStats: DailyBlockCount[] = [];
   private allowedHosts: string[] = [];
   private hiddenQuickHosts: string[] = [];
+  private actionUsage: Record<string, number> = {};
   private session: BrowserSession | undefined;
   private archivedTabs: BrowserTab[] = [];
 
@@ -85,6 +87,7 @@ export class BrowserRepository {
       this.dailyStats = this.decode<DailyBlockCount>(await store.get(DAILY_STATS_KEY, '[]'), DAILY_STATS_KEY);
       this.allowedHosts = this.decode<string>(await store.get(ALLOWED_HOSTS_KEY, '[]'), ALLOWED_HOSTS_KEY);
       this.hiddenQuickHosts = this.decode<string>(await store.get(HIDDEN_QUICK_HOSTS_KEY, '[]'), HIDDEN_QUICK_HOSTS_KEY);
+      this.actionUsage = this.decodeActionUsage(await store.get(ACTION_USAGE_KEY, '{}'));
       this.session = this.decodeSession(await store.get(SESSION_KEY, ''));
       this.archivedTabs = this.decode<BrowserTab>(await store.get(TAB_ARCHIVE_KEY, '[]'), TAB_ARCHIVE_KEY)
         .map((tab: BrowserTab) => this.decodeTab(tab));
@@ -346,6 +349,44 @@ export class BrowserRepository {
       await store.flush();
     } catch (error) {
       Logger.error(TAG, `Failed to save ${key}: ${String(error)}`);
+    }
+  }
+
+  /** Counts one invocation of a menu action; the numbers drive future ranking. */
+  async recordActionUsage(key: string): Promise<void> {
+    if (key.length === 0) {
+      return;
+    }
+    this.actionUsage[key] = (this.actionUsage[key] ?? 0) + 1;
+    await this.save(ACTION_USAGE_KEY, JSON.stringify(this.actionUsage));
+  }
+
+  /** Snapshot of action→use counts, for ranking the quick actions by frequency. */
+  getActionUsageCounts(): Record<string, number> {
+    const snapshot: Record<string, number> = {};
+    for (const key of Object.keys(this.actionUsage)) {
+      snapshot[key] = this.actionUsage[key];
+    }
+    return snapshot;
+  }
+
+  private decodeActionUsage(value: preferences.ValueType): Record<string, number> {
+    if (typeof value !== 'string' || value.length === 0) {
+      return {};
+    }
+    try {
+      const parsed: Record<string, number> = JSON.parse(value) as Record<string, number>;
+      const counts: Record<string, number> = {};
+      for (const key of Object.keys(parsed)) {
+        const count: number = Number(parsed[key]);
+        if (Number.isFinite(count) && count > 0) {
+          counts[key] = Math.round(count);
+        }
+      }
+      return counts;
+    } catch (error) {
+      Logger.warn(TAG, `Invalid ${ACTION_USAGE_KEY} payload: ${String(error)}`);
+      return {};
     }
   }
 

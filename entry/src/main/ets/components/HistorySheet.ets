@@ -28,6 +28,7 @@ export struct HistorySheet {
   onSelect: (url: string) => void = (_url: string): void => {};
   onDelete: (id: string) => void = (_id: string): void => {};
   onDeleteSite: (host: string) => void = (_host: string): void => {};
+  onEditItem: (item: SavedItem) => void = (_item: SavedItem): void => {};
 
   build() {
     Column() {
@@ -116,7 +117,11 @@ export struct HistorySheet {
   @Builder
   private EntryRow(entry: HistoryEntry) {
     Row({ space: 12 }) {
-      AppIcon({ name: IconName.Clock, glyphSize: 17, color: $r('app.color.text_secondary') })
+      AppIcon({
+        name: this.favoritesOnly ? IconName.Bookmark : IconName.Clock,
+        glyphSize: 17,
+        color: $r('app.color.text_secondary')
+      })
       Column({ space: 4 }) {
         Text(entry.title.length > 0 ? entry.title : displayHost(entry.url))
           .fontSize(15)
@@ -146,13 +151,35 @@ export struct HistorySheet {
     .border({ width: { bottom: 1 }, color: $r('app.color.border') })
     .onClick(() => this.onSelect(entry.url))
     .gesture(
-      PanGesture({ direction: PanDirection.Horizontal, distance: HISTORY_SWIPE_DISTANCE })
-        .onActionEnd((event: GestureEvent) => {
-          if (!this.favoritesOnly && event.offsetX <= -HISTORY_SWIPE_DISTANCE) {
-            this.onDelete(entry.id);
-          }
-        })
+      GestureGroup(GestureMode.Exclusive,
+        LongPressGesture({ repeat: false, duration: 500 })
+          .onAction(() => {
+            if (this.favoritesOnly) {
+              const saved: SavedItem | undefined = this.savedItemFor(entry);
+              if (saved !== undefined) {
+                this.onEditItem(saved);
+              }
+            }
+          }),
+        PanGesture({ direction: PanDirection.Horizontal, distance: HISTORY_SWIPE_DISTANCE })
+          .onActionEnd((event: GestureEvent) => {
+            if (event.offsetX <= -HISTORY_SWIPE_DISTANCE) {
+              if (this.favoritesOnly) {
+                const saved: SavedItem | undefined = this.savedItemFor(entry);
+                if (saved !== undefined) {
+                  this.onDelete(saved.id);
+                }
+              } else {
+                this.onDelete(entry.id);
+              }
+            }
+          })
+      )
     )
+  }
+
+  private savedItemFor(entry: HistoryEntry): SavedItem | undefined {
+    return this.savedItems.find((item: SavedItem) => item.url === entry.url);
   }
 
   private groups(): HistoryGroup[] {

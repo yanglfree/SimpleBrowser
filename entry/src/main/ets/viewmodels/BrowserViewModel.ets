@@ -528,6 +528,38 @@ export class BrowserViewModel {
     this.savedItems = this.repository.getSavedItems();
   }
 
+  async removeSavedItem(id: string): Promise<void> {
+    await this.repository.removeSavedItem(id);
+    this.savedItems = this.repository.getSavedItems();
+  }
+
+  async renameSavedItem(id: string, title: string): Promise<void> {
+    const cleanTitle: string = title.trim();
+    const existing: SavedItem | undefined = this.savedItems.find((item: SavedItem) => item.id === id);
+    if (existing === undefined || cleanTitle.length === 0) {
+      return;
+    }
+    const updated: SavedItem = {
+      id: existing.id,
+      title: cleanTitle,
+      url: existing.url,
+      createdAt: existing.createdAt,
+      updatedAt: Date.now(),
+      isRead: existing.isRead,
+      tags: existing.tags.slice(0)
+    };
+    await this.repository.updateSavedItem(updated);
+    this.savedItems = this.repository.getSavedItems();
+  }
+
+  async recordActionUsage(key: string): Promise<void> {
+    await this.repository.recordActionUsage(key);
+  }
+
+  getActionUsageCounts(): Record<string, number> {
+    return this.repository.getActionUsageCounts();
+  }
+
   private async markSavedItemRead(url: string): Promise<void> {
     const existing: SavedItem | undefined = this.savedItems.find((item: SavedItem) => item.url === url);
     if (existing === undefined || existing.isRead) {

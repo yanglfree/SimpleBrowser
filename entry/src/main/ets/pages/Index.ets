@@ -36,6 +36,7 @@ import {
   QuickSite,
   ReaderPaper,
   RuleStrength,
+  SavedItem,
   SearchEngine,
   Suggestion,
   LoadErrorKind,
@@ -69,6 +70,7 @@ import { RecentTabsDock } from '../components/RecentTabsDock';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
 import { SharePanel } from '../components/SharePanel';
+import { SavedItemEditSheet } from '../components/SavedItemEditSheet';
 import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
 import {
@@ -113,7 +115,8 @@ enum Overlay {
   Permission = 14,
   PageSettings = 15,
   Favorites = 16,
-  RecentTabs = 17
+  RecentTabs = 17,
+  EditSavedItem = 18
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -184,6 +187,7 @@ struct Index {
   @State private findTotal: number = 0;
   @State private longPressTarget: WebLongPressTarget | undefined = undefined;
   @State private pendingSitePermission: PendingSitePermission | undefined = undefined;
+  @State private editingSavedItem: SavedItem | undefined = undefined;
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
   @State private history: HistoryEntry[] = [];
@@ -768,9 +772,31 @@ struct Index {
         favoritesOnly: true,
         usesFullscreenBars: this.isActiveHome(),
         onDismiss: (): void => { this.sheet = Overlay.None; },
-        onSelect: (url: string): void => this.navigateTo(url)
+        onSelect: (url: string): void => this.navigateTo(url),
+        onDelete: (id: string): void => { this.deleteFavorite(id); },
+        onEditItem: (item: SavedItem): void => {
+          this.editingSavedItem = item;
+          this.sheet = Overlay.EditSavedItem;
+        }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.EditSavedItem && this.editingSavedItem !== undefined) {
+      SavedItemEditSheet({
+        title: this.editingSavedItem.title,
+        host: displayHost(this.editingSavedItem.url),
+        onSave: (title: string): void => {
+          if (this.editingSavedItem !== undefined) {
+            this.renameFavorite(this.editingSavedItem.id, title);
+          }
+        },
+        onDelete: (): void => {
+          if (this.editingSavedItem !== undefined) {
+            this.deleteFavorite(this.editingSavedItem.id);
+          }
+        },
+        onDismiss: (): void => { this.sheet = Overlay.None; }
+      })
+        .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.Downloads) {
       DownloadSheet({
         tasks: this.downloadTasks,
@@ -1292,10 +1318,18 @@ struct Index {
     }
     if (key === 'history') {
       this.sheet = Overlay.History;
+      this.recordActionUsage('history');
       return;
     }
     if (key === 'settings') {
       this.sheet = Overlay.Settings;
+      this.recordActionUsage('settings');
+      return;
+    }
+    if (key === 'recent_tabs') {
+      this.syncState();
+      this.sheet = Overlay.RecentTabs;
+      this.recordActionUsage('recent_tabs');
       return;
     }
     if (key === 'blocking') {
@@ -1316,9 +1350,11 @@ struct Index {
       return;
     }
     if (key === 'bookmark') {
-      await this.viewModel.toggleSaved(tab);
+      const added: boolean = await this.viewModel.toggleSaved(tab);
       this.isActiveBookmarked = this.viewModel.isSaved(tab.url);
       this.isActiveSavedForLater = this.viewModel.isSavedForLater(tab.url);
+      this.showToast(added ? $r('app.string.bookmark_added') : $r('app.string.bookmark_removed'));
+      this.recordActionUsage('bookmark');
       return;
     }
     if (key === 'save_later') {
@@ -1349,6 +1385,7 @@ struct Index {
     }
     if (key === 'downloads') {
       this.sheet = Overlay.Downloads;
+      this.recordActionUsage('downloads');
       return;
     }
     if (key === 'find') {
@@ -1482,6 +1519,32 @@ struct Index {
     } catch (error) {
       Logger.warn(TAG, `Toast unavailable: ${String(error)}`);
     }
+  }
+
+  private showToast(message: Resource): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message });
+    } catch (error) {
+      Logger.warn(TAG, `Toast unavailable: ${String(error)}`);
+    }
+  }
+
+  private recordActionUsage(key: string): void {
+    void this.viewModel.recordActionUsage(key);
+    TelemetryService.reportActionUsage(key);
+  }
+
+  private deleteFavorite(id: string): void {
+    void this.viewModel.removeSavedItem(id);
+    if (this.sheet === Overlay.EditSavedItem) {
+      this.sheet = Overlay.None;
+    }
+    this.showToast($r('app.string.favorite_deleted'));
+  }
+
+  private renameFavorite(id: string, title: string): void {
+    void this.viewModel.renameSavedItem(id, title);
+    this.sheet = Overlay.None;
   }
 
   private async saveActiveForLater(): Promise<void> {

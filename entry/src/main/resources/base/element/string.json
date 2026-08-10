@@ -56,6 +56,13 @@
     { "name": "favorites", "value": "收藏夹" },
     { "name": "favorites_empty", "value": "尚未收藏任何页面" },
     { "name": "edit_favorites", "value": "编辑收藏夹" },
+    { "name": "bookmark_added", "value": "已加入收藏夹" },
+    { "name": "bookmark_removed", "value": "已移出收藏夹" },
+    { "name": "favorite_deleted", "value": "已删除收藏" },
+    { "name": "edit_favorite_title", "value": "编辑收藏" },
+    { "name": "favorite_name", "value": "名称" },
+    { "name": "favorite_save", "value": "保存" },
+    { "name": "favorite_delete", "value": "删除" },
 
     { "name": "action_back", "value": "后退" },
     { "name": "action_forward", "value": "前进" },
