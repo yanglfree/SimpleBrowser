@@ -2112,6 +2112,16 @@ struct Index {
     }
     this.showCapsule();
     const current: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (current !== undefined && current.url !== url) {
+      // Navigating to a new URL — the scroll position belongs to the old page
+      // and would trigger a stale "continue reading" prompt on page end.
+      this.viewModel.updateTab(id, {
+        scrollY: 0,
+        scrollSavedAt: 0,
+        readerScrollY: 0,
+        readerScrollSavedAt: 0
+      });
+    }
     const progress: number = current?.isLoading === true && current.progress > 0
       ? current.progress
       : 0;
