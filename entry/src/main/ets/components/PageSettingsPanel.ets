@@ -19,10 +19,10 @@ export struct PageSettingsPanel {
         .backgroundColor($r('app.color.scrim'))
         .onClick(() => this.onDismiss())
 
-      Column({ space: 16 }) {
+      Column({ space: 12 }) {
         Text($r('app.string.page_settings'))
           .width('100%')
-          .fontSize(22)
+          .fontSize(17)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.home_text_primary'))
 
@@ -33,42 +33,42 @@ export struct PageSettingsPanel {
             this.onToggleBackground)
         }
         .width('100%')
-        .padding({ left: 16, right: 12 })
-        .borderRadius(18)
+        .padding({ left: 14, right: 10 })
+        .borderRadius(14)
         .backgroundColor($r('app.color.home_panel_subtle'))
 
         Row() {
           Text($r('app.string.page_theme'))
             .layoutWeight(1)
-            .fontSize(16)
+            .fontSize(14)
             .fontColor($r('app.color.home_text_primary'))
           Text(this.appearanceLabel)
-            .fontSize(14)
+            .fontSize(13)
             .fontColor($r('app.color.home_text_secondary'))
-          AppIcon({ name: IconName.ChevronRight, glyphSize: 17, color: $r('app.color.home_text_secondary') })
+          AppIcon({ name: IconName.ChevronRight, glyphSize: 16, color: $r('app.color.home_text_secondary') })
         }
         .width('100%')
-        .height(58)
-        .padding({ left: 16, right: 14 })
-        .borderRadius(18)
+        .height(50)
+        .padding({ left: 14, right: 12 })
+        .borderRadius(14)
         .backgroundColor($r('app.color.home_panel_subtle'))
         .onClick(() => this.onOpenSettings())
 
         Text($r('app.string.more_settings'))
           .width('100%')
-          .height(48)
-          .borderRadius(14)
+          .height(42)
+          .borderRadius(12)
           .border({ width: 1, color: $r('app.color.home_panel_border') })
-          .fontSize(15)
+          .fontSize(14)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.home_text_primary'))
           .textAlign(TextAlign.Center)
           .onClick(() => this.onOpenSettings())
       }
-      .width('72%')
-      .margin({ top: 52, right: 18 })
-      .padding({ top: 24, left: 20, right: 20, bottom: 20 })
-      .borderRadius(26)
+      .width('62%')
+      .margin({ top: 48, right: 16 })
+      .padding({ top: 18, left: 18, right: 18, bottom: 18 })
+      .borderRadius(22)
       .backgroundColor($r('app.color.home_panel_background'))
       .backdropBlur(28)
       .shadow({ radius: 24, color: $r('app.color.home_panel_shadow'), offsetX: 0, offsetY: 10 })
@@ -82,12 +82,12 @@ export struct PageSettingsPanel {
     Row() {
       Text(label)
         .layoutWeight(1)
-        .fontSize(16)
+        .fontSize(14)
         .fontColor($r('app.color.home_text_primary'))
       AppSwitch({ checked: checked, accessibilityLabel: label, onToggle: onToggle })
     }
     .width('100%')
-    .height(58)
+    .height(50)
     .border(divided
       ? { width: { bottom: 1 }, color: $r('app.color.home_panel_divider') }
       : { width: 0 })

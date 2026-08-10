@@ -191,6 +191,7 @@ struct Index {
   @State private thumbnails: TabThumbnail[] = [];
   @State private backHistory: WebHistoryEntry[] = [];
   @State private history: HistoryEntry[] = [];
+  @State private savedItems: SavedItem[] = [];
   @State private liveTabIds: string[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
@@ -257,6 +258,7 @@ struct Index {
     DownloadService.unsubscribe(this.downloadListener);
     MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
+    void PrivacyService.flushCookies();
   }
 
   private promptExpiredTabs(): void {
@@ -648,7 +650,6 @@ struct Index {
         .transition(TransitionEffect.OPACITY.animation({ duration: 180 }))
     } else if (this.sheet === Overlay.Actions) {
       ActionSheet({
-        host: displayHost(this.activeTab()?.url ?? ''),
         blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
         isHome: this.isActiveHome(),
         isBookmarked: this.isActiveBookmarked,
@@ -757,7 +758,7 @@ struct Index {
     } else if (this.sheet === Overlay.History) {
       HistorySheet({
         entries: this.history,
-        savedItems: this.viewModel.savedItems,
+        savedItems: this.savedItems,
         usesFullscreenBars: this.isActiveHome(),
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onSelect: (url: string): void => this.navigateTo(url),
@@ -768,7 +769,7 @@ struct Index {
     } else if (this.sheet === Overlay.Favorites) {
       HistorySheet({
         entries: [],
-        savedItems: this.viewModel.savedItems,
+        savedItems: this.savedItems,
         favoritesOnly: true,
         usesFullscreenBars: this.isActiveHome(),
         onDismiss: (): void => { this.sheet = Overlay.None; },
@@ -1245,6 +1246,9 @@ struct Index {
     const tab: BrowserTab | undefined = this.tabs.find((item: BrowserTab) => item.id === id);
     if (tab?.isPrivate === true) {
       PrivacyService.clearPrivateSiteData(this.privateControllers([tab]));
+    } else {
+      // A login's session cookie may not have hit ArkWeb's periodic disk flush.
+      void PrivacyService.flushCookies();
     }
     this.viewModel.closeTab(id);
     this.controllers.delete(id);
@@ -1259,6 +1263,7 @@ struct Index {
   private closeAllTabs(): void {
     void this.captureScrollPosition(this.activeTabId);
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
+    void PrivacyService.flushCookies();
     this.viewModel.closeAllTabs();
     this.controllers.clear();
     this.liveTabIds = [];
@@ -1266,6 +1271,7 @@ struct Index {
     if (this.settings.clearCookiesOnTabClose) {
       PrivacyService.clearCookies();
     }
+    this.sheet = Overlay.None;
     this.syncState();
   }
 
@@ -1534,16 +1540,18 @@ struct Index {
     TelemetryService.reportActionUsage(key);
   }
 
-  private deleteFavorite(id: string): void {
-    void this.viewModel.removeSavedItem(id);
+  private async deleteFavorite(id: string): Promise<void> {
+    await this.viewModel.removeSavedItem(id);
+    this.savedItems = this.viewModel.savedItems.slice();
     if (this.sheet === Overlay.EditSavedItem) {
       this.sheet = Overlay.None;
     }
     this.showToast($r('app.string.favorite_deleted'));
   }
 
-  private renameFavorite(id: string, title: string): void {
-    void this.viewModel.renameSavedItem(id, title);
+  private async renameFavorite(id: string, title: string): Promise<void> {
+    await this.viewModel.renameSavedItem(id, title);
+    this.savedItems = this.viewModel.savedItems.slice();
     this.sheet = Overlay.None;
   }
 
@@ -2127,6 +2135,9 @@ struct Index {
       lastVisitedAt: Date.now()
     });
     this.refreshNavigationState(id);
+    // The login flow often finishes here; persist cookies now rather than wait
+    // for ArkWeb's 30s disk flush so a quick tab close keeps the session.
+    void PrivacyService.flushCookies();
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (tab !== undefined) {
       await this.viewModel.recordPageVisit(tab);
@@ -2747,6 +2758,7 @@ struct Index {
     this.recentTabs = this.viewModel.recentTabs(RECENT_TAB_LIMIT);
     this.settings = cloneSettings(this.viewModel.settings);
     this.history = this.viewModel.history.map((entry: HistoryEntry) => cloneHistoryEntry(entry));
+    this.savedItems = this.viewModel.savedItems.slice();
     this.quickSites = this.viewModel.getQuickSites();
     this.weeklyBlocked = this.viewModel.getWeeklyBlocked();
     this.cumulativeBlocked = this.viewModel.getCumulativeBlocked();

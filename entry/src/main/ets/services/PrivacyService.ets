@@ -4,6 +4,19 @@ import { Logger } from '../utils/Logger';
 const TAG: string = 'PrivacyService';
 
 export class PrivacyService {
+  /**
+   * ArkWeb writes cookies to disk every ~30s; a session cookie set by a login
+   * can be lost when a tab closes or the process dies before the next flush.
+   * saveCookieAsync() forces the write so logins survive tab close and relaunch.
+   */
+  static async flushCookies(): Promise<void> {
+    try {
+      await webview.WebCookieManager.saveCookieAsync();
+    } catch (error) {
+      Logger.warn(TAG, `Failed to flush cookies: ${String(error)}`);
+    }
+  }
+
   /** Backs "关闭标签时清除 Cookie" and the private-tab teardown. */
   static clearCookies(): void {
     try {

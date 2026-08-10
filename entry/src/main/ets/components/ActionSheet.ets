@@ -124,12 +124,11 @@ export struct ActionSheet {
           this.QuickActionCell(action)
         }, (action: QuickAction) => `quick-${action.key}`)
       }
-      .width('100%')
       .padding({ left: 2, right: 2 })
     }
     .scrollable(ScrollDirection.Horizontal)
     .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
+    .edgeEffect(EdgeEffect.None)
     .width('100%')
     .height(70)
     .align(Alignment.Top)
@@ -237,12 +236,10 @@ export struct ActionSheet {
   private primaryActions(): SheetAction[] {
     return [
       this.action('favorites', $r('app.string.favorites'), IconName.Bookmark, true, false, true),
-      this.action('history', $r('app.string.history_title'), IconName.Clock, true, false, true),
-      this.action('downloads', $r('app.string.download_title'), IconName.Download, true, false, true),
-      this.action('settings', $r('app.string.settings'), IconName.Settings, true, false, true),
       this.action('home', $r('app.string.home'), IconName.Home, !this.isHome, this.isHome, false),
       this.action('private', $r('app.string.new_private_tab'), IconName.Incognito, true, false, false),
-      this.action('tabs', $r('app.string.recent_tabs_title'), IconName.Tabs, true, false, false)
+      this.action('desktop', $r('app.string.action_desktop'), IconName.Desktop,
+        !this.isHome, this.isDesktop, false)
     ];
   }
 
@@ -264,8 +261,6 @@ export struct ActionSheet {
 
   private secondaryActions(): SheetAction[] {
     return [
-      this.action('desktop', $r('app.string.action_desktop'), IconName.Desktop,
-        !this.isHome, this.isDesktop, false),
       this.action('find', $r('app.string.find_title'), IconName.Search, !this.isHome, false, false),
       this.action('reader', $r('app.string.action_reader'), IconName.Reader, !this.isHome, this.isReader, false),
       this.action('share', $r('app.string.action_share'), IconName.Share, !this.isHome, false, false)
