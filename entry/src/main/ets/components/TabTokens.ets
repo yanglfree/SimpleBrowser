@@ -67,13 +67,13 @@ export const RECENT_TAB_NEW_ICON_SIZE: number = 20;
 export const RECENT_TAB_NEW_CONTENT_GAP: number = 6;
 export const RECENT_TAB_LIMIT: number = 5;
 
-/** Bottom dock: one 46vp row plus the 10vp it sits above the screen edge. */
+/** Bottom dock: one 46vp row in a tightly-centred container. */
 export const DOCK_ROW_HEIGHT: number = 46;
 export const DOCK_SLOT_WIDTH: number = 40;
 export const DOCK_ICON_SIZE: number = 28;
 /** Outlined square holding the tab count, the way every mobile browser draws it. */
 export const DOCK_BADGE_SIZE: number = 24;
-export const DOCK_HEIGHT: number = 56;
+export const DOCK_HEIGHT: number = 48;
 export const DOCK_TAB_INDICATOR_LIMIT: number = 5;
 export const DOCK_TAB_INDICATOR_ACTIVE_WIDTH: number = 12;
 export const DOCK_TAB_INDICATOR_DOT_SIZE: number = 4;
