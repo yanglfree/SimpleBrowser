@@ -122,7 +122,7 @@ export struct ActionSheet {
       Row({ space: 10 }) {
         ForEach(this.quickActions(), (action: QuickAction) => {
           this.QuickActionCell(action)
-        }, (action: QuickAction) => `quick-${action.key}`)
+        }, (action: QuickAction) => `quick-${action.key}-${action.active}`)
       }
       .padding({ left: 2, right: 2 })
     }

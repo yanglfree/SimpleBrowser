@@ -7,11 +7,12 @@ export class PrivacyService {
   /**
    * ArkWeb writes cookies to disk every ~30s; a session cookie set by a login
    * can be lost when a tab closes or the process dies before the next flush.
-   * saveCookieAsync() forces the write so logins survive tab close and relaunch.
+   * saveCookieSync() forces the write synchronously so logins survive tab close
+   * and relaunch — the async cousin can race with engine shutdown.
    */
-  static async flushCookies(): Promise<void> {
+  static flushCookies(): void {
     try {
-      await webview.WebCookieManager.saveCookieAsync();
+      webview.WebCookieManager.saveCookieSync();
     } catch (error) {
       Logger.warn(TAG, `Failed to flush cookies: ${String(error)}`);
     }
