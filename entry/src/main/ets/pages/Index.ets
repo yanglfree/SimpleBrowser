@@ -1244,10 +1244,18 @@ struct Index {
   private closeTab(id: string): void {
     void this.captureScrollPosition(id);
     const tab: BrowserTab | undefined = this.tabs.find((item: BrowserTab) => item.id === id);
-    if (tab?.isPrivate === true) {
+    if (tab === undefined) {
+      return;
+    }
+    if (tab.isPrivate) {
       PrivacyService.clearPrivateSiteData(this.privateControllers([tab]));
     } else {
-      // A login's session cookie may not have hit ArkWeb's periodic disk flush.
+      // ArkWeb cookie store must be warm before saveCookieSync commits.
+      try {
+        webview.WebCookieManager.configCookieSync(tab.url, 'dpkeep=1; Max-Age=86400');
+      } catch (e) {
+        // Non-fatal; the sync below still writes whatever cookies exist.
+      }
       PrivacyService.flushCookies();
     }
     this.viewModel.closeTab(id);
