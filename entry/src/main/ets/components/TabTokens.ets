@@ -88,5 +88,5 @@ export const DOCK_COLLAPSED_HEIGHT: number = DOCK_COLLAPSED_PILL_HEIGHT;
  * pinned it reserves the full bar; when it auto-hides the expanded bar floats over
  * the last few vp of the page, the way Safari does, so nothing reflows on scroll.
  */
-export const TAB_WEB_BOTTOM_INSET: number = DOCK_HEIGHT + 4;
-export const TAB_WEB_BOTTOM_INSET_COMPACT: number = DOCK_COLLAPSED_HEIGHT + 4;
+export const TAB_WEB_BOTTOM_INSET: number = DOCK_HEIGHT + 2;
+export const TAB_WEB_BOTTOM_INSET_COMPACT: number = DOCK_COLLAPSED_HEIGHT + 2;
