@@ -171,6 +171,16 @@ export struct BrowserDock {
         width: 1,
         color: this.usesHomeColors() ? $r('app.color.home_control_border') : $r('app.color.border')
       })
+      .focusable(true)
+      .defaultFocus(this.wide)
+      .focusOnTouch(true)
+      .hoverEffect(HoverEffect.Auto)
+      .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.995 })
+      .onAppear(() => {
+        if (this.wide) {
+          focusControl.requestFocus('browser-address');
+        }
+      })
       .onClick(() => {
         if (this.addressMenuVisible) {
           this.onDismissAddressMenu();
@@ -207,6 +217,9 @@ export struct BrowserDock {
       .border({ width: 1.8, color: this.iconColor() })
       .margin({ left: (DOCK_SLOT_WIDTH - DOCK_BADGE_SIZE) / 2, right: (DOCK_SLOT_WIDTH - DOCK_BADGE_SIZE) / 2 })
       .accessibilityText($r('app.string.recent_tabs'))
+      .focusable(true)
+      .hoverEffect(HoverEffect.Auto)
+      .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.94 })
       .onClick(() => this.onOpenTabs())
       .gesture(
         LongPressGesture({ repeat: false, duration: 450 })
@@ -301,6 +314,9 @@ export struct BrowserDock {
     .height(ADDRESS_MENU_ROW_HEIGHT)
     .padding({ left: 16, right: 10 })
     .accessibilityText($r('app.string.address_menu_visit_clipboard'))
+    .focusable(true)
+    .hoverEffect(HoverEffect.Auto)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.98 })
   }
 
   @Builder
@@ -317,6 +333,9 @@ export struct BrowserDock {
     .height(ADDRESS_MENU_ROW_HEIGHT)
     .padding({ left: 16, right: 16 })
     .accessibilityText(label)
+    .focusable(true)
+    .hoverEffect(HoverEffect.Auto)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.92 })
     .onClick(() => {
       this.onDismissAddressMenu();
       action();

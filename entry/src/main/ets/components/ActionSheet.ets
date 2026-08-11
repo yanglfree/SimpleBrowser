@@ -158,6 +158,9 @@ export struct ActionSheet {
     .borderRadius(16)
     .backgroundColor(this.cardColor())
     .opacity(action.enabled ? 1 : 0.5)
+    .focusable(action.enabled)
+    .hoverEffect(action.enabled ? HoverEffect.Auto : HoverEffect.None)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.94 })
     .onClick(() => {
       if (action.enabled) {
         this.onAction(action.key);
@@ -190,6 +193,9 @@ export struct ActionSheet {
     .borderRadius(14)
     .backgroundColor(this.cardColor())
     .accessibilityText($r('app.string.blocked_on_site'))
+    .focusable(true)
+    .hoverEffect(HoverEffect.Auto)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.98 })
     .onClick(() => this.onAction('blocking'))
   }
 
@@ -226,6 +232,9 @@ export struct ActionSheet {
     .height(80)
     .justifyContent(FlexAlign.Center)
     .opacity(action.enabled ? 1 : 0.5)
+    .focusable(action.enabled)
+    .hoverEffect(action.enabled ? HoverEffect.Auto : HoverEffect.None)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.94 })
     .onClick(() => {
       if (action.enabled) {
         this.onAction(action.key);

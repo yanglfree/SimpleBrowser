@@ -78,4 +78,28 @@ export default function browserViewModelTest(): void {
       expect(viewModel.getSuggestions('example.com').length).assertEqual(0);
     });
   });
+
+  describe('BrowserViewModel closed tab restore', (): void => {
+    it('restores a normal tab with a fresh identity and preserved page state', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const snapshot: BrowserTab = viewModel.createTab('https://restore.example/article', false);
+      snapshot.title = 'Restorable page';
+      snapshot.scrollY = 420;
+
+      const restored: BrowserTab | undefined = viewModel.restoreTab(snapshot);
+
+      expect(restored === undefined).assertFalse();
+      expect(restored?.id === snapshot.id).assertFalse();
+      expect(restored?.title).assertEqual('Restorable page');
+      expect(restored?.scrollY).assertEqual(420);
+      expect(viewModel.activeTabId).assertEqual(restored?.id);
+    });
+
+    it('never restores a private tab into the persistent normal session', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const snapshot: BrowserTab = viewModel.createTab('https://private.example', true);
+
+      expect(viewModel.restoreTab(snapshot) === undefined).assertTrue();
+    });
+  });
 }

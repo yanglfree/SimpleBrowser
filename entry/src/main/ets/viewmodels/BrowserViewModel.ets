@@ -166,6 +166,23 @@ export class BrowserViewModel {
     return tab;
   }
 
+  restoreTab(snapshot: BrowserTab): BrowserTab | undefined {
+    if (snapshot.isPrivate || this.tabs.length >= MAX_TAB_COUNT) {
+      return undefined;
+    }
+    const restored: BrowserTab = cloneTab(snapshot);
+    const identity: BrowserTab = this.createTab(snapshot.url, false);
+    restored.id = identity.id;
+    restored.isPrivate = false;
+    restored.isLoading = !isHomeUrl(restored.url);
+    restored.progress = 0;
+    restored.lastVisitedAt = Date.now();
+    this.tabs = this.tabs.concat([restored]);
+    this.activeTabId = restored.id;
+    this.persistSession();
+    return restored;
+  }
+
   async saveUrlForLater(url: string, title: string): Promise<void> {
     if (url.length === 0 || isHomeUrl(url)) {
       return;

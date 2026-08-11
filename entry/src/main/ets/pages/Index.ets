@@ -107,8 +107,10 @@ import {
   createWindowMetrics
 } from '../models/WindowMetrics';
 import { WindowMetricsService } from '../services/WindowMetricsService';
+import { BrowserShortcut, resolveBrowserShortcut } from '../models/BrowserShortcut';
 
 const TAG: string = 'Index';
+const RECENTLY_CLOSED_TAB_LIMIT: number = 10;
 
 enum Overlay {
   None = 0,
@@ -221,6 +223,7 @@ struct Index {
     BrowserWindowMode.Unknown
   );
   private isTabSoftLimitPromptVisible: boolean = false;
+  private recentlyClosedTabs: BrowserTab[] = [];
   private pendingPermissionRequest: PermissionRequest | undefined = undefined;
   private pendingGeolocation: OnGeolocationShowEvent | undefined = undefined;
   private pageScrollOffsets: Map<string, number> = new Map();
@@ -365,6 +368,8 @@ struct Index {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.page_background'))
+    .focusable(true)
+    .onKeyEvent((event: KeyEvent): boolean => this.handleBrowserShortcut(event))
   }
 
   // ---------------------------------------------------------------- content
@@ -1433,6 +1438,10 @@ struct Index {
     if (tab === undefined) {
       return;
     }
+    if (!tab.isPrivate) {
+      this.recentlyClosedTabs = [cloneTab(tab)].concat(this.recentlyClosedTabs)
+        .slice(0, RECENTLY_CLOSED_TAB_LIMIT);
+    }
     if (tab.isPrivate) {
       PrivacyService.clearPrivateSiteData(this.privateControllers([tab]));
     } else {
@@ -1460,6 +1469,90 @@ struct Index {
     }
   }
 
+  private reopenRecentlyClosedTab(): boolean {
+    const snapshot: BrowserTab | undefined = this.recentlyClosedTabs.shift();
+    if (snapshot === undefined) {
+      return false;
+    }
+    const restored: BrowserTab | undefined = this.viewModel.restoreTab(snapshot);
+    if (restored === undefined) {
+      this.recentlyClosedTabs.unshift(snapshot);
+      return false;
+    }
+    void this.activateTab(restored.id);
+    this.sheet = Overlay.None;
+    this.isCapsuleHidden = false;
+    this.syncState();
+    return true;
+  }
+
+  private handleBrowserShortcut(event: KeyEvent): boolean {
+    const shortcut: BrowserShortcut = resolveBrowserShortcut({
+      keyCode: event.keyCode,
+      ctrl: this.modifierPressed(event, 'ctrl'),
+      shift: this.modifierPressed(event, 'shift'),
+      keyDown: event.type === KeyType.Down
+    });
+    if (shortcut === BrowserShortcut.None || this.sheet === Overlay.Address ||
+      this.sheet === Overlay.Onboarding || this.sheet === Overlay.Permission) {
+      return false;
+    }
+    if (this.sheet !== Overlay.None && shortcut !== BrowserShortcut.FocusAddress) {
+      return false;
+    }
+
+    let handled: boolean = true;
+    switch (shortcut) {
+      case BrowserShortcut.FocusAddress:
+        this.openAddress();
+        break;
+      case BrowserShortcut.NewTab:
+        this.createTab(this.activeTab()?.isPrivate === true);
+        break;
+      case BrowserShortcut.CloseTab:
+        this.closeTab(this.activeTabId);
+        break;
+      case BrowserShortcut.ReopenTab:
+        handled = this.reopenRecentlyClosedTab();
+        break;
+      case BrowserShortcut.NextTab:
+        this.switchOverviewTab(1);
+        break;
+      case BrowserShortcut.PreviousTab:
+        this.switchOverviewTab(-1);
+        break;
+      case BrowserShortcut.Reload:
+        if (this.isActiveHome()) {
+          handled = false;
+        } else {
+          void this.performAction('reload');
+        }
+        break;
+      case BrowserShortcut.Find:
+        if (this.isActiveHome()) {
+          handled = false;
+        } else {
+          this.sheet = Overlay.Find;
+        }
+        break;
+      default:
+        handled = false;
+        break;
+    }
+    if (handled) {
+      event.stopPropagation();
+    }
+    return handled;
+  }
+
+  private modifierPressed(event: KeyEvent, modifier: string): boolean {
+    try {
+      return event.getModifierKeyState?.([modifier]) ?? false;
+    } catch (error) {
+      Logger.warn(TAG, `Failed to read ${modifier} modifier: ${String(error)}`);
+      return false;
+    }
+  }
   private closeAllTabs(): void {
     void this.captureScrollPosition(this.activeTabId);
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));

@@ -6,6 +6,7 @@ import cosmeticFilterServiceTest from './CosmeticFilterService.test';
 import downloadPolicyTest from './DownloadPolicy.test';
 import ruleEngineTest from './RuleEngine.test';
 import windowMetricsTest from './WindowMetrics.test';
+import browserShortcutTest from './BrowserShortcut.test';
 
 export default function testsuite(): void {
   browserKernelServiceTest();
@@ -16,4 +17,5 @@ export default function testsuite(): void {
   downloadPolicyTest();
   ruleEngineTest();
   windowMetricsTest();
+  browserShortcutTest();
 }
