@@ -8,6 +8,7 @@ import ruleEngineTest from './RuleEngine.test';
 import windowMetricsTest from './WindowMetrics.test';
 import browserShortcutTest from './BrowserShortcut.test';
 import tabOverviewLayoutTest from './TabOverviewLayout.test';
+import wideWindowRegressionTest from './WideWindowRegression.test';
 
 export default function testsuite(): void {
   browserKernelServiceTest();
@@ -20,4 +21,5 @@ export default function testsuite(): void {
   windowMetricsTest();
   browserShortcutTest();
   tabOverviewLayoutTest();
+  wideWindowRegressionTest();
 }

@@ -126,7 +126,7 @@ const TAG: string = 'Index';
 const RECENTLY_CLOSED_TAB_LIMIT: number = 10;
 const storage: LocalStorage = LocalStorage.getShared();
 
-enum Overlay {
+export enum Overlay {
   None = 0,
   Actions = 1,
   Address = 2,
@@ -148,6 +148,18 @@ enum Overlay {
   EditSavedItem = 18,
   HomeBackground = 19,
   UserAgent = 20
+}
+
+export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boolean {
+  if (!isWide || sheet === Overlay.None) {
+    return false;
+  }
+  return sheet !== Overlay.Tabs && sheet !== Overlay.Onboarding &&
+    sheet !== Overlay.Permission && sheet !== Overlay.Find;
+}
+
+export function shouldMountOverlayLayer(sheet: Overlay): boolean {
+  return sheet !== Overlay.None;
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -440,7 +452,9 @@ struct Index {
           this.AddressMenuDismissLayer()
         }
         this.CapsuleLayer()
-        this.OverlayLayer()
+        if (shouldMountOverlayLayer(this.sheet)) {
+          this.OverlayLayer()
+        }
       }
     }
     .width('100%')
@@ -1380,11 +1394,7 @@ struct Index {
   }
 
   private usesResponsivePanel(): boolean {
-    if (!this.usesWideChrome()) {
-      return false;
-    }
-    return this.sheet !== Overlay.Tabs && this.sheet !== Overlay.Onboarding &&
-      this.sheet !== Overlay.Permission && this.sheet !== Overlay.Find;
+    return shouldUseResponsivePanel(this.usesWideChrome(), this.sheet);
   }
 
   private canDismissOverlay(): boolean {
