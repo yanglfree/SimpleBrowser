@@ -19,6 +19,7 @@ const ADDRESS_MENU_WIDTH: number = 228;
 const ADDRESS_MENU_ROW_HEIGHT: number = 44;
 const ADDRESS_MENU_GAP: number = 8;
 const ADDRESS_MENU_HEIGHT: number = ADDRESS_MENU_ROW_HEIGHT * 2 + 1;
+const WIDE_DOCK_MAX_WIDTH: number = 1080;
 
 /**
  * One bar, one row. The address reads as a pill flanked by the four controls that
@@ -31,6 +32,7 @@ export struct BrowserDock {
   @Prop isHome: boolean = false;
   @Prop homeBackgroundEnabled: boolean = true;
   @Prop collapsed: boolean = false;
+  @Prop wide: boolean = false;
   @Prop host: string = '';
   @Prop tabCount: number = 1;
   @Prop activeTabIndex: number = 0;
@@ -73,7 +75,8 @@ export struct BrowserDock {
         }
       }
     }
-    .width('100%')
+    .width(this.wide ? '96%' : '100%')
+    .constraintSize({ maxWidth: this.wide ? WIDE_DOCK_MAX_WIDTH : '100%' })
     .height(this.viewportHeight())
     .clip(true)
   }
@@ -88,6 +91,8 @@ export struct BrowserDock {
     .height(DOCK_HEIGHT)
     .justifyContent(FlexAlign.Center)
     .backgroundColor(this.usesHomeColors() ? Color.Transparent : $r('app.color.page_background'))
+    .borderRadius(this.wide ? DOCK_HEIGHT / 2 : 0)
+    .shadow(this.wide ? { radius: 16, color: $r('app.color.shadow_soft'), offsetY: 3 } : undefined)
   }
 
   @Builder
@@ -452,7 +457,7 @@ export struct BrowserDock {
   }
 
   private usesHomeColors(): boolean {
-    return this.isHome && this.homeBackgroundEnabled;
+    return this.isHome && this.homeBackgroundEnabled && !this.wide;
   }
 
   private resolveVerticalSwipe(event: GestureEvent): void {

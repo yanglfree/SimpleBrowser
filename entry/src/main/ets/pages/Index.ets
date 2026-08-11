@@ -480,7 +480,10 @@ struct Index {
         .id(`tab-view-${tab.id}`)
         .width('100%')
         .height('100%')
-        .padding({ bottom: isHomeUrl(tab.url) ? 0 : this.webBottomInset() })
+        .padding({
+          top: this.usesWideChrome() ? this.topInset + DOCK_HEIGHT + 8 : 0,
+          bottom: isHomeUrl(tab.url) || this.usesWideChrome() ? 0 : this.webBottomInset()
+        })
         .opacity(tab.id === this.activeTabId ? 1 : 0)
         .translate({ x: this.tabTransitionOffset(tab.id) })
         .zIndex(tab.id === this.activeTabId ? 1 : 0)
@@ -643,78 +646,95 @@ struct Index {
   @Builder
   private CapsuleLayer() {
     if (this.sheet === Overlay.None) {
-      Column() {
-        BrowserDock({
-          isHome: this.isActiveHome(),
-          homeBackgroundEnabled: this.settings.startPageBackgroundEnabled,
-          collapsed: this.isDockCollapsed(),
-          host: displayHost(this.activeTab()?.url ?? ''),
-          tabCount: this.tabs.length,
-          activeTabIndex: this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId),
-          blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
-          isLoading: this.activeTab()?.isLoading === true,
-          canGoBack: this.activeTab()?.canGoBack === true,
-          canGoForward: this.activeTab()?.canGoForward === true,
-          gesturesEnabled: this.settings.gesturesEnabled,
-          actionsGestureEnabled: this.settings.gestureActionsEnabled,
-          tabSwitchGestureEnabled: this.settings.gestureTabSwitchEnabled,
-          blockingGestureEnabled: this.settings.gestureBlockingEnabled,
-          addressMenuVisible: this.isAddressMenuVisible,
-          onOpenAddress: (): void => this.openAddress(),
-          onBack: (): void => { void this.performAction('back'); },
-          onForward: (): void => { void this.performAction('forward'); },
-          onOpenTabs: (): void => {
-            this.isAddressMenuVisible = false;
-            void this.openTabs();
-          },
-          onOpenRecentTabs: (): void => {
-            this.isAddressMenuVisible = false;
-            this.sheet = Overlay.RecentTabs;
-          },
-          onOpenMenu: (): void => {
-            this.isAddressMenuVisible = false;
-            this.sheet = Overlay.Actions;
-          },
-          onOpenBlocking: (): void => {
-            this.isAddressMenuVisible = false;
-            this.openBlockPanel();
-          },
-          onReload: (): void => { void this.performAction('reload'); },
-          onHide: (): void => {
-            if (this.settings.autoHideToolbarEnabled && !this.isActiveHome()) {
-              this.setCapsuleHidden(true);
-            }
-          },
-          onShow: (): void => this.showCapsule(),
-          onSwitchPrevious: (): void => { void this.switchNeighbour(-1); },
-          onSwitchNext: (): void => { void this.switchNeighbour(1); },
-          onOpenAddressMenu: (): void => { this.isAddressMenuVisible = true; },
-          onDismissAddressMenu: (): void => { this.isAddressMenuVisible = false; },
-          onVisitClipboardLink: (): void => { void this.visitClipboardLink(); },
-          onClipboardAccessFailed: (): void => {
-            this.showToast($r('app.string.clipboard_permission_denied'));
-          },
-          onCopyLink: (): void => { void this.copyActiveLink(); }
-        })
-          .translate({
-            x: this.tabSwitchOffset,
-            y: this.isActiveHome() ? 0 : DOCK_SAFE_AREA_OVERLAP
-          })
-          .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
-            .combine(TransitionEffect.translate({ y: 24 })))
-
-        if (this.isActiveHome() && this.bottomInset > 0) {
-          Row()
-            .width('100%')
-            .height(this.bottomInset)
+      if (this.usesWideChrome()) {
+        Column() {
+          this.BrowserDockContent()
+        }
+        .width('100%')
+        .position({ x: 0, y: this.topInset })
+      } else {
+        Column() {
+          this.BrowserDockContent()
+          if (this.isActiveHome() && this.bottomInset > 0) {
+            Row()
+              .width('100%')
+              .height(this.bottomInset)
+          }
         }
       }
     }
   }
 
+  @Builder
+  private BrowserDockContent() {
+    BrowserDock({
+      isHome: this.isActiveHome(),
+      homeBackgroundEnabled: this.settings.startPageBackgroundEnabled,
+      collapsed: this.usesWideChrome() ? false : this.isDockCollapsed(),
+      wide: this.usesWideChrome(),
+      host: displayHost(this.activeTab()?.url ?? ''),
+      tabCount: this.tabs.length,
+      activeTabIndex: this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId),
+      blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
+      isLoading: this.activeTab()?.isLoading === true,
+      canGoBack: this.activeTab()?.canGoBack === true,
+      canGoForward: this.activeTab()?.canGoForward === true,
+      gesturesEnabled: this.settings.gesturesEnabled,
+      actionsGestureEnabled: this.settings.gestureActionsEnabled,
+      tabSwitchGestureEnabled: this.settings.gestureTabSwitchEnabled,
+      blockingGestureEnabled: this.settings.gestureBlockingEnabled,
+      addressMenuVisible: this.isAddressMenuVisible,
+      onOpenAddress: (): void => this.openAddress(),
+      onBack: (): void => { void this.performAction('back'); },
+      onForward: (): void => { void this.performAction('forward'); },
+      onOpenTabs: (): void => {
+        this.isAddressMenuVisible = false;
+        void this.openTabs();
+      },
+      onOpenRecentTabs: (): void => {
+        this.isAddressMenuVisible = false;
+        this.sheet = Overlay.RecentTabs;
+      },
+      onOpenMenu: (): void => {
+        this.isAddressMenuVisible = false;
+        this.sheet = Overlay.Actions;
+      },
+      onOpenBlocking: (): void => {
+        this.isAddressMenuVisible = false;
+        this.openBlockPanel();
+      },
+      onReload: (): void => { void this.performAction('reload'); },
+      onHide: (): void => {
+        if (this.settings.autoHideToolbarEnabled && !this.isActiveHome()) {
+          this.setCapsuleHidden(true);
+        }
+      },
+      onShow: (): void => this.showCapsule(),
+      onSwitchPrevious: (): void => { void this.switchNeighbour(-1); },
+      onSwitchNext: (): void => { void this.switchNeighbour(1); },
+      onOpenAddressMenu: (): void => { this.isAddressMenuVisible = true; },
+      onDismissAddressMenu: (): void => { this.isAddressMenuVisible = false; },
+      onVisitClipboardLink: (): void => { void this.visitClipboardLink(); },
+      onClipboardAccessFailed: (): void => {
+        this.showToast($r('app.string.clipboard_permission_denied'));
+      },
+      onCopyLink: (): void => { void this.copyActiveLink(); }
+    })
+      .translate({
+        x: this.tabSwitchOffset,
+        y: this.usesWideChrome() || this.isActiveHome() ? 0 : DOCK_SAFE_AREA_OVERLAP
+      })
+      .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
+        .combine(TransitionEffect.translate({ y: 24 })))
+  }
+
   /** Home never collapses — there is no page to give the height back to. */
   private isDockCollapsed(): boolean {
     return this.isCapsuleHidden && !this.isActiveHome();
+  }
+
+  private usesWideChrome(): boolean {
+    return this.windowMetrics.layoutClass >= BrowserLayoutClass.Medium;
   }
 
   private dockHeight(): number {
@@ -729,6 +749,38 @@ struct Index {
 
   @Builder
   private OverlayLayer() {
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      if (this.usesResponsivePanel() && this.canDismissOverlay()) {
+        Row()
+          .width('100%')
+          .height('100%')
+          .backgroundColor($r('app.color.scrim'))
+          .opacity(0.42)
+          .onClick(() => { this.sheet = Overlay.None; })
+      }
+
+      Row() {
+        Column() {
+          this.OverlayContent()
+        }
+        .width(this.overlayWidth())
+        .height('100%')
+      }
+      .width('100%')
+      .height('100%')
+      .padding(this.usesResponsivePanel() ? 12 : 0)
+      .justifyContent(this.windowMetrics.layoutClass >= BrowserLayoutClass.Expanded
+        ? FlexAlign.End
+        : FlexAlign.Center)
+      .hitTestBehavior(HitTestMode.None)
+    }
+    .width('100%')
+    .height('100%')
+    .hitTestBehavior(HitTestMode.None)
+  }
+
+  @Builder
+  private OverlayContent() {
     if (this.sheet === Overlay.RecentTabs) {
       RecentTabsDock({
         tabs: this.recentTabs,
@@ -954,6 +1006,32 @@ struct Index {
       })
         .transition(this.sheetTransition())
     }
+  }
+
+  private usesResponsivePanel(): boolean {
+    if (!this.usesWideChrome()) {
+      return false;
+    }
+    return this.sheet !== Overlay.Tabs && this.sheet !== Overlay.Onboarding &&
+      this.sheet !== Overlay.Permission && this.sheet !== Overlay.Find;
+  }
+
+  private canDismissOverlay(): boolean {
+    return this.sheet !== Overlay.Onboarding && this.sheet !== Overlay.Permission;
+  }
+
+  private overlayWidth(): number | string {
+    if (!this.usesResponsivePanel()) {
+      return '100%';
+    }
+    if (this.sheet === Overlay.Settings || this.sheet === Overlay.History ||
+      this.sheet === Overlay.Favorites || this.sheet === Overlay.Downloads) {
+      return 820;
+    }
+    if (this.sheet === Overlay.Address) {
+      return 720;
+    }
+    return 560;
   }
 
   private sheetTransition(): TransitionEffect {
