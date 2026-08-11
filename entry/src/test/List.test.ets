@@ -7,6 +7,7 @@ import downloadPolicyTest from './DownloadPolicy.test';
 import ruleEngineTest from './RuleEngine.test';
 import windowMetricsTest from './WindowMetrics.test';
 import browserShortcutTest from './BrowserShortcut.test';
+import tabOverviewLayoutTest from './TabOverviewLayout.test';
 
 export default function testsuite(): void {
   browserKernelServiceTest();
@@ -18,4 +19,5 @@ export default function testsuite(): void {
   ruleEngineTest();
   windowMetricsTest();
   browserShortcutTest();
+  tabOverviewLayoutTest();
 }

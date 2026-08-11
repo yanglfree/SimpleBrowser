@@ -36,6 +36,25 @@ import {
   TAB_THUMB_HEIGHT
 } from './TabTokens';
 
+const TAB_OVERVIEW_MIN_CARD_WIDTH: number = 240;
+const TAB_OVERVIEW_MAX_COLUMNS: number = 4;
+const TAB_OVERVIEW_CONTENT_MAX_WIDTH: number = 1440;
+
+export function tabOverviewColumnCount(availableWidth: number): number {
+  const contentWidth: number = Math.max(0, availableWidth - TAB_OVERVIEW_HEADER_HORIZONTAL * 2);
+  const columns: number = Math.floor(
+    (contentWidth + TAB_OVERVIEW_GRID_GAP) / (TAB_OVERVIEW_MIN_CARD_WIDTH + TAB_OVERVIEW_GRID_GAP)
+  );
+  return Math.max(1, Math.min(TAB_OVERVIEW_MAX_COLUMNS, columns));
+}
+
+export function tabOverviewGridHeight(count: number, columns: number): number {
+  const safeColumns: number = Math.max(1, columns);
+  const rows: number = Math.ceil(Math.max(0, count) / safeColumns);
+  const cards: number = rows * TAB_CARD_HEIGHT + Math.max(rows - 1, 0) * TAB_OVERVIEW_GRID_GAP;
+  return cards + TAB_OVERVIEW_GRID_BOTTOM;
+}
+
 /** A snapshot of a tab taken the last time it was on screen. */
 export interface TabThumbnail {
   id: string;
@@ -66,6 +85,7 @@ export struct TabOverview {
   @Prop activeTabId: string = '';
   /** Status bar height — the overview is drawn behind the system bars. */
   @Prop topInset: number = 0;
+  @Prop availableWidth: number = 0;
   /** Snapshots captured when a tab was last on screen; absent for a cold tab. */
   thumbnails: TabThumbnail[] = [];
   onSelect: (id: string) => void = (_id: string): void => {};
@@ -96,6 +116,7 @@ export struct TabOverview {
             .onClick(() => this.onCloseAll())
         }
         .width('100%')
+        .constraintSize({ maxWidth: TAB_OVERVIEW_CONTENT_MAX_WIDTH })
         .padding({
           top: TAB_OVERVIEW_HEADER_TOP + this.topInset,
           left: TAB_OVERVIEW_HEADER_HORIZONTAL,
@@ -110,6 +131,7 @@ export struct TabOverview {
             if (this.privateTabs.length > 0) {
               Text($r('app.string.private_badge'))
                 .width('100%')
+                .constraintSize({ maxWidth: TAB_OVERVIEW_CONTENT_MAX_WIDTH })
                 .fontSize(TAB_OVERVIEW_TITLE_SIZE)
                 .fontWeight(FontWeight.Medium)
                 .fontColor($r('app.color.text_secondary'))
@@ -147,18 +169,19 @@ export struct TabOverview {
         }
       }, (tab: BrowserTab) => `${tab.id}-${tab.url}-${tab.title}`)
     }
-    .columnsTemplate('1fr 1fr')
+    .columnsTemplate(this.columnsTemplate())
     .columnsGap(TAB_OVERVIEW_GRID_GAP)
     .rowsGap(TAB_OVERVIEW_GRID_GAP)
     // The grid sits in a Scroll, so it cannot inherit a height — it is measured
     // from the row count instead, and the outer Scroll does the scrolling.
-    .height(this.gridHeight($$.tabs.length))
+    .height(tabOverviewGridHeight($$.tabs.length, this.columnCount()))
     .padding({
       left: TAB_OVERVIEW_HEADER_HORIZONTAL,
       right: TAB_OVERVIEW_HEADER_HORIZONTAL,
       bottom: TAB_OVERVIEW_GRID_BOTTOM
     })
     .width('100%')
+    .constraintSize({ maxWidth: TAB_OVERVIEW_CONTENT_MAX_WIDTH })
   }
 
   @Builder
@@ -186,6 +209,9 @@ export struct TabOverview {
           .width(TAB_CLOSE_HIT_SIZE)
           .height(TAB_CLOSE_HIT_SIZE)
           .justifyContent(FlexAlign.Center)
+          .focusable(true)
+          .hoverEffect(HoverEffect.Auto)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.9 })
           .onClick(() => this.onClose($$.tab.id))
       }
       .width('100%')
@@ -213,6 +239,10 @@ export struct TabOverview {
       offsetX: 0,
       offsetY: TAB_CARD_SHADOW_OFFSET_Y
     })
+    .focusable(true)
+    .defaultFocus($$.tab.id === this.activeTabId)
+    .hoverEffect(HoverEffect.Auto)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.985 })
     .onClick(() => this.onSelect($$.tab.id))
     .gesture(
       PanGesture({ direction: PanDirection.All, distance: TAB_CARD_SWIPE_DISTANCE })
@@ -311,6 +341,9 @@ export struct TabOverview {
     .border({ width: 1, color: $r('app.color.border') })
     .shadow({ radius: 12, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: 2 })
     .margin({ bottom: TAB_NEW_BUTTON_BOTTOM_MARGIN })
+    .focusable(true)
+    .hoverEffect(HoverEffect.Auto)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.96 })
     .onClick(() => this.onNewTab())
     .gesture(
       LongPressGesture({ repeat: false, duration: TAB_PRIVATE_GESTURE_DURATION })
@@ -319,13 +352,18 @@ export struct TabOverview {
   }
 
   private thumbnailsFor(id: string): TabThumbnail[] {
+    if (this.privateTabs.some((tab: BrowserTab): boolean => tab.id === id)) {
+      return [];
+    }
     return this.thumbnails.filter((item: TabThumbnail) => item.id === id);
   }
 
-  private gridHeight(count: number): number {
-    const rows: number = Math.ceil(count / 2);
-    const cards: number = rows * TAB_CARD_HEIGHT + Math.max(rows - 1, 0) * TAB_OVERVIEW_GRID_GAP;
-    return cards + TAB_OVERVIEW_GRID_BOTTOM;
+  private columnCount(): number {
+    return tabOverviewColumnCount(this.availableWidth);
+  }
+
+  private columnsTemplate(): string {
+    return new Array<string>(this.columnCount()).fill('1fr').join(' ');
   }
 
   private cardTitle(tab: BrowserTab): ResourceStr {

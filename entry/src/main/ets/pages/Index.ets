@@ -850,6 +850,7 @@ struct Index {
         privateTabs: this.privateTabs(),
         activeTabId: this.activeTabId,
         topInset: this.topInset,
+        availableWidth: this.windowMetrics.widthVp,
         thumbnails: this.thumbnails,
         onSelect: (id: string): void => { this.selectTab(id); },
         onSwitch: (direction: number): void => { this.switchOverviewTab(direction); },
