@@ -2297,11 +2297,13 @@ struct Index {
       if (isBack) {
         try {
           const bfList: webview.BackForwardList = controller.getBackForwardEntries();
-          if (bfList.currentIndex > 0) {
-            const prev: webview.HistoryItem = bfList.getItemAtIndex(bfList.currentIndex - 1);
-            if (isHomeUrl(prev.historyUrl)) {
-              return;
-            }
+          if (bfList.currentIndex <= 0) {
+            return;
+          }
+          const prev: webview.HistoryItem = bfList.getItemAtIndex(bfList.currentIndex - 1);
+          const curr: webview.HistoryItem = bfList.getItemAtIndex(bfList.currentIndex);
+          if (rawHost(prev.historyUrl) !== rawHost(curr.historyUrl)) {
+            return;
           }
         } catch (e) {
           // Fall through — backward() is still the best-effort action.
