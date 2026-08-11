@@ -79,6 +79,7 @@ import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
 import { DesktopTabStrip, DESKTOP_TAB_STRIP_HEIGHT } from '../components/DesktopTabStrip';
 import { UserAgentPolicySheet } from '../components/UserAgentPolicySheet';
+import { BrowserSidebar, SidebarPanel } from '../components/BrowserSidebar';
 import {
   DOCK_COLLAPSED_HEIGHT,
   DOCK_HEIGHT,
@@ -189,6 +190,7 @@ struct Index {
   @State private tabs: BrowserTab[] = [];
   @State private recentTabs: BrowserTab[] = [];
   @State private activeTabId: string = '';
+  @State private sidebarPanel: SidebarPanel = SidebarPanel.None;
   @State private settings: BrowserSettings = defaultBrowserSettings();
   @State private sheet: Overlay = Overlay.None;
   @State private isCapsuleHidden: boolean = false;
@@ -248,6 +250,9 @@ struct Index {
         (metrics: BrowserWindowMetrics): void => {
           const previousClass: BrowserLayoutClass = this.windowMetrics.layoutClass;
           this.windowMetrics = metrics;
+          if (metrics.layoutClass === BrowserLayoutClass.Compact) {
+            this.sidebarPanel = SidebarPanel.None;
+          }
           if (previousClass !== metrics.layoutClass) {
             Logger.debug(TAG, `Browser layout class changed to ${metrics.layoutClass}`);
           }
@@ -332,6 +337,10 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    if (this.sidebarPanel !== SidebarPanel.None) {
+      this.sidebarPanel = SidebarPanel.None;
+      return true;
+    }
     if (this.sheet !== Overlay.None) {
       this.sheet = Overlay.None;
       return true;
@@ -357,7 +366,19 @@ struct Index {
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
-      this.ContentLayer()
+      Row() {
+        Column() {
+          this.ContentLayer()
+        }
+        .layoutWeight(1)
+        .height('100%')
+
+        if (this.sidebarPanel !== SidebarPanel.None && this.usesSidebar()) {
+          this.SidebarLayer()
+        }
+      }
+      .width('100%')
+      .height('100%')
 
       if (this.isReady && !this.hasError) {
         this.ErrorLayer()
@@ -659,7 +680,7 @@ struct Index {
         Column() {
           this.BrowserDockContent()
         }
-        .width('100%')
+        .width(this.chromeWidth())
         .position({ x: 0, y: this.topInset })
       } else {
         Column() {
@@ -712,7 +733,7 @@ struct Index {
       onForward: (): void => { void this.performAction('forward'); },
       onOpenTabs: (): void => {
         this.isAddressMenuVisible = false;
-        void this.openTabs();
+        this.openTabsPresentation();
       },
       onOpenRecentTabs: (): void => {
         this.isAddressMenuVisible = false;
@@ -724,7 +745,7 @@ struct Index {
       },
       onOpenBlocking: (): void => {
         this.isAddressMenuVisible = false;
-        this.openBlockPanel();
+        this.openBlockPresentation();
       },
       onReload: (): void => { void this.performAction('reload'); },
       onHide: (): void => {
@@ -764,6 +785,59 @@ struct Index {
 
   private usesDesktopTabStrip(): boolean {
     return this.windowMetrics.layoutClass >= BrowserLayoutClass.Desktop;
+  }
+
+  private usesSidebar(): boolean {
+    return this.windowMetrics.layoutClass >= BrowserLayoutClass.Medium;
+  }
+
+  private sidebarWidth(): number {
+    if (this.windowMetrics.layoutClass >= BrowserLayoutClass.Desktop) {
+      return 400;
+    }
+    if (this.windowMetrics.layoutClass >= BrowserLayoutClass.Expanded) {
+      return 360;
+    }
+    return 320;
+  }
+
+  private chromeWidth(): number | string {
+    if (this.sidebarPanel !== SidebarPanel.None && this.usesSidebar()) {
+      return Math.max(0, this.windowMetrics.widthVp - this.sidebarWidth());
+    }
+    return '100%';
+  }
+
+  @Builder
+  private SidebarLayer() {
+    BrowserSidebar({
+      panel: this.sidebarPanel,
+      tabs: this.activeTab()?.isPrivate === true ? this.privateTabs() : this.normalTabs(),
+      activeTabId: this.activeTabId,
+      history: this.activeTab()?.isPrivate === true ? [] : this.history,
+      savedItems: this.activeTab()?.isPrivate === true ? [] : this.savedItems,
+      downloads: this.downloadTasks,
+      host: displayHost(this.activeTab()?.url ?? ''),
+      blockStats: this.activeTab()?.blocked ?? emptyBlockStats(),
+      cumulativeBlocked: this.cumulativeBlocked,
+      onPanelChange: (panel: SidebarPanel): void => { this.sidebarPanel = panel; },
+      onDismiss: (): void => { this.sidebarPanel = SidebarPanel.None; },
+      onSelectTab: (id: string): void => { void this.selectTab(id); },
+      onCloseTab: (id: string): void => this.closeTab(id),
+      onNavigate: (url: string): void => this.navigateTo(url),
+      onDeleteHistory: (id: string): void => { void this.deleteHistory(id); },
+      onDeleteHistorySite: (host: string): void => { void this.deleteHistorySite(host); },
+      onDeleteFavorite: (id: string): void => { void this.deleteFavorite(id); },
+      onPauseDownload: (id: string): void => DownloadService.pause(id),
+      onResumeDownload: (id: string): void => DownloadService.resume(id),
+      onRetryDownload: (id: string): void => DownloadService.retry(id),
+      onOpenDownload: (task: DownloadTask): void => { void this.openDownload(task); },
+      onShareDownload: (task: DownloadTask): void => { void this.shareDownload(task); },
+      onDeleteDownloadFile: (id: string): void => DownloadService.remove(id, true),
+      onDeleteDownloadRecord: (id: string): void => DownloadService.remove(id, false)
+    })
+      .width(this.sidebarWidth())
+      .height('100%')
   }
 
   private wideChromeHeight(): number {
@@ -1313,6 +1387,34 @@ struct Index {
     this.sheet = Overlay.Block;
   }
 
+  private openBlockPresentation(): void {
+    if (this.usesSidebar()) {
+      this.siteStats = this.viewModel.getSiteBlocked(this.activeTab()?.url ?? '');
+      this.sidebarPanel = SidebarPanel.Block;
+      this.sheet = Overlay.None;
+    } else {
+      this.openBlockPanel();
+    }
+  }
+
+  private openTabsPresentation(): void {
+    if (this.usesSidebar()) {
+      this.sidebarPanel = SidebarPanel.Tabs;
+      this.sheet = Overlay.None;
+    } else {
+      void this.openTabs();
+    }
+  }
+
+  private openSidebarOrOverlay(panel: SidebarPanel, overlay: Overlay): void {
+    if (this.usesSidebar()) {
+      this.sidebarPanel = panel;
+      this.sheet = Overlay.None;
+    } else {
+      this.sheet = overlay;
+    }
+  }
+
   private async openTabs(): Promise<void> {
     await this.captureThumbnail(this.activeTabId);
     this.sheet = Overlay.Tabs;
@@ -1696,11 +1798,11 @@ struct Index {
       return;
     }
     if (key === 'favorites') {
-      this.sheet = Overlay.Favorites;
+      this.openSidebarOrOverlay(SidebarPanel.Favorites, Overlay.Favorites);
       return;
     }
     if (key === 'history') {
-      this.sheet = Overlay.History;
+      this.openSidebarOrOverlay(SidebarPanel.History, Overlay.History);
       this.recordActionUsage('history');
       return;
     }
@@ -1716,7 +1818,7 @@ struct Index {
       return;
     }
     if (key === 'blocking') {
-      this.openBlockPanel();
+      this.openBlockPresentation();
       return;
     }
     if (key === 'home') {
@@ -1729,7 +1831,7 @@ struct Index {
       return;
     }
     if (key === 'tabs') {
-      await this.openTabs();
+      this.openTabsPresentation();
       return;
     }
     if (key === 'bookmark') {
@@ -1760,7 +1862,7 @@ struct Index {
       return;
     }
     if (key === 'downloads') {
-      this.sheet = Overlay.Downloads;
+      this.openSidebarOrOverlay(SidebarPanel.Downloads, Overlay.Downloads);
       this.recordActionUsage('downloads');
       return;
     }
