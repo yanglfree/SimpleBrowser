@@ -15,6 +15,10 @@ import {
 } from './TabTokens';
 
 const SWIPE_THRESHOLD: number = 26;
+const ADDRESS_MENU_WIDTH: number = 228;
+const ADDRESS_MENU_ROW_HEIGHT: number = 44;
+const ADDRESS_MENU_GAP: number = 8;
+const ADDRESS_MENU_HEIGHT: number = ADDRESS_MENU_ROW_HEIGHT * 2 + 1;
 
 /**
  * One bar, one row. The address reads as a pill flanked by the four controls that
@@ -37,6 +41,7 @@ export struct BrowserDock {
   @Prop actionsGestureEnabled: boolean = true;
   @Prop tabSwitchGestureEnabled: boolean = true;
   @Prop blockingGestureEnabled: boolean = true;
+  @Prop addressMenuVisible: boolean = false;
   onOpenAddress: () => void = (): void => {};
   onBack: () => void = (): void => {};
   onForward: () => void = (): void => {};
@@ -50,6 +55,11 @@ export struct BrowserDock {
   onShow: () => void = (): void => {};
   onSwitchPrevious: () => void = (): void => {};
   onSwitchNext: () => void = (): void => {};
+  onOpenAddressMenu: () => void = (): void => {};
+  onDismissAddressMenu: () => void = (): void => {};
+  onVisitClipboardLink: () => void = (): void => {};
+  onClipboardAccessFailed: () => void = (): void => {};
+  onCopyLink: () => void = (): void => {};
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
@@ -57,10 +67,13 @@ export struct BrowserDock {
         this.CollapsedBar()
       } else {
         this.ExpandedBar()
+        if (this.addressMenuVisible && !this.isHome) {
+          this.AddressMenu()
+        }
       }
     }
     .width('100%')
-    .height(this.collapsed ? DOCK_COLLAPSED_HEIGHT : DOCK_HEIGHT)
+    .height(this.viewportHeight())
     .clip(true)
   }
 
@@ -156,10 +169,24 @@ export struct BrowserDock {
         width: 1,
         color: this.isHome ? $r('app.color.home_control_border') : $r('app.color.border')
       })
-      .onClick(() => this.onOpenAddress())
+      .onClick(() => {
+        if (this.addressMenuVisible) {
+          this.onDismissAddressMenu();
+        } else {
+          this.onOpenAddress();
+        }
+      })
       .gesture(
-        PanGesture({ direction: PanDirection.Horizontal, distance: 6 })
-          .onActionEnd((event: GestureEvent) => this.resolveTabSwipe(event))
+        GestureGroup(GestureMode.Exclusive,
+          LongPressGesture({ repeat: false, duration: 450 })
+            .onAction(() => {
+              if (!this.isHome) {
+                this.onOpenAddressMenu();
+              }
+            }),
+          PanGesture({ direction: PanDirection.Horizontal, distance: 6 })
+            .onActionEnd((event: GestureEvent) => this.resolveTabSwipe(event))
+        )
       )
 
       // The count sits inside its own outline instead of on top of the stacked-
@@ -201,6 +228,96 @@ export struct BrowserDock {
           .onActionEnd((event: GestureEvent) => this.resolveVerticalSwipe(event))
       )
     )
+  }
+
+  @Builder
+  private AddressMenu() {
+    Column() {
+      this.VisitClipboardMenuItem()
+      Divider()
+        .width('100%')
+        .strokeWidth(1)
+        .color($r('app.color.border'))
+      this.AddressMenuItem(
+        IconName.ArrowUpLeft,
+        $r('app.string.address_menu_copy_link'),
+        this.onCopyLink
+      )
+    }
+    .width(ADDRESS_MENU_WIDTH)
+    .height(ADDRESS_MENU_HEIGHT)
+    .margin({ bottom: DOCK_HEIGHT + ADDRESS_MENU_GAP })
+    .borderRadius(16)
+    .backgroundColor($r('app.color.capsule_background'))
+    .backdropBlur(28)
+    .border({ width: 1, color: $r('app.color.border') })
+    .shadow({ radius: 18, color: $r('app.color.shadow_soft'), offsetY: 4 })
+    .transition(TransitionEffect.OPACITY.animation({ duration: 150 })
+      .combine(TransitionEffect.scale({ x: 0.96, y: 0.96 })))
+  }
+
+  @Builder
+  private VisitClipboardMenuItem() {
+    Row({ space: 10 }) {
+      AppIcon({
+        name: IconName.ChevronRight,
+        glyphSize: 18,
+        color: $r('app.color.text_secondary'),
+        strokeWidth: 1.8
+      })
+      Text($r('app.string.address_menu_visit_clipboard'))
+        .layoutWeight(1)
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+        .maxLines(1)
+      PasteButton({
+        icon: PasteIconStyle.LINES,
+        text: PasteDescription.PASTE,
+        buttonType: ButtonType.Capsule
+      })
+        .width(64)
+        .height(32)
+        .fontSize(12)
+        .fontColor($r('app.color.accent'))
+        .iconSize(14)
+        .iconColor($r('app.color.accent'))
+        .backgroundColor($r('app.color.surface_subtle'))
+        .borderWidth(0)
+        .padding({ left: 8, right: 8 })
+        .onClick((_event: ClickEvent, result: PasteButtonOnClickResult) => {
+          if (result === PasteButtonOnClickResult.SUCCESS) {
+            this.onDismissAddressMenu();
+            this.onVisitClipboardLink();
+          } else {
+            this.onClipboardAccessFailed();
+          }
+        })
+    }
+    .width('100%')
+    .height(ADDRESS_MENU_ROW_HEIGHT)
+    .padding({ left: 16, right: 10 })
+    .accessibilityText($r('app.string.address_menu_visit_clipboard'))
+  }
+
+  @Builder
+  private AddressMenuItem(icon: IconName, label: Resource, action: () => void) {
+    Row({ space: 12 }) {
+      AppIcon({ name: icon, glyphSize: 18, color: $r('app.color.text_secondary'), strokeWidth: 1.8 })
+      Text(label)
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+        .maxLines(1)
+    }
+    .width('100%')
+    .height(ADDRESS_MENU_ROW_HEIGHT)
+    .padding({ left: 16, right: 16 })
+    .accessibilityText(label)
+    .onClick(() => {
+      this.onDismissAddressMenu();
+      action();
+    })
   }
 
   @Builder
@@ -255,12 +372,19 @@ export struct BrowserDock {
       .justifyContent(FlexAlign.Center)
       .onClick(() => this.onShow())
       .gesture(
-        PanGesture({ direction: PanDirection.Vertical, distance: 6 })
-          .onActionEnd((event: GestureEvent) => {
-            if (event.offsetY <= -8) {
+        GestureGroup(GestureMode.Exclusive,
+          LongPressGesture({ repeat: false, duration: 450 })
+            .onAction(() => {
               this.onShow();
-            }
-          })
+              this.onOpenAddressMenu();
+            }),
+          PanGesture({ direction: PanDirection.Vertical, distance: 6 })
+            .onActionEnd((event: GestureEvent) => {
+              if (event.offsetY <= -8) {
+                this.onShow();
+              }
+            })
+        )
       )
     }
     .width('100%')
@@ -302,6 +426,15 @@ export struct BrowserDock {
 
   private canSwitchTabs(): boolean {
     return this.gesturesEnabled && this.tabSwitchGestureEnabled && this.tabCount > 1;
+  }
+
+  private viewportHeight(): number {
+    if (this.collapsed) {
+      return DOCK_COLLAPSED_HEIGHT;
+    }
+    return this.addressMenuVisible && !this.isHome
+      ? DOCK_HEIGHT + ADDRESS_MENU_GAP + ADDRESS_MENU_HEIGHT
+      : DOCK_HEIGHT;
   }
 
   private visibleTabIndices(): number[] {

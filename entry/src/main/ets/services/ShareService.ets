@@ -54,6 +54,17 @@ export class ShareService {
     }
   }
 
+  static async readText(): Promise<string> {
+    try {
+      const data: pasteboard.PasteData = await pasteboard.getSystemPasteboard().getData();
+      const text: string | undefined = data.getPrimaryText();
+      return text === undefined ? '' : text.trim();
+    } catch (error) {
+      Logger.warn(TAG, `Failed to read clipboard text: ${String(error)}`);
+      return '';
+    }
+  }
+
   /** Encodes an in-memory page snapshot to a short-lived cache file for Share Kit. */
   static async shareImage(
     context: common.UIAbilityContext,

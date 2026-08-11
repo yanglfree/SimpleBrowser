@@ -174,6 +174,7 @@ struct Index {
   @State private settings: BrowserSettings = defaultBrowserSettings();
   @State private sheet: Overlay = Overlay.None;
   @State private isCapsuleHidden: boolean = false;
+  @State private isAddressMenuVisible: boolean = false;
   @State private suggestions: Suggestion[] = [];
   @State private quickSites: QuickSite[] = [];
   @State private weeklyBlocked: number = 0;
@@ -323,6 +324,9 @@ struct Index {
       if (this.isReady && !this.hasError) {
         this.ErrorLayer()
         this.ResumeLayer()
+        if (this.isAddressMenuVisible) {
+          this.AddressMenuDismissLayer()
+        }
         this.CapsuleLayer()
         this.OverlayLayer()
       }
@@ -594,6 +598,14 @@ struct Index {
   // ---------------------------------------------------------------- capsule
 
   @Builder
+  private AddressMenuDismissLayer() {
+    Row()
+      .width('100%')
+      .height('100%')
+      .onClick(() => { this.isAddressMenuVisible = false; })
+  }
+
+  @Builder
   private CapsuleLayer() {
     if (this.sheet === Overlay.None) {
       BrowserDock({
@@ -610,13 +622,26 @@ struct Index {
         actionsGestureEnabled: this.settings.gestureActionsEnabled,
         tabSwitchGestureEnabled: this.settings.gestureTabSwitchEnabled,
         blockingGestureEnabled: this.settings.gestureBlockingEnabled,
+        addressMenuVisible: this.isAddressMenuVisible,
         onOpenAddress: (): void => this.openAddress(),
         onBack: (): void => { void this.performAction('back'); },
         onForward: (): void => { void this.performAction('forward'); },
-        onOpenTabs: (): void => { void this.openTabs(); },
-        onOpenRecentTabs: (): void => { this.sheet = Overlay.RecentTabs; },
-        onOpenMenu: (): void => { this.sheet = Overlay.Actions; },
-        onOpenBlocking: (): void => this.openBlockPanel(),
+        onOpenTabs: (): void => {
+          this.isAddressMenuVisible = false;
+          void this.openTabs();
+        },
+        onOpenRecentTabs: (): void => {
+          this.isAddressMenuVisible = false;
+          this.sheet = Overlay.RecentTabs;
+        },
+        onOpenMenu: (): void => {
+          this.isAddressMenuVisible = false;
+          this.sheet = Overlay.Actions;
+        },
+        onOpenBlocking: (): void => {
+          this.isAddressMenuVisible = false;
+          this.openBlockPanel();
+        },
         onReload: (): void => { void this.performAction('reload'); },
         onHide: (): void => {
           if (this.settings.autoHideToolbarEnabled && !this.isActiveHome()) {
@@ -625,7 +650,14 @@ struct Index {
         },
         onShow: (): void => this.showCapsule(),
         onSwitchPrevious: (): void => { void this.switchNeighbour(-1); },
-        onSwitchNext: (): void => { void this.switchNeighbour(1); }
+        onSwitchNext: (): void => { void this.switchNeighbour(1); },
+        onOpenAddressMenu: (): void => { this.isAddressMenuVisible = true; },
+        onDismissAddressMenu: (): void => { this.isAddressMenuVisible = false; },
+        onVisitClipboardLink: (): void => { void this.visitClipboardLink(); },
+        onClipboardAccessFailed: (): void => {
+          this.showToast($r('app.string.clipboard_permission_denied'));
+        },
+        onCopyLink: (): void => { void this.copyActiveLink(); }
       })
         .translate({ x: this.tabSwitchOffset, y: DOCK_SAFE_AREA_OVERLAP })
         .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
@@ -1076,6 +1108,7 @@ struct Index {
   }
 
   private openAddress(): void {
+    this.isAddressMenuVisible = false;
     this.showCapsule();
     this.updateSuggestions(this.isActiveHome() ? '' : (this.activeTab()?.url ?? ''));
     this.sheet = Overlay.Address;
@@ -1500,6 +1533,16 @@ struct Index {
       this.showCopyToast();
       this.sheet = Overlay.None;
     }
+  }
+
+  private async visitClipboardLink(): Promise<void> {
+    this.isAddressMenuVisible = false;
+    const copiedText: string = await ShareService.readText();
+    if (copiedText.length === 0) {
+      this.showToast($r('app.string.clipboard_link_unavailable'));
+      return;
+    }
+    this.submitAddress(copiedText);
   }
 
   private async shareActiveScreenshot(): Promise<void> {
@@ -2403,6 +2446,7 @@ struct Index {
 
   /** Collapse and expand are the same motion in both directions, so animate both. */
   private setCapsuleHidden(hidden: boolean): void {
+    this.isAddressMenuVisible = false;
     if (this.isCapsuleHidden === hidden) {
       return;
     }
