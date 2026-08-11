@@ -83,5 +83,14 @@ export default function browserSettingsTest(): void {
       expect(cloned.sitePermissions[0].location).assertEqual(SitePermissionDecision.Deny);
       expect(cloned.sitePermissions[0].notifications).assertEqual(SitePermissionDecision.Deny);
     });
+
+    it('clamps the start-page shortcut limit to the supported range', 0, (): void => {
+      const settings: BrowserSettings = defaultBrowserSettings();
+      settings.quickSiteLimit = 99;
+
+      const normalized: BrowserSettings = normalizeBrowserSettings(settings);
+
+      expect(normalized.quickSiteLimit).assertEqual(8);
+    });
   });
 }

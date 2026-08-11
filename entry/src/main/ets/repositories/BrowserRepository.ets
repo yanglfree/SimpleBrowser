@@ -505,7 +505,11 @@ export class BrowserRepository {
         gestureBlockingEnabled: parsed.gestureBlockingEnabled ?? fallback.gestureBlockingEnabled,
         autoHideToolbarEnabled: parsed.autoHideToolbarEnabled ?? fallback.autoHideToolbarEnabled,
         quickSitesEnabled: parsed.quickSitesEnabled ?? fallback.quickSitesEnabled,
+        quickSiteLimit: parsed.quickSiteLimit ?? fallback.quickSiteLimit,
         startPageBackgroundEnabled: parsed.startPageBackgroundEnabled ?? fallback.startPageBackgroundEnabled,
+        startPageBackgroundSource: parsed.startPageBackgroundSource ?? fallback.startPageBackgroundSource,
+        customStartPageBackgroundUri:
+          parsed.customStartPageBackgroundUri ?? fallback.customStartPageBackgroundUri,
         tabExpiryDays: parsed.tabExpiryDays ?? fallback.tabExpiryDays,
         historyRetentionDays: parsed.historyRetentionDays ?? fallback.historyRetentionDays,
         liveWebViewLimit: parsed.liveWebViewLimit ?? fallback.liveWebViewLimit,

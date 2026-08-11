@@ -11,6 +11,7 @@ const LIGHT_CONTENT: string = '#1A1A18';
 const DARK_CONTENT: string = '#F5F3EE';
 const TRANSPARENT_BACKGROUND: string = '#00000000';
 const HOME_CONTENT: string = '#FFFFFFFF';
+const HOME_BACKGROUND: string = '#20352B';
 
 /**
  * 设置 › 通用 › 外观. Switching the application colour mode is what flips every
@@ -66,15 +67,12 @@ export class ThemeService {
     window.getLastWindow(context).then((mainWindow: window.Window) => {
       const properties: window.SystemBarProperties = {
         statusBarColor: isHome ? TRANSPARENT_BACKGROUND : background,
-        navigationBarColor: TRANSPARENT_BACKGROUND,
+        navigationBarColor: isHome ? TRANSPARENT_BACKGROUND : background,
         statusBarContentColor: isHome ? HOME_CONTENT : content,
         navigationBarContentColor: isHome ? HOME_CONTENT : content
       };
-      mainWindow.setWindowBackgroundColor(background);
-      // Always fullscreen so the dock can extend into the bottom safe area via
-      // expandSafeArea. The transparent navigation bar lets the dock background
-      // fill the area seamlessly; content stays centred above the safe zone.
-      mainWindow.setWindowLayoutFullScreen(true).then((): void => {
+      mainWindow.setWindowBackgroundColor(isHome ? HOME_BACKGROUND : background);
+      mainWindow.setWindowLayoutFullScreen(isHome).then((): void => {
         mainWindow.setWindowSystemBarProperties(properties).catch((error: Error): void => {
           Logger.warn(TAG, `Failed to apply system bar style: ${String(error)}`);
         });

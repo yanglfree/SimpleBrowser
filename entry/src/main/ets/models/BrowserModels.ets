@@ -42,6 +42,15 @@ export enum ReaderPaper {
   Night = 2
 }
 
+export enum StartPageBackgroundSource {
+  BuiltIn = 0,
+  Custom = 1
+}
+
+export const QUICK_SITE_LIMIT_MIN: number = 4;
+export const QUICK_SITE_LIMIT_MAX: number = 8;
+export const QUICK_SITE_LIMIT_DEFAULT: number = 6;
+
 export enum SuggestionKind {
   History = 0,
   Bookmark = 1,
@@ -187,7 +196,10 @@ export interface BrowserSettings {
   gestureBlockingEnabled: boolean;
   autoHideToolbarEnabled: boolean;
   quickSitesEnabled: boolean;
+  quickSiteLimit: number;
   startPageBackgroundEnabled: boolean;
+  startPageBackgroundSource: StartPageBackgroundSource;
+  customStartPageBackgroundUri: string;
   tabExpiryDays: TabExpiry;
   historyRetentionDays: number;
   liveWebViewLimit: number;
@@ -281,7 +293,10 @@ export function defaultBrowserSettings(): BrowserSettings {
     gestureBlockingEnabled: true,
     autoHideToolbarEnabled: true,
     quickSitesEnabled: true,
+    quickSiteLimit: QUICK_SITE_LIMIT_DEFAULT,
     startPageBackgroundEnabled: true,
+    startPageBackgroundSource: StartPageBackgroundSource.BuiltIn,
+    customStartPageBackgroundUri: '',
     tabExpiryDays: TabExpiry.SevenDays,
     historyRetentionDays: 30,
     liveWebViewLimit: 4,
@@ -367,7 +382,10 @@ export function normalizeBrowserSettings(settings: BrowserSettings): BrowserSett
     gestureBlockingEnabled: settings.gestureBlockingEnabled,
     autoHideToolbarEnabled: settings.autoHideToolbarEnabled,
     quickSitesEnabled: settings.quickSitesEnabled,
+    quickSiteLimit: Math.min(QUICK_SITE_LIMIT_MAX, Math.max(QUICK_SITE_LIMIT_MIN, settings.quickSiteLimit)),
     startPageBackgroundEnabled: settings.startPageBackgroundEnabled,
+    startPageBackgroundSource: settings.startPageBackgroundSource,
+    customStartPageBackgroundUri: settings.customStartPageBackgroundUri,
     tabExpiryDays: settings.tabExpiryDays,
     historyRetentionDays: settings.historyRetentionDays,
     liveWebViewLimit: settings.liveWebViewLimit,

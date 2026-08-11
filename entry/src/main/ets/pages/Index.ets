@@ -38,6 +38,7 @@ import {
   RuleStrength,
   SavedItem,
   SearchEngine,
+  StartPageBackgroundSource,
   Suggestion,
   LoadErrorKind,
   SecurityState,
@@ -66,6 +67,7 @@ import { LinkActionSheet } from '../components/LinkActionSheet';
 import { OnboardingSheet } from '../components/OnboardingSheet';
 import { PermissionSheet } from '../components/PermissionSheet';
 import { PageSettingsPanel } from '../components/PageSettingsPanel';
+import { HomeBackgroundPicker } from '../components/HomeBackgroundPicker';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { RecentTabsDock } from '../components/RecentTabsDock';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
@@ -90,6 +92,7 @@ import { MemoryPressureService } from '../services/MemoryPressureService';
 import { DownloadPolicyReason, DownloadService, DownloadTask } from '../services/DownloadService';
 import { BookmarkTransferService } from '../services/BookmarkTransferService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
+import { HomeBackgroundService } from '../services/HomeBackgroundService';
 import { ThemeService } from '../services/ThemeService';
 import { TelemetryService } from '../services/TelemetryService';
 import { WebHistoryEntry, WebKernelService, WebLongPressTarget } from '../services/WebKernelService';
@@ -119,7 +122,8 @@ enum Overlay {
   PageSettings = 15,
   Favorites = 16,
   RecentTabs = 17,
-  EditSavedItem = 18
+  EditSavedItem = 18,
+  HomeBackground = 19
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -202,6 +206,7 @@ struct Index {
   @State private tabSwitchOffset: number = 0;
   /** Status bar height in vp; the browser draws behind the system bars. */
   @State private topInset: number = 0;
+  @State private bottomInset: number = 0;
   private isTabSoftLimitPromptVisible: boolean = false;
   private pendingPermissionRequest: PermissionRequest | undefined = undefined;
   private pendingGeolocation: OnGeolocationShowEvent | undefined = undefined;
@@ -216,7 +221,7 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     try {
-      await this.measureTopInset();
+      await this.measureSystemInsets();
       await this.viewModel.initialize(AppContext.getContext());
       this.appVersionName = AppMetadataService.getVersionName();
       ThemeService.apply(AppContext.getContext(), this.viewModel.settings.appearance);
@@ -250,13 +255,14 @@ struct Index {
    * Fullscreen surfaces (the tab overview) sit behind the status bar, so they
    * need its height to keep their header clear of the clock and indicators.
    */
-  private async measureTopInset(): Promise<void> {
+  private async measureSystemInsets(): Promise<void> {
     try {
       const mainWindow: window.Window = await window.getLastWindow(AppContext.getContext());
       const area: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
       this.topInset = px2vp(area.topRect.height);
+      this.bottomInset = px2vp(area.bottomRect.height);
     } catch (error) {
-      Logger.warn(TAG, `Failed to read the status bar height: ${String(error)}`);
+      Logger.warn(TAG, `Failed to read the system bar height: ${String(error)}`);
     }
   }
 
@@ -392,11 +398,15 @@ struct Index {
             StartPage({
               quickSites: this.quickSites,
               quickSitesEnabled: this.settings.quickSitesEnabled,
+              quickSiteLimit: this.settings.quickSiteLimit,
               backgroundEnabled: this.settings.startPageBackgroundEnabled,
+              backgroundSource: this.settings.startPageBackgroundSource,
+              customBackgroundUri: this.settings.customStartPageBackgroundUri,
               onOpenAddress: (): void => this.openAddress(),
               onOpenSite: (url: string): void => this.navigateTo(url),
               onRemoveSite: (url: string): void => { void this.removeQuickSite(url); },
-              onOpenPageSettings: (): void => { this.sheet = Overlay.PageSettings; }
+              onOpenPageSettings: (): void => { this.sheet = Overlay.PageSettings; },
+              onOpenBackgroundPicker: (): void => { this.sheet = Overlay.HomeBackground; }
             })
           } else if (this.isTabLive(tab.id)) {
             BrowserWebView({
@@ -584,7 +594,7 @@ struct Index {
         .onClick(() => this.startResumeFromTop(request))
     }
     .height(44)
-    .margin({ left: 14, right: 14, bottom: this.dockHeight() + 8 })
+    .margin({ left: 14, right: 14, bottom: this.dockHeight() + (this.isActiveHome() ? Math.max(0, this.bottomInset - 5) : -5) + 8 })
     .padding({ left: 16, right: 12 })
     .borderRadius(22)
     .backgroundColor($r('app.color.surface_panel'))
@@ -608,60 +618,72 @@ struct Index {
   @Builder
   private CapsuleLayer() {
     if (this.sheet === Overlay.None) {
-      BrowserDock({
-        isHome: this.isActiveHome(),
-        collapsed: this.isDockCollapsed(),
-        host: displayHost(this.activeTab()?.url ?? ''),
-        tabCount: this.tabs.length,
-        activeTabIndex: this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId),
-        blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
-        isLoading: this.activeTab()?.isLoading === true,
-        canGoBack: this.activeTab()?.canGoBack === true,
-        canGoForward: this.activeTab()?.canGoForward === true,
-        gesturesEnabled: this.settings.gesturesEnabled,
-        actionsGestureEnabled: this.settings.gestureActionsEnabled,
-        tabSwitchGestureEnabled: this.settings.gestureTabSwitchEnabled,
-        blockingGestureEnabled: this.settings.gestureBlockingEnabled,
-        addressMenuVisible: this.isAddressMenuVisible,
-        onOpenAddress: (): void => this.openAddress(),
-        onBack: (): void => { void this.performAction('back'); },
-        onForward: (): void => { void this.performAction('forward'); },
-        onOpenTabs: (): void => {
-          this.isAddressMenuVisible = false;
-          void this.openTabs();
-        },
-        onOpenRecentTabs: (): void => {
-          this.isAddressMenuVisible = false;
-          this.sheet = Overlay.RecentTabs;
-        },
-        onOpenMenu: (): void => {
-          this.isAddressMenuVisible = false;
-          this.sheet = Overlay.Actions;
-        },
-        onOpenBlocking: (): void => {
-          this.isAddressMenuVisible = false;
-          this.openBlockPanel();
-        },
-        onReload: (): void => { void this.performAction('reload'); },
-        onHide: (): void => {
-          if (this.settings.autoHideToolbarEnabled && !this.isActiveHome()) {
-            this.setCapsuleHidden(true);
-          }
-        },
-        onShow: (): void => this.showCapsule(),
-        onSwitchPrevious: (): void => { void this.switchNeighbour(-1); },
-        onSwitchNext: (): void => { void this.switchNeighbour(1); },
-        onOpenAddressMenu: (): void => { this.isAddressMenuVisible = true; },
-        onDismissAddressMenu: (): void => { this.isAddressMenuVisible = false; },
-        onVisitClipboardLink: (): void => { void this.visitClipboardLink(); },
-        onClipboardAccessFailed: (): void => {
-          this.showToast($r('app.string.clipboard_permission_denied'));
-        },
-        onCopyLink: (): void => { void this.copyActiveLink(); }
-      })
-        .translate({ x: this.tabSwitchOffset, y: DOCK_SAFE_AREA_OVERLAP })
-        .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
-          .combine(TransitionEffect.translate({ y: 24 })))
+      Column() {
+        BrowserDock({
+          isHome: this.isActiveHome(),
+          homeBackgroundEnabled: this.settings.startPageBackgroundEnabled,
+          collapsed: this.isDockCollapsed(),
+          host: displayHost(this.activeTab()?.url ?? ''),
+          tabCount: this.tabs.length,
+          activeTabIndex: this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId),
+          blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
+          isLoading: this.activeTab()?.isLoading === true,
+          canGoBack: this.activeTab()?.canGoBack === true,
+          canGoForward: this.activeTab()?.canGoForward === true,
+          gesturesEnabled: this.settings.gesturesEnabled,
+          actionsGestureEnabled: this.settings.gestureActionsEnabled,
+          tabSwitchGestureEnabled: this.settings.gestureTabSwitchEnabled,
+          blockingGestureEnabled: this.settings.gestureBlockingEnabled,
+          addressMenuVisible: this.isAddressMenuVisible,
+          onOpenAddress: (): void => this.openAddress(),
+          onBack: (): void => { void this.performAction('back'); },
+          onForward: (): void => { void this.performAction('forward'); },
+          onOpenTabs: (): void => {
+            this.isAddressMenuVisible = false;
+            void this.openTabs();
+          },
+          onOpenRecentTabs: (): void => {
+            this.isAddressMenuVisible = false;
+            this.sheet = Overlay.RecentTabs;
+          },
+          onOpenMenu: (): void => {
+            this.isAddressMenuVisible = false;
+            this.sheet = Overlay.Actions;
+          },
+          onOpenBlocking: (): void => {
+            this.isAddressMenuVisible = false;
+            this.openBlockPanel();
+          },
+          onReload: (): void => { void this.performAction('reload'); },
+          onHide: (): void => {
+            if (this.settings.autoHideToolbarEnabled && !this.isActiveHome()) {
+              this.setCapsuleHidden(true);
+            }
+          },
+          onShow: (): void => this.showCapsule(),
+          onSwitchPrevious: (): void => { void this.switchNeighbour(-1); },
+          onSwitchNext: (): void => { void this.switchNeighbour(1); },
+          onOpenAddressMenu: (): void => { this.isAddressMenuVisible = true; },
+          onDismissAddressMenu: (): void => { this.isAddressMenuVisible = false; },
+          onVisitClipboardLink: (): void => { void this.visitClipboardLink(); },
+          onClipboardAccessFailed: (): void => {
+            this.showToast($r('app.string.clipboard_permission_denied'));
+          },
+          onCopyLink: (): void => { void this.copyActiveLink(); }
+        })
+          .translate({
+            x: this.tabSwitchOffset,
+            y: this.isActiveHome() ? 0 : DOCK_SAFE_AREA_OVERLAP
+          })
+          .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
+            .combine(TransitionEffect.translate({ y: 24 })))
+
+        if (this.isActiveHome() && this.bottomInset > 0) {
+          Row()
+            .width('100%')
+            .height(this.bottomInset)
+        }
+      }
     }
   }
 
@@ -706,11 +728,26 @@ struct Index {
     } else if (this.sheet === Overlay.PageSettings) {
       PageSettingsPanel({
         quickSitesEnabled: this.settings.quickSitesEnabled,
+        quickSiteLimit: this.settings.quickSiteLimit,
         backgroundEnabled: this.settings.startPageBackgroundEnabled,
         appearanceLabel: this.appearanceLabel(),
         onToggleQuickSites: (): void => { void this.toggleQuickSites(); },
+        onChangeQuickSiteLimit: (limit: number): void => { void this.updateQuickSiteLimit(limit); },
         onToggleBackground: (): void => { void this.toggleStartPageBackground(); },
         onOpenSettings: (): void => { this.sheet = Overlay.Settings; },
+        onDismiss: (): void => { this.sheet = Overlay.None; }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 180 }))
+    } else if (this.sheet === Overlay.HomeBackground) {
+      HomeBackgroundPicker({
+        backgroundEnabled: this.settings.startPageBackgroundEnabled,
+        source: this.settings.startPageBackgroundSource,
+        customUri: this.settings.customStartPageBackgroundUri,
+        bottomInset: this.bottomInset,
+        onSelectBuiltIn: (): void => { void this.selectBuiltInBackground(); },
+        onSelectNone: (): void => { void this.selectNoBackground(); },
+        onSelectCustom: (): void => { void this.selectSavedCustomBackground(); },
+        onChooseCustom: (): void => { void this.chooseCustomBackground(); },
         onDismiss: (): void => { this.sheet = Overlay.None; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 180 }))
@@ -2122,10 +2159,56 @@ struct Index {
     await this.applySettings(next);
   }
 
+  private async updateQuickSiteLimit(limit: number): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.quickSiteLimit = limit;
+    await this.applySettings(next);
+  }
+
   private async toggleStartPageBackground(): Promise<void> {
     const next: BrowserSettings = cloneSettings(this.settings);
     next.startPageBackgroundEnabled = !next.startPageBackgroundEnabled;
     await this.applySettings(next);
+  }
+
+  private async selectBuiltInBackground(): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.startPageBackgroundEnabled = true;
+    next.startPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
+    await this.applySettings(next);
+    this.sheet = Overlay.None;
+  }
+
+  private async selectNoBackground(): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.startPageBackgroundEnabled = false;
+    await this.applySettings(next);
+    this.sheet = Overlay.None;
+  }
+
+  private async selectSavedCustomBackground(): Promise<void> {
+    if (this.settings.customStartPageBackgroundUri.length === 0) {
+      await this.chooseCustomBackground();
+      return;
+    }
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.startPageBackgroundEnabled = true;
+    next.startPageBackgroundSource = StartPageBackgroundSource.Custom;
+    await this.applySettings(next);
+    this.sheet = Overlay.None;
+  }
+
+  private async chooseCustomBackground(): Promise<void> {
+    const uri: string | undefined = await HomeBackgroundService.selectCustomImage(AppContext.getContext());
+    if (uri === undefined) {
+      return;
+    }
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.startPageBackgroundEnabled = true;
+    next.startPageBackgroundSource = StartPageBackgroundSource.Custom;
+    next.customStartPageBackgroundUri = uri;
+    await this.applySettings(next);
+    this.sheet = Overlay.None;
   }
 
   /** Pushes the current blocking policy into every live web view. */

@@ -16,6 +16,7 @@
     { "name": "shadow_soft", "value": "#0F000000" },
     { "name": "capsule_background", "value": "#B8FFFFFF" },
     { "name": "home_scrim", "value": "#24000000" },
+    { "name": "home_background_fallback", "value": "#20352B" },
     { "name": "home_chrome_background", "value": "#C7293029" },
     { "name": "home_panel_background", "value": "#EC202320" },
     { "name": "home_tile_background", "value": "#D62A3327" },

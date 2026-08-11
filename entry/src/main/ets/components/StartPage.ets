@@ -1,4 +1,4 @@
-import { QuickSite } from '../models/BrowserModels';
+import { QuickSite, StartPageBackgroundSource } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 
 const TILE_BACKGROUNDS: Resource[] = [
@@ -28,19 +28,24 @@ function tileColor(palette: Resource[], index: number): Resource {
 export struct StartPage {
   @Prop quickSites: QuickSite[] = [];
   @Prop quickSitesEnabled: boolean = true;
+  @Prop quickSiteLimit: number = 6;
   @Prop backgroundEnabled: boolean = true;
+  @Prop backgroundSource: StartPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
+  @Prop customBackgroundUri: string = '';
   onOpenAddress: () => void = (): void => {};
   onOpenSite: (url: string) => void = (_url: string): void => {};
   onRemoveSite: (url: string) => void = (_url: string): void => {};
   onOpenPageSettings: () => void = (): void => {};
+  onOpenBackgroundPicker: () => void = (): void => {};
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
       if (this.backgroundEnabled) {
-        Image($r('app.media.home_background'))
+        Image(this.imageSource())
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
+          .syncLoad(true)
         Column()
           .width('100%')
           .height('100%')
@@ -48,13 +53,14 @@ export struct StartPage {
       }
 
       Column() {
-        Blank()
         if (this.quickSitesEnabled) {
           this.SiteGrid()
         }
       }
       .width('100%')
       .height('100%')
+      .padding({ top: 96, bottom: 112 })
+      .justifyContent(FlexAlign.Center)
 
       Row() {
         Blank()
@@ -76,14 +82,20 @@ export struct StartPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.page_background'))
+    .backgroundColor(this.backgroundEnabled
+      ? $r('app.color.home_background_fallback')
+      : $r('app.color.page_background'))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    .gesture(
+      LongPressGesture({ repeat: false, duration: 500 })
+        .onAction(() => this.onOpenBackgroundPicker())
+    )
   }
 
   @Builder
   private SiteGrid() {
     Flex({ wrap: FlexWrap.Wrap }) {
-      ForEach(this.quickSites, (site: QuickSite) => {
+      ForEach(this.quickSites.slice(0, this.quickSiteLimit), (site: QuickSite) => {
         Column({ space: 8 }) {
           Text(site.badge)
             .width(58)
@@ -135,7 +147,14 @@ export struct StartPage {
       .onClick(() => this.onOpenAddress())
     }
     .width('100%')
-    .padding({ left: 20, right: 20, bottom: 144 })
+    .constraintSize({ maxWidth: 430 })
+    .padding({ left: 20, right: 20 })
+  }
+
+  private imageSource(): ResourceStr {
+    return this.backgroundSource === StartPageBackgroundSource.Custom && this.customBackgroundUri.length > 0
+      ? this.customBackgroundUri
+      : $r('app.media.home_background');
   }
 
   private primaryColor(): ResourceColor {

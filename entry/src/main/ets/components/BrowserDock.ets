@@ -29,6 +29,7 @@ const ADDRESS_MENU_HEIGHT: number = ADDRESS_MENU_ROW_HEIGHT * 2 + 1;
 @Component
 export struct BrowserDock {
   @Prop isHome: boolean = false;
+  @Prop homeBackgroundEnabled: boolean = true;
   @Prop collapsed: boolean = false;
   @Prop host: string = '';
   @Prop tabCount: number = 1;
@@ -80,19 +81,13 @@ export struct BrowserDock {
   /** The resting bar: back, forward, address, tabs, menu on a single line. */
   @Builder
   private ExpandedBar() {
-    // Outer: extends background into the bottom safe area.
-    // Inner: fixed height keeps content strictly above the safe zone.
     Column() {
-      Column() {
-        this.ExpandedRow()
-      }
-      .width('100%')
-      .height(DOCK_HEIGHT)
-      .justifyContent(FlexAlign.Center)
+      this.ExpandedRow()
     }
     .width('100%')
-    .backgroundColor(this.isHome ? Color.Transparent : $r('app.color.page_background'))
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .height(DOCK_HEIGHT)
+    .justifyContent(FlexAlign.Center)
+    .backgroundColor(this.usesHomeColors() ? Color.Transparent : $r('app.color.page_background'))
   }
 
   @Builder
@@ -104,7 +99,7 @@ export struct BrowserDock {
       // Shield, address, reload — the three things a page-level bar owes the
       // user. On the start page there is nothing to shield or reload, so the
       // placeholder gets the pill to itself.
-      Stack({ alignContent: Alignment.Bottom }) {
+      Stack({ alignContent: Alignment.Center }) {
         Row() {
           if (!this.isHome && this.blockedCount > 0) {
             Row({ space: 3 }) {
@@ -121,6 +116,7 @@ export struct BrowserDock {
                 .fontFeature('"tnum" 1')
             }
             .height(DOCK_ROW_HEIGHT)
+            .alignItems(VerticalAlign.Center)
             .padding({ left: 4, right: 4 })
             .accessibilityText($r('app.string.blocked_on_site'))
             .onClick(() => this.onOpenBlocking())
@@ -153,6 +149,7 @@ export struct BrowserDock {
         }
         .width('100%')
         .height('100%')
+        .alignItems(VerticalAlign.Center)
 
         if (this.canSwitchTabs()) {
           this.TabSwipeIndicator()
@@ -167,7 +164,7 @@ export struct BrowserDock {
       .backdropBlur(24)
       .border({
         width: 1,
-        color: this.isHome ? $r('app.color.home_control_border') : $r('app.color.border')
+        color: this.usesHomeColors() ? $r('app.color.home_control_border') : $r('app.color.border')
       })
       .onClick(() => {
         if (this.addressMenuVisible) {
@@ -215,6 +212,7 @@ export struct BrowserDock {
     }
     .width('100%')
     .height(DOCK_ROW_HEIGHT)
+    .alignItems(VerticalAlign.Center)
     .padding({ left: 10, right: 10 })
     .gesture(
       GestureGroup(GestureMode.Exclusive,
@@ -349,46 +347,42 @@ export struct BrowserDock {
    */
   @Builder
   private CollapsedBar() {
-    Column() {
+    Row() {
       Row() {
-        Row() {
-          Text(this.host)
-            .fontSize(12.5)
-            .fontColor($r('app.color.text_primary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .constraintSize({ maxWidth: '62%' })
-        .height(DOCK_COLLAPSED_PILL_HEIGHT)
-        .padding({ left: 16, right: 16 })
-        .borderRadius(DOCK_COLLAPSED_PILL_HEIGHT / 2)
-        .backgroundColor($r('app.color.capsule_background'))
-        .backdropBlur(24)
-        .border({ width: 1, color: $r('app.color.border') })
-        .opacity(0.94)
+        Text(this.host)
+          .fontSize(12.5)
+          .fontColor($r('app.color.text_primary'))
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
-      .width('100%')
+      .constraintSize({ maxWidth: '62%' })
       .height(DOCK_COLLAPSED_PILL_HEIGHT)
-      .justifyContent(FlexAlign.Center)
-      .onClick(() => this.onShow())
-      .gesture(
-        GestureGroup(GestureMode.Exclusive,
-          LongPressGesture({ repeat: false, duration: 450 })
-            .onAction(() => {
-              this.onShow();
-              this.onOpenAddressMenu();
-            }),
-          PanGesture({ direction: PanDirection.Vertical, distance: 6 })
-            .onActionEnd((event: GestureEvent) => {
-              if (event.offsetY <= -8) {
-                this.onShow();
-              }
-            })
-        )
-      )
+      .padding({ left: 16, right: 16 })
+      .borderRadius(DOCK_COLLAPSED_PILL_HEIGHT / 2)
+      .backgroundColor($r('app.color.capsule_background'))
+      .backdropBlur(24)
+      .border({ width: 1, color: $r('app.color.border') })
+      .opacity(0.94)
     }
     .width('100%')
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .height(DOCK_COLLAPSED_HEIGHT)
+    .justifyContent(FlexAlign.Center)
+    .onClick(() => this.onShow())
+    .gesture(
+      GestureGroup(GestureMode.Exclusive,
+        LongPressGesture({ repeat: false, duration: 450 })
+          .onAction(() => {
+            this.onShow();
+            this.onOpenAddressMenu();
+          }),
+        PanGesture({ direction: PanDirection.Vertical, distance: 6 })
+          .onActionEnd((event: GestureEvent) => {
+            if (event.offsetY <= -8) {
+              this.onShow();
+            }
+          })
+      )
+    )
   }
 
   @Builder
@@ -409,11 +403,11 @@ export struct BrowserDock {
   }
 
   private chromeColor(): ResourceColor {
-    return this.isHome ? $r('app.color.home_chrome_background') : $r('app.color.capsule_background');
+    return this.usesHomeColors() ? $r('app.color.home_chrome_background') : $r('app.color.capsule_background');
   }
 
   private primaryColor(): ResourceColor {
-    return this.isHome ? $r('app.color.home_text_primary') : $r('app.color.text_primary');
+    return this.usesHomeColors() ? $r('app.color.home_text_primary') : $r('app.color.text_primary');
   }
 
   /**
@@ -421,7 +415,7 @@ export struct BrowserDock {
    * four black glyphs read as heavier than the page they belong to.
    */
   private iconColor(): ResourceColor {
-    return this.isHome ? $r('app.color.home_text_secondary') : $r('app.color.dock_icon');
+    return this.usesHomeColors() ? $r('app.color.home_text_secondary') : $r('app.color.dock_icon');
   }
 
   private canSwitchTabs(): boolean {
@@ -450,11 +444,15 @@ export struct BrowserDock {
   }
 
   private tabIndicatorActiveColor(): ResourceColor {
-    return this.isHome ? $r('app.color.home_text_primary') : $r('app.color.accent');
+    return this.usesHomeColors() ? $r('app.color.home_text_primary') : $r('app.color.accent');
   }
 
   private tabIndicatorInactiveColor(): ResourceColor {
-    return this.isHome ? $r('app.color.home_text_secondary') : $r('app.color.border');
+    return this.usesHomeColors() ? $r('app.color.home_text_secondary') : $r('app.color.border');
+  }
+
+  private usesHomeColors(): boolean {
+    return this.isHome && this.homeBackgroundEnabled;
   }
 
   private resolveVerticalSwipe(event: GestureEvent): void {

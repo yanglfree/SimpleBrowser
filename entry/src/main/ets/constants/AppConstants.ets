@@ -1,4 +1,4 @@
-import { QuickSite } from '../models/BrowserModels';
+import { QuickSite, QUICK_SITE_LIMIT_MAX } from '../models/BrowserModels';
 
 /** Internal URL for the native start page. It is never handed to ArkWeb. */
 export const HOME_URL: string = 'browser://home';
@@ -14,7 +14,7 @@ export const WEEKLY_WINDOW_DAYS: number = 7;
 export const RESUME_WINDOW_DAYS: number = 30;
 /** The resume snackbar is an offer, not a question: it leaves on its own. */
 export const RESUME_PROMPT_TIMEOUT_MS: number = 7000;
-export const QUICK_SITE_COUNT: number = 6;
+export const QUICK_SITE_COUNT: number = QUICK_SITE_LIMIT_MAX;
 
 export const DESKTOP_USER_AGENT: string =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
