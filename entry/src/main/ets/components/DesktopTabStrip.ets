@@ -1,6 +1,7 @@
-import { BrowserTab } from '../models/BrowserModels';
+import { BrowserTab, LoadErrorKind } from '../models/BrowserModels';
 import { displayHost, isHomeUrl } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
+import { TabThumbnail } from './TabOverview';
 
 export const DESKTOP_TAB_STRIP_HEIGHT: number = 44;
 
@@ -10,11 +11,15 @@ const TAB_STRIP_MEDIUM_TAB_WIDTH: number = 140;
 const TAB_STRIP_MAX_TAB_WIDTH: number = 180;
 const TAB_STRIP_PINNED_WIDTH: number = 52;
 const TAB_REORDER_DISTANCE: number = 36;
+const TAB_PREVIEW_DELAY_MS: number = 350;
+const ESCAPE_KEY_CODE: number = 2070;
 
 @Component
 export struct DesktopTabStrip {
   @Prop tabs: BrowserTab[] = [];
   @Prop @Watch('activeTabChanged') activeTabId: string = '';
+  @Prop thumbnails: TabThumbnail[] = [];
+  @Prop liveTabIds: string[] = [];
   onSelect: (id: string) => void = (_id: string): void => {};
   onClose: (id: string) => void = (_id: string): void => {};
   onReorder: (id: string, direction: number) => void = (_id: string, _direction: number): void => {};
@@ -25,6 +30,9 @@ export struct DesktopTabStrip {
   onNewTab: () => void = (): void => {};
   private scroller: Scroller = new Scroller();
   private contextTabId: string = '';
+  @State private previewTabId: string = '';
+  @State private previewVisible: boolean = false;
+  private hoverToken: number = 0;
 
   build() {
     Row({ space: 8 }) {
@@ -42,6 +50,7 @@ export struct DesktopTabStrip {
       .layoutWeight(1)
       .height(DESKTOP_TAB_STRIP_HEIGHT)
       .onAppear(() => this.scrollActiveTabIntoView(false))
+      .onScrollIndex((): void => this.dismissPreview())
 
       Row() {
         AppIcon({ name: IconName.Plus, glyphSize: 17, color: $r('app.color.text_secondary') })
@@ -61,6 +70,14 @@ export struct DesktopTabStrip {
     .constraintSize({ maxWidth: TAB_STRIP_MAX_WIDTH })
     .height(DESKTOP_TAB_STRIP_HEIGHT)
     .padding({ left: 8, right: 8 })
+    .focusable(true)
+    .onKeyEvent((event: KeyEvent): boolean => {
+      if (event.type === KeyType.Down && event.keyCode === ESCAPE_KEY_CODE) {
+        this.dismissPreview();
+        return true;
+      }
+      return false;
+    })
   }
 
   @Builder
@@ -116,6 +133,13 @@ export struct DesktopTabStrip {
         this.onClose(tab.id);
       }
     })
+    .onHover((isHovering: boolean): void => {
+      if (isHovering) {
+        this.schedulePreview(tab.id);
+      } else {
+        this.dismissPreview();
+      }
+    })
     .gesture(
       PanGesture({ direction: PanDirection.Horizontal, distance: 8 })
         .onActionEnd((event: GestureEvent): void => {
@@ -125,6 +149,59 @@ export struct DesktopTabStrip {
         })
     )
     .bindContextMenu(this.TabContextMenu, ResponseType.RightClick)
+    .bindPopup(this.previewVisible && this.previewTabId === tab.id, {
+      builder: this.HoverPreview,
+      placement: Placement.Bottom,
+      enableArrow: false
+    })
+  }
+
+  @Builder
+  private HoverPreview() {
+    ForEach(this.previewTabs(), (tab: BrowserTab) => {
+      Column() {
+        if (!tab.isPrivate && this.thumbnailFor(tab.id).length > 0) {
+          Image(this.thumbnailFor(tab.id)[0].shot)
+            .width(252)
+            .height(138)
+            .objectFit(ImageFit.Cover)
+        } else {
+          Column({ space: 8 }) {
+            AppIcon({
+              name: tab.isPrivate ? IconName.Incognito : IconName.Tabs,
+              glyphSize: 26,
+              color: $r('app.color.text_secondary')
+            })
+            Text(this.previewState(tab))
+              .fontSize(12)
+              .fontColor($r('app.color.text_secondary'))
+          }
+          .width(252)
+          .height(138)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor($r('app.color.surface_subtle'))
+        }
+        Column({ space: 3 }) {
+          Text(this.tabTitle(tab))
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(displayHost(tab.url))
+            .fontSize(12)
+            .fontColor($r('app.color.text_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+        .padding(12)
+      }
+      .width(252)
+      .clip(true)
+      .borderRadius(14)
+    }, (tab: BrowserTab): string => tab.id)
   }
 
   @Builder
@@ -152,7 +229,48 @@ export struct DesktopTabStrip {
   }
 
   private activeTabChanged(): void {
+    this.dismissPreview();
     this.scrollActiveTabIntoView(true);
+  }
+
+  private schedulePreview(tabId: string): void {
+    this.hoverToken += 1;
+    const token: number = this.hoverToken;
+    setTimeout((): void => {
+      if (token === this.hoverToken) {
+        this.previewTabId = tabId;
+        this.previewVisible = true;
+      }
+    }, TAB_PREVIEW_DELAY_MS);
+  }
+
+  private dismissPreview(): void {
+    this.hoverToken += 1;
+    this.previewVisible = false;
+  }
+
+  private previewTabs(): BrowserTab[] {
+    return this.tabs.filter((tab: BrowserTab): boolean => tab.id === this.previewTabId).slice(0, 1);
+  }
+
+  private thumbnailFor(tabId: string): TabThumbnail[] {
+    return this.thumbnails.filter((thumbnail: TabThumbnail): boolean => thumbnail.id === tabId).slice(0, 1);
+  }
+
+  private previewState(tab: BrowserTab): ResourceStr {
+    if (tab.isPrivate) {
+      return $r('app.string.tab_preview_private');
+    }
+    if (tab.isLoading) {
+      return $r('app.string.tab_preview_loading');
+    }
+    if (tab.loadError !== LoadErrorKind.None) {
+      return $r('app.string.tab_preview_unavailable');
+    }
+    if (!isHomeUrl(tab.url) && !this.liveTabIds.includes(tab.id)) {
+      return $r('app.string.tab_preview_sleeping');
+    }
+    return $r('app.string.tab_preview_unavailable');
   }
 
   private scrollActiveTabIntoView(smooth: boolean): void {

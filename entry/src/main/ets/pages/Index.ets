@@ -754,6 +754,8 @@ struct Index {
         DesktopTabStrip({
           tabs: this.tabs,
           activeTabId: this.activeTabId,
+          thumbnails: this.thumbnails,
+          liveTabIds: this.liveTabIds,
           onSelect: (id: string): void => { void this.selectTab(id); },
           onClose: (id: string): void => this.closeTab(id),
           onReorder: (id: string, direction: number): void => this.reorderDesktopTab(id, direction),
