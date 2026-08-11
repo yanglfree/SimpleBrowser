@@ -60,6 +60,7 @@ export struct BrowserWebView {
       .onlineImageAccess(true)
       .imageAccess(true)
       .zoomAccess(true)
+      .metaViewport(true)
       .minFontSize(this.minimumFontSize)
       .initialScale(this.initialZoomPercent)
       .darkMode(this.webDarkModeValue())

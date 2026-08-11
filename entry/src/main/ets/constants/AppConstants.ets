@@ -397,7 +397,7 @@ export const DESKTOP_VIEWPORT_SCRIPT: string = `
     meta.setAttribute('name', 'viewport');
     document.head.appendChild(meta);
   }
-  meta.setAttribute('content', 'width=1024');
+  meta.setAttribute('content', 'width=device-width, initial-scale=1');
   return 'desktop';
 })();`;
 

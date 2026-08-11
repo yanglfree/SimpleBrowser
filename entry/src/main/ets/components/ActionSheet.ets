@@ -106,7 +106,7 @@ export struct ActionSheet {
     .borderRadius({ topLeft: 28, topRight: 28 })
     .shadow({ radius: 18, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: -4 })
     .translate({ y: this.dragOffset })
-    .gesture(
+    .parallelGesture(
       PanGesture({ direction: PanDirection.Vertical, distance: 6 })
         .onActionUpdate((event: GestureEvent): void => {
           this.dragOffset = clampedActionSheetDrag(event.offsetY);

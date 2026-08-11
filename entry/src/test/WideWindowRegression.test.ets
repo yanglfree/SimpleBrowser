@@ -2,6 +2,7 @@ import { describe, expect, it } from '@ohos/hypium';
 import { desktopTabWidth } from '../main/ets/components/DesktopTabStrip';
 import { Overlay, shouldMountOverlayLayer, shouldUseResponsivePanel } from '../main/ets/pages/Index';
 import { BrowserLayoutClass, shouldEnableDockTabSwipe } from '../main/ets/models/WindowMetrics';
+import { shouldLayoutFullScreen } from '../main/ets/services/ThemeService';
 import {
   MAIN_WINDOW_INSTANCE_ID,
   resolveWindowInstanceId
@@ -34,6 +35,11 @@ export default function wideWindowRegressionTest(): void {
       expect(desktopTabWidth(1200, 8, 0)).assertEqual(139);
       expect(desktopTabWidth(1200, 16, 0)).assertEqual(88);
       expect(desktopTabWidth(1200, 8, 2)).assertEqual(168);
+    });
+
+    it('keeps one window coordinate system while switching between home and web tabs', 0, (): void => {
+      expect(shouldLayoutFullScreen(true)).assertTrue();
+      expect(shouldLayoutFullScreen(false)).assertTrue();
     });
 
     it('reuses the main instance for ordinary launches', 0, (): void => {

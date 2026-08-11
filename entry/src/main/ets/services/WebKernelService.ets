@@ -201,6 +201,15 @@ export class WebKernelService {
     return isDesktop ? DESKTOP_USER_AGENT : mobileUserAgent;
   }
 
+  /** Known mobile-only entry points that cannot negotiate a desktop page from UA alone. */
+  static desktopUrlFor(url: string): string {
+    const match: RegExpMatchArray | null = url.match(/^(https?):\/\/([^/?#]+)(.*)$/i);
+    if (match === null || match[2].split(':')[0].toLowerCase() !== 'm.weibo.cn') {
+      return url;
+    }
+    return `https://weibo.com${match[3]}`;
+  }
+
   private static run(name: string, action: () => void): void {
     try {
       action();

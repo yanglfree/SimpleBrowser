@@ -1149,11 +1149,9 @@ struct Index {
       .justifyContent(this.windowMetrics.layoutClass >= BrowserLayoutClass.Expanded
         ? FlexAlign.End
         : FlexAlign.Center)
-      .hitTestBehavior(HitTestMode.None)
     }
     .width('100%')
     .height('100%')
-    .hitTestBehavior(HitTestMode.None)
   }
 
   @Builder
@@ -2192,11 +2190,17 @@ struct Index {
     if (tab === undefined) {
       return;
     }
-    this.viewModel.updateTab(tab.id, { isDesktop: isDesktop });
+    const targetUrl: string = isDesktop ? WebKernelService.desktopUrlFor(tab.url) : tab.url;
+    this.viewModel.updateTab(tab.id, { isDesktop: isDesktop, url: targetUrl });
+    this.sheet = Overlay.None;
     this.syncState();
     this.runOnActive((controller: webview.WebviewController): void => {
       WebKernelService.applyUserAgent(controller, isDesktop);
-      WebKernelService.reload(controller);
+      if (targetUrl === tab.url) {
+        WebKernelService.reload(controller);
+      } else {
+        WebKernelService.load(controller, targetUrl);
+      }
     });
   }
 
@@ -3451,6 +3455,10 @@ struct Index {
       this.viewModel.persistSession();
     }
 
+    if (tab.isDesktop) {
+      await this.runScript(controller, DESKTOP_VIEWPORT_SCRIPT);
+    }
+
     if (this.viewModel.isHostAllowed(tab.url)) {
       await this.runScript(controller, RESTORE_HIDDEN_SCRIPT);
       return;
@@ -3467,9 +3475,6 @@ struct Index {
     if (this.settings.blockAds) {
       const raw: string = await this.runScript(controller, TRACKER_BLOCK_SCRIPT);
       delta = this.mergeCounts(delta, raw);
-    }
-    if (tab.isDesktop) {
-      await this.runScript(controller, DESKTOP_VIEWPORT_SCRIPT);
     }
     if (totalBlocked(delta) > 0) {
       await this.viewModel.recordBlocked(id, delta);

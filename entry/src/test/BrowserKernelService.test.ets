@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@ohos/hypium';
+import { DESKTOP_VIEWPORT_SCRIPT } from '../main/ets/constants/AppConstants';
 import { WebKernelService } from '../main/ets/services/WebKernelService';
 
 export default function browserKernelServiceTest(): void {
@@ -25,6 +26,20 @@ export default function browserKernelServiceTest(): void {
       const mobileUserAgent: string = 'mobile-agent';
       expect(WebKernelService.userAgentFor(false, mobileUserAgent)).assertEqual(mobileUserAgent);
       expect(WebKernelService.userAgentFor(true, mobileUserAgent)).assertContain('Chrome');
+    });
+
+    it('upgrades known mobile-only entry points for desktop browsing', 0, (): void => {
+      expect(WebKernelService.desktopUrlFor('https://m.weibo.cn/'))
+        .assertEqual('https://weibo.com/');
+      expect(WebKernelService.desktopUrlFor('https://m.weibo.cn/search?q=dolphin'))
+        .assertEqual('https://weibo.com/search?q=dolphin');
+      expect(WebKernelService.desktopUrlFor('https://m.example.com/page'))
+        .assertEqual('https://m.example.com/page');
+    });
+
+    it('uses the available web surface for desktop viewport layout', 0, (): void => {
+      expect(DESKTOP_VIEWPORT_SCRIPT).assertContain('width=device-width');
+      expect(DESKTOP_VIEWPORT_SCRIPT.includes('width=1024')).assertFalse();
     });
   });
 }
