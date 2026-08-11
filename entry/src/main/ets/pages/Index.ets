@@ -42,6 +42,7 @@ import {
   Suggestion,
   LoadErrorKind,
   SecurityState,
+  UserAgentPreference,
   CertificateSummary,
   SitePermission,
   SitePermissionDecision,
@@ -77,6 +78,7 @@ import { SavedItemEditSheet } from '../components/SavedItemEditSheet';
 import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
 import { DesktopTabStrip, DESKTOP_TAB_STRIP_HEIGHT } from '../components/DesktopTabStrip';
+import { UserAgentPolicySheet } from '../components/UserAgentPolicySheet';
 import {
   DOCK_COLLAPSED_HEIGHT,
   DOCK_HEIGHT,
@@ -133,7 +135,8 @@ enum Overlay {
   Favorites = 16,
   RecentTabs = 17,
   EditSavedItem = 18,
-  HomeBackground = 19
+  HomeBackground = 19,
+  UserAgent = 20
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -830,6 +833,20 @@ struct Index {
         isDesktop: this.activeTab()?.isDesktop === true,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onAction: (key: string): void => { this.performAction(key); }
+      })
+        .transition(this.sheetTransition())
+    } else if (this.sheet === Overlay.UserAgent) {
+      UserAgentPolicySheet({
+        host: displayHost(this.activeTab()?.url ?? ''),
+        currentPreference: this.viewModel.userAgentPreferenceForUrl(this.activeTab()?.url ?? ''),
+        globalPreference: this.settings.defaultUserAgentPreference,
+        onApplyOnce: (preference: UserAgentPreference): void => this.applyUserAgentOnce(preference),
+        onApplyAlways: (preference: UserAgentPreference): void => {
+          void this.applyUserAgentAlways(preference);
+        },
+        onSetGlobal: (preference: UserAgentPreference): void => { void this.setGlobalUserAgent(preference); },
+        onResetAll: (): void => { void this.resetUserAgentPreferences(); },
+        onDismiss: (): void => { this.sheet = Overlay.None; }
       })
         .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.PageSettings) {
@@ -1739,14 +1756,7 @@ struct Index {
       return;
     }
     if (key === 'desktop') {
-      this.sheet = Overlay.None;
-      const isDesktop: boolean = !tab.isDesktop;
-      this.viewModel.updateTab(tab.id, { isDesktop: isDesktop });
-      this.syncState();
-      this.runOnActive((controller: webview.WebviewController) => {
-        WebKernelService.applyUserAgent(controller, isDesktop);
-        WebKernelService.reload(controller);
-      });
+      this.sheet = Overlay.UserAgent;
       return;
     }
     if (key === 'downloads') {
@@ -1760,6 +1770,45 @@ struct Index {
       this.findTotal = 0;
       this.sheet = Overlay.Find;
     }
+  }
+
+  private applyUserAgentOnce(preference: UserAgentPreference): void {
+    this.applyUserAgentToActive(preference === UserAgentPreference.Desktop);
+  }
+
+  private async applyUserAgentAlways(preference: UserAgentPreference): Promise<void> {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined) {
+      return;
+    }
+    await this.viewModel.setSiteUserAgentPreference(tab.url, preference);
+    this.applyUserAgentToActive(this.viewModel.preferredDesktopForUrl(tab.url));
+  }
+
+  private async setGlobalUserAgent(preference: UserAgentPreference): Promise<void> {
+    await this.viewModel.setDefaultUserAgentPreference(preference);
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab !== undefined) {
+      this.applyUserAgentToActive(this.viewModel.preferredDesktopForUrl(tab.url));
+    }
+  }
+
+  private async resetUserAgentPreferences(): Promise<void> {
+    await this.viewModel.resetUserAgentPreferences();
+    this.applyUserAgentToActive(false);
+  }
+
+  private applyUserAgentToActive(isDesktop: boolean): void {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined) {
+      return;
+    }
+    this.viewModel.updateTab(tab.id, { isDesktop: isDesktop });
+    this.syncState();
+    this.runOnActive((controller: webview.WebviewController): void => {
+      WebKernelService.applyUserAgent(controller, isDesktop);
+      WebKernelService.reload(controller);
+    });
   }
 
   private async updateFindQuery(query: string): Promise<void> {

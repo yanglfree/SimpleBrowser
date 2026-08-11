@@ -1,5 +1,10 @@
 import { describe, expect, it } from '@ohos/hypium';
-import { BrowserTab, Suggestion, SuggestionKind } from '../main/ets/models/BrowserModels';
+import {
+  BrowserTab,
+  Suggestion,
+  SuggestionKind,
+  UserAgentPreference
+} from '../main/ets/models/BrowserModels';
 import { BrowserViewModel } from '../main/ets/viewmodels/BrowserViewModel';
 
 export default function browserViewModelTest(): void {
@@ -128,6 +133,22 @@ export default function browserViewModelTest(): void {
       expect(viewModel.tabs[0].id).assertEqual(second.id);
       expect(viewModel.tabs[0].isPinned).assertTrue();
       expect(viewModel.toggleTabPinned(privateTab.id)).assertFalse();
+    });
+  });
+
+  describe('BrowserViewModel user agent policy', (): void => {
+    it('resolves host preference ahead of the global default', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      viewModel.settings.defaultUserAgentPreference = UserAgentPreference.Desktop;
+      viewModel.settings.siteUserAgentPreferences = [{
+        host: 'mobile.example',
+        preference: UserAgentPreference.Mobile
+      }];
+
+      expect(viewModel.preferredDesktopForUrl('https://docs.example/page')).assertTrue();
+      expect(viewModel.preferredDesktopForUrl('https://mobile.example/page')).assertFalse();
+      expect(viewModel.userAgentPreferenceForUrl('https://mobile.example/other'))
+        .assertEqual(UserAgentPreference.Mobile);
     });
   });
 }

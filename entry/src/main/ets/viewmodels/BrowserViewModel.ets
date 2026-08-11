@@ -17,11 +17,13 @@ import {
   LoadErrorKind,
   SecurityState,
   SiteZoomRatio,
+  SiteUserAgentPreference,
   SiteBlockStats,
   QuickSite,
   Suggestion,
   SuggestionKind,
   TabExpiry,
+  UserAgentPreference,
   addBlockStats,
   cloneBlockStats,
   cloneSettings,
@@ -67,7 +69,11 @@ export class BrowserViewModel {
       const cutoff: number = expiryDays === TabExpiry.Never
         ? 0
         : Date.now() - Number(expiryDays) * 24 * 60 * 60 * 1000;
-      const sessionTabs: BrowserTab[] = session.tabs.map((tab: BrowserTab) => cloneTab(tab));
+      const sessionTabs: BrowserTab[] = session.tabs.map((tab: BrowserTab): BrowserTab => {
+        const restored: BrowserTab = cloneTab(tab);
+        restored.isDesktop = this.preferredDesktopForUrl(restored.url);
+        return restored;
+      });
       this.expiredTabs = cutoff === 0
         ? []
         : sessionTabs.filter((tab: BrowserTab): boolean => tab.lastVisitedAt < cutoff);
@@ -124,7 +130,7 @@ export class BrowserViewModel {
       isPrivate: isPrivate,
       isLoading: !isHomeUrl(url),
       progress: 0,
-      isDesktop: false,
+      isDesktop: this.preferredDesktopForUrl(url),
       isPinned: false,
       isReader: false,
       canGoBack: false,
@@ -177,6 +183,7 @@ export class BrowserViewModel {
     restored.isPrivate = false;
     restored.isLoading = !isHomeUrl(restored.url);
     restored.progress = 0;
+    restored.isDesktop = this.preferredDesktopForUrl(restored.url);
     restored.lastVisitedAt = Date.now();
     this.tabs = this.tabs.concat([restored]);
     this.activeTabId = restored.id;
@@ -232,6 +239,45 @@ export class BrowserViewModel {
     const entry: SiteZoomRatio | undefined = this.settings.siteZoomRatios.find(
       (item: SiteZoomRatio): boolean => item.host === host);
     return entry === undefined ? 100 : BrowserViewModel.clampZoomPercent(entry.percent);
+  }
+
+  userAgentPreferenceForUrl(url: string): UserAgentPreference {
+    const host: string = rawHost(url);
+    const site: SiteUserAgentPreference | undefined = this.settings.siteUserAgentPreferences.find(
+      (item: SiteUserAgentPreference): boolean => item.host === host);
+    return site?.preference ?? this.settings.defaultUserAgentPreference;
+  }
+
+  preferredDesktopForUrl(url: string): boolean {
+    return this.userAgentPreferenceForUrl(url) === UserAgentPreference.Desktop;
+  }
+
+  async setSiteUserAgentPreference(url: string, preference: UserAgentPreference): Promise<void> {
+    const host: string = rawHost(url);
+    if (host.length === 0) {
+      return;
+    }
+    const remaining: SiteUserAgentPreference[] = this.settings.siteUserAgentPreferences
+      .filter((item: SiteUserAgentPreference): boolean => item.host !== host);
+    if (preference !== UserAgentPreference.Default) {
+      remaining.push({ host: host, preference: preference });
+    }
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.siteUserAgentPreferences = remaining;
+    await this.updateSettings(next);
+  }
+
+  async setDefaultUserAgentPreference(preference: UserAgentPreference): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.defaultUserAgentPreference = preference;
+    await this.updateSettings(next);
+  }
+
+  async resetUserAgentPreferences(): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.defaultUserAgentPreference = UserAgentPreference.Default;
+    next.siteUserAgentPreferences = [];
+    await this.updateSettings(next);
   }
 
   async rememberSiteZoom(url: string, scale: number): Promise<void> {

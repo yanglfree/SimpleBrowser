@@ -21,6 +21,7 @@ import {
   SitePermission,
   SitePermissionDecision,
   SiteZoomRatio,
+  SiteUserAgentPreference,
   SiteBlockStats,
   addBlockStats,
   cloneBlockStats,
@@ -526,6 +527,17 @@ export class BrowserRepository {
               percent: entry.percent
             }))
           : fallback.siteZoomRatios,
+        defaultUserAgentPreference:
+          parsed.defaultUserAgentPreference ?? fallback.defaultUserAgentPreference,
+        siteUserAgentPreferences: Array.isArray(parsed.siteUserAgentPreferences)
+          ? parsed.siteUserAgentPreferences
+            .filter((entry: SiteUserAgentPreference): boolean =>
+              entry !== undefined && typeof entry.host === 'string' && entry.host.length > 0)
+            .map((entry: SiteUserAgentPreference): SiteUserAgentPreference => ({
+              host: entry.host.toLowerCase(),
+              preference: entry.preference
+            }))
+          : fallback.siteUserAgentPreferences,
         onboardingCompleted: parsed.onboardingCompleted ?? fallback.onboardingCompleted,
         appearance: parsed.appearance ?? fallback.appearance,
         webDarkMode: parsed.webDarkMode ?? fallback.webDarkMode,

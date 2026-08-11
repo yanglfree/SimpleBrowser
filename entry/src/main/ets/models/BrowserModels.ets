@@ -78,6 +78,12 @@ export enum SecurityState {
   CertificateError = 3
 }
 
+export enum UserAgentPreference {
+  Default = 0,
+  Mobile = 1,
+  Desktop = 2
+}
+
 /** Parsed X.509 summary shown in the security panel. */
 export interface CertificateSummary {
   subject: string;
@@ -211,6 +217,8 @@ export interface BrowserSettings {
   tabSoftLimit: number;
   minimumFontSize: number;
   siteZoomRatios: SiteZoomRatio[];
+  defaultUserAgentPreference: UserAgentPreference;
+  siteUserAgentPreferences: SiteUserAgentPreference[];
   onboardingCompleted: boolean;
   appearance: AppearanceMode;
   webDarkMode: WebDarkModePreference;
@@ -227,6 +235,11 @@ export interface BrowserSettings {
 export interface SiteZoomRatio {
   host: string;
   percent: number;
+}
+
+export interface SiteUserAgentPreference {
+  host: string;
+  preference: UserAgentPreference;
 }
 
 export interface SitePermission {
@@ -308,6 +321,8 @@ export function defaultBrowserSettings(): BrowserSettings {
     tabSoftLimit: 12,
     minimumFontSize: 14,
     siteZoomRatios: [],
+    defaultUserAgentPreference: UserAgentPreference.Default,
+    siteUserAgentPreferences: [],
     onboardingCompleted: false,
     appearance: AppearanceMode.System,
     webDarkMode: WebDarkModePreference.System,
@@ -401,6 +416,12 @@ export function normalizeBrowserSettings(settings: BrowserSettings): BrowserSett
       host: entry.host,
       percent: entry.percent
     })),
+    defaultUserAgentPreference: settings.defaultUserAgentPreference ?? UserAgentPreference.Default,
+    siteUserAgentPreferences: (settings.siteUserAgentPreferences ?? [])
+      .map((entry: SiteUserAgentPreference): SiteUserAgentPreference => ({
+        host: entry.host,
+        preference: entry.preference
+      })),
     onboardingCompleted: settings.onboardingCompleted,
     appearance: settings.appearance,
     webDarkMode: settings.webDarkMode,
