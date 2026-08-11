@@ -6,6 +6,7 @@ import {
   UserAgentPreference
 } from '../main/ets/models/BrowserModels';
 import { BrowserViewModel } from '../main/ets/viewmodels/BrowserViewModel';
+import { clampPaneRatio } from '../main/ets/models/PaneModels';
 
 export default function browserViewModelTest(): void {
   describe('BrowserViewModel recent tabs', (): void => {
@@ -149,6 +150,14 @@ export default function browserViewModelTest(): void {
       expect(viewModel.preferredDesktopForUrl('https://mobile.example/page')).assertFalse();
       expect(viewModel.userAgentPreferenceForUrl('https://mobile.example/other'))
         .assertEqual(UserAgentPreference.Mobile);
+    });
+  });
+
+  describe('Pane layout', (): void => {
+    it('keeps a draggable divider inside the supported 30/70 range', 0, (): void => {
+      expect(clampPaneRatio(0.1)).assertEqual(0.3);
+      expect(clampPaneRatio(0.5)).assertEqual(0.5);
+      expect(clampPaneRatio(0.9)).assertEqual(0.7);
     });
   });
 }

@@ -112,6 +112,7 @@ import {
 } from '../models/WindowMetrics';
 import { WindowMetricsService } from '../services/WindowMetricsService';
 import { BrowserShortcut, resolveBrowserShortcut } from '../models/BrowserShortcut';
+import { PaneId, clampPaneRatio } from '../models/PaneModels';
 
 const TAG: string = 'Index';
 const RECENTLY_CLOSED_TAB_LIMIT: number = 10;
@@ -191,6 +192,12 @@ struct Index {
   @State private recentTabs: BrowserTab[] = [];
   @State private activeTabId: string = '';
   @State private sidebarPanel: SidebarPanel = SidebarPanel.None;
+  @State private primaryPaneTabId: string = '';
+  @State private secondaryPaneTabId: string = '';
+  @State private focusedPaneId: PaneId = PaneId.Primary;
+  @State private overlayTargetPaneId: PaneId = PaneId.Primary;
+  @State private splitPrimaryRatio: number = 0.5;
+  private splitDragStartRatio: number = 0.5;
   @State private settings: BrowserSettings = defaultBrowserSettings();
   @State private sheet: Overlay = Overlay.None;
   @State private isCapsuleHidden: boolean = false;
@@ -252,6 +259,7 @@ struct Index {
           this.windowMetrics = metrics;
           if (metrics.layoutClass === BrowserLayoutClass.Compact) {
             this.sidebarPanel = SidebarPanel.None;
+            this.closeSplitView();
           }
           if (previousClass !== metrics.layoutClass) {
             Logger.debug(TAG, `Browser layout class changed to ${metrics.layoutClass}`);
@@ -508,21 +516,65 @@ struct Index {
           }
         }
         .id(`tab-view-${tab.id}`)
-        .width('100%')
+        .width(this.paneWidth(tab.id))
         .height('100%')
+        .position({ x: this.paneX(tab.id), y: 0 })
         .padding({
           top: this.usesWideChrome() ? this.topInset + this.wideChromeHeight() + 8 : 0,
           bottom: isHomeUrl(tab.url) || this.usesWideChrome() ? 0 : this.webBottomInset()
         })
-        .opacity(tab.id === this.activeTabId ? 1 : 0)
+        .opacity(this.isPaneVisible(tab.id) ? 1 : 0)
         .translate({ x: this.tabTransitionOffset(tab.id) })
-        .zIndex(tab.id === this.activeTabId ? 1 : 0)
-        .hitTestBehavior(tab.id === this.activeTabId ? HitTestMode.Default : HitTestMode.None)
+        .zIndex(tab.id === this.activeTabId ? 2 : (this.isPaneVisible(tab.id) ? 1 : 0))
+        .hitTestBehavior(this.isPaneVisible(tab.id) ? HitTestMode.Default : HitTestMode.None)
+        .onClick(() => this.focusPaneForTab(tab.id))
       }, (tab: BrowserTab) =>
         `${tab.id}-${isHomeUrl(tab.url) ? 'home' : (this.isTabLive(tab.id) ? 'live' : 'sleep')}`)
+
+      if (this.isSplitActive()) {
+        this.SplitDivider()
+      }
     }
     .layoutWeight(1)
     .width('100%')
+  }
+
+  @Builder
+  private SplitDivider() {
+    Column({ space: 8 }) {
+      Text('30')
+        .fontSize(11)
+        .fontColor($r('app.color.text_secondary'))
+        .onClick(() => { this.splitPrimaryRatio = 0.3; })
+      Text('50')
+        .fontSize(11)
+        .fontColor($r('app.color.text_secondary'))
+        .onClick(() => { this.splitPrimaryRatio = 0.5; })
+      Text('70')
+        .fontSize(11)
+        .fontColor($r('app.color.text_secondary'))
+        .onClick(() => { this.splitPrimaryRatio = 0.7; })
+      AppIcon({ name: IconName.Close, glyphSize: 13, color: $r('app.color.text_secondary') })
+        .accessibilityText($r('app.string.split_close'))
+        .onClick(() => this.closeSplitView())
+    }
+    .width(28)
+    .padding({ top: 10, bottom: 10 })
+    .borderRadius(14)
+    .backgroundColor($r('app.color.surface_panel'))
+    .border({ width: 1, color: $r('app.color.border') })
+    .shadow({ radius: 8, color: $r('app.color.shadow_soft') })
+    .position({ x: this.splitDividerX(), y: '42%' })
+    .zIndex(4)
+    .gesture(
+      PanGesture({ direction: PanDirection.Horizontal, distance: 4 })
+        .onActionStart((): void => { this.splitDragStartRatio = this.splitPrimaryRatio; })
+        .onActionUpdate((event: GestureEvent): void => {
+          const contentWidth: number = Math.max(1, this.windowMetrics.widthVp -
+            (this.sidebarPanel !== SidebarPanel.None ? this.sidebarWidth() : 0));
+          this.splitPrimaryRatio = clampPaneRatio(this.splitDragStartRatio + event.offsetX / contentWidth);
+        })
+    )
   }
 
   @Builder
@@ -708,6 +760,7 @@ struct Index {
           onCloseOthers: (id: string): void => { void this.closeOtherDesktopTabs(id); },
           onCopyUrl: (id: string): void => { void this.copyTabLink(id); },
           onTogglePinned: (id: string): void => this.toggleDesktopTabPinned(id),
+          onOpenSplit: (id: string): void => { void this.openTabInSecondaryPane(id); },
           onNewTab: (): void => this.createTab(this.activeTab()?.isPrivate === true)
         })
       }
@@ -806,6 +859,128 @@ struct Index {
       return Math.max(0, this.windowMetrics.widthVp - this.sidebarWidth());
     }
     return '100%';
+  }
+
+  private isSplitActive(): boolean {
+    return this.secondaryPaneTabId.length > 0 &&
+      this.tabs.some((tab: BrowserTab): boolean => tab.id === this.primaryPaneTabId) &&
+      this.tabs.some((tab: BrowserTab): boolean => tab.id === this.secondaryPaneTabId);
+  }
+
+  private isPaneVisible(tabId: string): boolean {
+    if (!this.isSplitActive()) {
+      return tabId === this.activeTabId;
+    }
+    return tabId === this.primaryPaneTabId || tabId === this.secondaryPaneTabId;
+  }
+
+  private paneWidth(tabId: string): number | string {
+    if (!this.isSplitActive()) {
+      return '100%';
+    }
+    if (tabId === this.primaryPaneTabId) {
+      return `${this.splitPrimaryRatio * 100}%`;
+    }
+    if (tabId === this.secondaryPaneTabId) {
+      return `${(1 - this.splitPrimaryRatio) * 100}%`;
+    }
+    return 0;
+  }
+
+  private paneX(tabId: string): number | string {
+    if (this.isSplitActive() && tabId === this.secondaryPaneTabId) {
+      return `${this.splitPrimaryRatio * 100}%`;
+    }
+    return 0;
+  }
+
+  private splitDividerX(): number {
+    const contentWidth: number = Math.max(0, this.windowMetrics.widthVp -
+      (this.sidebarPanel !== SidebarPanel.None ? this.sidebarWidth() : 0));
+    return Math.max(0, contentWidth * this.splitPrimaryRatio - 14);
+  }
+
+  private focusPaneForTab(tabId: string): void {
+    if (!this.isSplitActive() || tabId === this.activeTabId) {
+      return;
+    }
+    if (tabId === this.primaryPaneTabId) {
+      this.focusedPaneId = PaneId.Primary;
+    } else if (tabId === this.secondaryPaneTabId) {
+      this.focusedPaneId = PaneId.Secondary;
+    } else {
+      return;
+    }
+    this.viewModel.selectTab(tabId);
+    this.overlayTargetPaneId = this.focusedPaneId;
+    this.syncState();
+  }
+
+  private assignFocusedPane(tabId: string): void {
+    if (!this.isSplitActive()) {
+      this.primaryPaneTabId = tabId;
+      this.focusedPaneId = PaneId.Primary;
+      return;
+    }
+    if (this.focusedPaneId === PaneId.Secondary) {
+      this.secondaryPaneTabId = tabId;
+    } else {
+      this.primaryPaneTabId = tabId;
+    }
+  }
+
+  private async openTabInSecondaryPane(requestedId: string): Promise<void> {
+    if (!this.usesWideChrome()) {
+      return;
+    }
+    const primary: BrowserTab | undefined = this.activeTab();
+    let target: BrowserTab | undefined = this.tabs.find((tab: BrowserTab): boolean => tab.id === requestedId);
+    if (primary === undefined) {
+      return;
+    }
+    if (target === undefined || target.id === primary.id) {
+      target = this.tabs.find((tab: BrowserTab): boolean =>
+        tab.id !== primary.id && tab.isPrivate === primary.isPrivate);
+    }
+    if (target === undefined || target.isPrivate !== primary.isPrivate) {
+      return;
+    }
+    this.primaryPaneTabId = primary.id;
+    this.secondaryPaneTabId = target.id;
+    this.focusedPaneId = PaneId.Secondary;
+    this.overlayTargetPaneId = PaneId.Secondary;
+    await this.activateTab(primary.id);
+    await this.activateTab(target.id);
+    this.viewModel.selectTab(target.id);
+    this.syncState();
+  }
+
+  private closeSplitView(): void {
+    if (!this.isSplitActive()) {
+      return;
+    }
+    this.primaryPaneTabId = this.activeTabId;
+    this.secondaryPaneTabId = '';
+    this.focusedPaneId = PaneId.Primary;
+    this.overlayTargetPaneId = PaneId.Primary;
+  }
+
+  private repairPaneReferences(): void {
+    const primaryExists: boolean = this.tabs.some(
+      (tab: BrowserTab): boolean => tab.id === this.primaryPaneTabId);
+    const secondaryExists: boolean = this.tabs.some(
+      (tab: BrowserTab): boolean => tab.id === this.secondaryPaneTabId);
+    if (!primaryExists) {
+      this.primaryPaneTabId = secondaryExists ? this.secondaryPaneTabId : this.activeTabId;
+      this.secondaryPaneTabId = '';
+      this.focusedPaneId = PaneId.Primary;
+    } else if (this.secondaryPaneTabId.length > 0 && !secondaryExists) {
+      this.secondaryPaneTabId = '';
+      this.focusedPaneId = PaneId.Primary;
+    }
+    if (this.primaryPaneTabId.length === 0) {
+      this.primaryPaneTabId = this.activeTabId;
+    }
   }
 
   @Builder
@@ -1106,6 +1281,7 @@ struct Index {
       LinkActionSheet({
         target: this.longPressTarget,
         isPrivate: this.activeTab()?.isPrivate === true,
+        canOpenRight: this.usesWideChrome(),
         onDismiss: (): void => this.closeLongPressActions(),
         onAction: (key: string): void => { void this.performLongPressAction(key); }
       })
@@ -1259,7 +1435,8 @@ struct Index {
   private leastRecentLiveTab(excludedId: string): string {
     let candidate: BrowserTab | undefined;
     for (const tab of this.tabs) {
-      if (tab.id === excludedId || !this.liveTabIds.includes(tab.id) || isHomeUrl(tab.url)) {
+      if (tab.id === excludedId || this.isPaneVisible(tab.id) ||
+        !this.liveTabIds.includes(tab.id) || isHomeUrl(tab.url)) {
         continue;
       }
       if (candidate === undefined || tab.lastVisitedAt < candidate.lastVisitedAt) {
@@ -1370,6 +1547,7 @@ struct Index {
   }
 
   private openAddress(): void {
+    this.overlayTargetPaneId = this.focusedPaneId;
     this.isAddressMenuVisible = false;
     this.showCapsule();
     this.updateSuggestions(this.isActiveHome() ? '' : (this.activeTab()?.url ?? ''));
@@ -1381,6 +1559,7 @@ struct Index {
   }
 
   private openBlockPanel(): void {
+    this.overlayTargetPaneId = this.focusedPaneId;
     const url: string = this.activeTab()?.url ?? '';
     this.siteStats = this.viewModel.getSiteBlocked(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
@@ -1498,6 +1677,7 @@ struct Index {
     await this.activateTab(id);
     await this.captureScrollPosition(this.activeTabId);
     await this.captureThumbnail(this.activeTabId);
+    this.assignFocusedPane(id);
     this.viewModel.selectTab(id);
     this.viewModel.updateTab(id, { lastVisitedAt: Date.now() });
     this.sheet = Overlay.None;
@@ -2816,6 +2996,16 @@ struct Index {
       this.closeLongPressActions();
       return;
     }
+    if (key === 'link_open_right') {
+      const isPrivate: boolean = this.activeTab()?.isPrivate === true;
+      const tab: BrowserTab | undefined = this.viewModel.addBackgroundTab(target.url, isPrivate);
+      if (tab !== undefined) {
+        this.syncState();
+        await this.openTabInSecondaryPane(tab.id);
+      }
+      this.closeLongPressActions();
+      return;
+    }
     if (key === 'link_copy') {
       const outcome: ShareOutcome = await ShareService.copy(target.url);
       if (outcome === ShareOutcome.Copied) {
@@ -3357,6 +3547,7 @@ struct Index {
     this.isActiveBookmarked = this.viewModel.isSaved(url);
     this.isActiveSavedForLater = this.viewModel.isSavedForLater(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
+    this.repairPaneReferences();
     ThemeService.applySurface(
       AppContext.getContext(),
       this.settings.appearance,

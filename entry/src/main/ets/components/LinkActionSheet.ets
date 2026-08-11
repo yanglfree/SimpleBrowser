@@ -11,6 +11,7 @@ interface LinkAction {
 export struct LinkActionSheet {
   @Prop target: WebLongPressTarget;
   @Prop isPrivate: boolean = false;
+  @Prop canOpenRight: boolean = false;
   onDismiss: () => void = (): void => {};
   onAction: (key: string) => void = (_key: string): void => {};
 
@@ -102,6 +103,9 @@ export struct LinkActionSheet {
       { key: 'link_copy', label: $r('app.string.link_menu_copy'), icon: IconName.ArrowUpLeft },
       { key: 'link_share', label: $r('app.string.link_menu_share'), icon: IconName.Share }
     ];
+    if (this.canOpenRight) {
+      actions.unshift({ key: 'link_open_right', label: $r('app.string.tab_open_right'), icon: IconName.Tabs });
+    }
     if (!this.isPrivate) {
       actions.push({ key: 'link_save_later', label: $r('app.string.link_menu_save_later'), icon: IconName.Reader });
     }

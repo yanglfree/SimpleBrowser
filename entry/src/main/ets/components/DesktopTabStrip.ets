@@ -21,6 +21,7 @@ export struct DesktopTabStrip {
   onCloseOthers: (id: string) => void = (_id: string): void => {};
   onCopyUrl: (id: string) => void = (_id: string): void => {};
   onTogglePinned: (id: string) => void = (_id: string): void => {};
+  onOpenSplit: (id: string) => void = (_id: string): void => {};
   onNewTab: () => void = (): void => {};
   private scroller: Scroller = new Scroller();
   private contextTabId: string = '';
@@ -135,6 +136,8 @@ export struct DesktopTabStrip {
         .onClick(() => this.onCloseOthers(this.contextTabId))
       MenuItem({ content: $r('app.string.tab_copy_url') })
         .onClick(() => this.onCopyUrl(this.contextTabId))
+      MenuItem({ content: $r('app.string.tab_open_right') })
+        .onClick(() => this.onOpenSplit(this.contextTabId))
       if (!this.contextTab()?.isPrivate) {
         MenuItem({ content: this.contextTab()?.isPinned === true
           ? $r('app.string.tab_unpin')
