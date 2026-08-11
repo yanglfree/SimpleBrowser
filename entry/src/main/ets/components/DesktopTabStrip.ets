@@ -5,7 +5,6 @@ import { TabThumbnail } from './TabOverview';
 
 export const DESKTOP_TAB_STRIP_HEIGHT: number = 44;
 
-const TAB_STRIP_MAX_WIDTH: number = 1080;
 const TAB_STRIP_MIN_TAB_WIDTH: number = 112;
 const TAB_STRIP_MEDIUM_TAB_WIDTH: number = 140;
 const TAB_STRIP_MAX_TAB_WIDTH: number = 180;
@@ -68,8 +67,7 @@ export struct DesktopTabStrip {
       .accessibilityText($r('app.string.new_tab'))
       .onClick(() => this.onNewTab())
     }
-    .width('96%')
-    .constraintSize({ maxWidth: TAB_STRIP_MAX_WIDTH })
+    .width('100%')
     .height(DESKTOP_TAB_STRIP_HEIGHT)
     .padding({ left: 8, right: 8 })
     .focusable(true)

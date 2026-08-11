@@ -61,6 +61,13 @@ export function layoutClassForWidth(widthVp: number): BrowserLayoutClass {
   return BrowserLayoutClass.Compact;
 }
 
+export function shouldEnableDockTabSwipe(
+  layoutClass: BrowserLayoutClass,
+  preferenceEnabled: boolean
+): boolean {
+  return layoutClass !== BrowserLayoutClass.Desktop && preferenceEnabled;
+}
+
 function normalizedDimension(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }

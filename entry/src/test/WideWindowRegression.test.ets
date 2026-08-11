@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { Overlay, shouldMountOverlayLayer, shouldUseResponsivePanel } from '../main/ets/pages/Index';
+import { BrowserLayoutClass, shouldEnableDockTabSwipe } from '../main/ets/models/WindowMetrics';
 import {
   MAIN_WINDOW_INSTANCE_ID,
   resolveWindowInstanceId
@@ -16,6 +17,15 @@ export default function wideWindowRegressionTest(): void {
     it('does not mount an overlay layer when no overlay is visible', 0, (): void => {
       expect(shouldMountOverlayLayer(Overlay.None)).assertFalse();
       expect(shouldMountOverlayLayer(Overlay.Actions)).assertTrue();
+    });
+
+    it('disables phone tab swipe navigation when the desktop tab strip is visible', 0, (): void => {
+      expect(shouldEnableDockTabSwipe(BrowserLayoutClass.Compact, true)).assertTrue();
+      expect(shouldEnableDockTabSwipe(BrowserLayoutClass.Medium, true)).assertTrue();
+      expect(shouldEnableDockTabSwipe(BrowserLayoutClass.Expanded, true)).assertTrue();
+      expect(shouldEnableDockTabSwipe(BrowserLayoutClass.Desktop, true)).assertFalse();
+      expect(shouldEnableDockTabSwipe(BrowserLayoutClass.Compact, false)).assertFalse();
+      expect(shouldEnableDockTabSwipe(BrowserLayoutClass.Desktop, false)).assertFalse();
     });
 
     it('reuses the main instance for ordinary launches', 0, (): void => {

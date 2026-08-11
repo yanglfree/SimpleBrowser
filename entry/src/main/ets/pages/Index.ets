@@ -108,7 +108,8 @@ import {
   BrowserLayoutClass,
   BrowserWindowMetrics,
   BrowserWindowMode,
-  createWindowMetrics
+  createWindowMetrics,
+  shouldEnableDockTabSwipe
 } from '../models/WindowMetrics';
 import { WindowMetricsService } from '../services/WindowMetricsService';
 import { BrowserShortcut, resolveBrowserShortcut } from '../models/BrowserShortcut';
@@ -841,7 +842,10 @@ struct Index {
       canGoForward: this.activeTab()?.canGoForward === true,
       gesturesEnabled: this.settings.gesturesEnabled,
       actionsGestureEnabled: this.settings.gestureActionsEnabled,
-      tabSwitchGestureEnabled: this.settings.gestureTabSwitchEnabled,
+      tabSwitchGestureEnabled: shouldEnableDockTabSwipe(
+        this.windowMetrics.layoutClass,
+        this.settings.gestureTabSwitchEnabled
+      ),
       blockingGestureEnabled: this.settings.gestureBlockingEnabled,
       addressMenuVisible: this.isAddressMenuVisible,
       onOpenAddress: (): void => this.openAddress(),
