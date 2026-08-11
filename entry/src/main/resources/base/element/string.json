@@ -129,6 +129,7 @@
     { "name": "tab_pin", "value": "固定标签页" },
     { "name": "tab_unpin", "value": "取消固定" },
     { "name": "tab_open_right", "value": "在右侧打开" },
+    { "name": "tab_move_new_window", "value": "移到新窗口" },
     { "name": "split_close", "value": "关闭分屏" },
     { "name": "tab_preview_private", "value": "无痕标签不显示预览" },
     { "name": "tab_preview_loading", "value": "页面加载中" },

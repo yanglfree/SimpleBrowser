@@ -57,6 +57,13 @@ export class BrowserViewModel {
   settings: BrowserSettings = defaultBrowserSettings();
   activeTabId: string = '';
   private tabSequence: number = 0;
+  private sessionPersistenceEnabled: boolean = true;
+  private restoredSession: boolean = false;
+
+  setSessionScope(scope: string, persistenceEnabled: boolean = true): void {
+    this.repository.setSessionScope(scope);
+    this.sessionPersistenceEnabled = persistenceEnabled;
+  }
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
     await this.repository.initialize(context);
@@ -64,6 +71,7 @@ export class BrowserViewModel {
     this.history = this.repository.getHistory();
     this.settings = this.repository.getSettings();
     const session: BrowserSession | undefined = this.repository.getSession();
+    this.restoredSession = session !== undefined && session.tabs.length > 0;
     if (session !== undefined && session.tabs.length > 0) {
       const expiryDays: TabExpiry = this.settings.tabExpiryDays;
       const cutoff: number = expiryDays === TabExpiry.Never
@@ -104,6 +112,9 @@ export class BrowserViewModel {
   }
 
   persistSession(): void {
+    if (!this.sessionPersistenceEnabled) {
+      return;
+    }
     const session: BrowserSession = {
       tabs: this.tabs,
       activeTabId: this.activeTabId
@@ -115,6 +126,10 @@ export class BrowserViewModel {
 
   getActiveTab(): BrowserTab | undefined {
     return this.tabs.find((tab: BrowserTab) => tab.id === this.activeTabId);
+  }
+
+  hasRestoredSession(): boolean {
+    return this.restoredSession;
   }
 
   getTab(id: string): BrowserTab | undefined {
@@ -189,6 +204,19 @@ export class BrowserViewModel {
     this.activeTabId = restored.id;
     this.persistSession();
     return restored;
+  }
+
+  adoptTransferredTab(snapshot: BrowserTab): BrowserTab {
+    const transferred: BrowserTab = cloneTab(snapshot);
+    const identity: BrowserTab = this.createTab(snapshot.url, snapshot.isPrivate);
+    transferred.id = identity.id;
+    transferred.isLoading = !isHomeUrl(transferred.url);
+    transferred.progress = 0;
+    transferred.lastVisitedAt = Date.now();
+    this.tabs = [transferred];
+    this.activeTabId = transferred.id;
+    this.persistSession();
+    return transferred;
   }
 
   async saveUrlForLater(url: string, title: string): Promise<void> {
@@ -351,6 +379,11 @@ export class BrowserViewModel {
     if (id === this.activeTabId) {
       this.activeTabId = this.tabs[Math.min(index, this.tabs.length - 1)].id;
     }
+    this.persistSession();
+  }
+
+  detachTab(id: string): void {
+    this.closeTab(id);
     this.persistSession();
   }
 

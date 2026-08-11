@@ -1,5 +1,5 @@
 import { webview } from '@kit.ArkWeb';
-import { abilityAccessCtrl, PermissionRequestResult, Permissions } from '@kit.AbilityKit';
+import { abilityAccessCtrl, common, PermissionRequestResult, Permissions } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 
 import { image } from '@kit.ImageKit';
@@ -120,9 +120,11 @@ import {
   hasVerticalCrease
 } from '../models/FoldMetrics';
 import { FoldStateService } from '../services/FoldStateService';
+import { MultiWindowService } from '../services/MultiWindowService';
 
 const TAG: string = 'Index';
 const RECENTLY_CLOSED_TAB_LIMIT: number = 10;
+const storage: LocalStorage = LocalStorage.getShared();
 
 enum Overlay {
   None = 0,
@@ -186,9 +188,11 @@ const TAB_SWITCH_ANIMATION_DURATION: number = 220;
 const TAB_SWITCH_ANIMATION_DISTANCE: number = 28;
 const TAB_SWITCH_DOCK_DISTANCE: number = 10;
 
-@Entry
+@Entry(storage)
 @Component
 struct Index {
+  @LocalStorageProp('windowToken') private windowToken: string = '';
+  @LocalStorageProp('windowTabTransfer') private windowTabTransfer: string = '';
   private viewModel: BrowserViewModel = new BrowserViewModel();
   private windowMetricsService: WindowMetricsService = new WindowMetricsService();
   private foldStateService: FoldStateService = new FoldStateService();
@@ -244,6 +248,7 @@ struct Index {
     0,
     BrowserWindowMode.Unknown
   );
+  @State private multiWindowSupported: boolean = false;
   private isTabSoftLimitPromptVisible: boolean = false;
   private recentlyClosedTabs: BrowserTab[] = [];
   private pendingPermissionRequest: PermissionRequest | undefined = undefined;
@@ -259,9 +264,13 @@ struct Index {
 
   async aboutToAppear(): Promise<void> {
     try {
+      const transferredTab: BrowserTab | undefined = this.decodeTransferredTab();
+      if (transferredTab !== undefined) {
+        this.viewModel.setSessionScope(this.windowToken, !transferredTab.isPrivate);
+      }
       await this.measureSystemInsets();
       await this.windowMetricsService.start(
-        AppContext.getContext(),
+        this.appContext(),
         this.getUIContext(),
         (metrics: BrowserWindowMetrics): void => {
           const previousClass: BrowserLayoutClass = this.windowMetrics.layoutClass;
@@ -281,9 +290,13 @@ struct Index {
           this.splitPrimaryRatio = clampPaneRatio(metrics.crease.leftVp / this.windowMetrics.widthVp);
         }
       });
-      await this.viewModel.initialize(AppContext.getContext());
+      await this.viewModel.initialize(this.appContext());
+      if (transferredTab !== undefined && !this.viewModel.hasRestoredSession()) {
+        this.viewModel.adoptTransferredTab(transferredTab);
+      }
+      this.multiWindowSupported = await MultiWindowService.isSupported();
       this.appVersionName = AppMetadataService.getVersionName();
-      ThemeService.apply(AppContext.getContext(), this.viewModel.settings.appearance);
+      ThemeService.apply(this.appContext(), this.viewModel.settings.appearance);
       TelemetryService.setEnabled(this.viewModel.settings.telemetryEnabled);
       this.syncState();
       this.rulesLastUpdatedAt = this.viewModel.adsBlockService.lastUpdatedAt;
@@ -310,13 +323,29 @@ struct Index {
     }
   }
 
+  private appContext(): common.UIAbilityContext {
+    return AppContext.getContext(this.windowToken);
+  }
+
+  private decodeTransferredTab(): BrowserTab | undefined {
+    if (this.windowTabTransfer.length === 0) {
+      return undefined;
+    }
+    try {
+      return JSON.parse(this.windowTabTransfer) as BrowserTab;
+    } catch (error) {
+      Logger.warn(TAG, `Invalid transferred tab: ${String(error)}`);
+      return undefined;
+    }
+  }
+
   /**
    * Fullscreen surfaces (the tab overview) sit behind the status bar, so they
    * need its height to keep their header clear of the clock and indicators.
    */
   private async measureSystemInsets(): Promise<void> {
     try {
-      const mainWindow: window.Window = await window.getLastWindow(AppContext.getContext());
+      const mainWindow: window.Window = await window.getLastWindow(this.appContext());
       const area: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
       this.topInset = px2vp(area.topRect.height);
       this.bottomInset = px2vp(area.bottomRect.height);
@@ -772,6 +801,7 @@ struct Index {
           activeTabId: this.activeTabId,
           thumbnails: this.thumbnails,
           liveTabIds: this.liveTabIds,
+          canMoveToWindow: this.multiWindowSupported,
           onSelect: (id: string): void => { void this.selectTab(id); },
           onClose: (id: string): void => this.closeTab(id),
           onReorder: (id: string, direction: number): void => this.reorderDesktopTab(id, direction),
@@ -779,6 +809,7 @@ struct Index {
           onCopyUrl: (id: string): void => { void this.copyTabLink(id); },
           onTogglePinned: (id: string): void => this.toggleDesktopTabPinned(id),
           onOpenSplit: (id: string): void => { void this.openTabInSecondaryPane(id); },
+          onMoveToWindow: (id: string): void => { void this.moveTabToNewWindow(id); },
           onNewTab: (): void => this.createTab(this.activeTab()?.isPrivate === true)
         })
       }
@@ -1875,6 +1906,22 @@ struct Index {
     }
   }
 
+  private async moveTabToNewWindow(id: string): Promise<void> {
+    await this.captureScrollPosition(id);
+    const tab: BrowserTab | undefined = this.tabs.find((item: BrowserTab): boolean => item.id === id);
+    if (tab === undefined) {
+      return;
+    }
+    if (!await MultiWindowService.moveTab(this.appContext(), tab)) {
+      return;
+    }
+    this.viewModel.detachTab(id);
+    this.controllers.delete(id);
+    this.liveTabIds = this.liveTabIds.filter((tabId: string): boolean => tabId !== id);
+    this.thumbnails = this.thumbnails.filter((item: TabThumbnail): boolean => item.id !== id);
+    this.syncState();
+  }
+
   private reopenRecentlyClosedTab(): boolean {
     const snapshot: BrowserTab | undefined = this.recentlyClosedTabs.shift();
     if (snapshot === undefined) {
@@ -2188,7 +2235,7 @@ struct Index {
     if (tab === undefined) {
       return;
     }
-    const outcome: ShareOutcome = await ShareService.share(AppContext.getContext(), tab.url, tab.title);
+    const outcome: ShareOutcome = await ShareService.share(this.appContext(), tab.url, tab.title);
     if (outcome === ShareOutcome.Shared) {
       this.sheet = Overlay.None;
     }
@@ -2225,7 +2272,7 @@ struct Index {
       const shot: image.PixelMap =
         await this.getUIContext().getComponentSnapshot().get(`tab-view-${tab.id}`);
       const outcome: ShareOutcome = await ShareService.shareImage(
-        AppContext.getContext(), shot, tab.title);
+        this.appContext(), shot, tab.title);
       if (outcome === ShareOutcome.Shared) {
         this.sheet = Overlay.None;
       }
@@ -2235,11 +2282,11 @@ struct Index {
   }
 
   private async openDownload(task: DownloadTask): Promise<void> {
-    await DownloadService.open(AppContext.getContext(), task);
+    await DownloadService.open(this.appContext(), task);
   }
 
   private async shareDownload(task: DownloadTask): Promise<void> {
-    await DownloadService.share(AppContext.getContext(), task);
+    await DownloadService.share(this.appContext(), task);
   }
 
   private promptDownloadPolicy(task: DownloadTask, reason: DownloadPolicyReason): void {
@@ -2431,10 +2478,10 @@ struct Index {
       (task: DownloadTask, reason: DownloadPolicyReason): void => this.promptDownloadPolicy(task, reason)
     );
     if (appearanceChanged) {
-      ThemeService.apply(AppContext.getContext(), normalized.appearance);
+      ThemeService.apply(this.appContext(), normalized.appearance);
     }
     ThemeService.applySurface(
-      AppContext.getContext(),
+      this.appContext(),
       normalized.appearance,
       this.isActiveHome(),
       normalized.startPageBackgroundEnabled
@@ -2578,7 +2625,7 @@ struct Index {
     try {
       const manager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
       const result: PermissionRequestResult =
-        await manager.requestPermissionsFromUser(AppContext.getContext(), permissions);
+        await manager.requestPermissionsFromUser(this.appContext(), permissions);
       return result.authResults.length === permissions.length &&
         result.authResults.every((status: number): boolean =>
           status === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED);
@@ -2745,7 +2792,7 @@ struct Index {
   }
 
   private async importBookmarks(): Promise<void> {
-    const importedItems = await BookmarkTransferService.importFromPicker(AppContext.getContext());
+    const importedItems = await BookmarkTransferService.importFromPicker(this.appContext());
     if (importedItems.length === 0) {
       return;
     }
@@ -2776,7 +2823,7 @@ struct Index {
 
   private async exportBookmarks(): Promise<void> {
     const exported: boolean = await BookmarkTransferService.exportToPicker(
-      AppContext.getContext(), this.viewModel.savedItems);
+      this.appContext(), this.viewModel.savedItems);
     if (!exported) {
       return;
     }
@@ -2833,7 +2880,7 @@ struct Index {
   }
 
   private async chooseCustomBackground(): Promise<void> {
-    const uri: string | undefined = await HomeBackgroundService.selectCustomImage(AppContext.getContext());
+    const uri: string | undefined = await HomeBackgroundService.selectCustomImage(this.appContext());
     if (uri === undefined) {
       return;
     }
@@ -3057,7 +3104,7 @@ struct Index {
       return;
     }
     if (key === 'link_share' || key === 'image_share') {
-      await ShareService.share(AppContext.getContext(), target.url, target.title);
+      await ShareService.share(this.appContext(), target.url, target.title);
       this.closeLongPressActions();
       return;
     }
@@ -3591,7 +3638,7 @@ struct Index {
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
     this.repairPaneReferences();
     ThemeService.applySurface(
-      AppContext.getContext(),
+      this.appContext(),
       this.settings.appearance,
       isHomeUrl(url),
       this.settings.startPageBackgroundEnabled

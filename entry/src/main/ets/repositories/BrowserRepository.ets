@@ -72,6 +72,11 @@ export class BrowserRepository {
   private actionUsage: Record<string, number> = {};
   private session: BrowserSession | undefined;
   private archivedTabs: BrowserTab[] = [];
+  private sessionKey: string = SESSION_KEY;
+
+  setSessionScope(scope: string): void {
+    this.sessionKey = scope.length > 0 ? `${SESSION_KEY}_${scope}` : SESSION_KEY;
+  }
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
     try {
@@ -92,7 +97,7 @@ export class BrowserRepository {
       this.allowedHosts = this.decode<string>(await store.get(ALLOWED_HOSTS_KEY, '[]'), ALLOWED_HOSTS_KEY);
       this.hiddenQuickHosts = this.decode<string>(await store.get(HIDDEN_QUICK_HOSTS_KEY, '[]'), HIDDEN_QUICK_HOSTS_KEY);
       this.actionUsage = this.decodeActionUsage(await store.get(ACTION_USAGE_KEY, '{}'));
-      this.session = this.decodeSession(await store.get(SESSION_KEY, ''));
+      this.session = this.decodeSession(await store.get(this.sessionKey, ''));
       this.archivedTabs = this.decode<BrowserTab>(await store.get(TAB_ARCHIVE_KEY, '[]'), TAB_ARCHIVE_KEY)
         .map((tab: BrowserTab) => this.decodeTab(tab));
       this.settings = this.decodeSettings(await store.get(SETTINGS_KEY, ''));
@@ -153,7 +158,7 @@ export class BrowserRepository {
         .map((tab: BrowserTab) => cloneTab(tab)),
       activeTabId: session.activeTabId
     };
-    await this.save(SESSION_KEY, JSON.stringify(this.session));
+    await this.save(this.sessionKey, JSON.stringify(this.session));
   }
 
   getAllowedHosts(): string[] {

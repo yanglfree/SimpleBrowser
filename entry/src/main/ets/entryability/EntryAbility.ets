@@ -1,4 +1,4 @@
-import { AbilityConstant, UIAbility } from '@kit.AbilityKit';
+import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { AppearanceMode, cloneSettings } from '../models/BrowserModels';
 import { BrowserRepository } from '../repositories/BrowserRepository';
@@ -10,17 +10,37 @@ import { TelemetryService } from '../services/TelemetryService';
 
 const TAG: string = 'EntryAbility';
 
+class WindowLaunchStorage {
+  windowToken: string;
+  windowTabTransfer: string;
+
+  constructor(windowToken: string, windowTabTransfer: string) {
+    this.windowToken = windowToken;
+    this.windowTabTransfer = windowTabTransfer;
+  }
+}
+
 export default class EntryAbility extends UIAbility {
   private createdAt: number = Date.now();
+  private windowToken: string = '';
+  private tabTransfer: string = '';
 
-  onCreate(): void {
-    AppContext.setContext(this.context);
+  onCreate(want: Want): void {
+    const requestedToken: string = String(want.parameters?.['dolphin.windowToken'] ?? '');
+    this.windowToken = requestedToken.length > 0
+      ? requestedToken
+      : `window-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    this.tabTransfer = String(want.parameters?.['dolphin.tabTransfer'] ?? '');
+    AppContext.setContext(this.windowToken, this.context);
     TelemetryService.registerCrashObservers();
     Logger.info(TAG, 'Ability created');
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    windowStage.loadContent('pages/Index', (error) => {
+    const storage: LocalStorage = new LocalStorage(
+      new WindowLaunchStorage(this.windowToken, this.tabTransfer)
+    );
+    windowStage.loadContent('pages/Index', storage, (error) => {
       if (error.code) {
         Logger.error(TAG, `Failed to load page: ${JSON.stringify(error)}`);
         return;
@@ -56,6 +76,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   onDestroy(): void {
+    AppContext.removeContext(this.windowToken);
     Logger.info(TAG, 'Ability destroyed');
   }
 }

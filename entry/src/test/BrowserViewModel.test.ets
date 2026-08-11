@@ -6,6 +6,7 @@ import {
   UserAgentPreference
 } from '../main/ets/models/BrowserModels';
 import { BrowserViewModel } from '../main/ets/viewmodels/BrowserViewModel';
+import { HOME_URL } from '../main/ets/constants/AppConstants';
 import { clampPaneRatio } from '../main/ets/models/PaneModels';
 import { BrowserFoldMetrics, hasHorizontalCrease, hasVerticalCrease } from '../main/ets/models/FoldMetrics';
 
@@ -107,6 +108,38 @@ export default function browserViewModelTest(): void {
       const snapshot: BrowserTab = viewModel.createTab('https://private.example', true);
 
       expect(viewModel.restoreTab(snapshot) === undefined).assertTrue();
+    });
+  });
+
+  describe('BrowserViewModel window transfer', (): void => {
+    it('adopts one transferred tab with a fresh identity and preserved page state', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const snapshot: BrowserTab = viewModel.createTab('https://window.example/article', false);
+      snapshot.title = 'Window transfer';
+      snapshot.scrollY = 640;
+      snapshot.formDraft = 'draft';
+
+      const transferred: BrowserTab = viewModel.adoptTransferredTab(snapshot);
+
+      expect(viewModel.tabs.length).assertEqual(1);
+      expect(transferred.id === snapshot.id).assertFalse();
+      expect(transferred.title).assertEqual('Window transfer');
+      expect(transferred.scrollY).assertEqual(640);
+      expect(transferred.formDraft).assertEqual('draft');
+      expect(viewModel.activeTabId).assertEqual(transferred.id);
+    });
+
+    it('leaves a fresh home tab after detaching the only source tab', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const source: BrowserTab = viewModel.createTab('https://window.example', false);
+      viewModel.tabs = [source];
+      viewModel.activeTabId = source.id;
+
+      viewModel.detachTab(source.id);
+
+      expect(viewModel.tabs.length).assertEqual(1);
+      expect(viewModel.tabs[0].id === source.id).assertFalse();
+      expect(viewModel.tabs[0].url).assertEqual(HOME_URL);
     });
   });
 

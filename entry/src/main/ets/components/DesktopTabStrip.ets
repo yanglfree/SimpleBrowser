@@ -20,6 +20,7 @@ export struct DesktopTabStrip {
   @Prop @Watch('activeTabChanged') activeTabId: string = '';
   @Prop thumbnails: TabThumbnail[] = [];
   @Prop liveTabIds: string[] = [];
+  @Prop canMoveToWindow: boolean = false;
   onSelect: (id: string) => void = (_id: string): void => {};
   onClose: (id: string) => void = (_id: string): void => {};
   onReorder: (id: string, direction: number) => void = (_id: string, _direction: number): void => {};
@@ -27,6 +28,7 @@ export struct DesktopTabStrip {
   onCopyUrl: (id: string) => void = (_id: string): void => {};
   onTogglePinned: (id: string) => void = (_id: string): void => {};
   onOpenSplit: (id: string) => void = (_id: string): void => {};
+  onMoveToWindow: (id: string) => void = (_id: string): void => {};
   onNewTab: () => void = (): void => {};
   private scroller: Scroller = new Scroller();
   private contextTabId: string = '';
@@ -215,6 +217,10 @@ export struct DesktopTabStrip {
         .onClick(() => this.onCopyUrl(this.contextTabId))
       MenuItem({ content: $r('app.string.tab_open_right') })
         .onClick(() => this.onOpenSplit(this.contextTabId))
+      if (this.canMoveToWindow) {
+        MenuItem({ content: $r('app.string.tab_move_new_window') })
+          .onClick(() => this.onMoveToWindow(this.contextTabId))
+      }
       if (!this.contextTab()?.isPrivate) {
         MenuItem({ content: this.contextTab()?.isPinned === true
           ? $r('app.string.tab_unpin')
