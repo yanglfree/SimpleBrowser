@@ -297,9 +297,12 @@ struct Index {
       void this.exitReader(tab.id);
       return true;
     }
-    if (tab !== undefined && tab.canGoBack) {
-      this.runOnActive((controller: webview.WebviewController) => controller.backward());
-      return true;
+    if (tab !== undefined) {
+      const controller: webview.WebviewController | undefined = this.controllers.get(tab.id);
+      if (controller !== undefined && WebKernelService.canGoBack(controller)) {
+        WebKernelService.goBack(controller);
+        return true;
+      }
     }
     if (tab !== undefined && !isHomeUrl(tab.url)) {
       this.goHome(tab.id);
@@ -398,6 +401,10 @@ struct Index {
               kernelCallbacks: {
                 onPageBegin: (url: string): void => this.handlePageBegin(tab.id, url),
                 onPageEnd: (url: string): void => { this.handlePageEnd(tab.id, url); },
+                onNavigationStateChange: (): void => {
+                  this.refreshNavigationState(tab.id);
+                  this.syncTab(tab.id);
+                },
                 onProgressChange: (progress: number): void => this.handleProgress(tab.id, progress),
                 onError: (code: number, message: string): void =>
                   this.handleLoadError(tab.id, code, message),

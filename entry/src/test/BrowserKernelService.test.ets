@@ -16,6 +16,11 @@ export default function browserKernelServiceTest(): void {
       expect(WebKernelService.isBackwardStep(1)).assertFalse();
     });
 
+    it('refreshes navigation state only for main-frame history commits', 0, (): void => {
+      expect(WebKernelService.shouldRefreshNavigationState(true)).assertTrue();
+      expect(WebKernelService.shouldRefreshNavigationState(false)).assertFalse();
+    });
+
     it('selects desktop or captured mobile user agent', 0, (): void => {
       const mobileUserAgent: string = 'mobile-agent';
       expect(WebKernelService.userAgentFor(false, mobileUserAgent)).assertEqual(mobileUserAgent);

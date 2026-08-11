@@ -8,6 +8,7 @@ export interface WebKernelCallbacks {
   onPageBegin: (url: string) => void;
   onProgressChange: (progress: number) => void;
   onPageEnd: (url: string) => void;
+  onNavigationStateChange: () => void;
   onError: (code: number, message: string) => void;
   onSslError: (code: SslError, chain: Array<Uint8Array>) => void;
 }
@@ -137,6 +138,11 @@ export class WebKernelService {
   /** Back-history navigation is expressed as a negative relative step. */
   static isBackwardStep(step: number): boolean {
     return step < 0;
+  }
+
+  /** Subframe commits must not affect the tab-level back and forward controls. */
+  static shouldRefreshNavigationState(isMainFrame: boolean): boolean {
+    return isMainFrame;
   }
 
   static getBackHistory(controller: webview.WebviewController): WebHistoryEntry[] {

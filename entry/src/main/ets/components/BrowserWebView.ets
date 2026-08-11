@@ -74,6 +74,11 @@ export struct BrowserWebView {
       })
       .onPageBegin((event: OnPageBeginEvent) => this.kernelCallbacks.onPageBegin(event.url))
       .onPageEnd((event: OnPageEndEvent) => this.kernelCallbacks.onPageEnd(event.url))
+      .onNavigationEntryCommitted((details: LoadCommittedDetails) => {
+        if (WebKernelService.shouldRefreshNavigationState(details.isMainFrame)) {
+          this.kernelCallbacks.onNavigationStateChange();
+        }
+      })
       .onProgressChange((event: OnProgressChangeEvent) =>
         this.kernelCallbacks.onProgressChange(event.newProgress))
       .onInterceptRequest((event: OnInterceptRequestEvent): WebResourceResponse | null =>
