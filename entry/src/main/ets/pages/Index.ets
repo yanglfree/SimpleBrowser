@@ -1018,10 +1018,10 @@ struct Index {
     this.sheet = Overlay.None;
     this.isCapsuleHidden = false;
     if (isHomeUrl(tab.url)) {
-      // The Web component is created lazily, with the target as its initial src.
-      // Leaving the start page also takes the tab out of the "home is always
-      // live" case, so it has to join the live set in the same frame or it
-      // renders as hibernated instead of loading.
+      // The initial src "browser://home" leaks into the back-forward history
+      // and makes every subsequent backward() land on the start page.  Destroy
+      // the controller so the fresh one loads the target URL as its first entry.
+      this.controllers.delete(tab.id);
       this.viewModel.updateTab(tab.id, { url: url, isLoading: true, progress: 0 });
       if (!this.liveTabIds.includes(tab.id)) {
         this.liveTabIds = this.liveTabIds.concat([tab.id]);
