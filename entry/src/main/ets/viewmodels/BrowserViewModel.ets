@@ -225,18 +225,10 @@ export class BrowserViewModel {
       return;
     }
     const percent: number = BrowserViewModel.clampZoomPercent(Math.round(scale * 100));
-    const next: BrowserSettings = cloneSettings(this.settings);
-    const existing: SiteZoomRatio | undefined = next.siteZoomRatios.find(
-      (item: SiteZoomRatio): boolean => item.host === host);
-    if (existing === undefined) {
-      next.siteZoomRatios = next.siteZoomRatios.concat([{ host: host, percent: percent }]);
-    } else if (existing.percent === percent) {
-      return;
-    } else {
-      next.siteZoomRatios = next.siteZoomRatios.map((item: SiteZoomRatio): SiteZoomRatio =>
-        item.host === host ? { host: host, percent: percent } : item);
-    }
-    await this.updateSettings(next);
+    // Merged inside the repository's save queue so a webview scale event can
+    // never overwrite a newer user settings change with a stale snapshot.
+    await this.repository.rememberSiteZoom(host, percent);
+    this.settings = this.repository.getSettings();
   }
 
   /** Returns the oldest disposable tabs needed to get back below the soft limit. */

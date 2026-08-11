@@ -352,10 +352,11 @@ export function cloneHistoryEntry(entry: HistoryEntry): HistoryEntry {
   };
 }
 
-export function cloneSettings(settings: BrowserSettings): BrowserSettings {
+export function normalizeBrowserSettings(settings: BrowserSettings): BrowserSettings {
+  const isContentProtectionEnabled: boolean = settings.blockAds || settings.blockTrackers;
   return {
-    blockAds: settings.blockAds,
-    blockTrackers: settings.blockTrackers,
+    blockAds: isContentProtectionEnabled,
+    blockTrackers: isContentProtectionEnabled,
     ruleStrength: settings.ruleStrength,
     searchEngine: settings.searchEngine,
     customSearchTemplate: settings.customSearchTemplate,
@@ -388,7 +389,7 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
       camera: entry.camera,
       microphone: entry.microphone,
       location: entry.location,
-      notifications: entry.notifications
+      notifications: SitePermissionDecision.Deny
     })),
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,
     telemetryEnabled: settings.telemetryEnabled,
@@ -396,6 +397,10 @@ export function cloneSettings(settings: BrowserSettings): BrowserSettings {
     readerLineHeight: settings.readerLineHeight,
     readerPaper: settings.readerPaper
   };
+}
+
+export function cloneSettings(settings: BrowserSettings): BrowserSettings {
+  return normalizeBrowserSettings(settings);
 }
 
 export function cloneSiteStats(entry: SiteBlockStats): SiteBlockStats {

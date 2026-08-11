@@ -1,11 +1,11 @@
-import { SearchEngine } from '../models/BrowserModels';
+import { BrowserSettings, SearchEngine } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 
 const ONBOARDING_PAGE_COUNT: number = 3;
 
 @Component
 export struct OnboardingSheet {
-  @Prop searchEngine: SearchEngine = SearchEngine.Bing;
+  @Link settings: BrowserSettings;
   @State private page: number = 0;
   onSearchEngineChange: (engine: SearchEngine) => void = (_engine: SearchEngine): void => {};
   onFinish: () => void = (): void => {};
@@ -139,8 +139,8 @@ export struct OnboardingSheet {
       .layoutWeight(1)
       .textAlign(TextAlign.Center)
       .fontSize(12)
-      .fontColor(this.searchEngine === engine ? $r('app.color.surface_panel') : $r('app.color.text_primary'))
-      .backgroundColor(this.searchEngine === engine ? $r('app.color.accent') : $r('app.color.surface_subtle'))
+      .fontColor(this.settings.searchEngine === engine ? $r('app.color.surface_panel') : $r('app.color.text_primary'))
+      .backgroundColor(this.settings.searchEngine === engine ? $r('app.color.accent') : $r('app.color.surface_subtle'))
       .borderRadius(12)
       .onClick(() => this.onSearchEngineChange(engine))
   }

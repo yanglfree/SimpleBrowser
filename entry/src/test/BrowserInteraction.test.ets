@@ -5,10 +5,14 @@ import {
   shouldDismissActionSheet
 } from '../main/ets/components/ActionSheet';
 import {
+  shouldShowCurrentSiteDarkModeRow
+} from '../main/ets/components/SettingsPage';
+import {
   DOCK_COLLAPSED_HEIGHT,
   DOCK_COLLAPSED_PILL_HEIGHT,
   TAB_WEB_BOTTOM_INSET_COMPACT
 } from '../main/ets/components/TabTokens';
+import { WebDarkModePreference } from '../main/ets/models/BrowserModels';
 
 export default function browserInteractionTest(): void {
   describe('Browser surface interactions', (): void => {
@@ -23,6 +27,12 @@ export default function browserInteractionTest(): void {
     it('reserves only the collapsed pill height beneath a scrolled page', 0, (): void => {
       expect(DOCK_COLLAPSED_HEIGHT).assertEqual(DOCK_COLLAPSED_PILL_HEIGHT);
       expect(TAB_WEB_BOTTOM_INSET_COMPACT).assertEqual(DOCK_COLLAPSED_PILL_HEIGHT + 4);
+    });
+
+    it('hides the current-site dark-mode row only when web dark mode is light', 0, (): void => {
+      expect(shouldShowCurrentSiteDarkModeRow('zhihu.com', WebDarkModePreference.System)).assertTrue();
+      expect(shouldShowCurrentSiteDarkModeRow('zhihu.com', WebDarkModePreference.Light)).assertFalse();
+      expect(shouldShowCurrentSiteDarkModeRow('', WebDarkModePreference.System)).assertFalse();
     });
   });
 }

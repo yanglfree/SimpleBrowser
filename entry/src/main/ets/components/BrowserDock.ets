@@ -61,15 +61,19 @@ export struct BrowserDock {
   /** The resting bar: back, forward, address, tabs, menu on a single line. */
   @Builder
   private ExpandedBar() {
+    // Outer: extends background into the bottom safe area.
+    // Inner: fixed height keeps content strictly above the safe zone.
     Column() {
-      this.ExpandedRow()
+      Column() {
+        this.ExpandedRow()
+      }
+      .width('100%')
+      .height(DOCK_HEIGHT)
+      .justifyContent(FlexAlign.Center)
     }
     .width('100%')
-    .height(DOCK_HEIGHT)
-    .justifyContent(FlexAlign.Center)
-    // The page reserves less than the bar occupies, so the bar carries its own
-    // ground rather than floating half-over the article. Home keeps its artwork.
     .backgroundColor(this.isHome ? Color.Transparent : $r('app.color.page_background'))
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 
   @Builder
@@ -222,35 +226,39 @@ export struct BrowserDock {
    */
   @Builder
   private CollapsedBar() {
-    Row() {
+    Column() {
       Row() {
-        Text(this.host)
-          .fontSize(12.5)
-          .fontColor($r('app.color.text_primary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Row() {
+          Text(this.host)
+            .fontSize(12.5)
+            .fontColor($r('app.color.text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .constraintSize({ maxWidth: '62%' })
+        .height(DOCK_COLLAPSED_PILL_HEIGHT)
+        .padding({ left: 16, right: 16 })
+        .borderRadius(DOCK_COLLAPSED_PILL_HEIGHT / 2)
+        .backgroundColor($r('app.color.capsule_background'))
+        .backdropBlur(24)
+        .border({ width: 1, color: $r('app.color.border') })
+        .opacity(0.94)
       }
-      .constraintSize({ maxWidth: '62%' })
+      .width('100%')
       .height(DOCK_COLLAPSED_PILL_HEIGHT)
-      .padding({ left: 16, right: 16 })
-      .borderRadius(DOCK_COLLAPSED_PILL_HEIGHT / 2)
-      .backgroundColor($r('app.color.capsule_background'))
-      .backdropBlur(24)
-      .border({ width: 1, color: $r('app.color.border') })
-      .opacity(0.94)
+      .justifyContent(FlexAlign.Center)
+      .onClick(() => this.onShow())
+      .gesture(
+        PanGesture({ direction: PanDirection.Vertical, distance: 6 })
+          .onActionEnd((event: GestureEvent) => {
+            if (event.offsetY <= -8) {
+              this.onShow();
+            }
+          })
+      )
     }
     .width('100%')
-    .height(DOCK_COLLAPSED_PILL_HEIGHT)
-    .justifyContent(FlexAlign.Center)
-    .onClick(() => this.onShow())
-    .gesture(
-      PanGesture({ direction: PanDirection.Vertical, distance: 6 })
-        .onActionEnd((event: GestureEvent) => {
-          if (event.offsetY <= -8) {
-            this.onShow();
-          }
-        })
-    )
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 
   @Builder

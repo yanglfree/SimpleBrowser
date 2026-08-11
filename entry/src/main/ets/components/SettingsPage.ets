@@ -1,4 +1,3 @@
-import { APP_VERSION } from '../constants/AppConstants';
 import {
   AppearanceMode,
   BrowserSettings,
@@ -38,6 +37,7 @@ interface SettingsSearchEntry {
   key: string;
   label: Resource;
   keywords: string;
+  action: () => void;
 }
 
 interface SwitchRowParams {
@@ -152,6 +152,13 @@ function optionsFrom(labels: Resource[]): PickerOption[] {
   return labels.map((label: Resource, index: number): PickerOption => ({ label: label, value: index }));
 }
 
+export function shouldShowCurrentSiteDarkModeRow(
+  currentHost: string,
+  webDarkMode: WebDarkModePreference
+): boolean {
+  return currentHost.length > 0 && webDarkMode !== WebDarkModePreference.Light;
+}
+
 /** Rounded card that wraps each settings group. */
 @Styles
 function groupCard() {
@@ -176,6 +183,7 @@ export struct SettingsPage {
   @Prop currentHost: string = '';
   @Prop currentHostDarkModeEnabled: boolean = false;
   @Prop rulesLastUpdatedAt: number = 0;
+  @Prop appVersion: string = '';
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
   onResetGestures: () => void = (): void => {};
   onClearData: (selection: ClearDataSelection) => void = (_selection: ClearDataSelection): void => {};
@@ -197,6 +205,7 @@ export struct SettingsPage {
   @State private clearPermissions: boolean = true;
   @State private clearDataRange: ClearDataRange = ClearDataRange.All;
   @State private searchQuery: string = '';
+  @State private isAboutDialogVisible: boolean = false;
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
@@ -231,24 +240,10 @@ export struct SettingsPage {
           this.GroupLabel($r('app.string.group_rules'), 22)
           Column() {
             this.SwitchRow({
-              label: $r('app.string.block_ads'),
-              checked: this.settings.blockAds,
+              label: $r('app.string.content_protection'),
+              checked: this.isContentProtectionEnabled(),
               divided: true,
-              onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
-                next.blockAds = !next.blockAds;
-                this.onChange(next);
-              }
-            })
-            this.SwitchRow({
-              label: $r('app.string.block_trackers'),
-              checked: this.settings.blockTrackers,
-              divided: true,
-              onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
-                next.blockTrackers = !next.blockTrackers;
-                this.onChange(next);
-              }
+              onToggle: () => this.toggleContentProtection()
             })
             this.ValueRow(
               $r('app.string.rule_strength'),
@@ -285,11 +280,7 @@ export struct SettingsPage {
               label: $r('app.string.search_suggestions'),
               checked: this.settings.searchSuggestionsEnabled,
               divided: true,
-              onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
-                next.searchSuggestionsEnabled = !next.searchSuggestionsEnabled;
-                this.onChange(next);
-              }
+              onToggle: () => this.toggleSearchSuggestions()
             })
             this.SwitchRow({
               label: $r('app.string.gestures_enabled'),
@@ -361,10 +352,10 @@ export struct SettingsPage {
             this.ValueRow(
               $r('app.string.web_dark_mode'),
               WEB_DARK_MODE_LABELS[this.settings.webDarkMode as number],
-              this.currentHost.length > 0,
+              this.shouldShowCurrentSiteDarkMode(),
               () => this.picker = PickerKind.WebDarkMode
             )
-            if (this.currentHost.length > 0) {
+            if (this.shouldShowCurrentSiteDarkMode()) {
               this.SwitchRow({
                 label: $r('app.string.web_dark_mode_current_site'),
                 checked: this.currentHostDarkModeEnabled,
@@ -485,7 +476,7 @@ export struct SettingsPage {
 
           this.GroupLabel($r('app.string.group_about'), 20)
           Column() {
-            this.ValueRowText($r('app.string.about_app'), APP_VERSION, false, () => this.showAbout())
+            this.ValueRowText($r('app.string.about_app'), this.appVersionLabel(), false, () => this.showAbout())
           }
           .groupCard()
           }
@@ -512,6 +503,9 @@ export struct SettingsPage {
           onSave: (template: string): void => this.saveSearchTemplate(template),
           onDismiss: (): void => { this.isEditingSearchTemplate = false; }
         })
+      }
+      if (this.isAboutDialogVisible) {
+        this.AboutDialog()
       }
     }
     .width('100%')
@@ -550,7 +544,7 @@ export struct SettingsPage {
         .padding({ left: 16, right: 16 })
         .border({ width: { bottom: 1 }, color: $r('app.color.border') })
         .accessibilityText(entry.label)
-        .onClick(() => this.performSearchAction(entry.key))
+        .onClick(() => entry.action())
       }, (entry: SettingsSearchEntry) => entry.key)
       if (this.filteredSearchEntries().length === 0) {
         Text($r('app.string.settings_search_empty'))
@@ -581,61 +575,271 @@ export struct SettingsPage {
 
   private searchEntries(): SettingsSearchEntry[] {
     return [
-      { key: 'block_ads', label: $r('app.string.block_ads'), keywords: '广告 拦截 规则' },
-      { key: 'block_trackers', label: $r('app.string.block_trackers'), keywords: '追踪器 隐私 拦截' },
-      { key: 'rule_strength', label: $r('app.string.rule_strength'), keywords: '规则 强度 标准 严格' },
-      { key: 'search_engine', label: $r('app.string.default_search_engine'), keywords: '搜索 引擎 默认 必应 百度 谷歌' },
-      { key: 'search_suggestions', label: $r('app.string.search_suggestions'), keywords: '搜索 建议' },
-      { key: 'gestures', label: $r('app.string.gestures_enabled'), keywords: '手势 滑动 操作' },
-      { key: 'appearance', label: $r('app.string.appearance'), keywords: '外观 主题 深色 浅色' },
-      { key: 'web_dark_mode', label: $r('app.string.web_dark_mode'), keywords: '网页 深色 暗色 模式 强制 站点 图片 视频' },
-      { key: 'tab_expiry', label: $r('app.string.tab_expiry'), keywords: '标签 清理 归档 过期' },
-      { key: 'history_retention', label: $r('app.string.history_retention'), keywords: '历史 保留 清除' },
-      { key: 'clear_data', label: $r('app.string.clear_browsing_data'), keywords: '历史 Cookie 缓存 权限 清除' },
-      { key: 'minimum_font_size', label: $r('app.string.minimum_font_size'), keywords: '网页 字号 字体 大字 无障碍' },
-      { key: 'large_downloads', label: $r('app.string.large_download_threshold'), keywords: '下载 大文件 流量 Wi-Fi 移动网络' },
-      { key: 'bookmark_import', label: $r('app.string.bookmark_import_html'), keywords: '书签 导入 HTML' }
+      {
+        key: 'content_protection',
+        label: $r('app.string.content_protection'),
+        keywords: '广告 追踪 防护 拦截 规则 隐私',
+        action: () => this.toggleContentProtection()
+      },
+      {
+        key: 'rule_strength',
+        label: $r('app.string.rule_strength'),
+        keywords: '页面 清理 强度 标准 严格',
+        action: (): void => { this.picker = PickerKind.RuleStrength; }
+      },
+      {
+        key: 'rules_update',
+        label: $r('app.string.rules_update'),
+        keywords: '更新 拦截 规则',
+        action: () => this.onUpdateRules()
+      },
+      {
+        key: 'search_engine',
+        label: $r('app.string.default_search_engine'),
+        keywords: '搜索 引擎 默认 必应 百度 谷歌 DuckDuckGo',
+        action: (): void => { this.picker = PickerKind.SearchEngine; }
+      },
+      {
+        key: 'custom_search_template',
+        label: $r('app.string.custom_search_template'),
+        keywords: '自定义 搜索 模板 URL',
+        action: (): void => { this.isEditingSearchTemplate = true; }
+      },
+      {
+        key: 'search_suggestions',
+        label: $r('app.string.search_suggestions'),
+        keywords: '搜索 快捷项 本地 地址 历史 收藏',
+        action: () => this.toggleSearchSuggestions()
+      },
+      {
+        key: 'gestures_enabled',
+        label: $r('app.string.gestures_enabled'),
+        keywords: '手势 滑动 操作 启用',
+        action: () => this.toggleGesturesEnabled()
+      },
+      {
+        key: 'gesture_actions',
+        label: $r('app.string.gesture_actions'),
+        keywords: '手势 动作 面板 上滑',
+        action: () => this.toggleGestureActions()
+      },
+      {
+        key: 'gesture_tab_switch',
+        label: $r('app.string.gesture_tab_switch'),
+        keywords: '手势 标签 切换 地址栏 左右滑动',
+        action: () => this.toggleGestureTabSwitch()
+      },
+      {
+        key: 'gesture_blocking',
+        label: $r('app.string.gesture_blocking'),
+        keywords: '手势 拦截 面板 长按',
+        action: () => this.toggleGestureBlocking()
+      },
+      {
+        key: 'restore_gesture_defaults',
+        label: $r('app.string.restore_gesture_defaults'),
+        keywords: '手势 默认 重置 恢复',
+        action: () => this.onResetGestures()
+      },
+      {
+        key: 'auto_hide_toolbar',
+        label: $r('app.string.auto_hide_toolbar'),
+        keywords: '工具栏 自动 隐藏 滚动',
+        action: () => this.toggleAutoHideToolbar()
+      },
+      {
+        key: 'quick_sites',
+        label: $r('app.string.show_quick_sites'),
+        keywords: '常访问 站点 快捷 主页',
+        action: () => this.toggleQuickSites()
+      },
+      {
+        key: 'appearance',
+        label: $r('app.string.appearance'),
+        keywords: '外观 主题 深色 浅色',
+        action: (): void => { this.picker = PickerKind.Appearance; }
+      },
+      {
+        key: 'web_dark_mode',
+        label: $r('app.string.web_dark_mode'),
+        keywords: '网页 深色 暗色 模式 强制 图片 视频',
+        action: (): void => { this.picker = PickerKind.WebDarkMode; }
+      },
+      {
+        key: 'tab_expiry',
+        label: $r('app.string.tab_expiry'),
+        keywords: '标签 清理 归档 过期',
+        action: (): void => { this.picker = PickerKind.TabExpiry; }
+      },
+      {
+        key: 'live_webview_limit',
+        label: $r('app.string.live_webview_limit'),
+        keywords: 'WebView 存活 网页 内存 数量',
+        action: (): void => { this.picker = PickerKind.LiveWebViewLimit; }
+      },
+      {
+        key: 'download_concurrency',
+        label: $r('app.string.download_concurrency'),
+        keywords: '下载 并发 任务 数量',
+        action: (): void => { this.picker = PickerKind.DownloadConcurrency; }
+      },
+      {
+        key: 'large_download_threshold',
+        label: $r('app.string.large_download_threshold'),
+        keywords: '下载 大文件 阈值 流量 移动网络',
+        action: (): void => { this.picker = PickerKind.LargeDownloadThreshold; }
+      },
+      {
+        key: 'wifi_only_downloads',
+        label: $r('app.string.wifi_only_downloads'),
+        keywords: 'Wi-Fi WIFI 下载 网络',
+        action: () => this.toggleWifiOnlyDownloads()
+      },
+      {
+        key: 'bookmark_import',
+        label: $r('app.string.bookmark_import_html'),
+        keywords: '书签 导入 HTML',
+        action: () => this.onImportBookmarks()
+      },
+      {
+        key: 'bookmark_export',
+        label: $r('app.string.bookmark_export_html'),
+        keywords: '书签 导出 HTML',
+        action: () => this.onExportBookmarks()
+      },
+      {
+        key: 'tab_soft_limit',
+        label: $r('app.string.tab_soft_limit'),
+        keywords: '标签 提醒 阈值 数量',
+        action: (): void => { this.picker = PickerKind.TabSoftLimit; }
+      },
+      {
+        key: 'minimum_font_size',
+        label: $r('app.string.minimum_font_size'),
+        keywords: '网页 字号 字体 大字 无障碍',
+        action: (): void => { this.picker = PickerKind.MinimumFontSize; }
+      },
+      {
+        key: 'clear_cookies_on_tab_close',
+        label: $r('app.string.clear_cookies_on_tab_close'),
+        keywords: 'Cookie 关闭 标签 清除',
+        action: () => this.toggleClearCookiesOnTabClose()
+      },
+      {
+        key: 'telemetry',
+        label: $r('app.string.telemetry_switch'),
+        keywords: '遥测 崩溃 性能 统计',
+        action: () => this.toggleTelemetry()
+      },
+      {
+        key: 'history_retention',
+        label: $r('app.string.history_retention'),
+        keywords: '历史 保留 时长 清除',
+        action: (): void => { this.picker = PickerKind.HistoryRetention; }
+      },
+      {
+        key: 'clear_data',
+        label: $r('app.string.clear_browsing_data'),
+        keywords: '历史 Cookie 缓存 权限 清除 数据',
+        action: () => this.openClearDataSheet()
+      },
+      {
+        key: 'about',
+        label: $r('app.string.about_app'),
+        keywords: '关于 版本 应用',
+        action: () => this.showAbout()
+      }
     ];
   }
 
-  private performSearchAction(key: string): void {
-    if (key === 'block_ads') {
-      const next: BrowserSettings = cloneSettings(this.settings);
-      next.blockAds = !next.blockAds;
-      this.onChange(next);
-    } else if (key === 'block_trackers') {
-      const next: BrowserSettings = cloneSettings(this.settings);
-      next.blockTrackers = !next.blockTrackers;
-      this.onChange(next);
-    } else if (key === 'rule_strength') {
-      this.picker = PickerKind.RuleStrength;
-    } else if (key === 'search_engine') {
-      this.picker = PickerKind.SearchEngine;
-    } else if (key === 'search_suggestions') {
-      const next: BrowserSettings = cloneSettings(this.settings);
+  private updateSettings(mutator: (settings: BrowserSettings) => void): void {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    mutator(next);
+    this.onChange(next);
+  }
+
+  private isContentProtectionEnabled(): boolean {
+    return this.settings.blockAds || this.settings.blockTrackers;
+  }
+
+  private toggleContentProtection(): void {
+    const enabled: boolean = !this.isContentProtectionEnabled();
+    this.updateSettings((next: BrowserSettings): void => {
+      next.blockAds = enabled;
+      next.blockTrackers = enabled;
+    });
+  }
+
+  private toggleSearchSuggestions(): void {
+    this.updateSettings((next: BrowserSettings): void => {
       next.searchSuggestionsEnabled = !next.searchSuggestionsEnabled;
-      this.onChange(next);
-    } else if (key === 'gestures') {
-      const next: BrowserSettings = cloneSettings(this.settings);
+    });
+  }
+
+  private toggleGesturesEnabled(): void {
+    this.updateSettings((next: BrowserSettings): void => {
       next.gesturesEnabled = !next.gesturesEnabled;
-      this.onChange(next);
-    } else if (key === 'appearance') {
-      this.picker = PickerKind.Appearance;
-    } else if (key === 'web_dark_mode') {
-      this.picker = PickerKind.WebDarkMode;
-    } else if (key === 'tab_expiry') {
-      this.picker = PickerKind.TabExpiry;
-    } else if (key === 'history_retention') {
-      this.picker = PickerKind.HistoryRetention;
-    } else if (key === 'clear_data') {
-      this.openClearDataSheet();
-    } else if (key === 'minimum_font_size') {
-      this.picker = PickerKind.MinimumFontSize;
-    } else if (key === 'large_downloads') {
-      this.picker = PickerKind.LargeDownloadThreshold;
-    } else if (key === 'bookmark_import') {
-      this.onImportBookmarks();
+    });
+  }
+
+  private toggleGestureActions(): void {
+    this.updateSettings((next: BrowserSettings): void => {
+      next.gestureActionsEnabled = !next.gestureActionsEnabled;
+    });
+  }
+
+  private toggleGestureTabSwitch(): void {
+    this.updateSettings((next: BrowserSettings): void => {
+      next.gestureTabSwitchEnabled = !next.gestureTabSwitchEnabled;
+    });
+  }
+
+  private toggleGestureBlocking(): void {
+    this.updateSettings((next: BrowserSettings): void => {
+      next.gestureBlockingEnabled = !next.gestureBlockingEnabled;
+    });
+  }
+
+  private toggleAutoHideToolbar(): void {
+    this.updateSettings((next: BrowserSettings): void => {
+      next.autoHideToolbarEnabled = !next.autoHideToolbarEnabled;
+    });
+  }
+
+  private toggleQuickSites(): void {
+    this.updateSettings((next: BrowserSettings): void => {
+      next.quickSitesEnabled = !next.quickSitesEnabled;
+    });
+  }
+
+  private toggleWifiOnlyDownloads(): void {
+    this.updateSettings((next: BrowserSettings): void => {
+      next.wifiOnlyDownloads = !next.wifiOnlyDownloads;
+    });
+  }
+
+  private toggleClearCookiesOnTabClose(): void {
+    this.updateSettings((next: BrowserSettings): void => {
+      next.clearCookiesOnTabClose = !next.clearCookiesOnTabClose;
+    });
+  }
+
+  private toggleTelemetry(): void {
+    this.updateSettings((next: BrowserSettings): void => {
+      next.telemetryEnabled = !next.telemetryEnabled;
+    });
+  }
+
+  private shouldShowCurrentSiteDarkMode(): boolean {
+    return shouldShowCurrentSiteDarkModeRow(this.currentHost, this.settings.webDarkMode);
+  }
+
+  private appVersionLabel(): ResourceStr {
+    const version: string = this.appVersion.trim();
+    if (version.length > 0) {
+      return version;
     }
+    return $r('app.string.about_version_unknown');
   }
 
   @Builder
@@ -754,8 +958,6 @@ export struct SettingsPage {
         () => this.onUpdateSitePermission(permission.origin, 'microphone', permission.microphone))
       this.PermissionStatusRow($r('app.string.site_permission_location'), permission.location,
         () => this.onUpdateSitePermission(permission.origin, 'location', permission.location))
-      this.PermissionStatusRow($r('app.string.site_permission_notifications'), permission.notifications,
-        () => this.onUpdateSitePermission(permission.origin, 'notifications', permission.notifications))
     }
     .width('100%')
     .padding({ top: 10, bottom: 10 })
@@ -1349,14 +1551,56 @@ export struct SettingsPage {
     return CLEAR_DATA_RANGE_LABELS[this.clearDataRangeIndex()];
   }
 
-  private showAbout(): void {
-    this.getUIContext().showAlertDialog({
-      title: $r('app.string.app_name'),
-      message: $r('app.string.about_tagline'),
-      confirm: {
-        value: $r('app.string.done'),
-        action: (): void => {}
+  @Builder
+  private AboutDialog() {
+    Stack({ alignContent: Alignment.Center }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor($r('app.color.scrim'))
+        .onClick(() => this.isAboutDialogVisible = false)
+
+      Column() {
+        Text($r('app.string.app_name'))
+          .fontSize(22)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+          .textAlign(TextAlign.Center)
+          .width('100%')
+        Text(this.appVersionLabel())
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+          .fontFeature('"tnum" 1')
+          .textAlign(TextAlign.Center)
+          .width('100%')
+          .margin({ top: 8 })
+        Text($r('app.string.about_tagline'))
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+          .textAlign(TextAlign.Center)
+          .width('100%')
+          .margin({ top: 12 })
+        Text($r('app.string.done'))
+          .fontSize(16)
+          .fontColor($r('app.color.accent'))
+          .textAlign(TextAlign.Center)
+          .width('100%')
+          .height(48)
+          .margin({ top: 18 })
+          .onClick(() => this.isAboutDialogVisible = false)
       }
-    });
+      .width('78%')
+      .constraintSize({ maxWidth: 360 })
+      .padding({ top: 28, left: 24, right: 24, bottom: 12 })
+      .borderRadius(20)
+      .backgroundColor($r('app.color.surface_panel'))
+      .border({ width: 1, color: $r('app.color.border') })
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  private showAbout(): void {
+    this.isAboutDialogVisible = true;
   }
 }

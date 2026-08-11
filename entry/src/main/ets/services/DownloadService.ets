@@ -32,7 +32,32 @@ export interface DownloadTask {
   error: string;
 }
 
+export enum DownloadPolicyReason {
+  None = 0,
+  WifiRequired = 1,
+  LargeFile = 2
+}
+
+export function resolveDownloadPolicyReason(
+  wifiOnly: boolean,
+  isWifiConnected: boolean,
+  isApproved: boolean,
+  totalBytes: number,
+  largeDownloadThresholdBytes: number
+): DownloadPolicyReason {
+  if (wifiOnly && !isWifiConnected) {
+    return DownloadPolicyReason.WifiRequired;
+  }
+  if (isWifiConnected || isApproved) {
+    return DownloadPolicyReason.None;
+  }
+  return totalBytes > 0 && totalBytes >= largeDownloadThresholdBytes
+    ? DownloadPolicyReason.LargeFile
+    : DownloadPolicyReason.None;
+}
+
 type DownloadListener = (tasks: DownloadTask[]) => void;
+type DownloadPolicyPrompt = (task: DownloadTask, reason: DownloadPolicyReason) => void;
 
 export class DownloadService {
   private static isConfigured: boolean = false;
@@ -45,7 +70,7 @@ export class DownloadService {
   private static downloadDirectory: string = '';
   private static largeDownloadThresholdBytes: number = 50 * 1024 * 1024;
   private static wifiOnly: boolean = false;
-  private static policyPrompt: ((task: DownloadTask) => void) | undefined = undefined;
+  private static policyPrompt: DownloadPolicyPrompt | undefined = undefined;
   private static promptingIds: string[] = [];
   private static approvedIds: string[] = [];
 
@@ -74,11 +99,16 @@ export class DownloadService {
   static configurePolicy(
     thresholdMb: number,
     wifiOnly: boolean,
-    prompt: (task: DownloadTask) => void
+    prompt: DownloadPolicyPrompt
   ): void {
+    const strictWifiOnlyActivated: boolean = wifiOnly && !DownloadService.wifiOnly;
     DownloadService.largeDownloadThresholdBytes = Math.max(1, thresholdMb) * 1024 * 1024;
     DownloadService.wifiOnly = wifiOnly;
     DownloadService.policyPrompt = prompt;
+    if (strictWifiOnlyActivated) {
+      DownloadService.promptingIds = [];
+      DownloadService.approvedIds = [];
+    }
     DownloadService.pump();
   }
 
@@ -238,10 +268,11 @@ export class DownloadService {
       if (task.status !== DownloadTaskStatus.Pending) {
         continue;
       }
-      if (DownloadService.needsPolicyPrompt(task)) {
+      const policyReason: DownloadPolicyReason = DownloadService.policyReason(task);
+      if (policyReason !== DownloadPolicyReason.None) {
         if (!DownloadService.promptingIds.includes(task.id)) {
           DownloadService.promptingIds.push(task.id);
-          DownloadService.policyPrompt?.(DownloadService.cloneTask(task));
+          DownloadService.policyPrompt?.(DownloadService.cloneTask(task), policyReason);
         }
         continue;
       }
@@ -334,15 +365,17 @@ export class DownloadService {
     return DownloadService.tasks.find((task: DownloadTask) => task.id === id);
   }
 
-  private static needsPolicyPrompt(task: DownloadTask): boolean {
-    if (DownloadService.policyPrompt === undefined ||
-      DownloadService.approvedIds.includes(task.id) || DownloadService.isWifiConnected()) {
-      return false;
+  private static policyReason(task: DownloadTask): DownloadPolicyReason {
+    if (DownloadService.policyPrompt === undefined) {
+      return DownloadPolicyReason.None;
     }
-    if (DownloadService.wifiOnly) {
-      return true;
-    }
-    return task.totalBytes > 0 && task.totalBytes >= DownloadService.largeDownloadThresholdBytes;
+    return resolveDownloadPolicyReason(
+      DownloadService.wifiOnly,
+      DownloadService.isWifiConnected(),
+      DownloadService.approvedIds.includes(task.id),
+      task.totalBytes,
+      DownloadService.largeDownloadThresholdBytes
+    );
   }
 
   private static isWifiConnected(): boolean {

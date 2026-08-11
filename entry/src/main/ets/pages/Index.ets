@@ -49,6 +49,7 @@ import {
   cloneTab,
   defaultBrowserSettings,
   emptyBlockStats,
+  normalizeBrowserSettings,
   totalBlocked
 } from '../models/BrowserModels';
 import { ActionSheet } from '../components/ActionSheet';
@@ -83,8 +84,9 @@ import {
 import { PrivacyService } from '../services/PrivacyService';
 import { CertificateService } from '../services/CertificateService';
 import { AdsBlockService } from '../services/AdsBlockService';
+import { AppMetadataService } from '../services/AppMetadataService';
 import { MemoryPressureService } from '../services/MemoryPressureService';
-import { DownloadService, DownloadTask } from '../services/DownloadService';
+import { DownloadPolicyReason, DownloadService, DownloadTask } from '../services/DownloadService';
 import { BookmarkTransferService } from '../services/BookmarkTransferService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { ThemeService } from '../services/ThemeService';
@@ -204,6 +206,7 @@ struct Index {
   private pageScrollOffsets: Map<string, number> = new Map();
   private persistedPageScrollOffsets: Map<string, number> = new Map();
   @State private resumeRequest: ResumeRequest | undefined = undefined;
+  private appVersionName: string = '';
   private resumeToken: number = 0;
   private downloadListener: (tasks: DownloadTask[]) => void = (tasks: DownloadTask[]): void => {
     this.downloadTasks = tasks;
@@ -213,6 +216,7 @@ struct Index {
     try {
       await this.measureTopInset();
       await this.viewModel.initialize(AppContext.getContext());
+      this.appVersionName = AppMetadataService.getVersionName();
       ThemeService.apply(AppContext.getContext(), this.viewModel.settings.appearance);
       TelemetryService.setEnabled(this.viewModel.settings.telemetryEnabled);
       this.syncState();
@@ -226,7 +230,7 @@ struct Index {
       DownloadService.configurePolicy(
         this.settings.largeDownloadThresholdMb,
         this.settings.wifiOnlyDownloads,
-        (task: DownloadTask): void => this.promptDownloadPolicy(task)
+        (task: DownloadTask, reason: DownloadPolicyReason): void => this.promptDownloadPolicy(task, reason)
       );
       DownloadService.subscribe(this.downloadListener);
       this.isReady = true;
@@ -723,6 +727,7 @@ struct Index {
         currentHost: displayHost(this.activeTab()?.url ?? ''),
         currentHostDarkModeEnabled: !this.isDarkModeExcluded(this.activeTab()?.url ?? ''),
         rulesLastUpdatedAt: this.rulesLastUpdatedAt,
+        appVersion: this.appVersionName,
         onChange: (settings: BrowserSettings): void => { this.applySettings(settings); },
         onResetGestures: (): void => { this.resetGestures(); },
         onClearData: (selection: ClearDataSelection): void => { this.clearBrowsingData(selection); },
@@ -837,7 +842,7 @@ struct Index {
       })
     } else if (this.sheet === Overlay.Onboarding) {
       OnboardingSheet({
-        searchEngine: this.settings.searchEngine,
+        settings: this.settings,
         onSearchEngineChange: (engine: SearchEngine): void => this.setOnboardingSearchEngine(engine),
         onFinish: (): void => { void this.finishOnboarding(); },
         onSkip: (): void => { void this.finishOnboarding(); }
@@ -1522,8 +1527,20 @@ struct Index {
     await DownloadService.share(AppContext.getContext(), task);
   }
 
-  private promptDownloadPolicy(task: DownloadTask): void {
+  private promptDownloadPolicy(task: DownloadTask, reason: DownloadPolicyReason): void {
     try {
+      if (reason === DownloadPolicyReason.WifiRequired) {
+        this.getUIContext().showAlertDialog({
+          title: $r('app.string.download_wifi_required_title'),
+          message: `${task.fileName}${$r('app.string.download_wifi_required_message')}`,
+          autoCancel: false,
+          primaryButton: {
+            value: $r('app.string.cancel'),
+            action: (): void => DownloadService.cancelByPolicy(task.id)
+          }
+        });
+        return;
+      }
       this.getUIContext().showAlertDialog({
         title: $r('app.string.download_policy_title'),
         message: `${task.fileName}${$r('app.string.download_policy_message')}`,
@@ -1685,23 +1702,27 @@ struct Index {
   // ---------------------------------------------------------------- settings
 
   private async applySettings(next: BrowserSettings): Promise<void> {
-    const appearanceChanged: boolean = next.appearance !== this.settings.appearance;
-    TelemetryService.setEnabled(next.telemetryEnabled);
-    await this.viewModel.updateSettings(next);
-    this.settings = cloneSettings(next);
+    const normalized: BrowserSettings = normalizeBrowserSettings(next);
+    const appearanceChanged: boolean = normalized.appearance !== this.settings.appearance;
+    // Commit to the UI state synchronously; the persistence below must never
+    // gate the visible change (a slow or contended flush used to leave the
+    // settings page showing the previous value).
+    this.settings = cloneSettings(normalized);
+    TelemetryService.setEnabled(normalized.telemetryEnabled);
+    await this.viewModel.updateSettings(normalized);
     DownloadService.configurePolicy(
-      next.largeDownloadThresholdMb,
-      next.wifiOnlyDownloads,
-      (task: DownloadTask): void => this.promptDownloadPolicy(task)
+      normalized.largeDownloadThresholdMb,
+      normalized.wifiOnlyDownloads,
+      (task: DownloadTask, reason: DownloadPolicyReason): void => this.promptDownloadPolicy(task, reason)
     );
     if (appearanceChanged) {
-      ThemeService.apply(AppContext.getContext(), next.appearance);
+      ThemeService.apply(AppContext.getContext(), normalized.appearance);
     }
     ThemeService.applySurface(
       AppContext.getContext(),
-      next.appearance,
+      normalized.appearance,
       this.isActiveHome(),
-      next.startPageBackgroundEnabled
+      normalized.startPageBackgroundEnabled
     );
     await this.enforceLiveWebViewLimit(this.liveWebViewLimit());
     this.reconfigureBlocking();
@@ -1770,7 +1791,7 @@ struct Index {
     if (resource === 'LOCATION') {
       return $r('app.string.site_permission_location');
     }
-    return $r('app.string.site_permission_notifications');
+    return $r('app.string.site_permission_camera');
   }
 
   private isSupportedPermissionResource(resource: string): boolean {
@@ -1945,8 +1966,6 @@ struct Index {
       stored.microphone = nextDecision;
     } else if (kind === 'location') {
       stored.location = nextDecision;
-    } else if (kind === 'notifications') {
-      stored.notifications = nextDecision;
     }
     await this.applySettings(next);
   }
@@ -2219,7 +2238,6 @@ struct Index {
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (tab !== undefined && !tab.isPrivate) {
       await this.viewModel.rememberSiteZoom(tab.url, scale);
-      this.settings = cloneSettings(this.viewModel.settings);
     }
   }
 
@@ -2609,7 +2627,7 @@ struct Index {
       );
       delta = this.mergeCounts(delta, raw);
     }
-    if (this.settings.blockTrackers) {
+    if (this.settings.blockAds) {
       const raw: string = await this.runScript(controller, TRACKER_BLOCK_SCRIPT);
       delta = this.mergeCounts(delta, raw);
     }

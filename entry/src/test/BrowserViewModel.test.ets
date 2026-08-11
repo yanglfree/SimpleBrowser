@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@ohos/hypium';
-import { BrowserTab } from '../main/ets/models/BrowserModels';
+import { BrowserTab, Suggestion, SuggestionKind } from '../main/ets/models/BrowserModels';
 import { BrowserViewModel } from '../main/ets/viewmodels/BrowserViewModel';
 
 export default function browserViewModelTest(): void {
@@ -51,6 +51,31 @@ export default function browserViewModelTest(): void {
       expect(recent.length).assertEqual(2);
       expect(recent[0].id).assertEqual(active.id);
       expect(recent.every((tab: BrowserTab): boolean => tab.isPrivate)).assertTrue();
+    });
+  });
+
+  describe('BrowserViewModel local search shortcut', (): void => {
+    it('shows one typed-query search action when the shortcut setting is enabled', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      viewModel.settings.searchSuggestionsEnabled = true;
+
+      const suggestions: Suggestion[] = viewModel.getSuggestions('privacy browser');
+
+      expect(suggestions.length).assertEqual(1);
+      expect(suggestions[0].kind).assertEqual(SuggestionKind.Search);
+      expect(suggestions[0].title).assertEqual('privacy browser');
+      expect(suggestions[0].subtitle).assertEqual('');
+      expect(suggestions[0].url).assertEqual('https://www.bing.com/search?q=privacy%20browser');
+    });
+
+    it('does not create remote-style shortcuts when disabled or when the input is an address', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+
+      expect(viewModel.getSuggestions('privacy browser').length).assertEqual(0);
+
+      viewModel.settings.searchSuggestionsEnabled = true;
+
+      expect(viewModel.getSuggestions('example.com').length).assertEqual(0);
     });
   });
 }

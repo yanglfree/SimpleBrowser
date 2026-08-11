@@ -66,12 +66,15 @@ export class ThemeService {
     window.getLastWindow(context).then((mainWindow: window.Window) => {
       const properties: window.SystemBarProperties = {
         statusBarColor: isHome ? TRANSPARENT_BACKGROUND : background,
-        navigationBarColor: isHome ? TRANSPARENT_BACKGROUND : background,
+        navigationBarColor: TRANSPARENT_BACKGROUND,
         statusBarContentColor: isHome ? HOME_CONTENT : content,
         navigationBarContentColor: isHome ? HOME_CONTENT : content
       };
       mainWindow.setWindowBackgroundColor(background);
-      mainWindow.setWindowLayoutFullScreen(isHome).then((): void => {
+      // Always fullscreen so the dock can extend into the bottom safe area via
+      // expandSafeArea. The transparent navigation bar lets the dock background
+      // fill the area seamlessly; content stays centred above the safe zone.
+      mainWindow.setWindowLayoutFullScreen(true).then((): void => {
         mainWindow.setWindowSystemBarProperties(properties).catch((error: Error): void => {
           Logger.warn(TAG, `Failed to apply system bar style: ${String(error)}`);
         });
