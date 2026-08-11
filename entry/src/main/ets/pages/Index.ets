@@ -2295,6 +2295,17 @@ struct Index {
     }
     this.runOnActive((controller: webview.WebviewController) => {
       if (isBack) {
+        try {
+          const bfList: webview.BackForwardList = controller.getBackForwardEntries();
+          if (bfList.currentIndex > 0) {
+            const prev: webview.HistoryItem = bfList.getItemAtIndex(bfList.currentIndex - 1);
+            if (isHomeUrl(prev.historyUrl)) {
+              return;
+            }
+          }
+        } catch (e) {
+          // Fall through — backward() is still the best-effort action.
+        }
         WebKernelService.goBack(controller);
       } else {
         WebKernelService.goForward(controller);
