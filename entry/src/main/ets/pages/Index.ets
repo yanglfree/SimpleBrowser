@@ -77,6 +77,7 @@ import { TabOverview, TabThumbnail } from '../components/TabOverview';
 import {
   DOCK_COLLAPSED_HEIGHT,
   DOCK_HEIGHT,
+  DOCK_SAFE_AREA_OVERLAP,
   TAB_WEB_BOTTOM_INSET,
   TAB_WEB_BOTTOM_INSET_COMPACT,
   RECENT_TAB_LIMIT
@@ -626,7 +627,7 @@ struct Index {
         onSwitchPrevious: (): void => { void this.switchNeighbour(-1); },
         onSwitchNext: (): void => { void this.switchNeighbour(1); }
       })
-        .translate({ x: this.tabSwitchOffset })
+        .translate({ x: this.tabSwitchOffset, y: DOCK_SAFE_AREA_OVERLAP })
         .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
           .combine(TransitionEffect.translate({ y: 24 })))
     }

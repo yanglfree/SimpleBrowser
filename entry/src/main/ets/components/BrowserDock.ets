@@ -1,6 +1,7 @@
 import { AppIcon, IconName } from './AppIcon';
 import {
   DOCK_BADGE_SIZE,
+  DOCK_COLLAPSED_HEIGHT,
   DOCK_COLLAPSED_PILL_HEIGHT,
   DOCK_HEIGHT,
   DOCK_ICON_SIZE,
@@ -51,11 +52,16 @@ export struct BrowserDock {
   onSwitchNext: () => void = (): void => {};
 
   build() {
-    if (this.collapsed) {
-      this.CollapsedBar()
-    } else {
-      this.ExpandedBar()
+    Stack({ alignContent: Alignment.Bottom }) {
+      if (this.collapsed) {
+        this.CollapsedBar()
+      } else {
+        this.ExpandedBar()
+      }
     }
+    .width('100%')
+    .height(this.collapsed ? DOCK_COLLAPSED_HEIGHT : DOCK_HEIGHT)
+    .clip(true)
   }
 
   /** The resting bar: back, forward, address, tabs, menu on a single line. */
