@@ -813,6 +813,7 @@ struct Index {
       if (this.usesDesktopTabStrip()) {
         DesktopTabStrip({
           tabs: this.tabs,
+          availableWidth: this.chromeWidth(),
           activeTabId: this.activeTabId,
           thumbnails: this.thumbnails,
           liveTabIds: this.liveTabIds,
@@ -833,6 +834,7 @@ struct Index {
       homeBackgroundEnabled: this.settings.startPageBackgroundEnabled,
       collapsed: this.usesWideChrome() ? false : this.isDockCollapsed(),
       wide: this.usesWideChrome(),
+      desktop: this.usesDesktopTabStrip(),
       host: displayHost(this.activeTab()?.url ?? ''),
       tabCount: this.tabs.length,
       activeTabIndex: this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId),
@@ -851,6 +853,8 @@ struct Index {
       onOpenAddress: (): void => this.openAddress(),
       onBack: (): void => { void this.performAction('back'); },
       onForward: (): void => { void this.performAction('forward'); },
+      onHome: (): void => { void this.performAction('home'); },
+      onBookmark: (): void => { void this.performAction('bookmark'); },
       onOpenTabs: (): void => {
         this.isAddressMenuVisible = false;
         this.openTabsPresentation();
@@ -921,14 +925,14 @@ struct Index {
     return 320;
   }
 
-  private chromeWidth(): number | string {
+  private chromeWidth(): number {
     if (hasVerticalCrease(this.foldMetrics) && this.foldMetrics.crease !== undefined) {
       return Math.max(0, this.foldMetrics.crease.leftVp - 8);
     }
     if (this.sidebarPanel !== SidebarPanel.None && this.usesSidebar()) {
       return Math.max(0, this.windowMetrics.widthVp - this.sidebarWidth());
     }
-    return '100%';
+    return this.windowMetrics.widthVp;
   }
 
   private isSplitActive(): boolean {

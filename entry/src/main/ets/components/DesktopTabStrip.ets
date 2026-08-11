@@ -5,17 +5,36 @@ import { TabThumbnail } from './TabOverview';
 
 export const DESKTOP_TAB_STRIP_HEIGHT: number = 44;
 
-const TAB_STRIP_MIN_TAB_WIDTH: number = 112;
-const TAB_STRIP_MEDIUM_TAB_WIDTH: number = 140;
-const TAB_STRIP_MAX_TAB_WIDTH: number = 180;
+const TAB_STRIP_MIN_TAB_WIDTH: number = 88;
+const TAB_STRIP_MAX_TAB_WIDTH: number = 240;
 const TAB_STRIP_PINNED_WIDTH: number = 52;
+const TAB_STRIP_HORIZONTAL_PADDING: number = 16;
+const TAB_STRIP_NEW_TAB_WIDTH: number = 36;
+const TAB_STRIP_ITEM_GAP: number = 4;
 const TAB_REORDER_DISTANCE: number = 36;
 const TAB_PREVIEW_DELAY_MS: number = 350;
 const ESCAPE_KEY_CODE: number = 2070;
 
+export function desktopTabWidth(availableWidth: number, tabCount: number, pinnedCount: number): number {
+  const safeTabCount: number = Math.max(0, tabCount);
+  const safePinnedCount: number = Math.min(Math.max(0, pinnedCount), safeTabCount);
+  const unpinnedCount: number = safeTabCount - safePinnedCount;
+  if (unpinnedCount === 0) {
+    return TAB_STRIP_MIN_TAB_WIDTH;
+  }
+  const itemGaps: number = safeTabCount * TAB_STRIP_ITEM_GAP;
+  const widthForUnpinnedTabs: number = availableWidth - TAB_STRIP_HORIZONTAL_PADDING -
+    TAB_STRIP_NEW_TAB_WIDTH - itemGaps - safePinnedCount * TAB_STRIP_PINNED_WIDTH;
+  return Math.min(
+    TAB_STRIP_MAX_TAB_WIDTH,
+    Math.max(TAB_STRIP_MIN_TAB_WIDTH, Math.floor(widthForUnpinnedTabs / unpinnedCount))
+  );
+}
+
 @Component
 export struct DesktopTabStrip {
   @Prop tabs: BrowserTab[] = [];
+  @Prop availableWidth: number = 0;
   @Prop @Watch('activeTabChanged') activeTabId: string = '';
   @Prop thumbnails: TabThumbnail[] = [];
   @Prop liveTabIds: string[] = [];
@@ -44,32 +63,36 @@ export struct DesktopTabStrip {
           }
           .width(this.tabWidth(tab))
         }, (tab: BrowserTab): string => `${tab.id}-${tab.isPinned}`)
+
+        ListItem() {
+          Row() {
+            AppIcon({ name: IconName.Plus, glyphSize: 17, color: $r('app.color.text_secondary') })
+          }
+          .id('desktop-new-tab')
+          .width(TAB_STRIP_NEW_TAB_WIDTH)
+          .height(36)
+          .justifyContent(FlexAlign.Center)
+          .borderRadius(18)
+          .focusable(true)
+          .hoverEffect(HoverEffect.Auto)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.92 })
+          .accessibilityText($r('app.string.new_tab'))
+          .onClick(() => this.onNewTab())
+        }
+        .width(TAB_STRIP_NEW_TAB_WIDTH)
       }
       .listDirection(Axis.Horizontal)
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
-      .layoutWeight(1)
+      .width('100%')
       .height(DESKTOP_TAB_STRIP_HEIGHT)
       .onAppear(() => this.scrollActiveTabIntoView(false))
       .onScrollIndex((): void => this.dismissPreview())
-
-      Row() {
-        AppIcon({ name: IconName.Plus, glyphSize: 17, color: $r('app.color.text_secondary') })
-      }
-      .id('desktop-new-tab')
-      .width(36)
-      .height(36)
-      .justifyContent(FlexAlign.Center)
-      .borderRadius(18)
-      .focusable(true)
-      .hoverEffect(HoverEffect.Auto)
-      .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.92 })
-      .accessibilityText($r('app.string.new_tab'))
-      .onClick(() => this.onNewTab())
     }
     .width('100%')
     .height(DESKTOP_TAB_STRIP_HEIGHT)
     .padding({ left: 8, right: 8 })
+    .backgroundColor($r('app.color.surface_subtle'))
     .focusable(true)
     .onKeyEvent((event: KeyEvent): boolean => {
       if (event.type === KeyType.Down && event.keyCode === ESCAPE_KEY_CODE) {
@@ -85,6 +108,8 @@ export struct DesktopTabStrip {
     Row({ space: 7 }) {
       if (tab.isPrivate) {
         AppIcon({ name: IconName.Incognito, glyphSize: 15, color: $r('app.color.text_secondary') })
+      } else {
+        AppIcon({ name: IconName.Desktop, glyphSize: 15, color: $r('app.color.text_secondary') })
       }
       Text(this.tabTitle(tab))
         .fontSize(13)
@@ -113,14 +138,10 @@ export struct DesktopTabStrip {
     .width('100%')
     .height(36)
     .padding({ left: tab.isPinned ? 10 : 12, right: tab.isPinned ? 10 : 5 })
-    .borderRadius(10)
+    .borderRadius(8)
     .backgroundColor(tab.id === this.activeTabId
       ? $r('app.color.surface_panel')
-      : $r('app.color.surface_subtle'))
-    .border({
-      width: 1,
-      color: tab.id === this.activeTabId ? $r('app.color.accent') : $r('app.color.border')
-    })
+      : Color.Transparent)
     .focusable(true)
     .defaultFocus(tab.id === this.activeTabId)
     .hoverEffect(HoverEffect.Auto)
@@ -288,13 +309,8 @@ export struct DesktopTabStrip {
     if (tab.isPinned) {
       return TAB_STRIP_PINNED_WIDTH;
     }
-    if (this.tabs.length <= 6) {
-      return TAB_STRIP_MAX_TAB_WIDTH;
-    }
-    if (this.tabs.length <= 12) {
-      return TAB_STRIP_MEDIUM_TAB_WIDTH;
-    }
-    return TAB_STRIP_MIN_TAB_WIDTH;
+    const pinnedCount: number = this.tabs.filter((item: BrowserTab): boolean => item.isPinned).length;
+    return desktopTabWidth(this.availableWidth, this.tabs.length, pinnedCount);
   }
 
   private tabTitle(tab: BrowserTab): ResourceStr {

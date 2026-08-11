@@ -22,8 +22,8 @@ const ADDRESS_MENU_HEIGHT: number = ADDRESS_MENU_ROW_HEIGHT * 2 + 1;
 const WIDE_DOCK_MAX_WIDTH: number = 1080;
 
 /**
- * One bar, one row. The address reads as a pill flanked by the four controls that
- * earn a permanent slot; everything else lives in the menu or the tab overview.
+ * One bar, one row. Compact layouts keep the phone controls around an address pill;
+ * desktop layouts expand the same interaction model into a full-width toolbar.
  * Scrolling down collapses it to a Safari-style mini pill so the page keeps the
  * height it was given.
  */
@@ -33,6 +33,7 @@ export struct BrowserDock {
   @Prop homeBackgroundEnabled: boolean = true;
   @Prop collapsed: boolean = false;
   @Prop wide: boolean = false;
+  @Prop desktop: boolean = false;
   @Prop host: string = '';
   @Prop tabCount: number = 1;
   @Prop activeTabIndex: number = 0;
@@ -48,6 +49,8 @@ export struct BrowserDock {
   onOpenAddress: () => void = (): void => {};
   onBack: () => void = (): void => {};
   onForward: () => void = (): void => {};
+  onHome: () => void = (): void => {};
+  onBookmark: () => void = (): void => {};
   onOpenTabs: () => void = (): void => {};
   onOpenRecentTabs: () => void = (): void => {};
   onOpenMenu: () => void = (): void => {};
@@ -75,8 +78,8 @@ export struct BrowserDock {
         }
       }
     }
-    .width(this.wide ? '96%' : '100%')
-    .constraintSize({ maxWidth: this.wide ? WIDE_DOCK_MAX_WIDTH : '100%' })
+    .width(this.desktop ? '100%' : this.wide ? '96%' : '100%')
+    .constraintSize({ maxWidth: this.desktop ? '100%' : this.wide ? WIDE_DOCK_MAX_WIDTH : '100%' })
     .height(this.viewportHeight())
     .clip(true)
   }
@@ -91,8 +94,10 @@ export struct BrowserDock {
     .height(DOCK_HEIGHT)
     .justifyContent(FlexAlign.Center)
     .backgroundColor(this.usesHomeColors() ? Color.Transparent : $r('app.color.page_background'))
-    .borderRadius(this.wide ? DOCK_HEIGHT / 2 : 0)
-    .shadow(this.wide ? { radius: 16, color: $r('app.color.shadow_soft'), offsetY: 3 } : undefined)
+    .borderRadius(this.desktop ? 0 : this.wide ? DOCK_HEIGHT / 2 : 0)
+    .shadow(this.desktop ? undefined : this.wide
+      ? { radius: 16, color: $r('app.color.shadow_soft'), offsetY: 3 }
+      : undefined)
   }
 
   @Builder
@@ -100,6 +105,15 @@ export struct BrowserDock {
     Row({ space: 4 }) {
       this.NavButton(IconName.ChevronLeft, this.canGoBack, $r('app.string.action_back'), this.onBack)
       this.NavButton(IconName.ChevronRight, this.canGoForward, $r('app.string.action_forward'), this.onForward)
+      if (this.desktop) {
+        this.NavButton(
+          this.isLoading ? IconName.Stop : IconName.Refresh,
+          !this.isHome,
+          this.isLoading ? $r('app.string.action_stop') : $r('app.string.action_reload'),
+          this.onReload
+        )
+        this.NavButton(IconName.Home, !this.isHome, $r('app.string.home'), this.onHome)
+      }
 
       // Shield, address, reload — the three things a page-level bar owes the
       // user. On the start page there is nothing to shield or reload, so the
@@ -132,11 +146,11 @@ export struct BrowserDock {
             .fontSize(15)
             .fontWeight(this.isHome ? FontWeight.Regular : FontWeight.Medium)
             .fontColor(this.primaryColor())
-            .textAlign(TextAlign.Center)
+            .textAlign(this.desktop ? TextAlign.Start : TextAlign.Center)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-          if (!this.isHome) {
+          if (!this.isHome && !this.desktop) {
             Column() {
               AppIcon({
                 name: this.isLoading ? IconName.Stop : IconName.Refresh,
@@ -164,7 +178,7 @@ export struct BrowserDock {
       .layoutWeight(1)
       .height(DOCK_ROW_HEIGHT)
       .padding({ left: 8, right: 8 })
-      .borderRadius(DOCK_ROW_HEIGHT / 2)
+      .borderRadius(this.desktop ? 12 : DOCK_ROW_HEIGHT / 2)
       .backgroundColor(this.chromeColor())
       .backdropBlur(24)
       .border({
@@ -201,30 +215,38 @@ export struct BrowserDock {
         )
       )
 
-      // The count sits inside its own outline instead of on top of the stacked-
-      // card glyph, where the digits and the strokes were fighting for the same
-      // pixels. This is the counter every mobile browser draws.
-      Stack() {
-        Text(this.tabCount > 99 ? ':)' : `${this.tabCount}`)
-          .fontSize(this.tabCount > 9 ? 11 : 12.5)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.iconColor())
-          .fontFeature('"tnum" 1')
+      if (this.desktop) {
+        this.NavButton(IconName.Bookmark, !this.isHome, $r('app.string.action_bookmark_add'), this.onBookmark)
+        this.NavButton(IconName.Tabs, true, $r('app.string.recent_tabs'), this.onOpenTabs)
+      } else {
+        // The count sits inside its own outline instead of on top of the stacked-
+        // card glyph, where the digits and the strokes were fighting for the same
+        // pixels. This is the counter every mobile browser draws.
+        Stack() {
+          Text(this.tabCount > 99 ? ':)' : `${this.tabCount}`)
+            .fontSize(this.tabCount > 9 ? 11 : 12.5)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(this.iconColor())
+            .fontFeature('"tnum" 1')
+        }
+        .width(DOCK_BADGE_SIZE)
+        .height(DOCK_BADGE_SIZE)
+        .borderRadius(7)
+        .border({ width: 1.8, color: this.iconColor() })
+        .margin({
+          left: (DOCK_SLOT_WIDTH - DOCK_BADGE_SIZE) / 2,
+          right: (DOCK_SLOT_WIDTH - DOCK_BADGE_SIZE) / 2
+        })
+        .accessibilityText($r('app.string.recent_tabs'))
+        .focusable(true)
+        .hoverEffect(HoverEffect.Auto)
+        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.94 })
+        .onClick(() => this.onOpenTabs())
+        .gesture(
+          LongPressGesture({ repeat: false, duration: 450 })
+            .onAction(() => this.onOpenRecentTabs())
+        )
       }
-      .width(DOCK_BADGE_SIZE)
-      .height(DOCK_BADGE_SIZE)
-      .borderRadius(7)
-      .border({ width: 1.8, color: this.iconColor() })
-      .margin({ left: (DOCK_SLOT_WIDTH - DOCK_BADGE_SIZE) / 2, right: (DOCK_SLOT_WIDTH - DOCK_BADGE_SIZE) / 2 })
-      .accessibilityText($r('app.string.recent_tabs'))
-      .focusable(true)
-      .hoverEffect(HoverEffect.Auto)
-      .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.94 })
-      .onClick(() => this.onOpenTabs())
-      .gesture(
-        LongPressGesture({ repeat: false, duration: 450 })
-          .onAction(() => this.onOpenRecentTabs())
-      )
 
       this.NavButton(IconName.Menu, true, $r('app.string.tools_menu'), this.onOpenMenu)
     }
