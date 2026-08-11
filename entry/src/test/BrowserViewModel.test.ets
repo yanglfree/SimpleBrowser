@@ -7,6 +7,7 @@ import {
 } from '../main/ets/models/BrowserModels';
 import { BrowserViewModel } from '../main/ets/viewmodels/BrowserViewModel';
 import { clampPaneRatio } from '../main/ets/models/PaneModels';
+import { BrowserFoldMetrics, hasHorizontalCrease, hasVerticalCrease } from '../main/ets/models/FoldMetrics';
 
 export default function browserViewModelTest(): void {
   describe('BrowserViewModel recent tabs', (): void => {
@@ -158,6 +159,22 @@ export default function browserViewModelTest(): void {
       expect(clampPaneRatio(0.1)).assertEqual(0.3);
       expect(clampPaneRatio(0.5)).assertEqual(0.5);
       expect(clampPaneRatio(0.9)).assertEqual(0.7);
+    });
+  });
+
+  describe('Fold crease metrics', (): void => {
+    it('classifies only valid half-folded crease orientation', 0, (): void => {
+      const horizontal: BrowserFoldMetrics = {
+        isHalfFolded: true,
+        crease: { leftVp: 0, topVp: 400, widthVp: 800, heightVp: 18 }
+      };
+      const vertical: BrowserFoldMetrics = {
+        isHalfFolded: true,
+        crease: { leftVp: 400, topVp: 0, widthVp: 18, heightVp: 800 }
+      };
+      expect(hasHorizontalCrease(horizontal)).assertTrue();
+      expect(hasVerticalCrease(horizontal)).assertFalse();
+      expect(hasVerticalCrease(vertical)).assertTrue();
     });
   });
 }

@@ -113,6 +113,13 @@ import {
 import { WindowMetricsService } from '../services/WindowMetricsService';
 import { BrowserShortcut, resolveBrowserShortcut } from '../models/BrowserShortcut';
 import { PaneId, clampPaneRatio } from '../models/PaneModels';
+import {
+  BrowserFoldMetrics,
+  emptyFoldMetrics,
+  hasHorizontalCrease,
+  hasVerticalCrease
+} from '../models/FoldMetrics';
+import { FoldStateService } from '../services/FoldStateService';
 
 const TAG: string = 'Index';
 const RECENTLY_CLOSED_TAB_LIMIT: number = 10;
@@ -184,6 +191,7 @@ const TAB_SWITCH_DOCK_DISTANCE: number = 10;
 struct Index {
   private viewModel: BrowserViewModel = new BrowserViewModel();
   private windowMetricsService: WindowMetricsService = new WindowMetricsService();
+  private foldStateService: FoldStateService = new FoldStateService();
   private controllers: Map<string, webview.WebviewController> = new Map();
   private pageLoadStartedAt: Map<string, number> = new Map();
   @State private isReady: boolean = false;
@@ -197,6 +205,7 @@ struct Index {
   @State private focusedPaneId: PaneId = PaneId.Primary;
   @State private overlayTargetPaneId: PaneId = PaneId.Primary;
   @State private splitPrimaryRatio: number = 0.5;
+  @State private foldMetrics: BrowserFoldMetrics = emptyFoldMetrics();
   private splitDragStartRatio: number = 0.5;
   @State private settings: BrowserSettings = defaultBrowserSettings();
   @State private sheet: Overlay = Overlay.None;
@@ -266,6 +275,12 @@ struct Index {
           }
         }
       );
+      this.foldStateService.start(this.getUIContext(), (metrics: BrowserFoldMetrics): void => {
+        this.foldMetrics = metrics;
+        if (hasVerticalCrease(metrics) && metrics.crease !== undefined && this.windowMetrics.widthVp > 0) {
+          this.splitPrimaryRatio = clampPaneRatio(metrics.crease.leftVp / this.windowMetrics.widthVp);
+        }
+      });
       await this.viewModel.initialize(AppContext.getContext());
       this.appVersionName = AppMetadataService.getVersionName();
       ThemeService.apply(AppContext.getContext(), this.viewModel.settings.appearance);
@@ -312,6 +327,7 @@ struct Index {
 
   aboutToDisappear(): void {
     this.windowMetricsService.stop();
+    this.foldStateService.stop();
     DownloadService.unsubscribe(this.downloadListener);
     MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
@@ -564,7 +580,7 @@ struct Index {
     .backgroundColor($r('app.color.surface_panel'))
     .border({ width: 1, color: $r('app.color.border') })
     .shadow({ radius: 8, color: $r('app.color.shadow_soft') })
-    .position({ x: this.splitDividerX(), y: '42%' })
+    .position({ x: this.splitDividerX(), y: this.splitDividerY() })
     .zIndex(4)
     .gesture(
       PanGesture({ direction: PanDirection.Horizontal, distance: 4 })
@@ -857,6 +873,9 @@ struct Index {
   }
 
   private chromeWidth(): number | string {
+    if (hasVerticalCrease(this.foldMetrics) && this.foldMetrics.crease !== undefined) {
+      return Math.max(0, this.foldMetrics.crease.leftVp - 8);
+    }
     if (this.sidebarPanel !== SidebarPanel.None && this.usesSidebar()) {
       return Math.max(0, this.windowMetrics.widthVp - this.sidebarWidth());
     }
@@ -900,6 +919,22 @@ struct Index {
     const contentWidth: number = Math.max(0, this.windowMetrics.widthVp -
       (this.sidebarPanel !== SidebarPanel.None ? this.sidebarWidth() : 0));
     return Math.max(0, contentWidth * this.splitPrimaryRatio - 14);
+  }
+
+  private splitDividerY(): number | string {
+    if (hasHorizontalCrease(this.foldMetrics) && this.foldMetrics.crease !== undefined) {
+      return Math.max(this.topInset + this.wideChromeHeight() + 12,
+        this.foldMetrics.crease.topVp * 0.5 - 46);
+    }
+    return '42%';
+  }
+
+  private overlayTopPadding(): number {
+    if (hasHorizontalCrease(this.foldMetrics) && this.foldMetrics.crease !== undefined) {
+      const creaseBottom: number = this.foldMetrics.crease.topVp + this.foldMetrics.crease.heightVp;
+      return Math.min(Math.max(0, creaseBottom + 8), Math.max(0, this.windowMetrics.heightVp - 240));
+    }
+    return this.usesResponsivePanel() ? 12 : 0;
   }
 
   private focusPaneForTab(tabId: string): void {
@@ -1052,7 +1087,12 @@ struct Index {
       }
       .width('100%')
       .height('100%')
-      .padding(this.usesResponsivePanel() ? 12 : 0)
+      .padding({
+        top: this.overlayTopPadding(),
+        left: this.usesResponsivePanel() ? 12 : 0,
+        right: this.usesResponsivePanel() ? 12 : 0,
+        bottom: this.usesResponsivePanel() ? 12 : 0
+      })
       .justifyContent(this.windowMetrics.layoutClass >= BrowserLayoutClass.Expanded
         ? FlexAlign.End
         : FlexAlign.Center)
