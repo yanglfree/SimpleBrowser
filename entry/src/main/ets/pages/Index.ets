@@ -100,6 +100,13 @@ import { AppContext } from '../utils/AppContext';
 import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress, rawHost } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
 import { BrowserViewModel } from '../viewmodels/BrowserViewModel';
+import {
+  BrowserLayoutClass,
+  BrowserWindowMetrics,
+  BrowserWindowMode,
+  createWindowMetrics
+} from '../models/WindowMetrics';
+import { WindowMetricsService } from '../services/WindowMetricsService';
 
 const TAG: string = 'Index';
 
@@ -168,6 +175,7 @@ const TAB_SWITCH_DOCK_DISTANCE: number = 10;
 @Component
 struct Index {
   private viewModel: BrowserViewModel = new BrowserViewModel();
+  private windowMetricsService: WindowMetricsService = new WindowMetricsService();
   private controllers: Map<string, webview.WebviewController> = new Map();
   private pageLoadStartedAt: Map<string, number> = new Map();
   @State private isReady: boolean = false;
@@ -207,6 +215,11 @@ struct Index {
   /** Status bar height in vp; the browser draws behind the system bars. */
   @State private topInset: number = 0;
   @State private bottomInset: number = 0;
+  @State private windowMetrics: BrowserWindowMetrics = createWindowMetrics(
+    0,
+    0,
+    BrowserWindowMode.Unknown
+  );
   private isTabSoftLimitPromptVisible: boolean = false;
   private pendingPermissionRequest: PermissionRequest | undefined = undefined;
   private pendingGeolocation: OnGeolocationShowEvent | undefined = undefined;
@@ -222,6 +235,17 @@ struct Index {
   async aboutToAppear(): Promise<void> {
     try {
       await this.measureSystemInsets();
+      await this.windowMetricsService.start(
+        AppContext.getContext(),
+        this.getUIContext(),
+        (metrics: BrowserWindowMetrics): void => {
+          const previousClass: BrowserLayoutClass = this.windowMetrics.layoutClass;
+          this.windowMetrics = metrics;
+          if (previousClass !== metrics.layoutClass) {
+            Logger.debug(TAG, `Browser layout class changed to ${metrics.layoutClass}`);
+          }
+        }
+      );
       await this.viewModel.initialize(AppContext.getContext());
       this.appVersionName = AppMetadataService.getVersionName();
       ThemeService.apply(AppContext.getContext(), this.viewModel.settings.appearance);
@@ -267,6 +291,7 @@ struct Index {
   }
 
   aboutToDisappear(): void {
+    this.windowMetricsService.stop();
     DownloadService.unsubscribe(this.downloadListener);
     MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
