@@ -102,4 +102,32 @@ export default function browserViewModelTest(): void {
       expect(viewModel.restoreTab(snapshot) === undefined).assertTrue();
     });
   });
+
+  describe('BrowserViewModel desktop tab strip', (): void => {
+    it('reorders tabs only inside the same privacy and pin group', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const first: BrowserTab = viewModel.createTab('https://first.example', false);
+      const second: BrowserTab = viewModel.createTab('https://second.example', false);
+      const privateTab: BrowserTab = viewModel.createTab('https://private.example', true);
+      viewModel.tabs = [first, second, privateTab];
+
+      expect(viewModel.reorderTab(second.id, -1)).assertTrue();
+      expect(viewModel.tabs[0].id).assertEqual(second.id);
+      expect(viewModel.reorderTab(first.id, 1)).assertFalse();
+      expect(viewModel.tabs[2].id).assertEqual(privateTab.id);
+    });
+
+    it('keeps pinned tabs ahead of regular tabs and never pins private tabs', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const first: BrowserTab = viewModel.createTab('https://first.example', false);
+      const second: BrowserTab = viewModel.createTab('https://second.example', false);
+      const privateTab: BrowserTab = viewModel.createTab('https://private.example', true);
+      viewModel.tabs = [first, second, privateTab];
+
+      expect(viewModel.toggleTabPinned(second.id)).assertTrue();
+      expect(viewModel.tabs[0].id).assertEqual(second.id);
+      expect(viewModel.tabs[0].isPinned).assertTrue();
+      expect(viewModel.toggleTabPinned(privateTab.id)).assertFalse();
+    });
+  });
 }

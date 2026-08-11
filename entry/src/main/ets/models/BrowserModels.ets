@@ -121,6 +121,7 @@ export interface BrowserTab {
   isLoading: boolean;
   progress: number;
   isDesktop: boolean;
+  isPinned: boolean;
   isReader: boolean;
   canGoBack: boolean;
   canGoForward: boolean;
@@ -143,6 +144,7 @@ export interface BrowserTabUpdate {
   isLoading?: boolean;
   progress?: number;
   isDesktop?: boolean;
+  isPinned?: boolean;
   isReader?: boolean;
   canGoBack?: boolean;
   canGoForward?: boolean;
@@ -328,6 +330,7 @@ export function cloneTab(tab: BrowserTab): BrowserTab {
     isLoading: tab.isLoading,
     progress: tab.progress,
     isDesktop: tab.isDesktop,
+    isPinned: tab.isPinned,
     isReader: tab.isReader,
     canGoBack: tab.canGoBack,
     canGoForward: tab.canGoForward,

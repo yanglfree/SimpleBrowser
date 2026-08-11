@@ -76,6 +76,7 @@ import { SharePanel } from '../components/SharePanel';
 import { SavedItemEditSheet } from '../components/SavedItemEditSheet';
 import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
+import { DesktopTabStrip, DESKTOP_TAB_STRIP_HEIGHT } from '../components/DesktopTabStrip';
 import {
   DOCK_COLLAPSED_HEIGHT,
   DOCK_HEIGHT,
@@ -486,7 +487,7 @@ struct Index {
         .width('100%')
         .height('100%')
         .padding({
-          top: this.usesWideChrome() ? this.topInset + DOCK_HEIGHT + 8 : 0,
+          top: this.usesWideChrome() ? this.topInset + this.wideChromeHeight() + 8 : 0,
           bottom: isHomeUrl(tab.url) || this.usesWideChrome() ? 0 : this.webBottomInset()
         })
         .opacity(tab.id === this.activeTabId ? 1 : 0)
@@ -672,7 +673,21 @@ struct Index {
 
   @Builder
   private BrowserDockContent() {
-    BrowserDock({
+    Column() {
+      if (this.usesDesktopTabStrip()) {
+        DesktopTabStrip({
+          tabs: this.tabs,
+          activeTabId: this.activeTabId,
+          onSelect: (id: string): void => { void this.selectTab(id); },
+          onClose: (id: string): void => this.closeTab(id),
+          onReorder: (id: string, direction: number): void => this.reorderDesktopTab(id, direction),
+          onCloseOthers: (id: string): void => { void this.closeOtherDesktopTabs(id); },
+          onCopyUrl: (id: string): void => { void this.copyTabLink(id); },
+          onTogglePinned: (id: string): void => this.toggleDesktopTabPinned(id),
+          onNewTab: (): void => this.createTab(this.activeTab()?.isPrivate === true)
+        })
+      }
+      BrowserDock({
       isHome: this.isActiveHome(),
       homeBackgroundEnabled: this.settings.startPageBackgroundEnabled,
       collapsed: this.usesWideChrome() ? false : this.isDockCollapsed(),
@@ -724,13 +739,15 @@ struct Index {
         this.showToast($r('app.string.clipboard_permission_denied'));
       },
       onCopyLink: (): void => { void this.copyActiveLink(); }
-    })
+      })
       .translate({
         x: this.tabSwitchOffset,
         y: this.usesWideChrome() || this.isActiveHome() ? 0 : DOCK_SAFE_AREA_OVERLAP
       })
       .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
         .combine(TransitionEffect.translate({ y: 24 })))
+    }
+    .width('100%')
   }
 
   /** Home never collapses — there is no page to give the height back to. */
@@ -740,6 +757,14 @@ struct Index {
 
   private usesWideChrome(): boolean {
     return this.windowMetrics.layoutClass >= BrowserLayoutClass.Medium;
+  }
+
+  private usesDesktopTabStrip(): boolean {
+    return this.windowMetrics.layoutClass >= BrowserLayoutClass.Desktop;
+  }
+
+  private wideChromeHeight(): number {
+    return DOCK_HEIGHT + (this.usesDesktopTabStrip() ? DESKTOP_TAB_STRIP_HEIGHT : 0);
   }
 
   private dockHeight(): number {
@@ -1430,6 +1455,45 @@ struct Index {
       } catch (error) {
         Logger.warn(TAG, `Tab cleanup toast unavailable: ${String(error)}`);
       }
+    }
+  }
+
+  private reorderDesktopTab(id: string, direction: number): void {
+    if (this.viewModel.reorderTab(id, direction)) {
+      this.syncState();
+    }
+  }
+
+  private toggleDesktopTabPinned(id: string): void {
+    if (this.viewModel.toggleTabPinned(id)) {
+      this.syncState();
+    }
+  }
+
+  private async closeOtherDesktopTabs(id: string): Promise<void> {
+    const target: BrowserTab | undefined = this.tabs.find((tab: BrowserTab): boolean => tab.id === id);
+    if (target === undefined) {
+      return;
+    }
+    if (id !== this.activeTabId) {
+      await this.selectTab(id);
+    }
+    const closeIds: string[] = this.tabs
+      .filter((tab: BrowserTab): boolean => tab.id !== id && tab.isPrivate === target.isPrivate)
+      .map((tab: BrowserTab): string => tab.id);
+    for (const closeId of closeIds) {
+      this.closeTab(closeId);
+    }
+  }
+
+  private async copyTabLink(id: string): Promise<void> {
+    const tab: BrowserTab | undefined = this.tabs.find((item: BrowserTab): boolean => item.id === id);
+    if (tab === undefined || isHomeUrl(tab.url)) {
+      return;
+    }
+    const outcome: ShareOutcome = await ShareService.copy(tab.url);
+    if (outcome === ShareOutcome.Copied) {
+      this.showCopyToast();
     }
   }
 

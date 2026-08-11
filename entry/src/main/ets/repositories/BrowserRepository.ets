@@ -587,6 +587,7 @@ export class BrowserRepository {
       isLoading: false,
       progress: 100,
       isDesktop: tab.isDesktop ?? false,
+      isPinned: tab.isPinned ?? false,
       isReader: false,
       canGoBack: false,
       canGoForward: false,

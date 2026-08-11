@@ -125,6 +125,7 @@ export class BrowserViewModel {
       isLoading: !isHomeUrl(url),
       progress: 0,
       isDesktop: false,
+      isPinned: false,
       isReader: false,
       canGoBack: false,
       canGoForward: false,
@@ -376,6 +377,9 @@ export class BrowserViewModel {
       if (update.isDesktop !== undefined) {
         updated.isDesktop = update.isDesktop;
       }
+      if (update.isPinned !== undefined) {
+        updated.isPinned = update.isPinned;
+      }
       if (update.isReader !== undefined) {
         updated.isReader = update.isReader;
       }
@@ -422,6 +426,42 @@ export class BrowserViewModel {
       }
       return updated;
     });
+  }
+
+  reorderTab(id: string, direction: number): boolean {
+    const index: number = this.tabs.findIndex((tab: BrowserTab): boolean => tab.id === id);
+    if (index < 0 || direction === 0) {
+      return false;
+    }
+    const targetIndex: number = index + (direction < 0 ? -1 : 1);
+    if (targetIndex < 0 || targetIndex >= this.tabs.length) {
+      return false;
+    }
+    const tab: BrowserTab = this.tabs[index];
+    const target: BrowserTab = this.tabs[targetIndex];
+    if (tab.isPrivate !== target.isPrivate || tab.isPinned !== target.isPinned) {
+      return false;
+    }
+    const reordered: BrowserTab[] = this.tabs.slice(0);
+    reordered[index] = target;
+    reordered[targetIndex] = tab;
+    this.tabs = reordered;
+    this.persistSession();
+    return true;
+  }
+
+  toggleTabPinned(id: string): boolean {
+    const tab: BrowserTab | undefined = this.getTab(id);
+    if (tab === undefined || tab.isPrivate) {
+      return false;
+    }
+    this.updateTab(id, { isPinned: !tab.isPinned });
+    const pinned: BrowserTab[] = this.tabs.filter((item: BrowserTab): boolean => !item.isPrivate && item.isPinned);
+    const normal: BrowserTab[] = this.tabs.filter((item: BrowserTab): boolean => !item.isPrivate && !item.isPinned);
+    const privateTabs: BrowserTab[] = this.tabs.filter((item: BrowserTab): boolean => item.isPrivate);
+    this.tabs = pinned.concat(normal).concat(privateTabs);
+    this.persistSession();
+    return true;
   }
 
   /** Folds a blocking delta into the tab counter and the persisted totals. */
