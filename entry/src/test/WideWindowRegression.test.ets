@@ -16,6 +16,10 @@ export default function wideWindowRegressionTest(): void {
       expect(shouldMount).assertFalse();
     });
 
+    it('keeps the address sheet full-screen instead of a right-hand panel on wide layouts', 0, (): void => {
+      expect(shouldUseResponsivePanel(true, Overlay.Address)).assertFalse();
+    });
+
     it('does not mount an overlay layer when no overlay is visible', 0, (): void => {
       expect(shouldMountOverlayLayer(Overlay.None)).assertFalse();
       expect(shouldMountOverlayLayer(Overlay.Actions)).assertTrue();

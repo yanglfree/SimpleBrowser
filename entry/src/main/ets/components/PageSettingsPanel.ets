@@ -8,6 +8,8 @@ export struct PageSettingsPanel {
   @Prop quickSiteLimit: number = 6;
   @Prop backgroundEnabled: boolean = true;
   @Prop appearanceLabel: ResourceStr = '';
+  /** The overlay that hosts this panel already draws its own scrim on wide screens. */
+  @Prop scrimProvided: boolean = false;
   onToggleQuickSites: () => void = (): void => {};
   onChangeQuickSiteLimit: (limit: number) => void = (_limit: number): void => {};
   onToggleBackground: () => void = (): void => {};
@@ -16,11 +18,13 @@ export struct PageSettingsPanel {
 
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
-      Column()
-        .width('100%')
-        .height('100%')
-        .backgroundColor($r('app.color.scrim'))
-        .onClick(() => this.onDismiss())
+      if (!this.scrimProvided) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor($r('app.color.scrim'))
+          .onClick(() => this.onDismiss())
+      }
 
       Column({ space: 12 }) {
         Text($r('app.string.page_settings'))

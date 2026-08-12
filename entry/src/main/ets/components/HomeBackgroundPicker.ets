@@ -9,6 +9,8 @@ export struct HomeBackgroundPicker {
   @Prop source: StartPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
   @Prop customUri: string = '';
   @Prop bottomInset: number = 0;
+  /** The overlay that hosts this panel already draws its own scrim on wide screens. */
+  @Prop scrimProvided: boolean = false;
   onSelectBuiltIn: () => void = (): void => {};
   onSelectNone: () => void = (): void => {};
   onSelectCustom: () => void = (): void => {};
@@ -17,11 +19,13 @@ export struct HomeBackgroundPicker {
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
-      Column()
-        .width('100%')
-        .height('100%')
-        .backgroundColor($r('app.color.home_menu_scrim'))
-        .onClick(() => this.onDismiss())
+      if (!this.scrimProvided) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor($r('app.color.home_menu_scrim'))
+          .onClick(() => this.onDismiss())
+      }
 
       Column({ space: 16 }) {
         Row() {

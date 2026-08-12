@@ -156,7 +156,8 @@ export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boole
     return false;
   }
   return sheet !== Overlay.Tabs && sheet !== Overlay.Onboarding &&
-    sheet !== Overlay.Permission && sheet !== Overlay.Find;
+    sheet !== Overlay.Permission && sheet !== Overlay.Find &&
+    sheet !== Overlay.Address;
 }
 
 export function shouldMountOverlayLayer(sheet: Overlay): boolean {
@@ -470,7 +471,9 @@ struct Index {
   @Builder
   private ContentLayer() {
     Column() {
-      this.ProgressBar()
+      if (!this.usesWideChrome()) {
+        this.ProgressBar()
+      }
 
       if (this.hasError) {
         this.ErrorView()
@@ -525,6 +528,7 @@ struct Index {
               backgroundEnabled: this.settings.startPageBackgroundEnabled,
               backgroundSource: this.settings.startPageBackgroundSource,
               customBackgroundUri: this.settings.customStartPageBackgroundUri,
+              hidePageSettings: this.usesWideChrome(),
               onOpenAddress: (): void => this.openAddress(),
               onOpenSite: (url: string): void => this.navigateTo(url),
               onRemoveSite: (url: string): void => { void this.removeQuickSite(url); },
@@ -791,6 +795,7 @@ struct Index {
       if (this.usesWideChrome()) {
         Column() {
           this.BrowserDockContent()
+          this.ProgressBar()
         }
         .width(this.chromeWidth())
         .position({ x: 0, y: this.topInset })
@@ -1197,6 +1202,7 @@ struct Index {
         quickSiteLimit: this.settings.quickSiteLimit,
         backgroundEnabled: this.settings.startPageBackgroundEnabled,
         appearanceLabel: this.appearanceLabel(),
+        scrimProvided: this.usesResponsivePanel(),
         onToggleQuickSites: (): void => { void this.toggleQuickSites(); },
         onChangeQuickSiteLimit: (limit: number): void => { void this.updateQuickSiteLimit(limit); },
         onToggleBackground: (): void => { void this.toggleStartPageBackground(); },
@@ -1210,6 +1216,7 @@ struct Index {
         source: this.settings.startPageBackgroundSource,
         customUri: this.settings.customStartPageBackgroundUri,
         bottomInset: this.bottomInset,
+        scrimProvided: this.usesResponsivePanel(),
         onSelectBuiltIn: (): void => { void this.selectBuiltInBackground(); },
         onSelectNone: (): void => { void this.selectNoBackground(); },
         onSelectCustom: (): void => { void this.selectSavedCustomBackground(); },

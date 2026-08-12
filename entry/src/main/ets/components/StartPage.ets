@@ -32,6 +32,8 @@ export struct StartPage {
   @Prop backgroundEnabled: boolean = true;
   @Prop backgroundSource: StartPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
   @Prop customBackgroundUri: string = '';
+  /** Wide chrome already puts a menu at the top-right; the home gear would overlap it. */
+  @Prop hidePageSettings: boolean = false;
   onOpenAddress: () => void = (): void => {};
   onOpenSite: (url: string) => void = (_url: string): void => {};
   onRemoveSite: (url: string) => void = (_url: string): void => {};
@@ -62,23 +64,25 @@ export struct StartPage {
       .padding({ top: 96, bottom: 112 })
       .justifyContent(FlexAlign.Center)
 
-      Row() {
-        Blank()
-        Column() {
-          AppIcon({
-            name: IconName.Sliders,
-            glyphSize: 32,
-            color: this.primaryColor(),
-            strokeWidth: 1.8
-          })
+      if (!this.hidePageSettings) {
+        Row() {
+          Blank()
+          Column() {
+            AppIcon({
+              name: IconName.Sliders,
+              glyphSize: 32,
+              color: this.primaryColor(),
+              strokeWidth: 1.8
+            })
+          }
+          .width(48)
+          .height(48)
+          .justifyContent(FlexAlign.Center)
+          .onClick(() => this.onOpenPageSettings())
         }
-        .width(48)
-        .height(48)
-        .justifyContent(FlexAlign.Center)
-        .onClick(() => this.onOpenPageSettings())
+        .width('100%')
+        .padding({ top: 50, left: 24, right: 18 })
       }
-      .width('100%')
-      .padding({ top: 50, left: 24, right: 18 })
     }
     .width('100%')
     .height('100%')

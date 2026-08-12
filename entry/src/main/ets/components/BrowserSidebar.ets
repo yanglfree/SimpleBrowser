@@ -152,7 +152,7 @@ export struct BrowserSidebar {
             : Color.Transparent)
           .onClick(() => this.onSelectTab(tab.id))
         }
-      }, (tab: BrowserTab): string => tab.id)
+      }, (tab: BrowserTab): string => `${tab.id}-${tab.title}`)
     }
     .layoutWeight(1)
     .width('100%')

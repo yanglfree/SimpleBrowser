@@ -62,7 +62,7 @@ export struct DesktopTabStrip {
             this.Tab(tab)
           }
           .width(this.tabWidth(tab))
-        }, (tab: BrowserTab): string => `${tab.id}-${tab.isPinned}`)
+        }, (tab: BrowserTab): string => `${tab.id}-${tab.isPinned}-${tab.title}`)
 
         ListItem() {
           Row() {
