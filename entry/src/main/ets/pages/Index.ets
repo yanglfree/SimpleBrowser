@@ -871,6 +871,7 @@ struct Index {
       ),
       blockingGestureEnabled: this.settings.gestureBlockingEnabled,
       addressMenuVisible: this.isAddressMenuVisible,
+      isBookmarked: this.isActiveBookmarked,
       onOpenAddress: (): void => this.openAddress(),
       onBack: (): void => { void this.performAction('back'); },
       onForward: (): void => { void this.performAction('forward'); },

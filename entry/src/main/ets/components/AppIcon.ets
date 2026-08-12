@@ -30,7 +30,8 @@ export enum IconName {
   Settings = 24,
   Download = 25,
   Trash = 26,
-  Mic = 27
+  Mic = 27,
+  Star = 28
 }
 
 const COMMANDS: string[] = [
@@ -64,7 +65,8 @@ const COMMANDS: string[] = [
     'a8 8 0 0 0 1.6.9l.3 2.5h4l.3-2.5a8 8 0 0 0 1.6-.9l2.3 1 2-3.5-2-1.5a7 7 0 0 0 .1-1z',
   'M12 3v12M7 10l5 5 5-5M5 20h14',
   'M5 7h14M9 7V4h6v3M8 10v7M12 10v7M16 10v7M7 7l1 14h8l1-14',
-  'M12 3a4 4 0 0 0-4 4v5a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6'
+  'M12 3a4 4 0 0 0-4 4v5a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6',
+  'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'
 ];
 
 /** The grid every command string above is authored on. */
@@ -214,6 +216,8 @@ export struct AppIcon {
         return $r('app.string.clear_browsing_data');
       case IconName.Mic:
         return $r('app.string.voice_search');
+      case IconName.Star:
+        return this.filled ? $r('app.string.action_bookmark_remove') : $r('app.string.action_bookmark_add');
       default:
         return $r('app.string.app_name');
     }

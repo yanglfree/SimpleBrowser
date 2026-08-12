@@ -46,6 +46,7 @@ export struct BrowserDock {
   @Prop tabSwitchGestureEnabled: boolean = true;
   @Prop blockingGestureEnabled: boolean = true;
   @Prop addressMenuVisible: boolean = false;
+  @Prop isBookmarked: boolean = false;
   onOpenAddress: () => void = (): void => {};
   onBack: () => void = (): void => {};
   onForward: () => void = (): void => {};
@@ -165,6 +166,25 @@ export struct BrowserDock {
             .accessibilityText(this.isLoading ? $r('app.string.action_stop') : $r('app.string.action_reload'))
             .onClick(() => this.onReload())
           }
+
+          if (!this.isHome && this.desktop) {
+            Row() {
+              AppIcon({
+                name: IconName.Star,
+                glyphSize: 19,
+                color: this.isBookmarked ? $r('app.color.accent') : this.iconColor(),
+                strokeWidth: 1.8,
+                filled: this.isBookmarked
+              })
+            }
+            .width(28)
+            .height(DOCK_ROW_HEIGHT)
+            .justifyContent(FlexAlign.Center)
+            .accessibilityText(this.isBookmarked
+              ? $r('app.string.action_bookmark_remove')
+              : $r('app.string.action_bookmark_add'))
+            .onClick(() => this.onBookmark())
+          }
         }
         .width('100%')
         .height('100%')
@@ -216,7 +236,6 @@ export struct BrowserDock {
       )
 
       if (this.desktop) {
-        this.NavButton(IconName.Bookmark, !this.isHome, $r('app.string.action_bookmark_add'), this.onBookmark)
         this.NavButton(IconName.Tabs, true, $r('app.string.recent_tabs'), this.onOpenTabs)
       } else {
         // The count sits inside its own outline instead of on top of the stacked-
