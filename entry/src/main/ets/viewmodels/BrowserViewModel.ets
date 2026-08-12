@@ -40,13 +40,6 @@ import { Logger } from '../utils/Logger';
 
 const TAG: string = 'BrowserViewModel';
 
-interface HostTally {
-  host: string;
-  title: string;
-  url: string;
-  visits: number;
-}
-
 export class BrowserViewModel {
   readonly repository: BrowserRepository = new BrowserRepository();
   readonly adsBlockService: AdsBlockService = new AdsBlockService();
@@ -748,38 +741,28 @@ export class BrowserViewModel {
     this.history = [];
   }
 
-  /**
-   * Start-page tiles: the six most-visited hosts, topped up with the shipped
-   * defaults so a fresh install still has somewhere to go.
-   */
+  /** Start-page tiles: user bookmarks first, then shipped defaults. */
   getQuickSites(): QuickSite[] {
-    const tallies: HostTally[] = [];
-    for (const entry of this.history) {
-      const host: string = rawHost(entry.url);
-      if (host.length === 0) {
+    const hiddenHosts: string[] = this.repository.getHiddenQuickHosts();
+    const visibleSites: QuickSite[] = [];
+    const bookmarks: SavedItem[] = this.savedItems.slice()
+      .sort((left: SavedItem, right: SavedItem): number => right.updatedAt - left.updatedAt);
+    for (const bookmark of bookmarks) {
+      const host: string = rawHost(bookmark.url);
+      if (host.length === 0 || hiddenHosts.includes(host) ||
+        visibleSites.some((site: QuickSite): boolean => rawHost(site.url) === host)) {
         continue;
       }
-      const existing: HostTally | undefined = tallies.find((item: HostTally) => item.host === host);
-      const visits: number = Math.max(1, entry.visitCount);
-      if (existing === undefined) {
-        tallies.push({ host: host, title: entry.title, url: entry.url, visits: visits });
-      } else {
-        existing.visits += visits;
+      visibleSites.push({
+        title: bookmark.title.length > 0 ? bookmark.title : displayHost(bookmark.url),
+        url: bookmark.url,
+        badge: siteBadge(bookmark.title, bookmark.url),
+        colorIndex: BrowserViewModel.colorIndexFor(host)
+      });
+      if (visibleSites.length >= QUICK_SITE_COUNT) {
+        return visibleSites;
       }
     }
-    tallies.sort((left: HostTally, right: HostTally) => right.visits - left.visits);
-
-    const sites: QuickSite[] = tallies
-      .slice(0, QUICK_SITE_COUNT)
-      .map((item: HostTally): QuickSite => ({
-        title: displayHost(item.url),
-        url: `https://${item.host}`,
-        badge: siteBadge(item.title, item.url),
-        colorIndex: BrowserViewModel.colorIndexFor(item.host)
-      }));
-    const hiddenHosts: string[] = this.repository.getHiddenQuickHosts();
-    const visibleSites: QuickSite[] = sites.filter((site: QuickSite): boolean =>
-      !hiddenHosts.includes(rawHost(site.url)));
 
     for (const fallback of DEFAULT_QUICK_SITES) {
       if (visibleSites.length >= QUICK_SITE_COUNT) {

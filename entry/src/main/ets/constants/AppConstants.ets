@@ -27,13 +27,13 @@ export const READER_FONT_MAX: number = 21;
 export const READER_FONT_STEP: number = 2;
 export const READER_LINE_HEIGHTS: number[] = [170, 205, 240];
 
-/** Shown on a fresh install, before history has anything to rank. */
+/** Shipped shortcuts that fill start-page slots after user bookmarks. */
 export const DEFAULT_QUICK_SITES: QuickSite[] = [
   { title: '知乎', url: 'https://www.zhihu.com', badge: '知', colorIndex: 0 },
-  { title: '哔哩哔哩', url: 'https://m.bilibili.com', badge: '哔', colorIndex: 1 },
+  { title: '哔哩哔哩', url: 'https://www.bilibili.com', badge: '哔', colorIndex: 1 },
   { title: '少数派', url: 'https://sspai.com', badge: '派', colorIndex: 2 },
-  { title: '微博', url: 'https://m.weibo.cn', badge: '微', colorIndex: 3 },
-  { title: '豆瓣', url: 'https://m.douban.com', badge: '豆', colorIndex: 4 },
+  { title: '微博', url: 'https://weibo.com', badge: '微', colorIndex: 3 },
+  { title: '豆瓣', url: 'https://www.douban.com', badge: '豆', colorIndex: 4 },
   { title: '36氪', url: 'https://36kr.com', badge: '氪', colorIndex: 5 }
 ];
 

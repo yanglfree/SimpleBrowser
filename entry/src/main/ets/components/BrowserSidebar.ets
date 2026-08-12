@@ -25,6 +25,7 @@ export struct BrowserSidebar {
   @Prop host: string = '';
   @Prop blockStats: BlockStats = { ads: 0, trackers: 0, malicious: 0, popups: 0, cookieBanners: 0 };
   @Prop cumulativeBlocked: number = 0;
+  @Prop topInset: number = 0;
   onPanelChange: (panel: SidebarPanel) => void = (_panel: SidebarPanel): void => {};
   onDismiss: () => void = (): void => {};
   onSelectTab: (id: string) => void = (_id: string): void => {};
@@ -53,6 +54,8 @@ export struct BrowserSidebar {
         Row() {
           AppIcon({ name: IconName.Close, glyphSize: 16, color: $r('app.color.text_secondary') })
         }
+        .id('browser-sidebar-close')
+        .accessibilityText($r('app.string.close'))
         .width(34)
         .height(34)
         .justifyContent(FlexAlign.Center)
@@ -103,6 +106,7 @@ export struct BrowserSidebar {
     }
     .width('100%')
     .height('100%')
+    .padding({ top: Math.max(0, this.topInset) })
     .backgroundColor($r('app.color.page_background'))
     .border({ width: { left: 1 }, color: $r('app.color.border') })
     .shadow({ radius: 14, color: $r('app.color.shadow_soft'), offsetX: -2 })

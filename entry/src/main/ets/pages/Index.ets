@@ -80,6 +80,7 @@ import { TabOverview, TabThumbnail } from '../components/TabOverview';
 import { DesktopTabStrip, DESKTOP_TAB_STRIP_HEIGHT } from '../components/DesktopTabStrip';
 import { UserAgentPolicySheet } from '../components/UserAgentPolicySheet';
 import { BrowserSidebar, SidebarPanel } from '../components/BrowserSidebar';
+import { WideActionMenu } from '../components/WideActionMenu';
 import {
   DOCK_COLLAPSED_HEIGHT,
   DOCK_HEIGHT,
@@ -157,11 +158,26 @@ export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boole
   }
   return sheet !== Overlay.Tabs && sheet !== Overlay.Onboarding &&
     sheet !== Overlay.Permission && sheet !== Overlay.Find &&
-    sheet !== Overlay.Address;
+    sheet !== Overlay.Address && sheet !== Overlay.Actions;
 }
 
 export function shouldMountOverlayLayer(sheet: Overlay): boolean {
   return sheet !== Overlay.None;
+}
+
+export function nextSidebarPanel(
+  current: SidebarPanel,
+  requested: SidebarPanel
+): SidebarPanel {
+  return current === requested ? SidebarPanel.None : requested;
+}
+
+export function shouldUseWideActionMenu(layoutClass: BrowserLayoutClass, sheet: Overlay): boolean {
+  return layoutClass >= BrowserLayoutClass.Medium && sheet === Overlay.Actions;
+}
+
+export function shouldShowBrowserChrome(layoutClass: BrowserLayoutClass, sheet: Overlay): boolean {
+  return sheet === Overlay.None || shouldUseWideActionMenu(layoutClass, sheet);
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -791,7 +807,7 @@ struct Index {
 
   @Builder
   private CapsuleLayer() {
-    if (this.sheet === Overlay.None) {
+    if (shouldShowBrowserChrome(this.windowMetrics.layoutClass, this.sheet)) {
       if (this.usesWideChrome()) {
         Column() {
           this.BrowserDockContent()
@@ -870,7 +886,12 @@ struct Index {
       },
       onOpenMenu: (): void => {
         this.isAddressMenuVisible = false;
-        this.sheet = Overlay.Actions;
+        if (this.sheet === Overlay.Actions) {
+          this.sheet = Overlay.None;
+        } else {
+          this.sidebarPanel = SidebarPanel.None;
+          this.sheet = Overlay.Actions;
+        }
       },
       onOpenBlocking: (): void => {
         this.isAddressMenuVisible = false;
@@ -1090,6 +1111,7 @@ struct Index {
       host: displayHost(this.activeTab()?.url ?? ''),
       blockStats: this.activeTab()?.blocked ?? emptyBlockStats(),
       cumulativeBlocked: this.cumulativeBlocked,
+      topInset: this.topInset,
       onPanelChange: (panel: SidebarPanel): void => { this.sidebarPanel = panel; },
       onDismiss: (): void => { this.sidebarPanel = SidebarPanel.None; },
       onSelectTab: (id: string): void => { void this.selectTab(id); },
@@ -1127,33 +1149,56 @@ struct Index {
   @Builder
   private OverlayLayer() {
     Stack({ alignContent: Alignment.BottomEnd }) {
-      if (this.usesResponsivePanel() && this.canDismissOverlay()) {
+      if (shouldUseWideActionMenu(this.windowMetrics.layoutClass, this.sheet)) {
         Row()
           .width('100%')
           .height('100%')
-          .backgroundColor($r('app.color.scrim'))
-          .opacity(0.42)
           .onClick(() => { this.sheet = Overlay.None; })
-      }
 
-      Row() {
-        Column() {
-          this.OverlayContent()
+        WideActionMenu({
+          blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
+          isHome: this.isActiveHome(),
+          isBookmarked: this.isActiveBookmarked,
+          isReader: this.isActiveReader(),
+          isDesktop: this.activeTab()?.isDesktop === true,
+          onDismiss: (): void => { this.sheet = Overlay.None; },
+          onAction: (key: string): void => {
+            this.sheet = Overlay.None;
+            void this.performAction(key);
+          }
+        })
+          .width(this.wideActionMenuWidth())
+          .position({ x: this.wideActionMenuX(), y: this.wideActionMenuY() })
+          .transition(TransitionEffect.OPACITY.animation({ duration: 160, curve: Curve.EaseOut }))
+      } else {
+        if (this.usesResponsivePanel() && this.canDismissOverlay()) {
+          Row()
+            .width('100%')
+            .height('100%')
+            .backgroundColor($r('app.color.scrim'))
+            .opacity(0.42)
+            .onClick(() => { this.sheet = Overlay.None; })
         }
-        .width(this.overlayWidth())
+
+        Row() {
+          Column() {
+            this.OverlayContent()
+          }
+          .width(this.overlayWidth())
+          .height('100%')
+        }
+        .width('100%')
         .height('100%')
+        .padding({
+          top: this.overlayTopPadding(),
+          left: this.usesResponsivePanel() ? 12 : 0,
+          right: this.usesResponsivePanel() ? 12 : 0,
+          bottom: this.usesResponsivePanel() ? 12 : 0
+        })
+        .justifyContent(this.windowMetrics.layoutClass >= BrowserLayoutClass.Expanded
+          ? FlexAlign.End
+          : FlexAlign.Center)
       }
-      .width('100%')
-      .height('100%')
-      .padding({
-        top: this.overlayTopPadding(),
-        left: this.usesResponsivePanel() ? 12 : 0,
-        right: this.usesResponsivePanel() ? 12 : 0,
-        bottom: this.usesResponsivePanel() ? 12 : 0
-      })
-      .justifyContent(this.windowMetrics.layoutClass >= BrowserLayoutClass.Expanded
-        ? FlexAlign.End
-        : FlexAlign.Center)
     }
     .width('100%')
     .height('100%')
@@ -1408,6 +1453,18 @@ struct Index {
 
   private usesResponsivePanel(): boolean {
     return shouldUseResponsivePanel(this.usesWideChrome(), this.sheet);
+  }
+
+  private wideActionMenuWidth(): number {
+    return Math.min(440, Math.max(320, this.chromeWidth() - 32));
+  }
+
+  private wideActionMenuX(): number {
+    return Math.max(12, this.chromeWidth() - this.wideActionMenuWidth() - 12);
+  }
+
+  private wideActionMenuY(): number {
+    return this.topInset + this.wideChromeHeight() + 8;
   }
 
   private canDismissOverlay(): boolean {
@@ -1665,7 +1722,7 @@ struct Index {
   private openBlockPresentation(): void {
     if (this.usesSidebar()) {
       this.siteStats = this.viewModel.getSiteBlocked(this.activeTab()?.url ?? '');
-      this.sidebarPanel = SidebarPanel.Block;
+      this.sidebarPanel = nextSidebarPanel(this.sidebarPanel, SidebarPanel.Block);
       this.sheet = Overlay.None;
     } else {
       this.openBlockPanel();
@@ -1674,7 +1731,7 @@ struct Index {
 
   private openTabsPresentation(): void {
     if (this.usesSidebar()) {
-      this.sidebarPanel = SidebarPanel.Tabs;
+      this.sidebarPanel = nextSidebarPanel(this.sidebarPanel, SidebarPanel.Tabs);
       this.sheet = Overlay.None;
     } else {
       void this.openTabs();
@@ -1683,7 +1740,7 @@ struct Index {
 
   private openSidebarOrOverlay(panel: SidebarPanel, overlay: Overlay): void {
     if (this.usesSidebar()) {
-      this.sidebarPanel = panel;
+      this.sidebarPanel = nextSidebarPanel(this.sidebarPanel, panel);
       this.sheet = Overlay.None;
     } else {
       this.sheet = overlay;

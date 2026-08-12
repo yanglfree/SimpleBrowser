@@ -1,6 +1,9 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   BrowserTab,
+  HistoryEntry,
+  QuickSite,
+  SavedItem,
   Suggestion,
   SuggestionKind,
   UserAgentPreference
@@ -84,6 +87,39 @@ export default function browserViewModelTest(): void {
       viewModel.settings.searchSuggestionsEnabled = true;
 
       expect(viewModel.getSuggestions('example.com').length).assertEqual(0);
+    });
+  });
+
+  describe('BrowserViewModel start-page shortcuts', (): void => {
+    it('shows user bookmarks before presets and never promotes browsing history', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const now: number = Date.now();
+      const favorite: SavedItem = {
+        id: 'saved-docs',
+        title: 'Dolphin Docs',
+        url: 'https://docs.dolphin.example/guide',
+        createdAt: now,
+        updatedAt: now,
+        isRead: true,
+        tags: []
+      };
+      const frequent: HistoryEntry = {
+        id: 'history-news',
+        title: 'Visited News',
+        url: 'https://visited.example/article',
+        visitedAt: now,
+        visitCount: 200
+      };
+      viewModel.savedItems = [favorite];
+      viewModel.history = [frequent];
+
+      const sites: QuickSite[] = viewModel.getQuickSites();
+
+      expect(sites[0].title).assertEqual('Dolphin Docs');
+      expect(sites[0].url).assertEqual(favorite.url);
+      expect(sites.some((site: QuickSite): boolean => site.url.includes('visited.example'))).assertFalse();
+      expect(sites.some((site: QuickSite): boolean => site.title === '知乎')).assertTrue();
+      expect(sites.some((site: QuickSite): boolean => site.url.includes('m.weibo.cn'))).assertFalse();
     });
   });
 

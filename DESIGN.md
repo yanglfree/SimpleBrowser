@@ -81,6 +81,32 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
 - **Motion**: state changes are immediate; the indicator explains the existing
   swipe gesture and does not add decorative animation.
 
+### Wide browser menu
+
+- **Structure**: a 440vp anchored panel below the right edge of the browser toolbar;
+  page actions and browser destinations use dense two-column rows.
+- **Visibility**: Medium, Expanded, and Desktop layouts use the anchored panel;
+  Compact layouts retain the thumb-reachable bottom action sheet.
+- **Surface**: shared panel, border, subtle-surface, accent, and shadow tokens only.
+  Wide layouts do not dim or visually remove the tab strip and address toolbar.
+- **Dismissal**: explicit close control and outside-tap dismissal; opening the menu
+  closes an existing sidebar so the two right-edge surfaces never compete.
+
+### Browser sidebar
+
+- **Structure**: a persistent right pane for tabs, favorites, history, downloads,
+  and blocking details on Medium and wider layouts.
+- **Safe area**: the pane background may extend under system bars, but its navigation
+  and close controls begin below the measured top inset.
+- **Dismissal**: the close control is always visible, system Back closes the pane,
+  and pressing the active toolbar entry toggles the pane closed.
+
+### Start-page shortcuts
+
+- **Source order**: user-saved bookmarks ordered by most recent update, followed by
+  the shipped preset sites. Browsing history never becomes a start-page shortcut.
+- **Deduplication**: one tile per host; hidden hosts remain excluded.
+
 ## 6. Motion & Interaction
 
 Taps are the primary path for tabs, address entry, and actions. Existing gestures

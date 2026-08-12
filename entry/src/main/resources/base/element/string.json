@@ -118,6 +118,7 @@
     { "name": "image_menu_share", "value": "分享图片" },
 
     { "name": "cancel", "value": "取消" },
+    { "name": "close", "value": "关闭" },
     { "name": "done", "value": "完成" },
 
     { "name": "tabs_count_suffix", "value": "个标签页" },

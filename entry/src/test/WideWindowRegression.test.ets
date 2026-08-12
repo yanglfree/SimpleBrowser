@@ -1,6 +1,14 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { desktopTabWidth } from '../main/ets/components/DesktopTabStrip';
-import { Overlay, shouldMountOverlayLayer, shouldUseResponsivePanel } from '../main/ets/pages/Index';
+import {
+  Overlay,
+  nextSidebarPanel,
+  shouldShowBrowserChrome,
+  shouldMountOverlayLayer,
+  shouldUseResponsivePanel,
+  shouldUseWideActionMenu
+} from '../main/ets/pages/Index';
+import { SidebarPanel } from '../main/ets/components/BrowserSidebar';
 import { BrowserLayoutClass, shouldEnableDockTabSwipe } from '../main/ets/models/WindowMetrics';
 import { shouldLayoutFullScreen } from '../main/ets/services/ThemeService';
 import {
@@ -18,6 +26,26 @@ export default function wideWindowRegressionTest(): void {
 
     it('keeps the address sheet full-screen instead of a right-hand panel on wide layouts', 0, (): void => {
       expect(shouldUseResponsivePanel(true, Overlay.Address)).assertFalse();
+    });
+
+    it('uses an anchored menu instead of the phone modal panel on wide layouts', 0, (): void => {
+      expect(shouldUseResponsivePanel(true, Overlay.Actions)).assertFalse();
+      expect(shouldUseResponsivePanel(false, Overlay.Actions)).assertFalse();
+      expect(shouldUseWideActionMenu(BrowserLayoutClass.Compact, Overlay.Actions)).assertFalse();
+      expect(shouldUseWideActionMenu(BrowserLayoutClass.Medium, Overlay.Actions)).assertTrue();
+      expect(shouldUseWideActionMenu(BrowserLayoutClass.Expanded, Overlay.Actions)).assertTrue();
+      expect(shouldUseWideActionMenu(BrowserLayoutClass.Desktop, Overlay.Actions)).assertTrue();
+      expect(shouldUseWideActionMenu(BrowserLayoutClass.Desktop, Overlay.Settings)).assertFalse();
+      expect(shouldShowBrowserChrome(BrowserLayoutClass.Desktop, Overlay.Actions)).assertTrue();
+      expect(shouldShowBrowserChrome(BrowserLayoutClass.Compact, Overlay.Actions)).assertFalse();
+      expect(shouldShowBrowserChrome(BrowserLayoutClass.Desktop, Overlay.Settings)).assertFalse();
+    });
+
+    it('toggles the active sidebar panel from the same toolbar action', 0, (): void => {
+      expect(nextSidebarPanel(SidebarPanel.None, SidebarPanel.Tabs)).assertEqual(SidebarPanel.Tabs);
+      expect(nextSidebarPanel(SidebarPanel.Tabs, SidebarPanel.Tabs)).assertEqual(SidebarPanel.None);
+      expect(nextSidebarPanel(SidebarPanel.History, SidebarPanel.Tabs)).assertEqual(SidebarPanel.Tabs);
+      expect(nextSidebarPanel(SidebarPanel.Block, SidebarPanel.Block)).assertEqual(SidebarPanel.None);
     });
 
     it('does not mount an overlay layer when no overlay is visible', 0, (): void => {
