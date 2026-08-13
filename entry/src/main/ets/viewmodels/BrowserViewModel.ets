@@ -16,7 +16,6 @@ import {
   HistoryEntry,
   LoadErrorKind,
   SecurityState,
-  SiteZoomRatio,
   SiteUserAgentPreference,
   SiteBlockStats,
   QuickSite,
@@ -252,16 +251,6 @@ export class BrowserViewModel {
     return this.tabs.length >= this.settings.tabSoftLimit;
   }
 
-  siteZoomPercent(url: string): number {
-    if (url.length === 0 || isHomeUrl(url)) {
-      return 100;
-    }
-    const host: string = rawHost(url);
-    const entry: SiteZoomRatio | undefined = this.settings.siteZoomRatios.find(
-      (item: SiteZoomRatio): boolean => item.host === host);
-    return entry === undefined ? 100 : BrowserViewModel.clampZoomPercent(entry.percent);
-  }
-
   userAgentPreferenceForUrl(url: string): UserAgentPreference {
     const host: string = rawHost(url);
     const site: SiteUserAgentPreference | undefined = this.settings.siteUserAgentPreferences.find(
@@ -299,21 +288,6 @@ export class BrowserViewModel {
     next.defaultUserAgentPreference = UserAgentPreference.Default;
     next.siteUserAgentPreferences = [];
     await this.updateSettings(next);
-  }
-
-  async rememberSiteZoom(url: string, scale: number): Promise<void> {
-    if (url.length === 0 || isHomeUrl(url) || Number.isNaN(scale) || scale <= 0) {
-      return;
-    }
-    const host: string = rawHost(url);
-    if (host.length === 0) {
-      return;
-    }
-    const percent: number = BrowserViewModel.clampZoomPercent(Math.round(scale * 100));
-    // Merged inside the repository's save queue so a webview scale event can
-    // never overwrite a newer user settings change with a stale snapshot.
-    await this.repository.rememberSiteZoom(host, percent);
-    this.settings = this.repository.getSettings();
   }
 
   /** Returns the oldest disposable tabs needed to get back below the soft limit. */
@@ -697,10 +671,6 @@ export class BrowserViewModel {
     };
     await this.repository.updateSavedItem(updated);
     this.savedItems = this.repository.getSavedItems();
-  }
-
-  private static clampZoomPercent(percent: number): number {
-    return Math.min(300, Math.max(50, percent));
   }
 
   async updateSettings(settings: BrowserSettings): Promise<void> {

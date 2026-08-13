@@ -13,7 +13,6 @@ export default function browserSettingsTest(): void {
       const settings: BrowserSettings = defaultBrowserSettings();
       settings.blockAds = false;
       settings.blockTrackers = false;
-      settings.siteZoomRatios = [{ host: 'example.com', percent: 125 }];
       settings.webDarkModeExcludedHosts = ['dark.example'];
       settings.sitePermissions = [{
         origin: 'https://camera.example',
@@ -27,8 +26,7 @@ export default function browserSettingsTest(): void {
 
       expect(cloned.blockAds).assertEqual(false);
       expect(cloned.blockTrackers).assertEqual(false);
-      expect(cloned.siteZoomRatios.length).assertEqual(1);
-      expect(cloned.siteZoomRatios[0].host).assertEqual('example.com');
+      expect(cloned.siteZoomRatios.length).assertEqual(0);
       expect(cloned.webDarkModeExcludedHosts.length).assertEqual(1);
       expect(cloned.sitePermissions.length).assertEqual(1);
       expect(cloned.sitePermissions[0].camera).assertEqual(SitePermissionDecision.Allow);
@@ -36,11 +34,9 @@ export default function browserSettingsTest(): void {
       expect(cloned.sitePermissions[0].location).assertEqual(SitePermissionDecision.Prompt);
       expect(cloned.sitePermissions[0].notifications).assertEqual(SitePermissionDecision.Deny);
 
-      settings.siteZoomRatios[0].percent = 90;
       settings.webDarkModeExcludedHosts[0] = 'changed.example';
       settings.sitePermissions[0].camera = SitePermissionDecision.Deny;
 
-      expect(cloned.siteZoomRatios[0].percent).assertEqual(125);
       expect(cloned.webDarkModeExcludedHosts[0]).assertEqual('dark.example');
       expect(cloned.sitePermissions[0].camera).assertEqual(SitePermissionDecision.Allow);
     });
@@ -64,6 +60,13 @@ export default function browserSettingsTest(): void {
         expect(cloned.blockAds).assertEqual(expected[index]);
         expect(cloned.blockTrackers).assertEqual(expected[index]);
       }
+    });
+
+    it('drops legacy site scale factors that included device density', 0, (): void => {
+      const settings: BrowserSettings = defaultBrowserSettings();
+      settings.siteZoomRatios = [{ host: 'developer.huawei.com', percent: 300 }];
+
+      expect(cloneSettings(settings).siteZoomRatios.length).assertEqual(0);
     });
 
     it('forces notification permissions to Deny without changing other decisions', 0, (): void => {

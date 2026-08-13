@@ -412,10 +412,9 @@ export function normalizeBrowserSettings(settings: BrowserSettings): BrowserSett
     wifiOnlyDownloads: settings.wifiOnlyDownloads,
     tabSoftLimit: settings.tabSoftLimit,
     minimumFontSize: settings.minimumFontSize,
-    siteZoomRatios: settings.siteZoomRatios.map((entry: SiteZoomRatio): SiteZoomRatio => ({
-      host: entry.host,
-      percent: entry.percent
-    })),
+    // ArkWeb scale callbacks include the device scale factor, so values saved
+    // by older builds cannot be distinguished from deliberate page zoom.
+    siteZoomRatios: [],
     defaultUserAgentPreference: settings.defaultUserAgentPreference ?? UserAgentPreference.Default,
     siteUserAgentPreferences: (settings.siteUserAgentPreferences ?? [])
       .map((entry: SiteUserAgentPreference): SiteUserAgentPreference => ({

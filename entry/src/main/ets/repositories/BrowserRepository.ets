@@ -252,42 +252,6 @@ export class BrowserRepository {
     await this.save(SETTINGS_KEY, JSON.stringify(this.settings));
   }
 
-  /**
-   * Merges a zoom change into the settings inside the save queue, so the merge
-   * base is always the latest persisted state. A webview scale event racing a
-   * user settings change can therefore never clobber the user's edits.
-   */
-  async rememberSiteZoom(host: string, percent: number): Promise<void> {
-    if (this.store === undefined) {
-      Logger.warn(TAG, `Skip site zoom before initialization`);
-      return;
-    }
-    const store: preferences.Preferences = this.store;
-    const queued: Promise<void> = this.saveQueue.then(async (): Promise<void> => {
-      const next: BrowserSettings = cloneSettings(this.settings);
-      const existing: SiteZoomRatio | undefined = next.siteZoomRatios.find(
-        (item: SiteZoomRatio): boolean => item.host === host);
-      if (existing !== undefined && existing.percent === percent) {
-        return;
-      }
-      if (existing === undefined) {
-        next.siteZoomRatios = next.siteZoomRatios.concat([{ host: host, percent: percent }]);
-      } else {
-        next.siteZoomRatios = next.siteZoomRatios.map((item: SiteZoomRatio): SiteZoomRatio =>
-          item.host === host ? { host: host, percent: percent } : item);
-      }
-      this.settings = next;
-      try {
-        await store.put(SETTINGS_KEY, JSON.stringify(next));
-        await store.flush();
-      } catch (error) {
-        Logger.error(TAG, `Failed to save site zoom: ${String(error)}`);
-      }
-    });
-    this.saveQueue = queued.catch((): void => {});
-    await queued;
-  }
-
   getSiteStats(host: string): BlockStats {
     const entry: SiteBlockStats | undefined =
       this.siteStats.find((item: SiteBlockStats) => item.host === host);

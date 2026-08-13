@@ -83,6 +83,7 @@ const SUPPLEMENT_RAWFILE: string = 'ads/dolphin-supplement.txt';
 const SUPPLEMENT_BEGIN: string = '! >>> dolphin-supplement';
 const SUPPLEMENT_END: string = '! <<< dolphin-supplement';
 const SUPPLEMENT_FILE_NAME: string = 'dolphin-supplement.txt';
+const MAX_AUXILIARY_RULE_TEXT_LENGTH: number = 128 * 1024;
 /**
  * Where the supplement is published, if it is. Point this at the hosted copy to
  * answer "site X still shows ads" by adding a selector and refreshing rather
@@ -90,6 +91,10 @@ const SUPPLEMENT_FILE_NAME: string = 'dolphin-supplement.txt';
  * A fetched copy is kept on disk, so it survives a restart without the network.
  */
 const SUPPLEMENT_URL: string = '';
+
+export function validatedAuxiliaryRuleText(supplement: string): string {
+  return supplement.length <= MAX_AUXILIARY_RULE_TEXT_LENGTH ? supplement : '';
+}
 
 export class AdsBlockService {
   private static compiledEngine: RuleEngine | undefined;
@@ -105,11 +110,9 @@ export class AdsBlockService {
   private updatedAt: number = 0;
 
   /**
-   * Arms ArkWeb's native blocker and returns. Parsing the subscription into our
-   * own engine costs a few hundred milliseconds on a full EasyList and only
-   * feeds request interception and element hiding — neither of which can be
-   * needed before the first page loads — so it happens after this resolves
-   * rather than in front of the first frame.
+   * ArkWeb owns the full subscription. The JS request and cosmetic engines only
+   * compile Dolphin's small supplement because compiling the 150k-rule list on
+   * the ArkTS thread can block page loading long enough to trigger AppFreeze.
    */
   async initialize(context: common.UIAbilityContext): Promise<boolean> {
     if (this.isInitialized) {
@@ -128,7 +131,7 @@ export class AdsBlockService {
       webview.AdsBlockManager.setAdsBlockRules(this.rulesPath, true);
       this.isInitialized = true;
       Logger.info(TAG, 'Ads block rules loaded');
-      this.compileWhenIdle(rulesText);
+      this.compileAuxiliaryRules();
       void this.updateRulesIfNeeded();
       return true;
     } catch (error) {
@@ -137,15 +140,14 @@ export class AdsBlockService {
     }
   }
 
-  private compileWhenIdle(rulesText: string): void {
-    setTimeout((): void => {
-      try {
-        AdsBlockService.adopt(RuleEngine.compile(rulesText), rulesText);
-        Logger.info(TAG, `Compiled ${AdsBlockService.compiledEngine?.ruleCount ?? 0} ad rules`);
-      } catch (error) {
-        Logger.error(TAG, `Failed to compile ad rules: ${String(error)}`);
-      }
-    }, 0);
+  private compileAuxiliaryRules(): void {
+    try {
+      const rulesText: string = validatedAuxiliaryRuleText(AdsBlockService.supplement);
+      AdsBlockService.adopt(RuleEngine.compile(rulesText), rulesText);
+      Logger.info(TAG, `Compiled ${AdsBlockService.compiledEngine?.ruleCount ?? 0} auxiliary ad rules`);
+    } catch (error) {
+      Logger.error(TAG, `Failed to compile auxiliary ad rules: ${String(error)}`);
+    }
   }
 
   /**
@@ -303,16 +305,16 @@ export class AdsBlockService {
       const rulesText: string = AdsBlockService.withSupplement(
         AdsBlockService.dedupe(await AdsBlockService.fetchRemoteRules())
       );
-      const engine: RuleEngine = RuleEngine.compile(rulesText);
-      if (rulesText.trim().length === 0 || engine.ruleCount === 0) {
+      if (rulesText.trim().length === 0) {
         throw new Error('Remote rules are empty');
       }
       await this.writeRulesAtomically(rulesText);
-      AdsBlockService.adopt(engine, rulesText);
+      const auxiliaryRules: string = validatedAuxiliaryRuleText(AdsBlockService.supplement);
+      AdsBlockService.adopt(RuleEngine.compile(auxiliaryRules), auxiliaryRules);
       webview.AdsBlockManager.setAdsBlockRules(this.rulesPath, true);
       this.updatedAt = Date.now();
       await this.saveUpdatedAt(this.updatedAt);
-      Logger.info(TAG, `Updated ${engine.ruleCount} ad rules`);
+      Logger.info(TAG, 'Updated native ad rules');
       return true;
     } catch (error) {
       Logger.warn(TAG, `Failed to update ad rules; keeping the current list: ${String(error)}`);

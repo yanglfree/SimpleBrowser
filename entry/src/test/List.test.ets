@@ -1,3 +1,4 @@
+import adsBlockServiceTest from './AdsBlockService.test';
 import browserKernelServiceTest from './BrowserKernelService.test';
 import browserInteractionTest from './BrowserInteraction.test';
 import browserSettingsTest from './BrowserSettings.test';
@@ -11,6 +12,7 @@ import tabOverviewLayoutTest from './TabOverviewLayout.test';
 import wideWindowRegressionTest from './WideWindowRegression.test';
 
 export default function testsuite(): void {
+  adsBlockServiceTest();
   browserKernelServiceTest();
   browserInteractionTest();
   browserSettingsTest();

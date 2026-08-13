@@ -556,7 +556,6 @@ struct Index {
               tab: tab,
               blockAds: this.settings.blockAds && !this.viewModel.isHostAllowed(tab.url),
               minimumFontSize: this.settings.minimumFontSize,
-              initialZoomPercent: this.viewModel.siteZoomPercent(tab.url),
               webDarkMode: this.settings.webDarkMode,
               darkModeExcluded: this.isDarkModeExcluded(tab.url),
               controller: this.controllerFor(tab.id),
@@ -583,7 +582,6 @@ struct Index {
               onEdgeBack: (): void => { this.edgeNavigate(tab.id, true); },
               onEdgeForward: (): void => { this.edgeNavigate(tab.id, false); },
               onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); },
-              onScaleChange: (scale: number): void => { void this.handleScaleChange(tab.id, scale); },
               onLongPress: (): void => { void this.openLongPressActions(tab.id); },
               onPermissionRequest: (event: OnPermissionRequestEvent): void =>
                 this.handlePermissionRequest(event),
@@ -3124,16 +3122,6 @@ struct Index {
       });
     } catch (error) {
       Logger.warn(TAG, `Password warning toast unavailable: ${String(error)}`);
-    }
-  }
-
-  private async handleScaleChange(id: string, scale: number): Promise<void> {
-    if (id !== this.activeTabId) {
-      return;
-    }
-    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
-    if (tab !== undefined && !tab.isPrivate) {
-      await this.viewModel.rememberSiteZoom(tab.url, scale);
     }
   }
 

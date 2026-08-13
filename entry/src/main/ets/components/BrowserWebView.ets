@@ -26,7 +26,6 @@ export struct BrowserWebView {
   @Prop isAtTop: boolean = false;
   @Prop gesturesEnabled: boolean = true;
   @Prop minimumFontSize: number = 14;
-  @Prop initialZoomPercent: number = 100;
   @Prop webDarkMode: WebDarkModePreference = WebDarkModePreference.System;
   @Prop darkModeExcluded: boolean = false;
   controller: webview.WebviewController = new webview.WebviewController();
@@ -43,7 +42,6 @@ export struct BrowserWebView {
   onEdgeBack: () => void = (): void => {};
   onEdgeForward: () => void = (): void => {};
   onAdsBlocked: (urls: string[]) => void = (_urls: string[]): void => {};
-  onScaleChange: (scale: number) => void = (_scale: number): void => {};
   onLongPress: () => void = (): void => {};
   onPermissionRequest: (event: OnPermissionRequestEvent) => void =
     (_event: OnPermissionRequestEvent): void => {};
@@ -62,7 +60,7 @@ export struct BrowserWebView {
       .zoomAccess(true)
       .metaViewport(true)
       .minFontSize(this.minimumFontSize)
-      .initialScale(this.initialZoomPercent)
+      .initialScale(100)
       .darkMode(this.webDarkModeValue())
       .forceDarkAccess(this.shouldForceDark())
       .backgroundColor($r('app.color.content_background'))
@@ -90,7 +88,6 @@ export struct BrowserWebView {
         return { useSystemKeyboard: true };
       })
       .onTitleReceive((event: OnTitleReceiveEvent) => this.onTitleReceive(event.title))
-      .onScaleChange((event: OnScaleChangeEvent) => this.onScaleChange(event.newScale))
       .onAdsBlocked((details: AdsBlockedDetails) => this.onAdsBlocked(details.adsBlocked))
       .onPermissionRequest((event: OnPermissionRequestEvent) => this.onPermissionRequest(event))
       .onGeolocationShow((event: OnGeolocationShowEvent) => this.onGeolocationShow(event))
