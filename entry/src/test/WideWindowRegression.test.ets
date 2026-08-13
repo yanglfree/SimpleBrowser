@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { desktopTabWidth } from '../main/ets/components/DesktopTabStrip';
+import { canUseDesktopPageActions } from '../main/ets/components/BrowserDock';
 import {
   Overlay,
   nextSidebarPanel,
@@ -60,6 +61,11 @@ export default function wideWindowRegressionTest(): void {
       expect(shouldEnableDockTabSwipe(BrowserLayoutClass.Desktop, true)).assertFalse();
       expect(shouldEnableDockTabSwipe(BrowserLayoutClass.Compact, false)).assertFalse();
       expect(shouldEnableDockTabSwipe(BrowserLayoutClass.Desktop, false)).assertFalse();
+    });
+
+    it('keeps desktop page actions enabled when the visible host is a web page', 0, (): void => {
+      expect(canUseDesktopPageActions('juejin.cn', true)).assertTrue();
+      expect(canUseDesktopPageActions('', true)).assertFalse();
     });
 
     it('continuously fits desktop tab widths to the available chrome', 0, (): void => {

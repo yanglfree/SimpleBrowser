@@ -3082,6 +3082,7 @@ struct Index {
       lastVisitedAt: Date.now()
     });
     this.refreshNavigationState(id);
+    this.syncTab(id);
     // The login flow often finishes here; persist cookies now rather than wait
     // for ArkWeb's 30s disk flush so a quick tab close keeps the session.
     PrivacyService.flushCookies();

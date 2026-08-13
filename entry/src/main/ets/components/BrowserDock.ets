@@ -21,6 +21,10 @@ const ADDRESS_MENU_GAP: number = 8;
 const ADDRESS_MENU_HEIGHT: number = ADDRESS_MENU_ROW_HEIGHT * 2 + 1;
 const WIDE_DOCK_MAX_WIDTH: number = 1080;
 
+export function canUseDesktopPageActions(host: string, isHome: boolean): boolean {
+  return host.length > 0 || !isHome;
+}
+
 /**
  * One bar, one row. Compact layouts keep the phone controls around an address pill;
  * desktop layouts expand the same interaction model into a full-width toolbar.
@@ -109,11 +113,16 @@ export struct BrowserDock {
       if (this.desktop) {
         this.NavButton(
           this.isLoading ? IconName.Stop : IconName.Refresh,
-          !this.isHome,
+          canUseDesktopPageActions(this.host, this.isHome),
           this.isLoading ? $r('app.string.action_stop') : $r('app.string.action_reload'),
           this.onReload
         )
-        this.NavButton(IconName.Home, !this.isHome, $r('app.string.home'), this.onHome)
+        this.NavButton(
+          IconName.Home,
+          canUseDesktopPageActions(this.host, this.isHome),
+          $r('app.string.home'),
+          this.onHome
+        )
       }
 
       // Shield, address, reload — the three things a page-level bar owes the
