@@ -1,8 +1,8 @@
 {
   "string": [
-    { "name": "app_name", "value": "极简浏览器" },
+    { "name": "app_name", "value": "卓阅浏览器" },
     { "name": "module_desc", "value": "一款做减法的 HarmonyOS 浏览器" },
-    { "name": "entry_ability_desc", "value": "极简浏览器主界面" },
+    { "name": "entry_ability_desc", "value": "卓阅浏览器主界面" },
     { "name": "download_permission_reason", "value": "将下载内容保存到系统下载目录" },
     { "name": "site_camera_permission_reason", "value": "允许网页在你确认后使用摄像头" },
     { "name": "site_microphone_permission_reason", "value": "允许网页在你确认后使用麦克风" },
