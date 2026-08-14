@@ -4,6 +4,7 @@ import {
   MAX_BOOKMARK_COUNT,
   MAX_HISTORY_COUNT,
   MAX_TAB_COUNT,
+  QUICK_SITE_COUNT,
   STORE_NAME,
   TAB_ARCHIVE_KEY,
   WEEKLY_WINDOW_DAYS
@@ -16,6 +17,7 @@ import {
   BrowserSettings,
   DailyBlockCount,
   HistoryEntry,
+  QuickSite,
   LoadErrorKind,
   SecurityState,
   SitePermission,
@@ -28,6 +30,7 @@ import {
   cloneSavedItem,
   cloneDailyCount,
   cloneHistoryEntry,
+  cloneQuickSite,
   cloneSettings,
   cloneSiteStats,
   cloneTab,
@@ -39,6 +42,7 @@ import {
 import { SESSION_KEY } from '../constants/AppConstants';
 import { recentDayKeys, todayKey } from '../utils/Formatting';
 import { Logger } from '../utils/Logger';
+import { rawHost } from '../utils/UrlUtils';
 
 const TAG: string = 'BrowserRepository';
 const SAVED_ITEMS_KEY: string = 'saved_items';
@@ -49,6 +53,8 @@ const SITE_STATS_KEY: string = 'site_stats';
 const DAILY_STATS_KEY: string = 'daily_stats';
 const ALLOWED_HOSTS_KEY: string = 'allowed_hosts';
 const HIDDEN_QUICK_HOSTS_KEY: string = 'hidden_quick_hosts';
+const CUSTOM_QUICK_SITES_KEY: string = 'custom_quick_sites';
+const QUICK_SITE_ORDER_KEY: string = 'quick_site_order';
 const ACTION_USAGE_KEY: string = 'action_usage';
 
 interface LegacyBookmark {
@@ -69,6 +75,8 @@ export class BrowserRepository {
   private dailyStats: DailyBlockCount[] = [];
   private allowedHosts: string[] = [];
   private hiddenQuickHosts: string[] = [];
+  private customQuickSites: QuickSite[] = [];
+  private quickSiteOrder: string[] = [];
   private actionUsage: Record<string, number> = {};
   private session: BrowserSession | undefined;
   private archivedTabs: BrowserTab[] = [];
@@ -96,6 +104,10 @@ export class BrowserRepository {
       this.dailyStats = this.decode<DailyBlockCount>(await store.get(DAILY_STATS_KEY, '[]'), DAILY_STATS_KEY);
       this.allowedHosts = this.decode<string>(await store.get(ALLOWED_HOSTS_KEY, '[]'), ALLOWED_HOSTS_KEY);
       this.hiddenQuickHosts = this.decode<string>(await store.get(HIDDEN_QUICK_HOSTS_KEY, '[]'), HIDDEN_QUICK_HOSTS_KEY);
+      this.customQuickSites = this.decode<QuickSite>(
+        await store.get(CUSTOM_QUICK_SITES_KEY, '[]'), CUSTOM_QUICK_SITES_KEY);
+      this.quickSiteOrder = this.decode<string>(
+        await store.get(QUICK_SITE_ORDER_KEY, '[]'), QUICK_SITE_ORDER_KEY);
       this.actionUsage = this.decodeActionUsage(await store.get(ACTION_USAGE_KEY, '{}'));
       this.session = this.decodeSession(await store.get(this.sessionKey, ''));
       this.archivedTabs = this.decode<BrowserTab>(await store.get(TAB_ARCHIVE_KEY, '[]'), TAB_ARCHIVE_KEY)
@@ -169,10 +181,38 @@ export class BrowserRepository {
     return this.hiddenQuickHosts.slice(0);
   }
 
+  getCustomQuickSites(): QuickSite[] {
+    return this.customQuickSites.map((site: QuickSite): QuickSite => cloneQuickSite(site));
+  }
+
+  getQuickSiteOrder(): string[] {
+    return this.quickSiteOrder.slice(0);
+  }
+
   async setQuickHostHidden(host: string, hidden: boolean): Promise<void> {
     const without: string[] = this.hiddenQuickHosts.filter((item: string) => item !== host);
     this.hiddenQuickHosts = hidden ? without.concat([host]) : without;
     await this.save(HIDDEN_QUICK_HOSTS_KEY, JSON.stringify(this.hiddenQuickHosts));
+  }
+
+  async upsertCustomQuickSite(site: QuickSite): Promise<void> {
+    const host: string = rawHost(site.url);
+    this.customQuickSites = [cloneQuickSite(site)].concat(
+      this.customQuickSites.filter((item: QuickSite): boolean =>
+        rawHost(item.url) !== host)).slice(0, QUICK_SITE_COUNT);
+    await this.save(CUSTOM_QUICK_SITES_KEY, JSON.stringify(this.customQuickSites));
+  }
+
+  async removeCustomQuickSite(url: string): Promise<void> {
+    const host: string = rawHost(url);
+    this.customQuickSites = this.customQuickSites.filter((item: QuickSite): boolean =>
+      rawHost(item.url) !== host);
+    await this.save(CUSTOM_QUICK_SITES_KEY, JSON.stringify(this.customQuickSites));
+  }
+
+  async saveQuickSiteOrder(hosts: string[]): Promise<void> {
+    this.quickSiteOrder = hosts.slice(0);
+    await this.save(QUICK_SITE_ORDER_KEY, JSON.stringify(this.quickSiteOrder));
   }
 
   async addSavedItem(item: SavedItem): Promise<void> {

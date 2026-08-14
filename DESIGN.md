@@ -103,9 +103,16 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
 
 ### Start-page shortcuts
 
-- **Source order**: user-saved bookmarks ordered by most recent update, followed by
-  the shipped preset sites. Browsing history never becomes a start-page shortcut.
+- **Source order**: explicitly added shortcuts first, then user-saved bookmarks,
+  followed by shipped preset sites. Browsing history is never promoted automatically;
+  it only becomes a shortcut when the user selects it in the add dialog.
 - **Deduplication**: one tile per host; hidden hosts remain excluded.
+- **Editing**: long-press enters a desktop-style edit state with close controls,
+  restrained wiggle feedback, and drag sorting. Removal hides the shortcut without
+  deleting the underlying bookmark or history entry.
+- **Wide layout**: tile glyphs are 30% larger while the compact Phone size remains
+  unchanged. The add action opens a constrained dialog on wide windows and a bottom
+  sheet on compact windows, with custom, bookmark, and history sources.
 
 ## 6. Motion & Interaction
 

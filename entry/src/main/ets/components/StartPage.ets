@@ -1,28 +1,6 @@
 import { QuickSite, StartPageBackgroundSource } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
-
-const TILE_BACKGROUNDS: Resource[] = [
-  $r('app.color.site_tile_bg_1'),
-  $r('app.color.site_tile_bg_2'),
-  $r('app.color.site_tile_bg_3'),
-  $r('app.color.site_tile_bg_4'),
-  $r('app.color.site_tile_bg_5'),
-  $r('app.color.site_tile_bg_6')
-];
-
-const TILE_FOREGROUNDS: Resource[] = [
-  $r('app.color.site_tile_fg_1'),
-  $r('app.color.site_tile_fg_2'),
-  $r('app.color.site_tile_fg_3'),
-  $r('app.color.site_tile_fg_4'),
-  $r('app.color.site_tile_fg_5'),
-  $r('app.color.site_tile_fg_6')
-];
-
-function tileColor(palette: Resource[], index: number): Resource {
-  const safe: number = index >= 0 && index < palette.length ? index : 0;
-  return palette[safe];
-}
+import { QuickSiteGrid } from './QuickSiteGrid';
 
 @Component
 export struct StartPage {
@@ -34,9 +12,11 @@ export struct StartPage {
   @Prop customBackgroundUri: string = '';
   /** Wide chrome already puts a menu at the top-right; the home gear would overlap it. */
   @Prop hidePageSettings: boolean = false;
-  onOpenAddress: () => void = (): void => {};
+  @Prop isWide: boolean = false;
+  onAddSite: () => void = (): void => {};
   onOpenSite: (url: string) => void = (_url: string): void => {};
   onRemoveSite: (url: string) => void = (_url: string): void => {};
+  onMoveSite: (from: number, to: number) => void = (_from: number, _to: number): void => {};
   onOpenPageSettings: () => void = (): void => {};
   onOpenBackgroundPicker: () => void = (): void => {};
 
@@ -56,7 +36,16 @@ export struct StartPage {
 
       Column() {
         if (this.quickSitesEnabled) {
-          this.SiteGrid()
+          QuickSiteGrid({
+            quickSites: this.quickSites,
+            quickSiteLimit: this.quickSiteLimit,
+            backgroundEnabled: this.backgroundEnabled,
+            isWide: this.isWide,
+            onAddSite: this.onAddSite,
+            onOpenSite: this.onOpenSite,
+            onRemoveSite: this.onRemoveSite,
+            onMoveSite: this.onMoveSite
+          })
         }
       }
       .width('100%')
@@ -94,65 +83,6 @@ export struct StartPage {
       LongPressGesture({ repeat: false, duration: 500 })
         .onAction(() => this.onOpenBackgroundPicker())
     )
-  }
-
-  @Builder
-  private SiteGrid() {
-    Flex({ wrap: FlexWrap.Wrap }) {
-      ForEach(this.quickSites.slice(0, this.quickSiteLimit), (site: QuickSite) => {
-        Column({ space: 8 }) {
-          Text(site.badge)
-            .width(58)
-            .height(58)
-            .borderRadius(17)
-            .backgroundColor(tileColor(TILE_BACKGROUNDS, site.colorIndex))
-            .fontColor(tileColor(TILE_FOREGROUNDS, site.colorIndex))
-            .fontSize(22)
-            .fontWeight(FontWeight.Bold)
-            .textAlign(TextAlign.Center)
-
-          Text(site.title)
-            .width('100%')
-            .fontSize(12.5)
-            .fontColor(this.primaryColor())
-            .textAlign(TextAlign.Center)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .width('25%')
-        .margin({ bottom: 22 })
-        .onClick(() => this.onOpenSite(site.url))
-        .gesture(
-          LongPressGesture({ repeat: false, duration: 450 })
-            .onAction(() => this.onRemoveSite(site.url))
-        )
-      }, (site: QuickSite) => site.url)
-
-      Column({ space: 8 }) {
-        Column() {
-          AppIcon({ name: IconName.Plus, glyphSize: 36, color: this.primaryColor(), strokeWidth: 1.8 })
-        }
-        .width(58)
-        .height(58)
-        .justifyContent(FlexAlign.Center)
-        .borderRadius(17)
-        .backgroundColor(this.backgroundEnabled
-          ? $r('app.color.home_tile_background')
-          : $r('app.color.surface_subtle'))
-
-        Text($r('app.string.add_shortcut'))
-          .width('100%')
-          .fontSize(12.5)
-          .fontColor(this.primaryColor())
-          .textAlign(TextAlign.Center)
-      }
-      .width('25%')
-      .margin({ bottom: 22 })
-      .onClick(() => this.onOpenAddress())
-    }
-    .width('100%')
-    .constraintSize({ maxWidth: 430 })
-    .padding({ left: 20, right: 20 })
   }
 
   private imageSource(): ResourceStr {

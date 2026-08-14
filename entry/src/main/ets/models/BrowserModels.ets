@@ -460,3 +460,20 @@ export function cloneQuickSite(site: QuickSite): QuickSite {
     colorIndex: site.colorIndex
   };
 }
+
+export function moveQuickSite(sites: QuickSite[], from: number, to: number): QuickSite[] {
+  if (from < 0 || to < 0 || from >= sites.length || to >= sites.length || from === to) {
+    return sites.map((site: QuickSite): QuickSite => cloneQuickSite(site));
+  }
+  const reordered: QuickSite[] = sites.map((site: QuickSite): QuickSite => cloneQuickSite(site));
+  const moved: QuickSite[] = reordered.splice(from, 1);
+  reordered.splice(to, 0, moved[0]);
+  return reordered;
+}
+
+export function quickSiteDropTarget(count: number, insertIndex: number): number {
+  if (count <= 0 || insertIndex < 0 || insertIndex > count) {
+    return -1;
+  }
+  return Math.min(insertIndex, count - 1);
+}

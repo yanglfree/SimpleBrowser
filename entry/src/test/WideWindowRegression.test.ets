@@ -40,6 +40,8 @@ export default function wideWindowRegressionTest(): void {
       expect(shouldShowBrowserChrome(BrowserLayoutClass.Desktop, Overlay.Actions)).assertTrue();
       expect(shouldShowBrowserChrome(BrowserLayoutClass.Compact, Overlay.Actions)).assertFalse();
       expect(shouldShowBrowserChrome(BrowserLayoutClass.Desktop, Overlay.Settings)).assertFalse();
+      expect(shouldShowBrowserChrome(BrowserLayoutClass.Desktop, Overlay.QuickSiteEditor)).assertTrue();
+      expect(shouldShowBrowserChrome(BrowserLayoutClass.Compact, Overlay.QuickSiteEditor)).assertFalse();
     });
 
     it('toggles the active sidebar panel from the same toolbar action', 0, (): void => {

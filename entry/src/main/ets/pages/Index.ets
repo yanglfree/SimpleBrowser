@@ -52,6 +52,7 @@ import {
   defaultBrowserSettings,
   emptyBlockStats,
   normalizeBrowserSettings,
+  moveQuickSite,
   totalBlocked
 } from '../models/BrowserModels';
 import { ActionSheet } from '../components/ActionSheet';
@@ -75,6 +76,7 @@ import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/
 import { SecurityPanel } from '../components/SecurityPanel';
 import { SharePanel } from '../components/SharePanel';
 import { SavedItemEditSheet } from '../components/SavedItemEditSheet';
+import { QuickSiteEditor } from '../components/QuickSiteEditor';
 import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
 import { DesktopTabStrip, DESKTOP_TAB_STRIP_HEIGHT } from '../components/DesktopTabStrip';
@@ -149,7 +151,8 @@ export enum Overlay {
   RecentTabs = 17,
   EditSavedItem = 18,
   HomeBackground = 19,
-  UserAgent = 20
+  UserAgent = 20,
+  QuickSiteEditor = 21
 }
 
 export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boolean {
@@ -177,7 +180,8 @@ export function shouldUseWideActionMenu(layoutClass: BrowserLayoutClass, sheet: 
 }
 
 export function shouldShowBrowserChrome(layoutClass: BrowserLayoutClass, sheet: Overlay): boolean {
-  return sheet === Overlay.None || shouldUseWideActionMenu(layoutClass, sheet);
+  return sheet === Overlay.None || shouldUseWideActionMenu(layoutClass, sheet) ||
+    (layoutClass >= BrowserLayoutClass.Medium && sheet === Overlay.QuickSiteEditor);
 }
 
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
@@ -545,9 +549,11 @@ struct Index {
               backgroundSource: this.settings.startPageBackgroundSource,
               customBackgroundUri: this.settings.customStartPageBackgroundUri,
               hidePageSettings: this.usesWideChrome(),
-              onOpenAddress: (): void => this.openAddress(),
+              isWide: this.usesWideChrome(),
+              onAddSite: (): void => { this.sheet = Overlay.QuickSiteEditor; },
               onOpenSite: (url: string): void => this.navigateTo(url),
               onRemoveSite: (url: string): void => { void this.removeQuickSite(url); },
+              onMoveSite: (from: number, to: number): void => { void this.moveQuickSite(from, to); },
               onOpenPageSettings: (): void => { this.sheet = Overlay.PageSettings; },
               onOpenBackgroundPicker: (): void => { this.sheet = Overlay.HomeBackground; }
             })
@@ -1194,9 +1200,11 @@ struct Index {
           right: this.usesResponsivePanel() ? 12 : 0,
           bottom: this.usesResponsivePanel() ? 12 : 0
         })
-        .justifyContent(this.windowMetrics.layoutClass >= BrowserLayoutClass.Expanded
-          ? FlexAlign.End
-          : FlexAlign.Center)
+        .justifyContent(this.sheet === Overlay.QuickSiteEditor
+          ? FlexAlign.Center
+          : this.windowMetrics.layoutClass >= BrowserLayoutClass.Expanded
+            ? FlexAlign.End
+            : FlexAlign.Center)
       }
     }
     .width('100%')
@@ -1268,6 +1276,15 @@ struct Index {
         onDismiss: (): void => { this.sheet = Overlay.None; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 180 }))
+    } else if (this.sheet === Overlay.QuickSiteEditor) {
+      QuickSiteEditor({
+        savedItems: this.savedItems,
+        history: this.history,
+        isWide: this.usesWideChrome(),
+        onSave: (title: string, url: string): void => { void this.addQuickSite(title, url); },
+        onDismiss: (): void => { this.sheet = Overlay.None; }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 180, curve: Curve.EaseOut }))
     } else if (this.sheet === Overlay.Address) {
       AddressSheet({
         suggestions: this.suggestions,
@@ -1480,6 +1497,9 @@ struct Index {
     }
     if (this.sheet === Overlay.Address) {
       return 720;
+    }
+    if (this.sheet === Overlay.QuickSiteEditor) {
+      return 520;
     }
     return 560;
   }
@@ -2872,7 +2892,22 @@ struct Index {
   }
 
   private async removeQuickSite(url: string): Promise<void> {
-    await this.viewModel.setQuickSiteHidden(url, true);
+    await this.viewModel.removeQuickSite(url);
+    this.syncState();
+  }
+
+  private async moveQuickSite(from: number, to: number): Promise<void> {
+    const visible: QuickSite[] = this.quickSites.slice(0, this.settings.quickSiteLimit);
+    const reordered: QuickSite[] = moveQuickSite(visible, from, to);
+    await this.viewModel.saveQuickSiteOrder(reordered);
+    this.syncState();
+  }
+
+  private async addQuickSite(title: string, url: string): Promise<void> {
+    if (!await this.viewModel.addQuickSite(title, url)) {
+      return;
+    }
+    this.sheet = Overlay.None;
     this.syncState();
   }
 

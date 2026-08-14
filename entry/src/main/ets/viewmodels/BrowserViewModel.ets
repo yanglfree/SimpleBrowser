@@ -25,6 +25,7 @@ import {
   UserAgentPreference,
   addBlockStats,
   cloneBlockStats,
+  cloneQuickSite,
   cloneSettings,
   cloneTab,
   defaultBrowserSettings,
@@ -547,6 +548,36 @@ export class BrowserViewModel {
     await this.repository.setQuickHostHidden(rawHost(url), hidden);
   }
 
+  async addQuickSite(title: string, url: string): Promise<boolean> {
+    const input: string = url.trim();
+    const normalizedUrl: string = input.includes('://')
+      ? input
+      : looksLikeUrl(input) ? `https://${input}` : '';
+    const host: string = rawHost(normalizedUrl);
+    if (host.length === 0) {
+      return false;
+    }
+    const resolvedTitle: string = title.trim().length > 0 ? title.trim() : displayHost(normalizedUrl);
+    await this.repository.upsertCustomQuickSite({
+      title: resolvedTitle,
+      url: normalizedUrl,
+      badge: siteBadge(resolvedTitle, normalizedUrl),
+      colorIndex: BrowserViewModel.colorIndexFor(host)
+    });
+    await this.repository.setQuickHostHidden(host, false);
+    return true;
+  }
+
+  async removeQuickSite(url: string): Promise<void> {
+    await this.repository.removeCustomQuickSite(url);
+    await this.repository.setQuickHostHidden(rawHost(url), true);
+  }
+
+  async saveQuickSiteOrder(sites: QuickSite[]): Promise<void> {
+    await this.repository.saveQuickSiteOrder(
+      sites.map((site: QuickSite): string => rawHost(site.url)));
+  }
+
   async setHostAllowed(url: string, allowed: boolean): Promise<void> {
     await this.repository.setHostAllowed(rawHost(url), allowed);
     this.adsBlockService.applyAllowedHosts(this.repository.getAllowedHosts());
@@ -715,9 +746,19 @@ export class BrowserViewModel {
   getQuickSites(): QuickSite[] {
     const hiddenHosts: string[] = this.repository.getHiddenQuickHosts();
     const visibleSites: QuickSite[] = [];
+    for (const custom of this.repository.getCustomQuickSites()) {
+      const host: string = rawHost(custom.url);
+      if (host.length > 0 && !hiddenHosts.includes(host) &&
+        !visibleSites.some((site: QuickSite): boolean => rawHost(site.url) === host)) {
+        visibleSites.push(cloneQuickSite(custom));
+      }
+    }
     const bookmarks: SavedItem[] = this.savedItems.slice()
       .sort((left: SavedItem, right: SavedItem): number => right.updatedAt - left.updatedAt);
     for (const bookmark of bookmarks) {
+      if (visibleSites.length >= QUICK_SITE_COUNT) {
+        break;
+      }
       const host: string = rawHost(bookmark.url);
       if (host.length === 0 || hiddenHosts.includes(host) ||
         visibleSites.some((site: QuickSite): boolean => rawHost(site.url) === host)) {
@@ -729,9 +770,6 @@ export class BrowserViewModel {
         badge: siteBadge(bookmark.title, bookmark.url),
         colorIndex: BrowserViewModel.colorIndexFor(host)
       });
-      if (visibleSites.length >= QUICK_SITE_COUNT) {
-        return visibleSites;
-      }
     }
 
     for (const fallback of DEFAULT_QUICK_SITES) {
@@ -743,7 +781,21 @@ export class BrowserViewModel {
         visibleSites.push(fallback);
       }
     }
-    return visibleSites;
+    const order: string[] = this.repository.getQuickSiteOrder();
+    return visibleSites.sort((left: QuickSite, right: QuickSite): number => {
+      const leftIndex: number = order.indexOf(rawHost(left.url));
+      const rightIndex: number = order.indexOf(rawHost(right.url));
+      if (leftIndex < 0 && rightIndex < 0) {
+        return 0;
+      }
+      if (leftIndex < 0) {
+        return 1;
+      }
+      if (rightIndex < 0) {
+        return -1;
+      }
+      return leftIndex - rightIndex;
+    });
   }
 
   /**

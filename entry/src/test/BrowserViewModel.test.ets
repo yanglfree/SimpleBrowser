@@ -2,6 +2,8 @@ import { describe, expect, it } from '@ohos/hypium';
 import {
   BrowserTab,
   HistoryEntry,
+  moveQuickSite,
+  quickSiteDropTarget,
   QuickSite,
   SavedItem,
   Suggestion,
@@ -120,6 +122,36 @@ export default function browserViewModelTest(): void {
       expect(sites.some((site: QuickSite): boolean => site.url.includes('visited.example'))).assertFalse();
       expect(sites.some((site: QuickSite): boolean => site.title === '知乎')).assertTrue();
       expect(sites.some((site: QuickSite): boolean => site.url.includes('m.weibo.cn'))).assertFalse();
+    });
+
+    it('moves shortcuts without changing their contents', 0, (): void => {
+      const sites: QuickSite[] = [
+        { title: 'One', url: 'https://one.example', badge: 'O', colorIndex: 0 },
+        { title: 'Two', url: 'https://two.example', badge: 'T', colorIndex: 1 },
+        { title: 'Three', url: 'https://three.example', badge: 'T', colorIndex: 2 }
+      ];
+
+      const moved: QuickSite[] = moveQuickSite(sites, 0, 2);
+
+      expect(moved[0].title).assertEqual('Two');
+      expect(moved[1].title).assertEqual('Three');
+      expect(moved[2].title).assertEqual('One');
+      expect(sites[0].title).assertEqual('One');
+    });
+
+    it('rejects invalid shortcut move indexes', 0, (): void => {
+      const sites: QuickSite[] = [
+        { title: 'Only', url: 'https://only.example', badge: 'O', colorIndex: 0 }
+      ];
+
+      expect(moveQuickSite(sites, -1, 0)[0].title).assertEqual('Only');
+      expect(moveQuickSite(sites, 0, 4)[0].title).assertEqual('Only');
+    });
+
+    it('maps a grid drop after the last item to the final shortcut', 0, (): void => {
+      expect(quickSiteDropTarget(4, 4)).assertEqual(3);
+      expect(quickSiteDropTarget(4, 2)).assertEqual(2);
+      expect(quickSiteDropTarget(4, 5)).assertEqual(-1);
     });
   });
 
