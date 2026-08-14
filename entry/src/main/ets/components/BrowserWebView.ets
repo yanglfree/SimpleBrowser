@@ -209,7 +209,9 @@ export struct BrowserWebView {
   }
 
   private canNavigate(isBack: boolean): boolean {
-    return isBack ? this.tab.canGoBack : this.tab.canGoForward;
+    return isBack
+      ? WebKernelService.canNavigateBack(this.tab.canGoBack, false)
+      : this.tab.canGoForward;
   }
 
   private edgeDistance(isBack: boolean): number {

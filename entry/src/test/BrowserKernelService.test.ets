@@ -22,6 +22,15 @@ export default function browserKernelServiceTest(): void {
       expect(WebKernelService.shouldRefreshNavigationState(false)).assertFalse();
     });
 
+    it('keeps back available for a failed first page', 0, (): void => {
+      expect(WebKernelService.canNavigateBack(false, false)).assertTrue();
+      expect(WebKernelService.canNavigateBack(false, true)).assertFalse();
+      expect(WebKernelService.canNavigateBack(true, false)).assertTrue();
+      expect(WebKernelService.shouldReturnHomeOnBack(false, false)).assertTrue();
+      expect(WebKernelService.shouldReturnHomeOnBack(true, false)).assertFalse();
+      expect(WebKernelService.shouldReturnHomeOnBack(false, true)).assertFalse();
+    });
+
     it('selects desktop or captured mobile user agent', 0, (): void => {
       const mobileUserAgent: string = 'mobile-agent';
       expect(WebKernelService.userAgentFor(false, mobileUserAgent)).assertEqual(mobileUserAgent);

@@ -865,7 +865,10 @@ struct Index {
       activeTabIndex: this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId),
       blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
       isLoading: this.activeTab()?.isLoading === true,
-      canGoBack: this.activeTab()?.canGoBack === true,
+      canGoBack: WebKernelService.canNavigateBack(
+        this.activeTab()?.canGoBack === true,
+        this.isActiveHome()
+      ),
       canGoForward: this.activeTab()?.canGoForward === true,
       gesturesEnabled: this.settings.gesturesEnabled,
       actionsGestureEnabled: this.settings.gestureActionsEnabled,
@@ -2147,7 +2150,14 @@ struct Index {
     }
     if (key === 'back') {
       this.sheet = Overlay.None;
-      this.runOnActive((controller: webview.WebviewController) => WebKernelService.goBack(controller));
+      this.runOnActive((controller: webview.WebviewController) => {
+        const hasWebHistory: boolean = WebKernelService.canGoBack(controller);
+        if (hasWebHistory) {
+          WebKernelService.goBack(controller);
+        } else if (WebKernelService.shouldReturnHomeOnBack(hasWebHistory, isHomeUrl(tab.url))) {
+          this.goHome(tab.id);
+        }
+      });
       return;
     }
     if (key === 'forward') {
@@ -3247,9 +3257,16 @@ struct Index {
     if (id !== this.activeTabId) {
       return;
     }
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     this.runOnActive((controller: webview.WebviewController) => {
       if (isBack) {
-        WebKernelService.goBack(controller);
+        const hasWebHistory: boolean = WebKernelService.canGoBack(controller);
+        if (hasWebHistory) {
+          WebKernelService.goBack(controller);
+        } else if (tab !== undefined &&
+          WebKernelService.shouldReturnHomeOnBack(hasWebHistory, isHomeUrl(tab.url))) {
+          this.goHome(tab.id);
+        }
       } else {
         WebKernelService.goForward(controller);
       }
@@ -3349,6 +3366,7 @@ struct Index {
         ? SecurityState.CertificateError
         : this.viewModel.getTab(id)?.securityState ?? SecurityState.Unknown
     });
+    this.refreshNavigationState(id);
     this.syncTab(id);
   }
 

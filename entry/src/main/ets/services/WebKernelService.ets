@@ -145,6 +145,15 @@ export class WebKernelService {
     return isMainFrame;
   }
 
+  /** Native home is outside ArkWeb history, but remains a valid back destination. */
+  static canNavigateBack(hasWebHistory: boolean, isHome: boolean): boolean {
+    return hasWebHistory || WebKernelService.shouldReturnHomeOnBack(hasWebHistory, isHome);
+  }
+
+  static shouldReturnHomeOnBack(hasWebHistory: boolean, isHome: boolean): boolean {
+    return !hasWebHistory && !isHome;
+  }
+
   static getBackHistory(controller: webview.WebviewController): WebHistoryEntry[] {
     try {
       const list: webview.BackForwardList = controller.getBackForwardEntries();
