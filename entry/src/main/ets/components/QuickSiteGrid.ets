@@ -40,10 +40,18 @@ export struct QuickSiteGrid {
   @State private wiggle: number = 0;
   @State private dragBadge: string = '';
   @State private dragColorIndex: number = 0;
+  private wiggleTimer: number = -1;
   onAddSite: () => void = (): void => {};
   onOpenSite: (url: string) => void = (_url: string): void => {};
   onRemoveSite: (url: string) => void = (_url: string): void => {};
   onMoveSite: (from: number, to: number) => void = (_from: number, _to: number): void => {};
+
+  aboutToDisappear(): void {
+    if (this.wiggleTimer >= 0) {
+      clearInterval(this.wiggleTimer);
+      this.wiggleTimer = -1;
+    }
+  }
 
   build() {
     Column({ space: QUICK_SITE_GRID_SECTION_GAP }) {
@@ -224,19 +232,32 @@ export struct QuickSiteGrid {
     }
     this.isEditing = true;
     this.wiggle = -QUICK_SITE_WIGGLE_ANGLE;
-    this.getUIContext().animateTo({
-      duration: QUICK_SITE_WIGGLE_DURATION,
-      curve: Curve.EaseInOut,
-      iterations: -1,
-      playMode: PlayMode.Alternate
-    }, (): void => {
-      this.wiggle = QUICK_SITE_WIGGLE_ANGLE;
-    });
+    // A repeating timer drives the wobble instead of a non-terminating
+    // animateTo(iterations: -1), which could not be reliably cancelled and
+    // kept the icons shaking after tapping "完成".
+    this.wiggleTimer = setInterval((): void => {
+      if (!this.isEditing) {
+        return;
+      }
+      this.getUIContext().animateTo({
+        duration: QUICK_SITE_WIGGLE_DURATION,
+        curve: Curve.EaseInOut
+      }, (): void => {
+        this.wiggle = -this.wiggle;
+      });
+    }, QUICK_SITE_WIGGLE_DURATION * 2);
   }
 
   private leaveEditing(): void {
     this.isEditing = false;
-    this.getUIContext().animateTo({ duration: QUICK_SITE_WIGGLE_EXIT_DURATION, curve: Curve.EaseOut }, (): void => {
+    if (this.wiggleTimer >= 0) {
+      clearInterval(this.wiggleTimer);
+      this.wiggleTimer = -1;
+    }
+    this.getUIContext().animateTo({
+      duration: QUICK_SITE_WIGGLE_EXIT_DURATION,
+      curve: Curve.EaseOut
+    }, (): void => {
       this.wiggle = 0;
     });
   }
