@@ -1,10 +1,12 @@
-import { QuickSite, StartPageBackgroundSource } from '../models/BrowserModels';
+import { QuickSite, QuickSiteIcon, StartPageBackgroundSource } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 import { QuickSiteGrid } from './QuickSiteGrid';
 
 @Component
 export struct StartPage {
   @Prop quickSites: QuickSite[] = [];
+  /** Resolved site icons, keyed by host; a tile without one keeps its letter. */
+  @Prop siteIcons: QuickSiteIcon[] = [];
   @Prop quickSitesEnabled: boolean = true;
   @Prop quickSiteLimit: number = 6;
   @Prop backgroundEnabled: boolean = true;
@@ -39,6 +41,7 @@ export struct StartPage {
         if (this.quickSitesEnabled) {
           QuickSiteGrid({
             quickSites: this.quickSites,
+            siteIcons: this.siteIcons,
             quickSiteLimit: this.quickSiteLimit,
             backgroundEnabled: this.backgroundEnabled,
             isWide: this.isWide,

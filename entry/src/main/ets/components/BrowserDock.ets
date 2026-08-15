@@ -51,6 +51,8 @@ export struct BrowserDock {
   @Prop blockingGestureEnabled: boolean = true;
   @Prop addressMenuVisible: boolean = false;
   @Prop isBookmarked: boolean = false;
+  /** Drives the history button's active tint while its panel owns the screen. */
+  @Prop historyOpen: boolean = false;
   onOpenAddress: () => void = (): void => {};
   onBack: () => void = (): void => {};
   onForward: () => void = (): void => {};
@@ -59,6 +61,7 @@ export struct BrowserDock {
   onOpenTabs: () => void = (): void => {};
   onOpenRecentTabs: () => void = (): void => {};
   onOpenMenu: () => void = (): void => {};
+  onOpenHistory: () => void = (): void => {};
   onOpenBlocking: () => void = (): void => {};
   /** Reload, or stop while a load is in flight — the page decides which. */
   onReload: () => void = (): void => {};
@@ -276,6 +279,13 @@ export struct BrowserDock {
         )
       }
 
+      // Wide windows have the room to promote history out of the tools menu, and
+      // the sidebar it opens is a two-tap round trip without it. Compact keeps it
+      // in the menu, where the row has no width to spare.
+      if (this.wide) {
+        this.HistoryButton()
+      }
+
       this.NavButton(IconName.Menu, true, $r('app.string.tools_menu'), this.onOpenMenu)
     }
     .width('100%')
@@ -457,6 +467,33 @@ export struct BrowserDock {
           })
       )
     )
+  }
+
+  /**
+   * Its own builder rather than a NavButton call: the active tint is read from
+   * state, and a @Builder value parameter binds once and would never refresh it.
+   */
+  @Builder
+  private HistoryButton() {
+    Column() {
+      AppIcon({
+        name: IconName.Clock,
+        glyphSize: DOCK_ICON_SIZE,
+        color: this.historyOpen ? $r('app.color.accent') : this.iconColor(),
+        strokeWidth: 1.8
+      })
+    }
+    .id('browser-dock-history')
+    .width(DOCK_SLOT_WIDTH)
+    .height(DOCK_ROW_HEIGHT)
+    .justifyContent(FlexAlign.Center)
+    .borderRadius(DOCK_ROW_HEIGHT / 2)
+    .backgroundColor(this.historyOpen ? $r('app.color.surface_subtle') : Color.Transparent)
+    .accessibilityText($r('app.string.history_title'))
+    .focusable(true)
+    .hoverEffect(HoverEffect.Auto)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.92 })
+    .onClick(() => this.onOpenHistory())
   }
 
   @Builder

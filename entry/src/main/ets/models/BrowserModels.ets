@@ -477,3 +477,57 @@ export function quickSiteDropTarget(count: number, insertIndex: number): number 
   }
   return Math.min(insertIndex, count - 1);
 }
+
+/**
+ * Dragging must not smuggle a tab across a boundary the rest of the app treats as
+ * fixed: pinned tabs lead the strip and private tabs never mix with normal ones.
+ * The drop lands on the nearest index inside the dragged tab's own run instead of
+ * being rejected, so a long drag still does the most it legally can.
+ */
+export function clampTabMoveTarget(tabs: BrowserTab[], from: number, to: number): number {
+  if (from < 0 || from >= tabs.length || to < 0) {
+    return -1;
+  }
+  const moving: BrowserTab = tabs[from];
+  let first: number = from;
+  while (first > 0 && sharesTabGroup(tabs[first - 1], moving)) {
+    first -= 1;
+  }
+  let last: number = from;
+  while (last < tabs.length - 1 && sharesTabGroup(tabs[last + 1], moving)) {
+    last += 1;
+  }
+  const clamped: number = Math.min(Math.max(to, first), last);
+  return clamped === from ? -1 : clamped;
+}
+
+function sharesTabGroup(left: BrowserTab, right: BrowserTab): boolean {
+  return left.isPrivate === right.isPrivate && left.isPinned === right.isPinned;
+}
+
+/** Where the start page looks up the cached icon file for a tile. */
+export interface QuickSiteIcon {
+  host: string;
+  path: string;
+}
+
+export function quickSiteIconPath(icons: QuickSiteIcon[], host: string): string {
+  if (host.length === 0) {
+    return '';
+  }
+  const match: QuickSiteIcon | undefined = icons.find(
+    (icon: QuickSiteIcon): boolean => icon.host === host);
+  return match !== undefined ? match.path : '';
+}
+
+export function withQuickSiteIcon(icons: QuickSiteIcon[], host: string, path: string): QuickSiteIcon[] {
+  const next: QuickSiteIcon[] = icons
+    .filter((icon: QuickSiteIcon): boolean => icon.host !== host)
+    .map((icon: QuickSiteIcon): QuickSiteIcon => {
+      return { host: icon.host, path: icon.path };
+    });
+  if (path.length > 0) {
+    next.push({ host: host, path: path });
+  }
+  return next;
+}

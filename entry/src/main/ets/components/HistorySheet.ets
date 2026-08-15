@@ -18,13 +18,28 @@ export struct HistorySheet {
   @Prop savedItems: SavedItem[] = [];
   @Prop favoritesOnly: boolean = false;
   @Prop usesFullscreenBars: boolean = false;
+  /**
+   * Where the list was left the last time it was shown. The sidebar unmounts the
+   * sheet when it closes, so opening a history item and coming back would
+   * otherwise drop the reader at the top of an unfiltered list.
+   */
+  @Prop initialQuery: string = '';
+  @Prop initialScrollOffset: number = 0;
   @State private query: string = '';
   @State private searchResults: HistoryEntry[] = [];
+  private scroller: Scroller = new Scroller();
+  private scrollOffset: number = 0;
+  private hasRestoredOffset: boolean = false;
 
   aboutToAppear(): void {
-    this.searchResults = this.computeSearchResults('');
+    this.query = this.initialQuery;
+    this.scrollOffset = this.initialScrollOffset;
+    this.searchResults = this.computeSearchResults(this.query);
   }
   onDismiss: () => void = (): void => {};
+  /** Reported on every change so the owner can hand it back on the next open. */
+  onStateChange: (query: string, scrollOffset: number) => void =
+    (_query: string, _scrollOffset: number): void => {};
   onSelect: (url: string) => void = (_url: string): void => {};
   onDelete: (id: string) => void = (_id: string): void => {};
   onDeleteSite: (host: string) => void = (_host: string): void => {};
@@ -60,6 +75,10 @@ export struct HistorySheet {
         .onChange((value: string): void => {
           this.query = value;
           this.searchResults = this.computeSearchResults(value);
+          // A new filter means the remembered offset belongs to a list that no
+          // longer exists; restoring it would land on an unrelated row.
+          this.scrollOffset = 0;
+          this.onStateChange(this.query, this.scrollOffset);
         })
 
       if (this.visibleEntries().length === 0) {
@@ -78,7 +97,7 @@ export struct HistorySheet {
         .width('100%')
         .justifyContent(FlexAlign.Center)
       } else {
-        Scroll() {
+        Scroll(this.scroller) {
           Column() {
             ForEach(this.groups(), (group: HistoryGroup) => {
               this.Group(group)
@@ -86,11 +105,18 @@ export struct HistorySheet {
           }
           .width('100%')
           .padding({ left: 24, right: 24, bottom: 32 })
+          // The rows are not laid out yet at onAppear, so the restore waits for
+          // the content to report its size.
+          .onAreaChange((_old: Area, _current: Area): void => this.restoreScrollOffset())
         }
         .layoutWeight(1)
         .width('100%')
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring)
+        .onDidScroll((): void => {
+          this.scrollOffset = Math.max(0, this.scroller.currentOffset().yOffset);
+          this.onStateChange(this.query, this.scrollOffset);
+        })
       }
     }
     .width('100%')
@@ -176,6 +202,14 @@ export struct HistorySheet {
           })
       )
     )
+  }
+
+  private restoreScrollOffset(): void {
+    if (this.hasRestoredOffset || this.scrollOffset <= 0) {
+      return;
+    }
+    this.hasRestoredOffset = true;
+    this.scroller.scrollTo({ xOffset: 0, yOffset: this.scrollOffset, animation: false });
   }
 
   private savedItemFor(entry: HistoryEntry): SavedItem | undefined {

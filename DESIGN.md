@@ -99,7 +99,33 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
 - **Safe area**: the pane background may extend under system bars, but its navigation
   and close controls begin below the measured top inset.
 - **Dismissal**: the close control is always visible, system Back closes the pane,
-  and pressing the active toolbar entry toggles the pane closed.
+  and pressing the active toolbar entry toggles the pane closed. Opening a history
+  entry also closes the pane — the destination is the page the pane is covering.
+- **Continuity**: the history list's search text and scroll position survive the pane
+  being closed, so returning from a visit resumes where the reader left off. The owner
+  holds that state; the pane itself is unmounted while closed.
+
+### Toolbar history entry
+
+- **Placement**: between the multi-window control and the tools menu on Medium and
+  wider layouts. Compact layouts keep history inside the tools menu, where the
+  address row has no width to spare.
+- **States**: default and active; the active tint uses accent over a subtle surface
+  while the history panel is open, and a second press toggles the panel closed.
+- **Behaviour**: identical to the menu's history entry — a sidebar on wide layouts,
+  a full-screen sheet otherwise — so the button is an accelerator, not a second path.
+
+### Desktop tab strip
+
+- **Adjust mode**: a long press on a tab lifts it and outlines it in accent. A tap
+  anywhere, Escape, or completing a drag leaves the mode; a tap never selects a tab
+  while the mode is active, so the long press cannot be misread as "open this".
+- **Dragging**: the lifted tab tracks the finger with no easing while the tabs it
+  passes step aside one slot at a time over 160ms. A drop is committed on whole slots
+  only, and is clamped to the run of tabs sharing the dragged tab's pinned and private
+  state — pinned tabs keep the lead and private tabs never interleave.
+- **Alternate route**: a horizontal swipe on a tab still nudges it one position
+  without entering the mode, so reordering does not depend on finding the long press.
 
 ### Start-page shortcuts
 
@@ -107,6 +133,10 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
   followed by shipped preset sites. Browsing history is never promoted automatically;
   it only becomes a shortcut when the user selects it in the add dialog.
 - **Deduplication**: one tile per host; hidden hosts remain excluded.
+- **Icons**: the site's own favicon on a neutral card, fetched from the site itself
+  (third-party favicon proxies are not reachable from the mainland) and cached on disk
+  for a fortnight. A site with no usable icon, or a cached file that will not decode,
+  falls back to the coloured letter tile — the tile never waits on the network.
 - **Editing**: long-press enters a desktop-style edit state with close controls,
   restrained wiggle feedback, and drag sorting. Removal hides the shortcut without
   deleting the underlying bookmark or history entry.

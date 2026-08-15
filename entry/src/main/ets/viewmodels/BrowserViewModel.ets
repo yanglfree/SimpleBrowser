@@ -24,6 +24,7 @@ import {
   TabExpiry,
   UserAgentPreference,
   addBlockStats,
+  clampTabMoveTarget,
   cloneBlockStats,
   cloneQuickSite,
   cloneSettings,
@@ -492,6 +493,25 @@ export class BrowserViewModel {
     const reordered: BrowserTab[] = this.tabs.slice(0);
     reordered[index] = target;
     reordered[targetIndex] = tab;
+    this.tabs = reordered;
+    this.persistSession();
+    return true;
+  }
+
+  /**
+   * Drag-and-drop reordering: lifts the tab out and reinserts it, rather than
+   * swapping a pair, so a tab dragged across five others leaves the five in
+   * their original order the way every desktop tab strip does.
+   */
+  moveTabTo(id: string, targetIndex: number): boolean {
+    const index: number = this.tabs.findIndex((tab: BrowserTab): boolean => tab.id === id);
+    const clamped: number = clampTabMoveTarget(this.tabs, index, targetIndex);
+    if (clamped < 0) {
+      return false;
+    }
+    const reordered: BrowserTab[] = this.tabs.slice(0);
+    const moved: BrowserTab[] = reordered.splice(index, 1);
+    reordered.splice(clamped, 0, moved[0]);
     this.tabs = reordered;
     this.persistSession();
     return true;

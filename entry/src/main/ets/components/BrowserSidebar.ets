@@ -26,7 +26,12 @@ export struct BrowserSidebar {
   @Prop blockStats: BlockStats = { ads: 0, trackers: 0, malicious: 0, popups: 0, cookieBanners: 0 };
   @Prop cumulativeBlocked: number = 0;
   @Prop topInset: number = 0;
+  /** Survives the panel being unmounted between visits; see HistorySheet. */
+  @Prop historyQuery: string = '';
+  @Prop historyScrollOffset: number = 0;
   onPanelChange: (panel: SidebarPanel) => void = (_panel: SidebarPanel): void => {};
+  onHistoryStateChange: (query: string, scrollOffset: number) => void =
+    (_query: string, _scrollOffset: number): void => {};
   onDismiss: () => void = (): void => {};
   onSelectTab: (id: string) => void = (_id: string): void => {};
   onCloseTab: (id: string) => void = (_id: string): void => {};
@@ -83,10 +88,20 @@ export struct BrowserSidebar {
         HistorySheet({
           entries: this.history,
           savedItems: this.savedItems,
+          initialQuery: this.historyQuery,
+          initialScrollOffset: this.historyScrollOffset,
           onDismiss: (): void => this.onDismiss(),
-          onSelect: (url: string): void => this.onNavigate(url),
+          // The panel overlays the page it just navigated to, so it gets out of
+          // the way once the visit is under way — the same thing tapping a
+          // result in Safari's sidebar does.
+          onSelect: (url: string): void => {
+            this.onNavigate(url);
+            this.onDismiss();
+          },
           onDelete: (id: string): void => this.onDeleteHistory(id),
-          onDeleteSite: (host: string): void => this.onDeleteHistorySite(host)
+          onDeleteSite: (host: string): void => this.onDeleteHistorySite(host),
+          onStateChange: (query: string, scrollOffset: number): void =>
+            this.onHistoryStateChange(query, scrollOffset)
         })
       } else if (this.panel === SidebarPanel.Downloads) {
         DownloadSheet({

@@ -34,6 +34,7 @@ import {
   BrowserTab,
   HistoryEntry,
   QuickSite,
+  QuickSiteIcon,
   ReaderPaper,
   RuleStrength,
   SavedItem,
@@ -53,6 +54,8 @@ import {
   emptyBlockStats,
   normalizeBrowserSettings,
   moveQuickSite,
+  quickSiteIconPath,
+  withQuickSiteIcon,
   totalBlocked
 } from '../models/BrowserModels';
 import { ActionSheet } from '../components/ActionSheet';
@@ -95,6 +98,7 @@ import { PrivacyService } from '../services/PrivacyService';
 import { CertificateService } from '../services/CertificateService';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { AppMetadataService } from '../services/AppMetadataService';
+import { FaviconService } from '../services/FaviconService';
 import { MemoryPressureService } from '../services/MemoryPressureService';
 import { DownloadPolicyReason, DownloadService, DownloadTask } from '../services/DownloadService';
 import { BookmarkTransferService } from '../services/BookmarkTransferService';
@@ -251,6 +255,9 @@ struct Index {
   @State private isAddressMenuVisible: boolean = false;
   @State private suggestions: Suggestion[] = [];
   @State private quickSites: QuickSite[] = [];
+  @State private quickSiteIcons: QuickSiteIcon[] = [];
+  /** The tile hosts the current icon set was fetched for; see refreshQuickSiteIcons. */
+  private quickSiteIconSignature: string = '';
   @State private weeklyBlocked: number = 0;
   @State private cumulativeBlocked: number = 0;
   @State private isActivePageAtTop: boolean = true;
@@ -284,6 +291,14 @@ struct Index {
   );
   @State private multiWindowSupported: boolean = false;
   private isTabSoftLimitPromptVisible: boolean = false;
+  /**
+   * The sidebar's history list is unmounted whenever the panel closes, so where
+   * the reader left it lives here instead. Plain fields on purpose: they are only
+   * read when the panel is built, and marking them @State would rebuild the page
+   * on every scroll frame.
+   */
+  private historyPanelQuery: string = '';
+  private historyPanelScrollOffset: number = 0;
   private recentlyClosedTabs: BrowserTab[] = [];
   private pendingPermissionRequest: PermissionRequest | undefined = undefined;
   private pendingGeolocation: OnGeolocationShowEvent | undefined = undefined;
@@ -332,6 +347,7 @@ struct Index {
       this.appVersionName = AppMetadataService.getVersionName();
       ThemeService.apply(this.appContext(), this.viewModel.settings.appearance);
       TelemetryService.setEnabled(this.viewModel.settings.telemetryEnabled);
+      await FaviconService.initialize(this.appContext());
       this.syncState();
       this.rulesLastUpdatedAt = this.viewModel.adsBlockService.lastUpdatedAt;
       this.liveTabIds = this.initialLiveTabIds();
@@ -543,6 +559,7 @@ struct Index {
           if (isHomeUrl(tab.url)) {
             StartPage({
               quickSites: this.quickSites,
+              siteIcons: this.quickSiteIcons,
               quickSitesEnabled: this.settings.quickSitesEnabled,
               quickSiteLimit: this.settings.quickSiteLimit,
               backgroundEnabled: this.settings.startPageBackgroundEnabled,
@@ -847,6 +864,7 @@ struct Index {
           onSelect: (id: string): void => { void this.selectTab(id); },
           onClose: (id: string): void => this.closeTab(id),
           onReorder: (id: string, direction: number): void => this.reorderDesktopTab(id, direction),
+          onMoveTab: (id: string, targetIndex: number): void => this.moveDesktopTab(id, targetIndex),
           onCloseOthers: (id: string): void => { void this.closeOtherDesktopTabs(id); },
           onCopyUrl: (id: string): void => { void this.copyTabLink(id); },
           onTogglePinned: (id: string): void => this.toggleDesktopTabPinned(id),
@@ -880,6 +898,7 @@ struct Index {
       blockingGestureEnabled: this.settings.gestureBlockingEnabled,
       addressMenuVisible: this.isAddressMenuVisible,
       isBookmarked: this.isActiveBookmarked,
+      historyOpen: this.sidebarPanel === SidebarPanel.History || this.sheet === Overlay.History,
       onOpenAddress: (): void => this.openAddress(),
       onBack: (): void => { void this.performAction('back'); },
       onForward: (): void => { void this.performAction('forward'); },
@@ -901,6 +920,10 @@ struct Index {
           this.sidebarPanel = SidebarPanel.None;
           this.sheet = Overlay.Actions;
         }
+      },
+      onOpenHistory: (): void => {
+        this.isAddressMenuVisible = false;
+        void this.performAction('history');
       },
       onOpenBlocking: (): void => {
         this.isAddressMenuVisible = false;
@@ -1125,7 +1148,13 @@ struct Index {
       blockStats: this.activeTab()?.blocked ?? emptyBlockStats(),
       cumulativeBlocked: this.cumulativeBlocked,
       topInset: this.topInset,
+      historyQuery: this.historyPanelQuery,
+      historyScrollOffset: this.historyPanelScrollOffset,
       onPanelChange: (panel: SidebarPanel): void => { this.sidebarPanel = panel; },
+      onHistoryStateChange: (query: string, scrollOffset: number): void => {
+        this.historyPanelQuery = query;
+        this.historyPanelScrollOffset = scrollOffset;
+      },
       onDismiss: (): void => { this.sidebarPanel = SidebarPanel.None; },
       onSelectTab: (id: string): void => { void this.selectTab(id); },
       onCloseTab: (id: string): void => this.closeTab(id),
@@ -1939,6 +1968,12 @@ struct Index {
 
   private reorderDesktopTab(id: string, direction: number): void {
     if (this.viewModel.reorderTab(id, direction)) {
+      this.syncState();
+    }
+  }
+
+  private moveDesktopTab(id: string, targetIndex: number): void {
+    if (this.viewModel.moveTabTo(id, targetIndex)) {
       this.syncState();
     }
   }
@@ -3771,6 +3806,7 @@ struct Index {
     this.isActiveBookmarked = this.viewModel.isSaved(url);
     this.isActiveSavedForLater = this.viewModel.isSavedForLater(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
+    this.refreshQuickSiteIcons();
     this.repairPaneReferences();
     ThemeService.applySurface(
       this.appContext(),
@@ -3778,6 +3814,34 @@ struct Index {
       isHomeUrl(url),
       this.settings.startPageBackgroundEnabled
     );
+  }
+
+  /**
+   * syncState runs on nearly every browser event, so the fetch is gated on the
+   * tile list actually changing. FaviconService memoises per host on top of that,
+   * which is what keeps a second launch off the network entirely.
+   */
+  private refreshQuickSiteIcons(): void {
+    const visible: QuickSite[] = this.quickSites.slice(0, this.settings.quickSiteLimit);
+    const signature: string = visible.map((site: QuickSite): string => rawHost(site.url)).join('|');
+    if (signature === this.quickSiteIconSignature) {
+      return;
+    }
+    this.quickSiteIconSignature = signature;
+    void this.loadQuickSiteIcons(visible);
+  }
+
+  private async loadQuickSiteIcons(sites: QuickSite[]): Promise<void> {
+    for (const site of sites) {
+      const host: string = rawHost(site.url);
+      if (host.length === 0 || quickSiteIconPath(this.quickSiteIcons, host).length > 0) {
+        continue;
+      }
+      const path: string = await FaviconService.iconFor(site.url);
+      if (path.length > 0) {
+        this.quickSiteIcons = withQuickSiteIcon(this.quickSiteIcons, host, path);
+      }
+    }
   }
 
   private static isMaliciousUrl(url: string): boolean {

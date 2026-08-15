@@ -14,6 +14,49 @@ const TAB_STRIP_ITEM_GAP: number = 4;
 const TAB_REORDER_DISTANCE: number = 36;
 const TAB_PREVIEW_DELAY_MS: number = 350;
 const ESCAPE_KEY_CODE: number = 2070;
+const TAB_ADJUST_LONG_PRESS_MS: number = 450;
+const TAB_ADJUST_SHIFT_DURATION: number = 160;
+const TAB_ADJUST_LIFT_SCALE: number = 1.06;
+
+/**
+ * Where a tab dragged by `offsetX` would land. Whole slots only: a tab has to be
+ * dragged past the middle of its neighbour before the neighbour gives way, which
+ * is what stops a tab jittering between two positions under a shaky finger.
+ */
+export function tabDragDropIndex(
+  fromIndex: number,
+  tabCount: number,
+  offsetX: number,
+  slotWidth: number
+): number {
+  if (fromIndex < 0 || fromIndex >= tabCount || slotWidth <= 0) {
+    return -1;
+  }
+  const moved: number = Math.round(offsetX / slotWidth);
+  return Math.min(Math.max(fromIndex + moved, 0), tabCount - 1);
+}
+
+/**
+ * How far a tab that is not being dragged has to step aside. Everything between
+ * the tab's old and new index shifts one slot towards the gap it came from.
+ */
+export function tabReorderShift(
+  index: number,
+  fromIndex: number,
+  dropIndex: number,
+  slotWidth: number
+): number {
+  if (fromIndex < 0 || dropIndex < 0 || index === fromIndex) {
+    return 0;
+  }
+  if (fromIndex < dropIndex && index > fromIndex && index <= dropIndex) {
+    return -slotWidth;
+  }
+  if (fromIndex > dropIndex && index >= dropIndex && index < fromIndex) {
+    return slotWidth;
+  }
+  return 0;
+}
 
 export function desktopTabWidth(availableWidth: number, tabCount: number, pinnedCount: number): number {
   const safeTabCount: number = Math.max(0, tabCount);
@@ -42,6 +85,7 @@ export struct DesktopTabStrip {
   onSelect: (id: string) => void = (_id: string): void => {};
   onClose: (id: string) => void = (_id: string): void => {};
   onReorder: (id: string, direction: number) => void = (_id: string, _direction: number): void => {};
+  onMoveTab: (id: string, targetIndex: number) => void = (_id: string, _targetIndex: number): void => {};
   onCloseOthers: (id: string) => void = (_id: string): void => {};
   onCopyUrl: (id: string) => void = (_id: string): void => {};
   onTogglePinned: (id: string) => void = (_id: string): void => {};
@@ -53,6 +97,10 @@ export struct DesktopTabStrip {
   @State private previewTabId: string = '';
   @State private previewVisible: boolean = false;
   private hoverToken: number = 0;
+  /** Non-empty while the strip is in adjust mode; holds the tab that was pressed. */
+  @State private adjustingTabId: string = '';
+  @State private dragOffsetX: number = 0;
+  @State private dropIndex: number = -1;
 
   build() {
     Row({ space: 8 }) {
@@ -97,6 +145,7 @@ export struct DesktopTabStrip {
     .onKeyEvent((event: KeyEvent): boolean => {
       if (event.type === KeyType.Down && event.keyCode === ESCAPE_KEY_CODE) {
         this.dismissPreview();
+        this.leaveAdjustMode();
         return true;
       }
       return false;
@@ -142,11 +191,36 @@ export struct DesktopTabStrip {
     .backgroundColor(tab.id === this.activeTabId
       ? $r('app.color.surface_panel')
       : Color.Transparent)
+    .border(this.adjustingTabId === tab.id
+      ? { width: 1.5, color: $r('app.color.accent') }
+      : { width: 0 })
+    .translate({ x: this.tabTranslation(tab) })
+    .scale(this.isDragging(tab)
+      ? { x: TAB_ADJUST_LIFT_SCALE, y: TAB_ADJUST_LIFT_SCALE }
+      : { x: 1, y: 1 })
+    // Only the tabs stepping aside animate; the dragged one has to track the
+    // finger exactly or it feels like it is being reeled in on elastic.
+    .animation({
+      duration: this.isDragging(tab) ? 0 : TAB_ADJUST_SHIFT_DURATION,
+      curve: Curve.Friction
+    })
+    .zIndex(this.isDragging(tab) ? 2 : 1)
+    .shadow(this.isDragging(tab)
+      ? { radius: 12, color: $r('app.color.shadow_soft'), offsetY: 2 }
+      : undefined)
     .focusable(true)
     .defaultFocus(tab.id === this.activeTabId)
     .hoverEffect(HoverEffect.Auto)
     .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.98 })
-    .onClick(() => this.onSelect(tab.id))
+    .onClick(() => {
+      // In adjust mode a tap is the way out, not a tab switch — the long press
+      // that opened the mode must not read as "open this tab".
+      if (this.adjustingTabId.length > 0) {
+        this.leaveAdjustMode();
+        return;
+      }
+      this.onSelect(tab.id);
+    })
     .onMouse((event: MouseEvent): void => {
       if (event.button === MouseButton.Right && event.action === MouseAction.Press) {
         this.contextTabId = tab.id;
@@ -155,19 +229,54 @@ export struct DesktopTabStrip {
       }
     })
     .onHover((isHovering: boolean): void => {
+      if (this.adjustingTabId.length > 0) {
+        return;
+      }
       if (isHovering) {
         this.schedulePreview(tab.id);
       } else {
         this.dismissPreview();
       }
     })
-    .gesture(
-      PanGesture({ direction: PanDirection.Horizontal, distance: 8 })
-        .onActionEnd((event: GestureEvent): void => {
-          if (Math.abs(event.offsetX) >= TAB_REORDER_DISTANCE) {
-            this.onReorder(tab.id, event.offsetX < 0 ? 1 : -1);
-          }
-        })
+    // One parallel group rather than a long press plus a separate pan: entering
+    // adjust mode re-renders the strip, and a pan bound on its own is dropped
+    // mid-touch by that rebuild — which broke the press-and-drag-in-one-motion
+    // every other tab strip supports.
+    .parallelGesture(
+      GestureGroup(GestureMode.Parallel,
+        LongPressGesture({ repeat: false, duration: TAB_ADJUST_LONG_PRESS_MS })
+          .onAction(() => this.enterAdjustMode(tab.id)),
+        PanGesture({ direction: PanDirection.Horizontal, distance: 8 })
+          .onActionStart((): void => {
+            if (this.adjustingTabId === tab.id) {
+              this.dragOffsetX = 0;
+              this.dropIndex = this.indexOf(tab.id);
+            }
+          })
+          .onActionUpdate((event: GestureEvent): void => {
+            if (this.adjustingTabId !== tab.id) {
+              return;
+            }
+            this.dragOffsetX = event.offsetX;
+            this.dropIndex = tabDragDropIndex(
+              this.indexOf(tab.id),
+              this.tabs.length,
+              event.offsetX,
+              this.slotWidth(tab)
+            );
+          })
+          .onActionEnd((event: GestureEvent): void => {
+            if (this.adjustingTabId === tab.id) {
+              this.commitDrag(tab.id);
+              return;
+            }
+            // Outside adjust mode the old one-step nudge still works, so
+            // reordering never depends on discovering the long press.
+            if (Math.abs(event.offsetX) >= TAB_REORDER_DISTANCE) {
+              this.onReorder(tab.id, event.offsetX < 0 ? 1 : -1);
+            }
+          })
+      )
     )
     .bindContextMenu(this.TabContextMenu, ResponseType.RightClick)
     .bindPopup(this.previewVisible && this.previewTabId === tab.id, {
@@ -256,6 +365,59 @@ export struct DesktopTabStrip {
   private activeTabChanged(): void {
     this.dismissPreview();
     this.scrollActiveTabIntoView(true);
+  }
+
+  private enterAdjustMode(tabId: string): void {
+    if (this.adjustingTabId === tabId) {
+      return;
+    }
+    this.dismissPreview();
+    this.adjustingTabId = tabId;
+    this.dragOffsetX = 0;
+    this.dropIndex = this.indexOf(tabId);
+  }
+
+  private leaveAdjustMode(): void {
+    this.adjustingTabId = '';
+    this.dragOffsetX = 0;
+    this.dropIndex = -1;
+  }
+
+  private commitDrag(tabId: string): void {
+    const from: number = this.indexOf(tabId);
+    const target: number = this.dropIndex;
+    this.leaveAdjustMode();
+    if (from >= 0 && target >= 0 && target !== from) {
+      this.onMoveTab(tabId, target);
+    }
+  }
+
+  private isDragging(tab: BrowserTab): boolean {
+    return this.adjustingTabId === tab.id && this.dropIndex >= 0;
+  }
+
+  private tabTranslation(tab: BrowserTab): number {
+    if (this.adjustingTabId.length === 0) {
+      return 0;
+    }
+    if (this.adjustingTabId === tab.id) {
+      return this.dragOffsetX;
+    }
+    const from: number = this.indexOf(this.adjustingTabId);
+    const dragged: BrowserTab | undefined = this.tabs[from];
+    if (dragged === undefined) {
+      return 0;
+    }
+    return tabReorderShift(this.indexOf(tab.id), from, this.dropIndex, this.slotWidth(dragged));
+  }
+
+  private indexOf(tabId: string): number {
+    return this.tabs.findIndex((tab: BrowserTab): boolean => tab.id === tabId);
+  }
+
+  /** A tab's footprint in the strip: its own width plus the gap that follows it. */
+  private slotWidth(tab: BrowserTab): number {
+    return this.tabWidth(tab) + TAB_STRIP_ITEM_GAP;
   }
 
   private schedulePreview(tabId: string): void {
