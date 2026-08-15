@@ -1,6 +1,7 @@
 @Component
 export struct SearchTemplateSheet {
   initialValue: string = '';
+  @Prop isWide: boolean = false;
   onSave: (template: string) => void = (_template: string): void => {};
   onDismiss: () => void = (): void => {};
   @State private text: string = '';
@@ -10,19 +11,21 @@ export struct SearchTemplateSheet {
   }
 
   build() {
-    Column() {
+    Stack({ alignContent: this.isWide ? Alignment.Center : Alignment.Bottom }) {
       Column()
-        .layoutWeight(1)
         .width('100%')
+        .height('100%')
         .backgroundColor($r('app.color.scrim'))
         .onClick(() => this.onDismiss())
 
       Column({ space: 14 }) {
-        Row()
-          .width(36)
-          .height(4)
-          .borderRadius(2)
-          .backgroundColor($r('app.color.handle'))
+        if (!this.isWide) {
+          Row()
+            .width(36)
+            .height(4)
+            .borderRadius(2)
+            .backgroundColor($r('app.color.handle'))
+        }
 
         Text($r('app.string.custom_search_template'))
           .width('100%')
@@ -58,10 +61,14 @@ export struct SearchTemplateSheet {
         .width('100%')
         .justifyContent(FlexAlign.End)
       }
-      .width('100%')
-      .padding({ top: 10, left: 28, right: 28, bottom: 46 })
+      .width(this.isWide ? '88%' : '100%')
+      .constraintSize({ maxWidth: this.isWide ? 520 : '100%' })
+      .padding({ top: this.isWide ? 24 : 10, left: 28, right: 28, bottom: this.isWide ? 24 : 46 })
       .backgroundColor($r('app.color.surface_panel'))
-      .borderRadius({ topLeft: 20, topRight: 20 })
+      .borderRadius(this.isWide ? 20 : { topLeft: 20, topRight: 20 })
+      .border({ width: this.isWide ? 1 : 0, color: $r('app.color.border') })
+      .shadow(this.isWide ? { radius: 18, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: 6 } : undefined)
+      .onClick((): void => {})
     }
     .width('100%')
     .height('100%')

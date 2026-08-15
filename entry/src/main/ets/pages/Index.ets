@@ -1364,6 +1364,7 @@ struct Index {
       SettingsPage({
         settings: this.settings,
         topInset: this.topInset,
+        isWide: this.usesWideChrome(),
         allowedHosts: this.viewModel.getAllowedHosts(),
         sitePermissions: this.settings.sitePermissions,
         currentHost: displayHost(this.activeTab()?.url ?? ''),
@@ -1528,7 +1529,10 @@ struct Index {
     if (!this.usesResponsivePanel()) {
       return '100%';
     }
-    if (this.sheet === Overlay.Settings || this.sheet === Overlay.History ||
+    if (this.sheet === Overlay.Settings) {
+      return '100%';
+    }
+    if (this.sheet === Overlay.History ||
       this.sheet === Overlay.Favorites || this.sheet === Overlay.Downloads) {
       return 820;
     }

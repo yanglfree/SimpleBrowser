@@ -178,6 +178,7 @@ function groupCard() {
 export struct SettingsPage {
   @Link settings: BrowserSettings;
   @Prop topInset: number = 0;
+  @Prop isWide: boolean = false;
   @Prop allowedHosts: string[] = [];
   @Prop sitePermissions: SitePermission[] = [];
   @Prop currentHost: string = '';
@@ -208,7 +209,7 @@ export struct SettingsPage {
   @State private isAboutDialogVisible: boolean = false;
 
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
+    Stack({ alignContent: this.isWide ? Alignment.TopEnd : Alignment.Bottom }) {
       Scroll() {
         Column() {
           Row({ space: 12 }) {
@@ -485,7 +486,7 @@ export struct SettingsPage {
         .alignItems(HorizontalAlign.Start)
         .padding({ top: 18, left: 24, right: 24, bottom: 40 })
       }
-      .width('100%')
+      .width(this.isWide ? 820 : '100%')
       .height('100%')
       .align(Alignment.TopStart)
       .scrollBar(BarState.Off)
@@ -500,6 +501,7 @@ export struct SettingsPage {
       if (this.isEditingSearchTemplate) {
         SearchTemplateSheet({
           initialValue: this.settings.customSearchTemplate,
+          isWide: this.isWide,
           onSave: (template: string): void => this.saveSearchTemplate(template),
           onDismiss: (): void => { this.isEditingSearchTemplate = false; }
         })
@@ -1009,23 +1011,25 @@ export struct SettingsPage {
     return $r('app.string.site_permission_prompt');
   }
 
-  /** Sub-screens would break the single-surface rule, so choices open as sheets. */
+  /** Choices stay within Settings while adapting from compact sheets to wide dialogs. */
   @Builder
   private Picker() {
-    Column() {
+    Stack({ alignContent: this.isWide ? Alignment.Center : Alignment.Bottom }) {
       Column()
-        .layoutWeight(1)
         .width('100%')
+        .height('100%')
         .backgroundColor($r('app.color.scrim'))
         .onClick(() => this.picker = PickerKind.None)
 
       Column() {
-        Row()
-          .width(36)
-          .height(4)
-          .borderRadius(2)
-          .backgroundColor($r('app.color.handle'))
-          .margin({ bottom: 10 })
+        if (!this.isWide) {
+          Row()
+            .width(36)
+            .height(4)
+            .borderRadius(2)
+            .backgroundColor($r('app.color.handle'))
+            .margin({ bottom: 10 })
+        }
 
         ForEach(this.pickerOptions(), (option: PickerOption, index: number) => {
           Row() {
@@ -1045,11 +1049,24 @@ export struct SettingsPage {
           .onClick(() => this.applyPick(option.value))
         }, (option: PickerOption) => `${option.value}`)
       }
-      .width('100%')
+      .width(this.isWide ? '88%' : '100%')
+      .constraintSize({ maxWidth: this.isWide ? 520 : '100%' })
       .alignItems(HorizontalAlign.Center)
-      .padding({ top: 10, left: 28, right: 28, bottom: 46 })
+      .padding({
+        top: this.isWide ? 20 : 10,
+        left: 28,
+        right: 28,
+        bottom: this.isWide ? 20 : 46
+      })
       .backgroundColor($r('app.color.surface_panel'))
-      .borderRadius({ topLeft: 20, topRight: 20 })
+      .borderRadius(this.isWide
+        ? 20
+        : { topLeft: 20, topRight: 20 })
+      .border({ width: this.isWide ? 1 : 0, color: $r('app.color.border') })
+      .shadow(this.isWide
+        ? { radius: 18, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: 6 }
+        : undefined)
+      .onClick((): void => {})
     }
     .width('100%')
     .height('100%')
@@ -1417,20 +1434,22 @@ export struct SettingsPage {
 
   @Builder
   private ClearDataSheet() {
-    Column() {
+    Stack({ alignContent: this.isWide ? Alignment.Center : Alignment.Bottom }) {
       Column()
-        .layoutWeight(1)
         .width('100%')
+        .height('100%')
         .backgroundColor($r('app.color.scrim'))
         .onClick(() => this.isClearDataSheetVisible = false)
 
       Column() {
-        Row()
-          .width(36)
-          .height(4)
-          .borderRadius(2)
-          .backgroundColor($r('app.color.handle'))
-          .margin({ bottom: 12 })
+        if (!this.isWide) {
+          Row()
+            .width(36)
+            .height(4)
+            .borderRadius(2)
+            .backgroundColor($r('app.color.handle'))
+            .margin({ bottom: 12 })
+        }
         Text($r('app.string.clear_browsing_data'))
           .fontSize(20)
           .fontWeight(FontWeight.Medium)
@@ -1497,11 +1516,24 @@ export struct SettingsPage {
         .height(52)
         .margin({ top: 8 })
       }
-      .width('100%')
+      .width(this.isWide ? '88%' : '100%')
+      .constraintSize({ maxWidth: this.isWide ? 520 : '100%' })
       .alignItems(HorizontalAlign.Center)
-      .padding({ top: 10, left: 28, right: 28, bottom: 32 })
+      .padding({
+        top: this.isWide ? 24 : 10,
+        left: 28,
+        right: 28,
+        bottom: this.isWide ? 24 : 32
+      })
       .backgroundColor($r('app.color.surface_panel'))
-      .borderRadius({ topLeft: 20, topRight: 20 })
+      .borderRadius(this.isWide
+        ? 20
+        : { topLeft: 20, topRight: 20 })
+      .border({ width: this.isWide ? 1 : 0, color: $r('app.color.border') })
+      .shadow(this.isWide
+        ? { radius: 18, color: $r('app.color.shadow_soft'), offsetX: 0, offsetY: 6 }
+        : undefined)
+      .onClick((): void => {})
     }
     .width('100%')
     .height('100%')
