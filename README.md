@@ -14,13 +14,21 @@ Dolphin Browser (极简浏览器) is a HarmonyOS NEXT browser built on ArkWeb. I
 
 ## Build
 
-The project targets HarmonyOS SDK 6.0.0 (API 20) with compatibility for 5.0.3 (API 15). With Hvigor available on `PATH`, run:
+The project targets HarmonyOS SDK 6.0.0 (API 20) with compatibility for 5.0.3 (API 15).
+
+`build-profile.json5` is not in version control — DevEco writes the signing certificate paths and key passwords of whichever machine opened the project into it. Start from the template:
+
+```bash
+cp build-profile.json5.example build-profile.json5
+```
+
+Then open the project in DevEco Studio once and let it fill in the signing profile (File → Project Structure → Signing Configs → Automatically generate signature). With Hvigor available on `PATH`:
 
 ```bash
 hvigorw assembleHap
 ```
 
-The local build is configured with a debug signing profile (`build-profile.json5`). Connect a HarmonyOS device or simulator before installing the HAP for manual UI verification.
+Connect a HarmonyOS device or simulator before installing the HAP for manual UI verification.
 
 ## Scope boundary
 
