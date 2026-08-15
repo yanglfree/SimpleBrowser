@@ -565,6 +565,10 @@ export class BrowserViewModel {
       colorIndex: BrowserViewModel.colorIndexFor(host)
     });
     await this.repository.setQuickHostHidden(host, false);
+    // Prepend to the order so a freshly added site appears at the front of the
+    // grid instead of being sorted to the tail (and pushed past the limit).
+    const order: string[] = this.repository.getQuickSiteOrder();
+    await this.repository.saveQuickSiteOrder([host].concat(order.filter((h: string) => h !== host)));
     return true;
   }
 
