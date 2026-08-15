@@ -2,6 +2,7 @@ import { QuickSite, quickSiteDropTarget } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 import {
   QUICK_SITE_ADD_STROKE_WIDTH, QUICK_SITE_COLUMNS, QUICK_SITE_DELETE_VISUAL_SIZE,
+  QUICK_SITE_WIDE_LANDSCAPE_COLUMNS,
   QUICK_SITE_DONE_FONT_SIZE, QUICK_SITE_DONE_RADIUS, QUICK_SITE_DONE_WIDTH,
   QUICK_SITE_DRAG_SHADOW_OFFSET_Y, QUICK_SITE_DRAG_SHADOW_RADIUS, QUICK_SITE_EDIT_LONG_PRESS_DURATION,
   QUICK_SITE_GRID_SECTION_GAP, QUICK_SITE_HORIZONTAL_PADDING, QUICK_SITE_PHONE_ADD_GLYPH_SIZE,
@@ -37,6 +38,7 @@ export struct QuickSiteGrid {
   @Prop quickSiteLimit: number = 6;
   @Prop backgroundEnabled: boolean = true;
   @Prop isWide: boolean = false;
+  @Prop isLandscape: boolean = false;
   @State private isEditing: boolean = false;
   @State private wigglePhase: number = 0;
   @State private wiggleScale: number = 0;
@@ -87,7 +89,7 @@ export struct QuickSiteGrid {
         }
         .draggable(false)
       }
-      .columnsTemplate('1fr 1fr 1fr 1fr')
+      .columnsTemplate(this.columnTemplate())
       .columnsGap(this.isWide ? QUICK_SITE_WIDE_COLUMN_GAP : QUICK_SITE_PHONE_COLUMN_GAP)
       .rowsGap(this.isWide ? QUICK_SITE_WIDE_ROW_GAP : QUICK_SITE_PHONE_ROW_GAP)
       .width('100%')
@@ -220,8 +222,20 @@ export struct QuickSiteGrid {
     return this.isWide ? QUICK_SITE_WIDE_TILE_SIZE : QUICK_SITE_PHONE_TILE_SIZE;
   }
 
+  private columnCount(): number {
+    return this.isWide && this.isLandscape ? QUICK_SITE_WIDE_LANDSCAPE_COLUMNS : QUICK_SITE_COLUMNS;
+  }
+
+  private columnTemplate(): string {
+    const parts: string[] = [];
+    for (let index: number = 0; index < this.columnCount(); index += 1) {
+      parts.push('1fr');
+    }
+    return parts.join(' ');
+  }
+
   private gridHeight(): number {
-    const rows: number = Math.ceil((this.visibleSites().length + 1) / QUICK_SITE_COLUMNS);
+    const rows: number = Math.ceil((this.visibleSites().length + 1) / this.columnCount());
     const rowHeight: number = this.tileSize() +
       (this.isWide ? QUICK_SITE_WIDE_ROW_EXTRA : QUICK_SITE_PHONE_ROW_EXTRA);
     return rows * rowHeight + Math.max(0, rows - 1) *

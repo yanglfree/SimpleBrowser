@@ -2,6 +2,7 @@ export const QUICK_SITE_PHONE_TILE_SIZE: number = 58;
 export const QUICK_SITE_WIDE_TILE_SCALE: number = 1.3;
 export const QUICK_SITE_WIDE_TILE_SIZE: number = QUICK_SITE_PHONE_TILE_SIZE * QUICK_SITE_WIDE_TILE_SCALE;
 export const QUICK_SITE_COLUMNS: number = 4;
+export const QUICK_SITE_WIDE_LANDSCAPE_COLUMNS: number = 6;
 export const QUICK_SITE_PHONE_COLUMN_GAP: number = 8;
 export const QUICK_SITE_WIDE_COLUMN_GAP: number = 16;
 export const QUICK_SITE_PHONE_ROW_GAP: number = 16;

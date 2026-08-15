@@ -13,6 +13,7 @@ export struct StartPage {
   /** Wide chrome already puts a menu at the top-right; the home gear would overlap it. */
   @Prop hidePageSettings: boolean = false;
   @Prop isWide: boolean = false;
+  @Prop isLandscape: boolean = false;
   onAddSite: () => void = (): void => {};
   onOpenSite: (url: string) => void = (_url: string): void => {};
   onRemoveSite: (url: string) => void = (_url: string): void => {};
@@ -41,6 +42,7 @@ export struct StartPage {
             quickSiteLimit: this.quickSiteLimit,
             backgroundEnabled: this.backgroundEnabled,
             isWide: this.isWide,
+            isLandscape: this.isLandscape,
             onAddSite: this.onAddSite,
             onOpenSite: this.onOpenSite,
             onRemoveSite: this.onRemoveSite,

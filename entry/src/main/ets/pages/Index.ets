@@ -550,6 +550,7 @@ struct Index {
               customBackgroundUri: this.settings.customStartPageBackgroundUri,
               hidePageSettings: this.usesWideChrome(),
               isWide: this.usesWideChrome(),
+              isLandscape: this.isLandscape(),
               onAddSite: (): void => { this.sheet = Overlay.QuickSiteEditor; },
               onOpenSite: (url: string): void => this.navigateTo(url),
               onRemoveSite: (url: string): void => { void this.removeQuickSite(url); },
@@ -939,6 +940,10 @@ struct Index {
 
   private usesWideChrome(): boolean {
     return this.windowMetrics.layoutClass >= BrowserLayoutClass.Medium;
+  }
+
+  private isLandscape(): boolean {
+    return this.windowMetrics.widthVp > this.windowMetrics.heightVp;
   }
 
   private usesDesktopTabStrip(): boolean {
