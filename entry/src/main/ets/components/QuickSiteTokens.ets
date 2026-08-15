@@ -31,9 +31,15 @@ export const QUICK_SITE_WIDE_ADD_GLYPH_SIZE: number = 46;
 export const QUICK_SITE_ADD_STROKE_WIDTH: number = 1.8;
 export const QUICK_SITE_DRAG_SHADOW_RADIUS: number = 18;
 export const QUICK_SITE_DRAG_SHADOW_OFFSET_Y: number = 8;
-export const QUICK_SITE_WIGGLE_ANGLE: number = 1.8;
-export const QUICK_SITE_WIGGLE_DURATION: number = 140;
-export const QUICK_SITE_WIGGLE_EXIT_DURATION: number = 120;
+export const QUICK_SITE_WIGGLE_ANGLE: number = 2.4;
+/** Sine-wave wobble, driven by a 25fps timer so every icon de-syncs. */
+export const QUICK_SITE_WIGGLE_TICK_MS: number = 40;
+/** Phase advance per tick: 2π over ~0.39s → ~2.6Hz, the iOS cadence. */
+export const QUICK_SITE_WIGGLE_STEP: number = 0.65;
+/** Per-icon phase offset so neighbours never wobble in lockstep. */
+export const QUICK_SITE_WIGGLE_PHASE_OFFSET: number = 1.35;
+export const QUICK_SITE_WIGGLE_ENTER_DURATION: number = 150;
+export const QUICK_SITE_WIGGLE_EXIT_DURATION: number = 180;
 export const QUICK_SITE_EDIT_LONG_PRESS_DURATION: number = 450;
 
 export const QUICK_SITE_EDITOR_WIDE_WIDTH: number = 480;

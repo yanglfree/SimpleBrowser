@@ -12,8 +12,9 @@ import {
   QUICK_SITE_WIDE_COLUMN_GAP, QUICK_SITE_WIDE_ITEM_GAP, QUICK_SITE_WIDE_MAX_WIDTH,
   QUICK_SITE_WIDE_ROW_EXTRA, QUICK_SITE_WIDE_ROW_GAP, QUICK_SITE_WIDE_TILE_FONT_SIZE,
   QUICK_SITE_WIDE_TILE_RADIUS, QUICK_SITE_WIDE_TILE_SIZE, QUICK_SITE_WIDE_TITLE_FONT_SIZE,
-  QUICK_SITE_WIGGLE_ANGLE, QUICK_SITE_WIGGLE_DURATION,
-  QUICK_SITE_WIGGLE_EXIT_DURATION
+  QUICK_SITE_WIGGLE_ANGLE, QUICK_SITE_WIGGLE_TICK_MS,
+  QUICK_SITE_WIGGLE_STEP, QUICK_SITE_WIGGLE_PHASE_OFFSET,
+  QUICK_SITE_WIGGLE_ENTER_DURATION, QUICK_SITE_WIGGLE_EXIT_DURATION
 } from './QuickSiteTokens';
 
 const TILE_BACKGROUNDS: Resource[] = [
@@ -37,7 +38,8 @@ export struct QuickSiteGrid {
   @Prop backgroundEnabled: boolean = true;
   @Prop isWide: boolean = false;
   @State private isEditing: boolean = false;
-  @State private wiggle: number = 0;
+  @State private wigglePhase: number = 0;
+  @State private wiggleScale: number = 0;
   @State private dragBadge: string = '';
   @State private dragColorIndex: number = 0;
   private wiggleTimer: number = -1;
@@ -154,7 +156,7 @@ export struct QuickSiteGrid {
         .textAlign(TextAlign.Center).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .width('100%')
-    .rotate({ angle: this.isEditing ? this.wiggle * (index % 2 === 0 ? 1 : -1) : 0 })
+    .rotate({ angle: this.tileAngle(index) })
     .onClick(() => {
       if (!this.isEditing) {
         this.onOpenSite(site.url);
@@ -231,35 +233,46 @@ export struct QuickSiteGrid {
       return;
     }
     this.isEditing = true;
-    this.wiggle = -QUICK_SITE_WIGGLE_ANGLE;
-    // A repeating timer drives the wobble instead of a non-terminating
-    // animateTo(iterations: -1), which could not be reliably cancelled and
-    // kept the icons shaking after tapping "完成".
+    this.wigglePhase = 0;
+    this.getUIContext().animateTo({
+      duration: QUICK_SITE_WIGGLE_ENTER_DURATION,
+      curve: Curve.EaseOut
+    }, (): void => {
+      this.wiggleScale = 1;
+    });
+    // A sine wave driven by a 25fps timer; every icon gets its own phase
+    // offset so they wobble out of lockstep, like the iOS launcher.
     this.wiggleTimer = setInterval((): void => {
       if (!this.isEditing) {
         return;
       }
-      this.getUIContext().animateTo({
-        duration: QUICK_SITE_WIGGLE_DURATION,
-        curve: Curve.EaseInOut
-      }, (): void => {
-        this.wiggle = -this.wiggle;
-      });
-    }, QUICK_SITE_WIGGLE_DURATION * 2);
+      this.wigglePhase = (this.wigglePhase + QUICK_SITE_WIGGLE_STEP) % (Math.PI * 2);
+    }, QUICK_SITE_WIGGLE_TICK_MS);
   }
 
   private leaveEditing(): void {
     this.isEditing = false;
-    if (this.wiggleTimer >= 0) {
-      clearInterval(this.wiggleTimer);
-      this.wiggleTimer = -1;
-    }
     this.getUIContext().animateTo({
       duration: QUICK_SITE_WIGGLE_EXIT_DURATION,
       curve: Curve.EaseOut
     }, (): void => {
-      this.wiggle = 0;
+      this.wiggleScale = 0;
     });
+    setTimeout((): void => {
+      if (this.wiggleTimer >= 0) {
+        clearInterval(this.wiggleTimer);
+        this.wiggleTimer = -1;
+      }
+      this.wigglePhase = 0;
+    }, QUICK_SITE_WIGGLE_EXIT_DURATION);
+  }
+
+  private tileAngle(index: number): number {
+    if (!this.isEditing) {
+      return 0;
+    }
+    return Math.sin(this.wigglePhase + index * QUICK_SITE_WIGGLE_PHASE_OFFSET) *
+      QUICK_SITE_WIGGLE_ANGLE * this.wiggleScale;
   }
 
   private primaryColor(): ResourceColor {
