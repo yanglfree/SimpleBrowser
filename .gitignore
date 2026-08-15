@@ -6,3 +6,7 @@ oh-package-lock.json5
 *.hap
 *.p7b
 *.p12
+# Carries the local signing material (cert/profile paths and key passwords),
+# which DevEco rewrites per machine. Anchored to the root so the entry module's
+# own build-profile.json5 stays in version control.
+/build-profile.json5
