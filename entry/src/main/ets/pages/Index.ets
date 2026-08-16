@@ -169,6 +169,17 @@ export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boole
     sheet !== Overlay.Address && sheet !== Overlay.Actions;
 }
 
+export function resolveOverlayRowJustifyContent(
+  layoutClass: BrowserLayoutClass,
+  sheet: Overlay
+): FlexAlign {
+  if (sheet === Overlay.QuickSiteEditor ||
+    shouldUseResponsivePanel(layoutClass >= BrowserLayoutClass.Medium, sheet)) {
+    return FlexAlign.Center;
+  }
+  return layoutClass >= BrowserLayoutClass.Expanded ? FlexAlign.End : FlexAlign.Center;
+}
+
 export function shouldMountOverlayLayer(sheet: Overlay): boolean {
   return sheet !== Overlay.None;
 }
@@ -1216,11 +1227,7 @@ struct Index {
           right: this.usesResponsivePanel() ? 12 : 0,
           bottom: this.usesResponsivePanel() ? 12 : 0
         })
-        .justifyContent(this.sheet === Overlay.QuickSiteEditor
-          ? FlexAlign.Center
-          : this.windowMetrics.layoutClass >= BrowserLayoutClass.Expanded
-            ? FlexAlign.End
-            : FlexAlign.Center)
+        .justifyContent(resolveOverlayRowJustifyContent(this.windowMetrics.layoutClass, this.sheet))
       }
     }
     .width('100%')

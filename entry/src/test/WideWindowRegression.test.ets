@@ -4,6 +4,7 @@ import { canUseDesktopPageActions } from '../main/ets/components/BrowserDock';
 import {
   Overlay,
   nextSidebarPanel,
+  resolveOverlayRowJustifyContent,
   shouldShowBrowserChrome,
   shouldMountOverlayLayer,
   shouldUseResponsivePanel,
@@ -27,6 +28,39 @@ export default function wideWindowRegressionTest(): void {
 
     it('keeps the address sheet full-screen instead of a right-hand panel on wide layouts', 0, (): void => {
       expect(shouldUseResponsivePanel(true, Overlay.Address)).assertFalse();
+    });
+
+    it('centers responsive overlay panels across wide layout classes', 0, (): void => {
+      expect(resolveOverlayRowJustifyContent(BrowserLayoutClass.Medium, Overlay.Settings))
+        .assertEqual(FlexAlign.Center);
+      expect(resolveOverlayRowJustifyContent(BrowserLayoutClass.Expanded, Overlay.PageSettings))
+        .assertEqual(FlexAlign.Center);
+      expect(resolveOverlayRowJustifyContent(BrowserLayoutClass.Desktop, Overlay.History))
+        .assertEqual(FlexAlign.Center);
+      expect(resolveOverlayRowJustifyContent(BrowserLayoutClass.Desktop, Overlay.Favorites))
+        .assertEqual(FlexAlign.Center);
+      expect(resolveOverlayRowJustifyContent(BrowserLayoutClass.Desktop, Overlay.Downloads))
+        .assertEqual(FlexAlign.Center);
+    });
+
+    it('preserves protected overlay placement outside the responsive panel path', 0, (): void => {
+      const protectedSheets: Overlay[] = [
+        Overlay.Actions,
+        Overlay.Address,
+        Overlay.Find,
+        Overlay.Tabs,
+        Overlay.Onboarding,
+        Overlay.Permission
+      ];
+
+      protectedSheets.forEach((sheet: Overlay): void => {
+        expect(resolveOverlayRowJustifyContent(BrowserLayoutClass.Expanded, sheet))
+          .assertEqual(FlexAlign.End);
+      });
+      expect(resolveOverlayRowJustifyContent(BrowserLayoutClass.Desktop, Overlay.QuickSiteEditor))
+        .assertEqual(FlexAlign.Center);
+      expect(resolveOverlayRowJustifyContent(BrowserLayoutClass.Compact, Overlay.Actions))
+        .assertEqual(FlexAlign.Center);
     });
 
     it('uses an anchored menu instead of the phone modal panel on wide layouts', 0, (): void => {

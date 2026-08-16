@@ -17,7 +17,7 @@ export struct PageSettingsPanel {
   onDismiss: () => void = (): void => {};
 
   build() {
-    Stack({ alignContent: Alignment.TopEnd }) {
+    Stack({ alignContent: this.scrimProvided ? Alignment.Top : Alignment.TopEnd }) {
       if (!this.scrimProvided) {
         Column()
           .width('100%')
@@ -75,7 +75,7 @@ export struct PageSettingsPanel {
       }
       .width('62%')
       .constraintSize({ maxWidth: 620 })
-      .margin({ top: 48, right: 16 })
+      .margin(this.scrimProvided ? { top: 48 } : { top: 48, right: 16 })
       .padding({ top: 18, left: 18, right: 18, bottom: 18 })
       .borderRadius(22)
       .backgroundColor($r('app.color.home_panel_background'))

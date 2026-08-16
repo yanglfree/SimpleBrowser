@@ -209,7 +209,7 @@ export struct SettingsPage {
   @State private isAboutDialogVisible: boolean = false;
 
   build() {
-    Stack({ alignContent: this.isWide ? Alignment.TopEnd : Alignment.Bottom }) {
+    Stack({ alignContent: this.isWide ? Alignment.Top : Alignment.Bottom }) {
       Scroll() {
         Column() {
           Row({ space: 12 }) {
