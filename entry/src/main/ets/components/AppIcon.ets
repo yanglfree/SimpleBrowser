@@ -31,7 +31,9 @@ export enum IconName {
   Download = 25,
   Trash = 26,
   Mic = 27,
-  Star = 28
+  Star = 28,
+  WifiOff = 29,
+  CloudOff = 30
 }
 
 const COMMANDS: string[] = [
@@ -66,7 +68,9 @@ const COMMANDS: string[] = [
   'M12 3v12M7 10l5 5 5-5M5 20h14',
   'M5 7h14M9 7V4h6v3M8 10v7M12 10v7M16 10v7M7 7l1 14h8l1-14',
   'M12 3a4 4 0 0 0-4 4v5a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6',
-  'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'
+  'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z',
+  'M1.42 9a16 16 0 0 1 21.16 0M5 12.55a11 11 0 0 1 14.08 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01M3 3l18 18',
+  'M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10zM3 3l18 18'
 ];
 
 /** The grid every command string above is authored on. */
@@ -218,6 +222,9 @@ export struct AppIcon {
         return $r('app.string.voice_search');
       case IconName.Star:
         return this.filled ? $r('app.string.action_bookmark_remove') : $r('app.string.action_bookmark_add');
+      case IconName.WifiOff:
+      case IconName.CloudOff:
+        return $r('app.string.error_offline_title');
       default:
         return $r('app.string.app_name');
     }

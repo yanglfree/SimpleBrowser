@@ -64,6 +64,7 @@ import { AppIcon, IconName } from '../components/AppIcon';
 import { BlockPanel } from '../components/BlockPanel';
 import { BrowserWebView } from '../components/BrowserWebView';
 import { DownloadSheet } from '../components/DownloadSheet';
+import { ErrorStatePanel } from '../components/ErrorStatePanel';
 import { FindSheet } from '../components/FindSheet';
 import { BrowserDock } from '../components/BrowserDock';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
@@ -741,34 +742,12 @@ struct Index {
   @Builder
   private ErrorLayer() {
     if (!this.isActiveHome() && this.activeErrorKind() !== LoadErrorKind.None) {
-      Column({ space: 16 }) {
-        Text(this.errorTitle(this.activeErrorKind()))
-          .fontSize(19)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
-        Text(this.errorMessage(this.activeErrorKind()))
-          .fontSize(14)
-          .fontColor($r('app.color.text_secondary'))
-          .textAlign(TextAlign.Center)
-          .padding({ left: 28, right: 28 })
-        Row({ space: 12 }) {
-          Text($r('app.string.retry'))
-            .fontSize(15)
-            .fontColor($r('app.color.accent'))
-            .onClick(() => this.retryPage())
-          if (this.activeErrorKind() === LoadErrorKind.Certificate) {
-            Text($r('app.string.certificate_details'))
-              .fontSize(15)
-              .fontColor($r('app.color.text_secondary'))
-              .onClick(() => this.openSecurityDetails())
-          }
-        }
-      }
-      .width('100%')
-      .height('100%')
-      .padding({ bottom: this.webBottomInset() })
-      .backgroundColor($r('app.color.page_background'))
-      .justifyContent(FlexAlign.Center)
+      ErrorStatePanel({
+        kind: this.activeErrorKind(),
+        bottomInset: this.webBottomInset(),
+        onRetry: (): void => this.retryPage(),
+        onCertificateDetails: (): void => this.openSecurityDetails()
+      })
     }
   }
 
@@ -3475,38 +3454,6 @@ struct Index {
 
   private activeErrorKind(): LoadErrorKind {
     return this.activeTab()?.loadError ?? LoadErrorKind.None;
-  }
-
-  private errorTitle(kind: LoadErrorKind): Resource {
-    if (kind === LoadErrorKind.Offline) {
-      return $r('app.string.error_offline_title');
-    }
-    if (kind === LoadErrorKind.Timeout) {
-      return $r('app.string.error_timeout_title');
-    }
-    if (kind === LoadErrorKind.Dns) {
-      return $r('app.string.error_dns_title');
-    }
-    if (kind === LoadErrorKind.Certificate) {
-      return $r('app.string.error_certificate_title');
-    }
-    return $r('app.string.error_unknown_title');
-  }
-
-  private errorMessage(kind: LoadErrorKind): Resource {
-    if (kind === LoadErrorKind.Offline) {
-      return $r('app.string.error_offline_message');
-    }
-    if (kind === LoadErrorKind.Timeout) {
-      return $r('app.string.error_timeout_message');
-    }
-    if (kind === LoadErrorKind.Dns) {
-      return $r('app.string.error_dns_message');
-    }
-    if (kind === LoadErrorKind.Certificate) {
-      return $r('app.string.error_certificate_message');
-    }
-    return $r('app.string.error_unknown_message');
   }
 
   private static errorKindFor(code: number, message: string): LoadErrorKind {
