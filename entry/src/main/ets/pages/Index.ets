@@ -3457,6 +3457,23 @@ struct Index {
   }
 
   private static errorKindFor(code: number, message: string): LoadErrorKind {
+    // Numeric net-error codes are the reliable signal; the message text is
+    // only a fallback for codes outside the known Chromium ranges.
+    if ((code >= -209 && code <= -200) || code === -107 || code === -113) {
+      return LoadErrorKind.Certificate;
+    }
+    if (code === -105 || code === -803) {
+      return LoadErrorKind.Dns;
+    }
+    if (code === -7 || code === -118) {
+      return LoadErrorKind.Timeout;
+    }
+    // No network / unreachable: the "请检查网络" family.
+    if (code === -106 || code === -21 || code === -100 || code === -101 ||
+      code === -102 || code === -109 || code === -130 || code === -138 ||
+      code === -324) {
+      return LoadErrorKind.Offline;
+    }
     const value: string = message.toLowerCase();
     if (value.includes('certificate') || value.includes('ssl')) {
       return LoadErrorKind.Certificate;
@@ -3464,13 +3481,12 @@ struct Index {
     if (value.includes('dns') || value.includes('resolve')) {
       return LoadErrorKind.Dns;
     }
-    if (value.includes('timeout') || value.includes('timed out')) {
+    if (value.includes('timeout') || value.includes('timed out') || value.includes('超时')) {
       return LoadErrorKind.Timeout;
     }
-    if (value.includes('offline') || value.includes('network')) {
-      return LoadErrorKind.Offline;
-    }
-    if (code === -7 || code === -21) {
+    if (value.includes('offline') || value.includes('network') || value.includes('internet') ||
+      value.includes('网络') || value.includes('断网') || value.includes('离线') ||
+      value.includes('无法连接') || value.includes('连接失败')) {
       return LoadErrorKind.Offline;
     }
     return LoadErrorKind.Unknown;
