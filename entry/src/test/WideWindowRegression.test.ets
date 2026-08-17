@@ -8,6 +8,7 @@ import {
   shouldShowBrowserChrome,
   shouldMountOverlayLayer,
   resolveDockBottomPadding,
+  resolveBottomAvoidAreaHeight,
   shouldUseResponsivePanel,
   shouldUseWideActionMenu
 } from '../main/ets/pages/Index';
@@ -121,6 +122,11 @@ export default function wideWindowRegressionTest(): void {
       expect(resolveDockBottomPadding(false, 0)).assertEqual(0);
       expect(resolveDockBottomPadding(false, 24)).assertEqual(24);
       expect(resolveDockBottomPadding(true, 24)).assertEqual(0);
+    });
+
+    it('uses the largest bottom avoid area', 0, (): void => {
+      expect(resolveBottomAvoidAreaHeight(0, 0, 42)).assertEqual(42);
+      expect(resolveBottomAvoidAreaHeight(24, 42, 0)).assertEqual(42);
     });
 
     it('reuses the main instance for ordinary launches', 0, (): void => {

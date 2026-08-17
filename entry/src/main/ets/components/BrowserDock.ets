@@ -131,7 +131,7 @@ export struct BrowserDock {
       // Shield, address, reload — the three things a page-level bar owes the
       // user. On the start page there is nothing to shield or reload, so the
       // placeholder gets the pill to itself.
-      Stack({ alignContent: Alignment.Center }) {
+      Stack({ alignContent: Alignment.Bottom }) {
         Row() {
           if (!this.isHome && this.blockedCount > 0) {
             Row({ space: 3 }) {

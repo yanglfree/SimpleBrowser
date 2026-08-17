@@ -201,6 +201,14 @@ export function resolveDockBottomPadding(
   return usesWideChrome ? 0 : Math.max(0, bottomInset);
 }
 
+export function resolveBottomAvoidAreaHeight(
+  systemBottom: number,
+  gestureBottom: number,
+  navigationIndicatorBottom: number
+): number {
+  return Math.max(systemBottom, gestureBottom, navigationIndicatorBottom);
+}
+
 export function shouldShowBrowserChrome(layoutClass: BrowserLayoutClass, sheet: Overlay): boolean {
   return sheet === Overlay.None || shouldUseWideActionMenu(layoutClass, sheet) ||
     (layoutClass >= BrowserLayoutClass.Medium && sheet === Overlay.QuickSiteEditor);
@@ -415,15 +423,15 @@ struct Index {
     try {
       const mainWindow: window.Window = await window.getLastWindow(this.appContext());
       const systemArea: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
-      const navigationArea: window.AvoidArea = mainWindow.getWindowAvoidAreaIgnoringVisibility(
+      const gestureArea: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM_GESTURE);
+      const navigationIndicatorArea: window.AvoidArea = mainWindow.getWindowAvoidArea(
         window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR
       );
-      const gestureArea: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM_GESTURE);
       this.topInset = px2vp(systemArea.topRect.height);
-      this.bottomInset = Math.max(
+      this.bottomInset = resolveBottomAvoidAreaHeight(
         px2vp(systemArea.bottomRect.height),
-        px2vp(navigationArea.bottomRect.height),
-        px2vp(gestureArea.bottomRect.height)
+        px2vp(gestureArea.bottomRect.height),
+        px2vp(navigationIndicatorArea.bottomRect.height)
       );
     } catch (error) {
       Logger.warn(TAG, `Failed to read the system bar height: ${String(error)}`);
