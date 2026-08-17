@@ -544,6 +544,7 @@ struct Index {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.page_background'))
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .focusable(true)
     .onKeyEvent((event: KeyEvent): boolean => this.handleBrowserShortcut(event))
   }

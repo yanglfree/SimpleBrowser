@@ -16,7 +16,7 @@ import {
 } from '../main/ets/pages/Index';
 import { SidebarPanel } from '../main/ets/components/BrowserSidebar';
 import { BrowserLayoutClass, shouldEnableDockTabSwipe } from '../main/ets/models/WindowMetrics';
-import { shouldLayoutFullScreen } from '../main/ets/services/ThemeService';
+import { shouldLayoutFullScreen, systemBarBackgroundColor } from '../main/ets/services/ThemeService';
 import {
   MAIN_WINDOW_INSTANCE_ID,
   resolveWindowInstanceId
@@ -132,6 +132,12 @@ export default function wideWindowRegressionTest(): void {
     it('keeps one window coordinate system while switching between home and web tabs', 0, (): void => {
       expect(shouldLayoutFullScreen(true)).assertTrue();
       expect(shouldLayoutFullScreen(false)).assertTrue();
+    });
+
+    it('keeps full-screen system bars transparent during page transitions', 0, (): void => {
+      expect(systemBarBackgroundColor(true, '#FAF9F7')).assertEqual('#00000000');
+      expect(systemBarBackgroundColor(true, '#131311')).assertEqual('#00000000');
+      expect(systemBarBackgroundColor(false, '#FAF9F7')).assertEqual('#FAF9F7');
     });
 
     it('reserves the bottom safe area for the compact dock on web pages', 0, (): void => {

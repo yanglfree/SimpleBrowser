@@ -18,6 +18,10 @@ export function shouldLayoutFullScreen(_isHome: boolean): boolean {
   return true;
 }
 
+export function systemBarBackgroundColor(isFullScreen: boolean, background: string): string {
+  return isFullScreen ? TRANSPARENT_BACKGROUND : background;
+}
+
 /**
  * 设置 › 通用 › 外观. Switching the application colour mode is what flips every
  * `$r('app.color.*')` between `resources/base` and `resources/dark`; the system
@@ -69,15 +73,16 @@ export class ThemeService {
   private static applySystemBars(context: common.UIAbilityContext, isDark: boolean, isHome: boolean): void {
     const background: string = isDark ? DARK_BACKGROUND : LIGHT_BACKGROUND;
     const content: string = isDark ? DARK_CONTENT : LIGHT_CONTENT;
+    const isFullScreen: boolean = shouldLayoutFullScreen(isHome);
     window.getLastWindow(context).then((mainWindow: window.Window) => {
       const properties: window.SystemBarProperties = {
-        statusBarColor: isHome ? TRANSPARENT_BACKGROUND : background,
-        navigationBarColor: isHome ? TRANSPARENT_BACKGROUND : background,
+        statusBarColor: systemBarBackgroundColor(isFullScreen, background),
+        navigationBarColor: systemBarBackgroundColor(isFullScreen, background),
         statusBarContentColor: isHome ? HOME_CONTENT : content,
         navigationBarContentColor: isHome ? HOME_CONTENT : content
       };
       mainWindow.setWindowBackgroundColor(isHome ? HOME_BACKGROUND : background);
-      mainWindow.setWindowLayoutFullScreen(shouldLayoutFullScreen(isHome)).then((): void => {
+      mainWindow.setWindowLayoutFullScreen(isFullScreen).then((): void => {
         mainWindow.setWindowSystemBarProperties(properties).catch((error: Error): void => {
           Logger.warn(TAG, `Failed to apply system bar style: ${String(error)}`);
         });
