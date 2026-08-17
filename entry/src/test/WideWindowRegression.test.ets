@@ -8,6 +8,7 @@ import {
   shouldShowBrowserChrome,
   shouldMountOverlayLayer,
   resolveDockBottomPadding,
+  resolveTabTopInset,
   resolveBottomAvoidAreaHeight,
   shouldUseResponsivePanel,
   shouldUseWideActionMenu
@@ -129,6 +130,12 @@ export default function wideWindowRegressionTest(): void {
       expect(resolveDockBottomPadding(false, 0)).assertEqual(0);
       expect(resolveDockBottomPadding(false, 24)).assertEqual(24);
       expect(resolveDockBottomPadding(true, 24)).assertEqual(0);
+    });
+
+    it('keeps compact web pages below the status bar without moving the home background', 0, (): void => {
+      expect(resolveTabTopInset(false, true, 35, 52)).assertEqual(0);
+      expect(resolveTabTopInset(false, false, 35, 52)).assertEqual(35);
+      expect(resolveTabTopInset(true, false, 35, 52)).assertEqual(95);
     });
 
     it('uses the largest bottom avoid area', 0, (): void => {

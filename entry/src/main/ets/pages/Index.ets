@@ -201,6 +201,18 @@ export function resolveDockBottomPadding(
   return usesWideChrome ? 0 : Math.max(0, bottomInset);
 }
 
+export function resolveTabTopInset(
+  usesWideChrome: boolean,
+  isHome: boolean,
+  topInset: number,
+  wideChromeHeight: number
+): number {
+  if (usesWideChrome) {
+    return topInset + wideChromeHeight + 8;
+  }
+  return isHome ? 0 : Math.max(0, topInset);
+}
+
 export function resolveBottomAvoidAreaHeight(
   systemBottom: number,
   gestureBottom: number,
@@ -656,7 +668,12 @@ struct Index {
         .height('100%')
         .position({ x: this.paneX(tab.id), y: 0 })
         .padding({
-          top: this.usesWideChrome() ? this.topInset + this.wideChromeHeight() + 8 : 0,
+          top: resolveTabTopInset(
+            this.usesWideChrome(),
+            isHomeUrl(tab.url),
+            this.topInset,
+            this.wideChromeHeight()
+          ),
           bottom: isHomeUrl(tab.url) || this.usesWideChrome() ? 0 : this.webBottomInset()
         })
         .opacity(this.isPaneVisible(tab.id) ? 1 : 0)
