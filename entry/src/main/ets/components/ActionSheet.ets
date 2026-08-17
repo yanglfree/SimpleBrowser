@@ -67,6 +67,11 @@ export struct ActionSheet {
 
       this.QuickActions()
 
+      Row()
+        .width('100%')
+        .height(1)
+        .backgroundColor(this.handleColor())
+
       Swiper() {
         this.ActionPage(this.primaryActions())
         this.ActionPage(this.secondaryActions())
@@ -244,9 +249,9 @@ export struct ActionSheet {
 
   private primaryActions(): SheetAction[] {
     return [
-      this.action('favorites', $r('app.string.favorites'), IconName.Bookmark, true, false, true),
       this.action('home', $r('app.string.home'), IconName.Home, !this.isHome, this.isHome, false),
       this.action('private', $r('app.string.new_private_tab'), IconName.Incognito, true, false, false),
+      this.action('favorites', $r('app.string.favorites'), IconName.Bookmark, true, false, true),
       this.action('desktop', $r('app.string.action_desktop'), IconName.Desktop,
         !this.isHome, this.isDesktop, false)
     ];
