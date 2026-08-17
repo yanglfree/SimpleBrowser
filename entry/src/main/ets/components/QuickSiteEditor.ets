@@ -29,6 +29,8 @@ export struct QuickSiteEditor {
   @Prop savedItems: SavedItem[] = [];
   @Prop history: HistoryEntry[] = [];
   @Prop isWide: boolean = false;
+  /** Soft keyboard height in vp while shown; the compact sheet floats above it. */
+  @Prop keyboardInset: number = 0;
   @State private source: QuickSiteSource = QuickSiteSource.Custom;
   @State private name: string = '';
   @State private url: string = '';
@@ -118,6 +120,8 @@ export struct QuickSiteEditor {
       : { topLeft: QUICK_SITE_EDITOR_COMPACT_RADIUS, topRight: QUICK_SITE_EDITOR_COMPACT_RADIUS })
     .backgroundColor($r('app.color.surface_panel'))
     .border({ width: this.isWide ? 1 : 0, color: $r('app.color.border') })
+    .margin({ bottom: this.isWide ? 0 : this.keyboardInset })
+    .animation({ duration: 180, curve: Curve.EaseOut })
     .shadow(this.isWide ? {
       radius: QUICK_SITE_EDITOR_SHADOW_RADIUS,
       color: $r('app.color.shadow_soft'),

@@ -322,6 +322,9 @@ struct Index {
   /** Status bar height in vp; the browser draws behind the system bars. */
   @State private topInset: number = 0;
   @State private bottomInset: number = 0;
+  /** Soft keyboard height in vp while it is shown, else 0. Bottom-anchored
+   *  sheets use it to float above the keys instead of being covered. */
+  @State private keyboardInset: number = 0;
   @State private windowMetrics: BrowserWindowMetrics = createWindowMetrics(
     0,
     0,
@@ -445,6 +448,13 @@ struct Index {
         px2vp(gestureArea.bottomRect.height),
         px2vp(navigationIndicatorArea.bottomRect.height)
       );
+      const keyboardArea: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD);
+      this.keyboardInset = px2vp(keyboardArea.bottomRect.height);
+      mainWindow.on('avoidAreaChange', (data: window.AvoidAreaOptions): void => {
+        if (data.type === window.AvoidAreaType.TYPE_KEYBOARD) {
+          this.keyboardInset = px2vp(data.area.bottomRect.height);
+        }
+      });
     } catch (error) {
       Logger.warn(TAG, `Failed to read the system bar height: ${String(error)}`);
     }
@@ -1355,6 +1365,7 @@ struct Index {
         savedItems: this.savedItems,
         history: this.history,
         isWide: this.usesWideChrome(),
+        keyboardInset: this.keyboardInset,
         onSave: (title: string, url: string): void => { void this.addQuickSite(title, url); },
         onDismiss: (): void => { this.sheet = Overlay.None; }
       })
