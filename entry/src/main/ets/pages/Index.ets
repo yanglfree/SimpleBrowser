@@ -541,7 +541,7 @@ struct Index {
   @Builder
   private ContentLayer() {
     Column() {
-      if (!this.usesWideChrome()) {
+      if (!this.usesWideChrome() && !this.isActiveHome()) {
         this.ProgressBar()
       }
 
