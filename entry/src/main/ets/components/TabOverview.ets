@@ -6,7 +6,6 @@ import {
   TAB_CARD_ACTIVE_BORDER,
   TAB_CARD_BORDER,
   TAB_CARD_CLOSE_ICON_SIZE,
-  TAB_CARD_CLOSE_SWIPE_DISTANCE,
   TAB_CARD_HEADER_BOTTOM,
   TAB_CARD_HEADER_HORIZONTAL,
   TAB_CARD_HEADER_TOP,
@@ -39,6 +38,25 @@ import {
 const TAB_OVERVIEW_MIN_CARD_WIDTH: number = 240;
 const TAB_OVERVIEW_MAX_COLUMNS: number = 4;
 const TAB_OVERVIEW_CONTENT_MAX_WIDTH: number = 1440;
+
+export enum TabOverviewPanAction {
+  None = 0,
+  SwitchNext = 1,
+  SwitchPrevious = 2
+}
+
+export function tabOverviewPanAction(offsetX: number, offsetY: number): TabOverviewPanAction {
+  if (Math.abs(offsetX) <= Math.abs(offsetY)) {
+    return TabOverviewPanAction.None;
+  }
+  if (offsetX <= -TAB_CARD_SWITCH_SWIPE_DISTANCE) {
+    return TabOverviewPanAction.SwitchNext;
+  }
+  if (offsetX >= TAB_CARD_SWITCH_SWIPE_DISTANCE) {
+    return TabOverviewPanAction.SwitchPrevious;
+  }
+  return TabOverviewPanAction.None;
+}
 
 export function tabOverviewColumnCount(availableWidth: number): number {
   const contentWidth: number = Math.max(0, availableWidth - TAB_OVERVIEW_HEADER_HORIZONTAL * 2);
@@ -247,12 +265,10 @@ export struct TabOverview {
     .gesture(
       PanGesture({ direction: PanDirection.All, distance: TAB_CARD_SWIPE_DISTANCE })
         .onActionEnd((event: GestureEvent) => {
-          const horizontal: boolean = Math.abs(event.offsetX) > Math.abs(event.offsetY);
-          if (!horizontal && event.offsetY <= -TAB_CARD_CLOSE_SWIPE_DISTANCE) {
-            this.onClose($$.tab.id);
-          } else if (horizontal && event.offsetX <= -TAB_CARD_SWITCH_SWIPE_DISTANCE) {
+          const action: TabOverviewPanAction = tabOverviewPanAction(event.offsetX, event.offsetY);
+          if (action === TabOverviewPanAction.SwitchNext) {
             this.onSwitch(1);
-          } else if (horizontal && event.offsetX >= TAB_CARD_SWITCH_SWIPE_DISTANCE) {
+          } else if (action === TabOverviewPanAction.SwitchPrevious) {
             this.onSwitch(-1);
           }
         })

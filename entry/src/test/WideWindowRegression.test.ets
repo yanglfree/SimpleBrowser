@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { desktopTabWidth } from '../main/ets/components/DesktopTabStrip';
 import { canUseDesktopPageActions, compactDockOpticalOffset } from '../main/ets/components/BrowserDock';
+import { TabOverviewPanAction, tabOverviewPanAction } from '../main/ets/components/TabOverview';
 import {
   Overlay,
   nextSidebarPanel,
@@ -112,6 +113,13 @@ export default function wideWindowRegressionTest(): void {
       expect(compactDockOpticalOffset(28, false, false)).assertEqual(14);
       expect(compactDockOpticalOffset(28, true, false)).assertEqual(0);
       expect(compactDockOpticalOffset(28, false, true)).assertEqual(0);
+    });
+
+    it('does not close a tab when a card is vertically scrolled', 0, (): void => {
+      expect(tabOverviewPanAction(0, -80)).assertEqual(TabOverviewPanAction.None);
+      expect(tabOverviewPanAction(12, 96)).assertEqual(TabOverviewPanAction.None);
+      expect(tabOverviewPanAction(-80, 12)).assertEqual(TabOverviewPanAction.SwitchNext);
+      expect(tabOverviewPanAction(80, -12)).assertEqual(TabOverviewPanAction.SwitchPrevious);
     });
 
     it('continuously fits desktop tab widths to the available chrome', 0, (): void => {
