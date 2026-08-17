@@ -66,7 +66,7 @@ import { BrowserWebView } from '../components/BrowserWebView';
 import { DownloadSheet } from '../components/DownloadSheet';
 import { ErrorStatePanel } from '../components/ErrorStatePanel';
 import { FindSheet } from '../components/FindSheet';
-import { BrowserDock } from '../components/BrowserDock';
+import { BrowserDock, compactDockOpticalOffset } from '../components/BrowserDock';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
 import { HistorySheet } from '../components/HistorySheet';
 import { LinkActionSheet } from '../components/LinkActionSheet';
@@ -853,9 +853,7 @@ struct Index {
         Column() {
           this.BrowserDockContent()
         }
-        // Compact windows reserve the system gesture area below the dock so the
-        // address capsule never lands under the bottom safe area.
-        .padding({ bottom: resolveDockBottomPadding(this.usesWideChrome(), this.bottomInset) })
+        .padding({ bottom: this.compactDockBottomPadding() })
       }
     }
   }
@@ -886,7 +884,6 @@ struct Index {
       BrowserDock({
       isHome: this.isActiveHome(),
       homeBackgroundEnabled: this.settings.startPageBackgroundEnabled,
-      bottomInset: this.bottomInset,
       collapsed: this.usesWideChrome() ? false : this.isDockCollapsed(),
       wide: this.usesWideChrome(),
       desktop: this.usesDesktopTabStrip(),
@@ -1197,7 +1194,19 @@ struct Index {
     if (this.usesWideChrome() || this.isActiveHome()) {
       return dockInset;
     }
-    return dockInset + Math.max(0, this.bottomInset);
+    return dockInset + this.compactDockBottomPadding();
+  }
+
+  private compactDockBottomPadding(): number {
+    const opticalOffset: number = compactDockOpticalOffset(
+      this.bottomInset,
+      this.usesWideChrome(),
+      this.isDockCollapsed()
+    );
+    return Math.max(
+      0,
+      resolveDockBottomPadding(this.usesWideChrome(), this.bottomInset) - opticalOffset
+    );
   }
 
   // --------------------------------------------------------------- overlays

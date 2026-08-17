@@ -74,8 +74,6 @@ export const DOCK_ICON_SIZE: number = 28;
 /** Outlined square holding the tab count, the way every mobile browser draws it. */
 export const DOCK_BADGE_SIZE: number = 24;
 export const DOCK_HEIGHT: number = 52;
-/** Keep compact controls just clear of the gesture region after optical alignment. */
-export const DOCK_OPTICAL_SAFE_CLEARANCE: number = 1;
 export const DOCK_TAB_INDICATOR_LIMIT: number = 5;
 export const DOCK_TAB_INDICATOR_ACTIVE_WIDTH: number = 12;
 export const DOCK_TAB_INDICATOR_DOT_SIZE: number = 4;
