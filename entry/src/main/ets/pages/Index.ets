@@ -90,7 +90,6 @@ import { WideActionMenu } from '../components/WideActionMenu';
 import {
   DOCK_COLLAPSED_HEIGHT,
   DOCK_HEIGHT,
-  DOCK_SAFE_AREA_OVERLAP,
   TAB_WEB_BOTTOM_INSET,
   TAB_WEB_BOTTOM_INSET_COMPACT,
   RECENT_TAB_LIMIT
@@ -193,6 +192,13 @@ export function nextSidebarPanel(
 
 export function shouldUseWideActionMenu(layoutClass: BrowserLayoutClass, sheet: Overlay): boolean {
   return layoutClass >= BrowserLayoutClass.Medium && sheet === Overlay.Actions;
+}
+
+export function resolveDockBottomPadding(
+  usesWideChrome: boolean,
+  bottomInset: number
+): number {
+  return usesWideChrome ? 0 : Math.max(0, bottomInset);
 }
 
 export function shouldShowBrowserChrome(layoutClass: BrowserLayoutClass, sheet: Overlay): boolean {
@@ -408,9 +414,17 @@ struct Index {
   private async measureSystemInsets(): Promise<void> {
     try {
       const mainWindow: window.Window = await window.getLastWindow(this.appContext());
-      const area: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
-      this.topInset = px2vp(area.topRect.height);
-      this.bottomInset = px2vp(area.bottomRect.height);
+      const systemArea: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+      const navigationArea: window.AvoidArea = mainWindow.getWindowAvoidAreaIgnoringVisibility(
+        window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR
+      );
+      const gestureArea: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM_GESTURE);
+      this.topInset = px2vp(systemArea.topRect.height);
+      this.bottomInset = Math.max(
+        px2vp(systemArea.bottomRect.height),
+        px2vp(navigationArea.bottomRect.height),
+        px2vp(gestureArea.bottomRect.height)
+      );
     } catch (error) {
       Logger.warn(TAG, `Failed to read the system bar height: ${String(error)}`);
     }
@@ -830,12 +844,10 @@ struct Index {
       } else {
         Column() {
           this.BrowserDockContent()
-          if (this.isActiveHome() && this.bottomInset > 0) {
-            Row()
-              .width('100%')
-              .height(this.bottomInset)
-          }
         }
+        // Compact windows reserve the system gesture area below the dock so the
+        // address capsule never lands under the bottom safe area.
+        .padding({ bottom: resolveDockBottomPadding(this.usesWideChrome(), this.bottomInset) })
       }
     }
   }
@@ -937,8 +949,7 @@ struct Index {
       onCopyLink: (): void => { void this.copyActiveLink(); }
       })
       .translate({
-        x: this.tabSwitchOffset,
-        y: this.usesWideChrome() || this.isActiveHome() ? 0 : DOCK_SAFE_AREA_OVERLAP
+        x: this.tabSwitchOffset
       })
       .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
         .combine(TransitionEffect.translate({ y: 24 })))
@@ -1173,7 +1184,11 @@ struct Index {
   }
 
   private webBottomInset(): number {
-    return this.settings.autoHideToolbarEnabled ? TAB_WEB_BOTTOM_INSET_COMPACT : TAB_WEB_BOTTOM_INSET;
+    const dockInset: number = this.settings.autoHideToolbarEnabled ? TAB_WEB_BOTTOM_INSET_COMPACT : TAB_WEB_BOTTOM_INSET;
+    if (this.usesWideChrome() || this.isActiveHome()) {
+      return dockInset;
+    }
+    return dockInset + Math.max(0, this.bottomInset);
   }
 
   // --------------------------------------------------------------- overlays

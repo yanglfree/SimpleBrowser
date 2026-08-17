@@ -7,6 +7,7 @@ import {
   resolveOverlayRowJustifyContent,
   shouldShowBrowserChrome,
   shouldMountOverlayLayer,
+  resolveDockBottomPadding,
   shouldUseResponsivePanel,
   shouldUseWideActionMenu
 } from '../main/ets/pages/Index';
@@ -114,6 +115,12 @@ export default function wideWindowRegressionTest(): void {
     it('keeps one window coordinate system while switching between home and web tabs', 0, (): void => {
       expect(shouldLayoutFullScreen(true)).assertTrue();
       expect(shouldLayoutFullScreen(false)).assertTrue();
+    });
+
+    it('reserves the bottom safe area for the compact dock on web pages', 0, (): void => {
+      expect(resolveDockBottomPadding(false, 0)).assertEqual(0);
+      expect(resolveDockBottomPadding(false, 24)).assertEqual(24);
+      expect(resolveDockBottomPadding(true, 24)).assertEqual(0);
     });
 
     it('reuses the main instance for ordinary launches', 0, (): void => {
