@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { desktopTabWidth } from '../main/ets/components/DesktopTabStrip';
-import { canUseDesktopPageActions } from '../main/ets/components/BrowserDock';
+import { canUseDesktopPageActions, compactDockOpticalOffset } from '../main/ets/components/BrowserDock';
 import {
   Overlay,
   nextSidebarPanel,
@@ -104,6 +104,13 @@ export default function wideWindowRegressionTest(): void {
     it('keeps desktop page actions enabled when the visible host is a web page', 0, (): void => {
       expect(canUseDesktopPageActions('juejin.cn', true)).assertTrue();
       expect(canUseDesktopPageActions('', true)).assertFalse();
+    });
+
+    it('optically lowers compact dock controls without entering the gesture area', 0, (): void => {
+      expect(compactDockOpticalOffset(0, false, false)).assertEqual(0);
+      expect(compactDockOpticalOffset(28, false, false)).assertEqual(2);
+      expect(compactDockOpticalOffset(28, true, false)).assertEqual(0);
+      expect(compactDockOpticalOffset(28, false, true)).assertEqual(0);
     });
 
     it('continuously fits desktop tab widths to the available chrome', 0, (): void => {

@@ -886,6 +886,7 @@ struct Index {
       BrowserDock({
       isHome: this.isActiveHome(),
       homeBackgroundEnabled: this.settings.startPageBackgroundEnabled,
+      bottomInset: this.bottomInset,
       collapsed: this.usesWideChrome() ? false : this.isDockCollapsed(),
       wide: this.usesWideChrome(),
       desktop: this.usesDesktopTabStrip(),

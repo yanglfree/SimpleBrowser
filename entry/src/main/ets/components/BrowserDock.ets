@@ -5,6 +5,7 @@ import {
   DOCK_COLLAPSED_PILL_HEIGHT,
   DOCK_HEIGHT,
   DOCK_ICON_SIZE,
+  DOCK_OPTICAL_SAFE_CLEARANCE,
   DOCK_ROW_HEIGHT,
   DOCK_SLOT_WIDTH,
   DOCK_TAB_INDICATOR_ACTIVE_WIDTH,
@@ -25,6 +26,22 @@ export function canUseDesktopPageActions(host: string, isHome: boolean): boolean
   return host.length > 0 || !isHome;
 }
 
+export function compactDockOpticalOffset(
+  bottomInset: number,
+  wide: boolean,
+  collapsed: boolean
+): number {
+  if (wide || collapsed || bottomInset <= 0) {
+    return 0;
+  }
+  const idealOffset: number = bottomInset / 2;
+  const safeOffsetLimit: number = Math.max(
+    0,
+    (DOCK_HEIGHT - DOCK_ROW_HEIGHT) / 2 - DOCK_OPTICAL_SAFE_CLEARANCE
+  );
+  return Math.min(idealOffset, safeOffsetLimit);
+}
+
 /**
  * One bar, one row. Compact layouts keep the phone controls around an address pill;
  * desktop layouts expand the same interaction model into a full-width toolbar.
@@ -35,6 +52,7 @@ export function canUseDesktopPageActions(host: string, isHome: boolean): boolean
 export struct BrowserDock {
   @Prop isHome: boolean = false;
   @Prop homeBackgroundEnabled: boolean = true;
+  @Prop bottomInset: number = 0;
   @Prop collapsed: boolean = false;
   @Prop wide: boolean = false;
   @Prop desktop: boolean = false;
@@ -101,6 +119,7 @@ export struct BrowserDock {
     .width('100%')
     .height(DOCK_HEIGHT)
     .justifyContent(FlexAlign.Center)
+    .translate({ y: compactDockOpticalOffset(this.bottomInset, this.wide, this.collapsed) })
     .backgroundColor(this.usesHomeColors() ? Color.Transparent : $r('app.color.page_background'))
     .borderRadius(this.desktop ? 0 : this.wide ? DOCK_HEIGHT / 2 : 0)
     .shadow(this.desktop ? undefined : this.wide
