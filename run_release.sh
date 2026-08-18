@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 
-# Dolphin Browser — HarmonyOS release 构建与安装脚本。
+# Zhuoyue Browser — HarmonyOS release 构建与安装脚本。
 # 用法: ./run_release.sh [-d device-id]
 # 不带 -d 时会列出已连接设备并提示选择。
 

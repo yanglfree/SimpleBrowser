@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zhuoyue-browser-site",
+  "compatibility_date": "2026-08-18",
+  "assets": {
+    "directory": "./website",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    {
+      "pattern": "browser.youdroid.top",
+      "custom_domain": true
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">卓阅浏览器</title>
+  <desc id="desc">少一点干扰，多一点阅读。</desc>
+  <rect width="1200" height="630" fill="#FAF9F7"/>
+  <rect x="48" y="48" width="1104" height="534" rx="40" fill="#1D1D1A"/>
+  <rect x="112" y="143" width="344" height="344" rx="86" fill="#FAF9F7"/>
+  <circle cx="284" cy="315" r="122" fill="#2E6B5C"/>
+  <path d="M339 242C283 224 227 258 214 309C202 359 245 401 295 392C334 385 358 352 354 312" fill="none" stroke="#FAF9F7" stroke-width="16" stroke-linecap="round"/>
+  <path d="M244 289H325L248 354H327" fill="none" stroke="#FAF9F7" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="540" y="270" fill="#F5F3EE" font-family="HarmonyOS Sans SC, PingFang SC, sans-serif" font-size="72" font-weight="600">卓阅浏览器</text>
+  <text x="540" y="358" fill="#C7C4BD" font-family="HarmonyOS Sans SC, PingFang SC, sans-serif" font-size="34">少一点干扰，多一点阅读。</text>
+  <text x="540" y="430" fill="#84A794" font-family="ui-monospace, monospace" font-size="18" letter-spacing="3">FOR HARMONYOS NEXT</text>
+</svg>

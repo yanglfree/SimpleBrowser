@@ -1,4 +1,4 @@
-# Dolphin Browser Design System
+# Zhuoyue Browser Design System
 
 ## 1. Atmosphere & Identity
 
@@ -19,6 +19,9 @@ must not be the only way to discover it.
 | Border | `app.color.border` | `#E5E2DB` | `#26251F` | Component boundaries |
 | Accent | `app.color.accent` | `#2E6B5C` | `#2E6B5C` | Progress and selected state |
 | Strong accent | `app.color.accent_strong` | `#2E6B5C` | `#84A794` | Small icons and visible controls |
+| Website body | `site.color.body` | `#55534F` | — | Long-form landing page copy |
+| Website muted | `site.color.muted` | `#706D67` | — | Secondary landing page metadata |
+| Website dark secondary | `site.color.on_dark_muted` | `#C7C4BD` | — | Secondary text on the landing page dark surface |
 
 Accent is reserved for interactive or selected states. New UI must use resource
 tokens rather than inline colors.
@@ -157,3 +160,25 @@ The surface strategy is mixed: tonal shifts establish hierarchy, while one-pixel
 resource-token borders and soft shadows separate floating controls from content.
 Capsules and tab cards use the shared panel, border, and shadow tokens so new chrome
 does not introduce a competing material language.
+
+## 8. Product Landing Page
+
+The public website extends the in-app identity rather than introducing a separate
+marketing theme. It uses the same warm paper, ink, border, and accent colors, with
+the real browser UI as the hero material.
+
+- **Canvas**: warm paper with white panels and ink-green focal surfaces.
+- **Website-only material tokens**: `site.color.device_border` (`#3A3A35`),
+  `site.color.device_frame` (`#0F100E`), and `site.color.device_shadow`
+  (`#00000052`) are restricted to the product-stage device frame.
+- **Typography**: HarmonyOS/system sans-serif; large, light display copy and compact
+  operational body text. No remote fonts or negative tracking.
+- **Layout**: a 4px spacing rhythm, 24px mobile gutters, and a 1200px content ceiling.
+- **Product stage**: one real app screenshot inside a restrained device frame. It is
+  the sole dimensional focal point; feature sections remain border-led and quiet.
+- **Components**: site header, text link, primary link, product stage, feature card,
+  privacy statement, and footer. Interactive states use color/border changes only.
+- **Motion**: no decorative entrance or scroll animation. Respect reduced-motion
+  preferences and animate only link affordances with opacity or transform.
+- **Accessibility**: visible focus rings, 44px minimum primary targets, semantic
+  landmarks, and WCAG AA text contrast at every size.

@@ -1,6 +1,6 @@
-# Dolphin Browser
+# Zhuoyue Browser
 
-Dolphin Browser (极简浏览器) is a HarmonyOS NEXT browser built on ArkWeb. It focuses on a clean, private browsing surface rather than a system-wide browser extension.
+Zhuoyue Browser (卓阅浏览器) is a HarmonyOS NEXT browser built on ArkWeb. It focuses on a clean, private browsing surface rather than a system-wide browser extension.
 
 ## Features
 
