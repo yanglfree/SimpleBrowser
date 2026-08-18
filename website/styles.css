@@ -24,7 +24,10 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 88px;
+}
 
 body {
   margin: 0;
@@ -133,6 +136,14 @@ a:focus-visible {
 }
 
 h1, h2, h3, p { overflow-wrap: break-word; }
+
+.headline-line {
+  display: block;
+  white-space: nowrap;
+}
+
+#features,
+#privacy { scroll-margin-top: 88px; }
 
 h1 {
   max-width: 680px;
@@ -396,6 +407,7 @@ h1 {
 }
 
 @media (max-width: 640px) {
+  html { scroll-padding-top: 72px; }
   .shell { width: min(calc(100% - 32px), var(--shell)); }
   .nav { min-height: 64px; }
   .brand img { width: 36px; height: 36px; }
@@ -403,7 +415,9 @@ h1 {
   .nav-links a { display: none; }
   .availability { font-size: 10px; }
   .hero { min-height: auto; padding-block: 64px 80px; }
-  h1 { font-size: clamp(48px, 15vw, 72px); }
+  h1 { font-size: 46px; }
+  .section-heading h2, .closing h2 { font-size: 36px; }
+  #features, #privacy { scroll-margin-top: 72px; }
   .hero-intro { margin-top: 24px; font-size: 16px; }
   .product-stage { min-height: 560px; padding: 24px 20px 0; border-radius: var(--radius-medium); }
   .stage-caption { inset: 24px 24px auto; }
