@@ -1,6 +1,6 @@
 <svg width="1024" height="1024" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
   <title id="title">Zhuoyue Browser app icon</title>
-  <rect width="96" height="96" rx="24" fill="#FAF9F7"/>
+  <rect width="96" height="96" fill="#FAF9F7"/>
   <circle cx="48" cy="48" r="34" fill="#2E6B5C"/>
   <path d="M63.5 27.5C48 22.5 32.5 32 29 46C25.5 60 37.5 71.5 51.5 69C62.5 67 69 58 68 47"
     fill="none" stroke="#FAF9F7" stroke-width="4" stroke-linecap="round"/>

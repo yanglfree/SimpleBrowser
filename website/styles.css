@@ -91,8 +91,6 @@ a:focus-visible {
   font-weight: 650;
 }
 
-.brand img { border-radius: 11px; }
-
 .nav-links {
   display: flex;
   align-items: center;
@@ -141,6 +139,8 @@ h1, h2, h3, p { overflow-wrap: break-word; }
   display: block;
   white-space: nowrap;
 }
+
+.keep-together { white-space: nowrap; }
 
 #features,
 #privacy { scroll-margin-top: 88px; }
@@ -377,7 +377,6 @@ h1 {
   gap: 48px;
 }
 
-.closing img { border-radius: 28px; }
 .closing > div > p:last-child { margin: 20px 0 0; color: var(--body); font-size: 16px; }
 
 .site-footer { border-top: 1px solid var(--border); }
