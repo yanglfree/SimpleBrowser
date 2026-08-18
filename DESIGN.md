@@ -136,10 +136,14 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
   followed by shipped preset sites. Browsing history is never promoted automatically;
   it only becomes a shortcut when the user selects it in the add dialog.
 - **Deduplication**: one tile per host; hidden hosts remain excluded.
-- **Icons**: the site's own favicon on a neutral card, fetched from the site itself
-  (third-party favicon proxies are not reachable from the mainland) and cached on disk
-  for a fortnight. A site with no usable icon, or a cached file that will not decode,
-  falls back to the coloured letter tile — the tile never waits on the network.
+- **Icons**: the site's own highest-quality declared icon on a neutral card. Page
+  metadata and high-resolution touch icons take precedence over the legacy root
+  favicon; third-party favicon proxies are not used because they are unreliable from
+  the mainland. Icons sit on a fixed rounded inner plate and square artwork receives
+  the same corner treatment, so transparent, circular, and rectangular assets share
+  one visual footprint. Results are cached on disk for a fortnight. A site with no
+  usable icon, or a cached file that will not decode, falls back to the coloured
+  letter tile — the tile never waits on the network.
 - **Editing**: long-press enters a desktop-style edit state with close controls,
   restrained wiggle feedback, and drag sorting. Removal hides the shortcut without
   deleting the underlying bookmark or history entry.

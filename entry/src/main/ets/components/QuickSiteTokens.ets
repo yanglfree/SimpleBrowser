@@ -3,6 +3,9 @@ export const QUICK_SITE_WIDE_TILE_SCALE: number = 1.3;
 export const QUICK_SITE_WIDE_TILE_SIZE: number = QUICK_SITE_PHONE_TILE_SIZE * QUICK_SITE_WIDE_TILE_SCALE;
 /** Favicon side as a fraction of the tile, leaving a home-screen-style margin. */
 export const QUICK_SITE_ICON_RATIO: number = 0.58;
+/** Stable inner plate that visually normalizes transparent, circular, and square site artwork. */
+export const QUICK_SITE_ICON_PLATE_RATIO: number = 0.72;
+export const QUICK_SITE_ICON_CORNER_RATIO: number = 0.22;
 export const QUICK_SITE_COLUMNS: number = 4;
 export const QUICK_SITE_WIDE_LANDSCAPE_COLUMNS: number = 6;
 export const QUICK_SITE_PHONE_COLUMN_GAP: number = 8;

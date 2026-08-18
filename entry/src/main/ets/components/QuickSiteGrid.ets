@@ -7,6 +7,7 @@ import {
   QUICK_SITE_DONE_FONT_SIZE, QUICK_SITE_DONE_RADIUS, QUICK_SITE_DONE_WIDTH,
   QUICK_SITE_DRAG_SHADOW_OFFSET_Y, QUICK_SITE_DRAG_SHADOW_RADIUS, QUICK_SITE_EDIT_LONG_PRESS_DURATION,
   QUICK_SITE_GRID_SECTION_GAP, QUICK_SITE_HORIZONTAL_PADDING, QUICK_SITE_ICON_RATIO,
+  QUICK_SITE_ICON_CORNER_RATIO, QUICK_SITE_ICON_PLATE_RATIO,
   QUICK_SITE_PHONE_ADD_GLYPH_SIZE,
   QUICK_SITE_PHONE_COLUMN_GAP, QUICK_SITE_PHONE_ITEM_GAP, QUICK_SITE_PHONE_MAX_WIDTH,
   QUICK_SITE_PHONE_ROW_EXTRA, QUICK_SITE_PHONE_ROW_GAP, QUICK_SITE_PHONE_TILE_FONT_SIZE,
@@ -189,13 +190,22 @@ export struct QuickSiteGrid {
   @Builder
   private IconTile(site: QuickSite) {
     Column() {
-      Image(this.iconPath(site))
-        .width(this.iconSize())
-        .height(this.iconSize())
-        .objectFit(ImageFit.Contain)
-        .interpolation(ImageInterpolation.High)
-        .draggable(false)
-        .onError(() => this.markIconBroken(site))
+      Column() {
+        Image(this.iconPath(site))
+          .width(this.iconSize())
+          .height(this.iconSize())
+          .objectFit(ImageFit.Contain)
+          .interpolation(ImageInterpolation.High)
+          .borderRadius(this.iconCornerRadius())
+          .clip(true)
+          .draggable(false)
+          .onError(() => this.markIconBroken(site))
+      }
+      .width(this.iconPlateSize()).height(this.iconPlateSize())
+      .justifyContent(FlexAlign.Center)
+      .borderRadius(this.iconPlateCornerRadius())
+      .backgroundColor($r('app.color.surface_subtle'))
+      .clip(true)
     }
     .width(this.tileSize()).height(this.tileSize())
     .justifyContent(FlexAlign.Center)
@@ -236,10 +246,20 @@ export struct QuickSiteGrid {
   private DragPreview() {
     if (this.dragIconPath.length > 0) {
       Column() {
-        Image(this.dragIconPath)
-          .width(this.iconSize()).height(this.iconSize())
-          .objectFit(ImageFit.Contain)
-          .draggable(false)
+        Column() {
+          Image(this.dragIconPath)
+            .width(this.iconSize()).height(this.iconSize())
+            .objectFit(ImageFit.Contain)
+            .interpolation(ImageInterpolation.High)
+            .borderRadius(this.iconCornerRadius())
+            .clip(true)
+            .draggable(false)
+        }
+        .width(this.iconPlateSize()).height(this.iconPlateSize())
+        .justifyContent(FlexAlign.Center)
+        .borderRadius(this.iconPlateCornerRadius())
+        .backgroundColor($r('app.color.surface_subtle'))
+        .clip(true)
       }
       .width(this.tileSize()).height(this.tileSize())
       .justifyContent(FlexAlign.Center)
@@ -278,6 +298,18 @@ export struct QuickSiteGrid {
   /** Inset so a square favicon does not touch the rounded corners of its card. */
   private iconSize(): number {
     return Math.round(this.tileSize() * QUICK_SITE_ICON_RATIO);
+  }
+
+  private iconPlateSize(): number {
+    return Math.round(this.tileSize() * QUICK_SITE_ICON_PLATE_RATIO);
+  }
+
+  private iconCornerRadius(): number {
+    return Math.round(this.iconSize() * QUICK_SITE_ICON_CORNER_RATIO);
+  }
+
+  private iconPlateCornerRadius(): number {
+    return Math.round(this.iconPlateSize() * QUICK_SITE_ICON_CORNER_RATIO);
   }
 
   private iconPath(site: QuickSite): string {

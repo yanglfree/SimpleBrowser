@@ -3868,15 +3868,21 @@ struct Index {
   }
 
   private async loadQuickSiteIcons(sites: QuickSite[]): Promise<void> {
+    const requests: Promise<void>[] = [];
     for (const site of sites) {
       const host: string = rawHost(site.url);
       if (host.length === 0 || quickSiteIconPath(this.quickSiteIcons, host).length > 0) {
         continue;
       }
-      const path: string = await FaviconService.iconFor(site.url);
-      if (path.length > 0) {
-        this.quickSiteIcons = withQuickSiteIcon(this.quickSiteIcons, host, path);
-      }
+      requests.push(this.loadQuickSiteIcon(site, host));
+    }
+    await Promise.all(requests);
+  }
+
+  private async loadQuickSiteIcon(site: QuickSite, host: string): Promise<void> {
+    const path: string = await FaviconService.iconFor(site.url);
+    if (path.length > 0) {
+      this.quickSiteIcons = withQuickSiteIcon(this.quickSiteIcons, host, path);
     }
   }
 

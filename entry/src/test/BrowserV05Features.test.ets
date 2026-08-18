@@ -10,11 +10,16 @@ import { BrowserViewModel } from '../main/ets/viewmodels/BrowserViewModel';
 import { tabDragDropIndex, tabReorderShift } from '../main/ets/components/DesktopTabStrip';
 import {
   faviconCacheFileName,
-  faviconCandidates,
   faviconFileUri,
+  iconPixelSize,
   isCachedIconFresh,
+  isShortcutIconLargeEnough,
   looksLikeIconData
-} from '../main/ets/services/FaviconService';
+} from '../main/ets/services/FaviconPolicy';
+import {
+  faviconCandidates,
+  faviconMetadataCandidates
+} from '../main/ets/services/FaviconMetadataPolicy';
 
 const SLOT: number = 120;
 
@@ -28,6 +33,28 @@ function icoBytes(): Uint8Array {
 
 function htmlBytes(): Uint8Array {
   return new Uint8Array([0x3c, 0x21, 0x44, 0x4f, 0x43, 0x54, 0x59, 0x50, 0x45]);
+}
+
+function pngBytesWithSize(width: number, height: number): Uint8Array {
+  const bytes: Uint8Array = new Uint8Array(24);
+  bytes.set(pngBytes(), 0);
+  bytes[16] = (width >>> 24) & 0xff;
+  bytes[17] = (width >>> 16) & 0xff;
+  bytes[18] = (width >>> 8) & 0xff;
+  bytes[19] = width & 0xff;
+  bytes[20] = (height >>> 24) & 0xff;
+  bytes[21] = (height >>> 16) & 0xff;
+  bytes[22] = (height >>> 8) & 0xff;
+  bytes[23] = height & 0xff;
+  return bytes;
+}
+
+function icoBytesWithSize(size: number): Uint8Array {
+  const bytes: Uint8Array = new Uint8Array(22);
+  bytes.set(icoBytes(), 0);
+  bytes[6] = size === 256 ? 0 : size;
+  bytes[7] = size === 256 ? 0 : size;
+  return bytes;
 }
 
 export default function browserV05FeaturesTest(): void {
@@ -123,13 +150,39 @@ export default function browserV05FeaturesTest(): void {
       expect(withQuickSiteIcon(icons, 'zhihu.com', '').length).assertEqual(1);
     });
 
-    it('asks the site itself for its icon, in fallback order', 0, (): void => {
+    it('prefers high-resolution site icons before the legacy root favicon', 0, (): void => {
       const candidates: string[] = faviconCandidates('https://www.zhihu.com/question/1');
 
       expect(candidates.length).assertEqual(3);
-      expect(candidates[0]).assertEqual('https://www.zhihu.com/favicon.ico');
-      expect(candidates[1]).assertEqual('https://www.zhihu.com/apple-touch-icon.png');
+      expect(candidates[0]).assertEqual('https://www.zhihu.com/apple-touch-icon.png');
+      expect(candidates[1]).assertEqual('https://www.zhihu.com/apple-touch-icon-precomposed.png');
+      expect(candidates[2]).assertEqual('https://www.zhihu.com/favicon.ico');
       expect(faviconCandidates('').length).assertEqual(0);
+    });
+
+    it('uses the largest page-declared icon and resolves relative URLs', 0, (): void => {
+      const html: string = '<head>' +
+        '<link rel="icon" href="/favicon-32.png" sizes="32x32">' +
+        '<link rel="apple-touch-icon" href="//static.zhihu.com/icon-152.png" sizes="152x152">' +
+        '<link rel="icon" href="assets/icon-96.png" sizes="96x96">' +
+        '</head>';
+      const candidates: string[] = faviconMetadataCandidates(html, 'https://www.zhihu.com/question/1');
+
+      expect(candidates.length).assertEqual(3);
+      expect(candidates[0]).assertEqual('https://static.zhihu.com/icon-152.png');
+      expect(candidates[1]).assertEqual('https://www.zhihu.com/question/assets/icon-96.png');
+      expect(candidates[2]).assertEqual('https://www.zhihu.com/favicon-32.png');
+    });
+
+    it('does not let touch-icon semantics outrank a larger declared icon', 0, (): void => {
+      const html: string = '<head>' +
+        '<link rel="apple-touch-icon" href="/touch-76.png" sizes="76x76">' +
+        '<link rel="icon" href="/icon-512.png" sizes="512x512">' +
+        '</head>';
+      const candidates: string[] = faviconMetadataCandidates(html, 'https://example.com/');
+
+      expect(candidates[0]).assertEqual('https://example.com/icon-512.png');
+      expect(candidates[1]).assertEqual('https://example.com/touch-76.png');
     });
 
     it('keeps a cache file name a host can round-trip through the file system', 0, (): void => {
@@ -144,6 +197,13 @@ export default function browserV05FeaturesTest(): void {
       expect(looksLikeIconData(icoBytes())).assertTrue();
       expect(looksLikeIconData(htmlBytes())).assertFalse();
       expect(looksLikeIconData(new Uint8Array([0x89]))).assertFalse();
+    });
+
+    it('rejects legacy low-resolution artwork before it reaches a shortcut tile', 0, (): void => {
+      expect(iconPixelSize(icoBytesWithSize(32))).assertEqual(32);
+      expect(iconPixelSize(pngBytesWithSize(152, 152))).assertEqual(152);
+      expect(isShortcutIconLargeEnough(icoBytesWithSize(32))).assertFalse();
+      expect(isShortcutIconLargeEnough(pngBytesWithSize(152, 152))).assertTrue();
     });
 
     it('hands Image a file URI, which is the only form it loads a sandbox file from', 0, (): void => {
