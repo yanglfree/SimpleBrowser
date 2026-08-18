@@ -1,0 +1,8 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">Zhuoyue Browser Flow Tabs logo</title>
+  <g fill="none" stroke="currentColor" stroke-linecap="round">
+    <path d="M25 34H70" stroke-width="4"/>
+    <path d="M30 50H75" stroke-width="4"/>
+    <path d="M25 66H57C65 66 71 62 75 56" stroke-width="4"/>
+  </g>
+</svg>

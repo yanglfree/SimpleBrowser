@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="卓阅浏览器 Logo 设计方向与应用预览">
+  <title>卓阅浏览器 Logo Exploration</title>
+  <style>
+    :root { color-scheme: light; --paper: #faf9f7; --panel: #ffffff; --ink: #1a1a18; --body-secondary: #55534f; --on-green: #faf9f7; --on-dark-secondary: #c7c4bd; --green: #2e6b5c; --dark-panel: #1d1d1a; --line: #e5e2db; --card-radius: 24px; --lockup-radius: 28px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: "HarmonyOS Sans SC", "Helvetica Neue", system-ui, sans-serif; }
+    main { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 88px 0 112px; }
+    header { max-width: 680px; margin-bottom: 64px; }
+    .eyebrow { color: var(--green); font: 600 11px/1.4 ui-monospace, monospace; letter-spacing: .18em; text-transform: uppercase; }
+    h1 { margin: 16px 0 14px; font-size: clamp(42px, 7vw, 78px); font-weight: 350; }
+    header p { margin: 0; color: var(--body-secondary); font-size: 16px; line-height: 1.8; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    article { min-height: 390px; padding: 28px; border: 1px solid var(--line); border-radius: var(--card-radius); background: var(--panel); }
+    article.recommended { color: var(--paper); background: var(--green); border-color: var(--green); }
+    .mark { height: 220px; display: grid; place-items: center; color: var(--green); }
+    .recommended .mark { color: var(--paper); }
+    .logo { width: 132px; height: 132px; background: currentColor; mask: var(--logo) center / contain no-repeat; -webkit-mask: var(--logo) center / contain no-repeat; }
+    .meta { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+    h2 { margin: 0; font-size: 18px; font-weight: 600; }
+    .number { color: var(--body-secondary); font: 11px ui-monospace, monospace; }
+    article p { margin: 12px 0 0; color: var(--body-secondary); font-size: 13px; line-height: 1.7; }
+    .recommended .number, .recommended p { color: var(--on-green); }
+    .lockup { margin-top: 20px; min-height: 360px; display: grid; place-items: center; border-radius: var(--lockup-radius); background: var(--dark-panel); color: var(--paper); text-align: center; }
+    .lockup .logo { width: 150px; height: 150px; margin: 0 auto; }
+    .lockup h3 { margin: 22px 0 4px; font-size: 28px; font-weight: 520; letter-spacing: .08em; }
+    .lockup span { color: var(--on-dark-secondary); font: 10px ui-monospace, monospace; letter-spacing: .18em; text-transform: uppercase; }
+    @media (max-width: 860px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { main { width: min(100% - 28px, 1180px); padding-top: 52px; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">Brand identity exploration / 2026</div>
+      <h1>卓阅浏览器</h1>
+      <p>安静、快速、以阅读为中心。六个方向围绕开放网络、专注阅读与高效路径展开，保持极简几何与充足留白。</p>
+    </header>
+    <section class="grid">
+      <article class="recommended"><div class="mark"><div class="logo" role="img" aria-label="开放阅径" style="--logo: url('01-reading-horizon.svg')"></div></div><div class="meta"><h2>开放阅径</h2><span class="number">01 / 推荐</span></div><p>开放圆环容纳一条抽象 Z 形阅读路径，兼顾品牌首字母、快速抵达与开放网络三层含义。</p></article>
+      <article><div class="mark"><div class="logo" role="img" aria-label="阅读视窗" style="--logo: url('02-quiet-orbit.svg')"></div></div><div class="meta"><h2>阅读视窗</h2><span class="number">02</span></div><p>眼形视窗与前进按钮结合，强调专注阅读、主动浏览与清晰的信息入口。</p></article>
+      <article><div class="mark"><div class="logo" role="img" aria-label="书页飘带" style="--logo: url('03-reading-ribbon.svg')"></div></div><div class="meta"><h2>书页飘带</h2><span class="number">03</span></div><p>连续纸带折成阅读页与标签页，强调内容在不同页面之间顺畅流动。</p></article>
+      <article><div class="mark"><div class="logo" role="img" aria-label="开放入口" style="--logo: url('04-open-portal.svg')"></div></div><div class="meta"><h2>开放入口</h2><span class="number">04</span></div><p>打开的书同时构成浏览器门户，语义最直接，整体稳重、可信且适合教育阅读场景。</p></article>
+      <article><div class="mark"><div class="logo" role="img" aria-label="专注之眼" style="--logo: url('05-focus-lens.svg')"></div></div><div class="meta"><h2>专注之眼</h2><span class="number">05</span></div><p>聚焦环与纸页指针结合，强调信息筛选、搜索效率与安全边界。</p></article>
+      <article><div class="mark"><div class="logo" role="img" aria-label="流动标签" style="--logo: url('06-flow-tabs.svg')"></div></div><div class="meta"><h2>流动标签</h2><span class="number">06</span></div><p>三条浏览标签在末端汇成流线，强调多标签组织与不打扰的顺畅体验。</p></article>
+    </section>
+    <section class="lockup"><div><div class="logo" role="img" aria-label="卓阅浏览器主标志" style="--logo: url('01-reading-horizon.svg')"></div><h3>卓阅浏览器</h3><span>Browse less. Read more.</span></div></section>
+  </main>
+</body>
+</html>
