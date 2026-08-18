@@ -11,8 +11,10 @@ import {
 
 export default function tabOverviewLayoutTest(): void {
   describe('TabOverview responsive layout', (): void => {
-    it('selects one to four columns from the available window width', 0, (): void => {
-      expect(tabOverviewColumnCount(360)).assertEqual(1);
+    it('keeps phone tab overview cards in a two-column grid', 0, (): void => {
+      expect(tabOverviewColumnCount(280)).assertEqual(1);
+      expect(tabOverviewColumnCount(360)).assertEqual(2);
+      expect(tabOverviewColumnCount(599)).assertEqual(2);
       expect(tabOverviewColumnCount(600)).assertEqual(2);
       expect(tabOverviewColumnCount(840)).assertEqual(3);
       expect(tabOverviewColumnCount(1200)).assertEqual(4);

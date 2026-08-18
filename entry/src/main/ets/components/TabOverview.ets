@@ -1,5 +1,6 @@
 import { image } from '@kit.ImageKit';
 import { BrowserTab } from '../models/BrowserModels';
+import { MEDIUM_WINDOW_MIN_WIDTH } from '../models/WindowMetrics';
 import { displayHost, isHomeUrl } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 import {
@@ -35,6 +36,8 @@ import {
   TAB_THUMB_HEIGHT
 } from './TabTokens';
 
+const TAB_OVERVIEW_COMPACT_MIN_CARD_WIDTH: number = 120;
+const TAB_OVERVIEW_COMPACT_MAX_COLUMNS: number = 2;
 const TAB_OVERVIEW_MIN_CARD_WIDTH: number = 240;
 const TAB_OVERVIEW_MAX_COLUMNS: number = 4;
 const TAB_OVERVIEW_CONTENT_MAX_WIDTH: number = 1440;
@@ -64,10 +67,17 @@ export function tabOverviewCardPanDirection(): PanDirection {
 
 export function tabOverviewColumnCount(availableWidth: number): number {
   const contentWidth: number = Math.max(0, availableWidth - TAB_OVERVIEW_HEADER_HORIZONTAL * 2);
+  const isCompact: boolean = availableWidth < MEDIUM_WINDOW_MIN_WIDTH;
+  const minCardWidth: number = isCompact
+    ? TAB_OVERVIEW_COMPACT_MIN_CARD_WIDTH
+    : TAB_OVERVIEW_MIN_CARD_WIDTH;
+  const maxColumns: number = isCompact
+    ? TAB_OVERVIEW_COMPACT_MAX_COLUMNS
+    : TAB_OVERVIEW_MAX_COLUMNS;
   const columns: number = Math.floor(
-    (contentWidth + TAB_OVERVIEW_GRID_GAP) / (TAB_OVERVIEW_MIN_CARD_WIDTH + TAB_OVERVIEW_GRID_GAP)
+    (contentWidth + TAB_OVERVIEW_GRID_GAP) / (minCardWidth + TAB_OVERVIEW_GRID_GAP)
   );
-  return Math.max(1, Math.min(TAB_OVERVIEW_MAX_COLUMNS, columns));
+  return Math.max(1, Math.min(maxColumns, columns));
 }
 
 export function tabOverviewGridHeight(count: number, columns: number): number {
