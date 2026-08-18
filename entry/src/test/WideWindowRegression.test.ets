@@ -1,7 +1,11 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { desktopTabWidth } from '../main/ets/components/DesktopTabStrip';
 import { canUseDesktopPageActions, compactDockOpticalOffset } from '../main/ets/components/BrowserDock';
-import { TabOverviewPanAction, tabOverviewPanAction } from '../main/ets/components/TabOverview';
+import {
+  TabOverviewPanAction,
+  tabOverviewCardPanDirection,
+  tabOverviewPanAction
+} from '../main/ets/components/TabOverview';
 import {
   Overlay,
   nextSidebarPanel,
@@ -120,6 +124,10 @@ export default function wideWindowRegressionTest(): void {
       expect(tabOverviewPanAction(12, 96)).assertEqual(TabOverviewPanAction.None);
       expect(tabOverviewPanAction(-80, 12)).assertEqual(TabOverviewPanAction.SwitchNext);
       expect(tabOverviewPanAction(80, -12)).assertEqual(TabOverviewPanAction.SwitchPrevious);
+    });
+
+    it('leaves vertical drags to the tab overview scroll container', 0, (): void => {
+      expect(tabOverviewCardPanDirection()).assertEqual(PanDirection.Horizontal);
     });
 
     it('continuously fits desktop tab widths to the available chrome', 0, (): void => {

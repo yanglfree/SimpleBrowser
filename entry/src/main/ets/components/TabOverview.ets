@@ -58,6 +58,10 @@ export function tabOverviewPanAction(offsetX: number, offsetY: number): TabOverv
   return TabOverviewPanAction.None;
 }
 
+export function tabOverviewCardPanDirection(): PanDirection {
+  return PanDirection.Horizontal;
+}
+
 export function tabOverviewColumnCount(availableWidth: number): number {
   const contentWidth: number = Math.max(0, availableWidth - TAB_OVERVIEW_HEADER_HORIZONTAL * 2);
   const columns: number = Math.floor(
@@ -263,7 +267,7 @@ export struct TabOverview {
     .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.985 })
     .onClick(() => this.onSelect($$.tab.id))
     .gesture(
-      PanGesture({ direction: PanDirection.All, distance: TAB_CARD_SWIPE_DISTANCE })
+      PanGesture({ direction: tabOverviewCardPanDirection(), distance: TAB_CARD_SWIPE_DISTANCE })
         .onActionEnd((event: GestureEvent) => {
           const action: TabOverviewPanAction = tabOverviewPanAction(event.offsetX, event.offsetY);
           if (action === TabOverviewPanAction.SwitchNext) {
