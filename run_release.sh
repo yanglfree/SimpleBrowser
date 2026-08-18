@@ -10,13 +10,17 @@ cd "$(dirname "$0")"
 set -e
 
 # 定位工具链 -----------------------------------------------------------
-# hvigorw：优先项目自带，其次 DevEco Studio 内置
+# hvigorw：优先 HVIGORW_HOME / 项目自带 / CommandLineTools / DevEco Studio 内置
 HVIGORW=""
 for candidate in \
+    "${HVIGORW_HOME:-}/bin/hvigorw" \
+    "${HVIGORW_HOME:-}/hvigorw" \
     "$PWD/hvigorw" \
+    "$HOME/Library/Huawei/CommandLineTools/current/bin/hvigorw" \
+    "$HOME/Library/Huawei/CommandLineTools/current/hvigor/bin/hvigorw" \
     "/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw" \
     "$HOME/DevEcoStudio/tools/hvigor/bin/hvigorw"; do
-    if [ -x "$candidate" ]; then
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
         HVIGORW="$candidate"
         break
     fi
@@ -30,6 +34,7 @@ fi
 HDC=""
 for candidate in \
     "$(command -v hdc 2>/dev/null)" \
+    "$HOME/Library/Huawei/CommandLineTools/current/sdk/default/openharmony/toolchains/hdc" \
     "$HOME/Library/OpenHarmony/Sdk/15/toolchains/hdc" \
     "$HOME/Library/OpenHarmony/Sdk/13/toolchains/hdc" \
     "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc"; do
