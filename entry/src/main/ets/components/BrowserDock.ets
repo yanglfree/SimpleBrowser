@@ -28,9 +28,9 @@ export function canUseDesktopPageActions(host: string, isHome: boolean): boolean
 export function compactDockOpticalOffset(
   bottomInset: number,
   wide: boolean,
-  collapsed: boolean
+  _collapsed: boolean
 ): number {
-  if (wide || collapsed || bottomInset <= 0) {
+  if (wide || bottomInset <= 0) {
     return 0;
   }
   return bottomInset / 2;

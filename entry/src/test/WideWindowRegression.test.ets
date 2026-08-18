@@ -108,11 +108,11 @@ export default function wideWindowRegressionTest(): void {
       expect(canUseDesktopPageActions('', true)).assertFalse();
     });
 
-    it('uses half the compact safe area to optically align the whole dock', 0, (): void => {
+    it('uses half the compact safe area to optically align the whole dock in both states', 0, (): void => {
       expect(compactDockOpticalOffset(0, false, false)).assertEqual(0);
       expect(compactDockOpticalOffset(28, false, false)).assertEqual(14);
       expect(compactDockOpticalOffset(28, true, false)).assertEqual(0);
-      expect(compactDockOpticalOffset(28, false, true)).assertEqual(0);
+      expect(compactDockOpticalOffset(28, false, true)).assertEqual(14);
     });
 
     it('does not close a tab when a card is vertically scrolled', 0, (): void => {
