@@ -13,3 +13,5 @@ oh-package-lock.json5
 
 .omo/
 output/
+entry/.test/
+.DS_Store
