@@ -10,3 +10,6 @@ oh-package-lock.json5
 # which DevEco rewrites per machine. Anchored to the root so the entry module's
 # own build-profile.json5 stays in version control.
 /build-profile.json5
+
+.omo/
+output/
