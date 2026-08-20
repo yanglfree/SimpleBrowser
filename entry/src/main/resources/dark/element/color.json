@@ -11,6 +11,7 @@
     { "name": "dock_icon", "value": "#C2BDB3" },
     { "name": "accent", "value": "#2E6B5C" },
     { "name": "accent_strong", "value": "#84A794" },
+    { "name": "accent_foreground", "value": "#F5F3EE" },
     { "name": "scrim", "value": "#6B000000" },
     { "name": "shadow_soft", "value": "#00000000" },
     { "name": "capsule_background", "value": "#B81D1D1A" },

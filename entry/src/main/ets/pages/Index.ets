@@ -1535,6 +1535,8 @@ struct Index {
     } else if (this.sheet === Overlay.Onboarding) {
       OnboardingSheet({
         settings: this.settings,
+        isWide: this.usesWideChrome(),
+        isHeightConstrained: this.windowMetrics.isHeightConstrained,
         onSearchEngineChange: (engine: SearchEngine): void => this.setOnboardingSearchEngine(engine),
         onFinish: (): void => { void this.finishOnboarding(); },
         onSkip: (): void => { void this.finishOnboarding(); }
