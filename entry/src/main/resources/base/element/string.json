@@ -247,7 +247,7 @@
     { "name": "onboarding_next", "value": "下一步" },
     { "name": "onboarding_start", "value": "开始浏览" },
     { "name": "onboarding_gesture_title", "value": "浏览手势，顺手而高效" },
-    { "name": "onboarding_gesture_message", "value": "在地址栏左右滑动切换标签；上滑打开工具菜单，从屏幕边缘滑动即可前进或后退。" },
+    { "name": "onboarding_gesture_message", "value": "左右滑动地址栏切换标签；上滑打开工具菜单。屏幕边缘滑动可前进或后退。" },
     { "name": "onboarding_privacy_title", "value": "安心浏览，默认少留痕" },
     { "name": "onboarding_privacy_message", "value": "默认拦截广告与跨站追踪，浏览数据只留在本机。不用登录，也不索取无关权限。" },
     { "name": "onboarding_reader_title", "value": "搜索与阅读，按你的习惯" },

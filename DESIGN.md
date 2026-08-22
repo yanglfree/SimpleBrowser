@@ -52,6 +52,17 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
   one tappable target with a stable `tab-launcher` id for UI automation.
 - **Motion**: no decorative motion; the tab overview owns its 200ms opacity entry.
 
+### First-run onboarding
+
+- **Compact layout**: the illustration and copy form one content group centered in
+  the space between the header and the persistent bottom actions. The action must
+  not create an expanding blank spacer inside the narrative flow.
+- **Height constraints**: when the available height is constrained, the content
+  group scrolls while the primary action and progress indicator remain reachable.
+- **Wide layout**: copy and illustration remain side by side within the shared
+  content ceiling; constrained wide windows use the compact illustration scale.
+- **Automation**: skip, back, primary action, and page indicator expose stable ids.
+
 ### Tab overview
 
 - **Structure**: count header, close-all action, two-column tab cards, and a labeled

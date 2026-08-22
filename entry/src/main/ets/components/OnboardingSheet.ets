@@ -59,6 +59,7 @@ export struct OnboardingSheet {
       .layoutWeight(1)
 
       Text($r('app.string.onboarding_skip'))
+        .id('onboarding-skip')
         .height(40)
         .padding({ left: 16, right: 16 })
         .fontSize(14)
@@ -116,6 +117,33 @@ export struct OnboardingSheet {
 
   @Builder
   private CompactContent() {
+    Column({ space: 16 }) {
+      if (this.isHeightConstrained) {
+        Scroll() {
+          this.CompactMainContent()
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+      } else {
+        Column() {
+          this.CompactMainContent()
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .justifyContent(FlexAlign.Center)
+      }
+
+      this.NavigationButtons()
+      this.PageDots()
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .constraintSize({ maxWidth: COMPACT_CONTENT_MAX_WIDTH })
+  }
+
+  @Builder
+  private CompactMainContent() {
     Column({ space: 14 }) {
       OnboardingIllustration({ page: this.page, compact: true })
 
@@ -137,15 +165,9 @@ export struct OnboardingSheet {
       if (this.page === 2) {
         this.SearchEnginePicker()
       }
-
-      Column().layoutWeight(1)
-
-      this.NavigationButtons()
-      this.PageDots()
     }
     .width('100%')
-    .layoutWeight(1)
-    .constraintSize({ maxWidth: COMPACT_CONTENT_MAX_WIDTH })
+    .padding({ top: 12, bottom: 12 })
   }
 
   @Builder
@@ -163,20 +185,23 @@ export struct OnboardingSheet {
   @Builder
   private NavigationButtons() {
     Row({ space: 12 }) {
-      Row() {
-        AppIcon({ name: IconName.ChevronLeft, glyphSize: 20, color: $r('app.color.text_primary') })
+      if (this.page > 0) {
+        Row() {
+          AppIcon({ name: IconName.ChevronLeft, glyphSize: 20, color: $r('app.color.text_primary') })
+        }
+        .id('onboarding-back')
+        .width(48)
+        .height(48)
+        .justifyContent(FlexAlign.Center)
+        .onClick(() => this.page = Math.max(0, this.page - 1))
+        .borderRadius(24)
+        .backgroundColor($r('app.color.surface_subtle'))
       }
-      .width(48)
-      .height(48)
-      .justifyContent(FlexAlign.Center)
-      .visibility(this.page > 0 ? Visibility.Visible : Visibility.Hidden)
-      .onClick(() => this.page = Math.max(0, this.page - 1))
-      .borderRadius(24)
-      .backgroundColor($r('app.color.surface_subtle'))
 
       Text(this.page === ONBOARDING_PAGE_COUNT - 1
         ? $r('app.string.onboarding_start')
         : $r('app.string.onboarding_next'))
+        .id('onboarding-primary-action')
         .width(this.isWide ? 176 : '100%')
         .height(48)
         .layoutWeight(this.isWide ? 0 : 1)
@@ -202,6 +227,7 @@ export struct OnboardingSheet {
           .backgroundColor(active ? $r('app.color.accent') : $r('app.color.border'))
       }, (active: boolean, index: number) => `onboarding-dot-${index}-${active}`)
     }
+    .id('onboarding-page-indicator')
   }
 
   @Builder
