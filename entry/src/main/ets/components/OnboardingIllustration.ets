@@ -78,29 +78,29 @@ export struct OnboardingIllustration {
     Column() {
       this.BrowserChrome()
 
-      Column({ space: this.compact ? 10 : 16 }) {
+      Column({ space: this.compact ? 6 : 16 }) {
         Row() {
           AppIcon({
             name: IconName.ShieldCheck,
-            glyphSize: this.compact ? 38 : 58,
+            glyphSize: this.compact ? 30 : 58,
             color: $r('app.color.accent_strong')
           })
         }
-        .width(this.compact ? 72 : 104)
-        .height(this.compact ? 72 : 104)
+        .width(this.compact ? 56 : 104)
+        .height(this.compact ? 56 : 104)
         .justifyContent(FlexAlign.Center)
-        .borderRadius(this.compact ? 36 : 52)
+        .borderRadius(this.compact ? 28 : 52)
         .backgroundColor($r('app.color.surface_subtle'))
 
         Text($r('app.string.onboarding_visual_blocked'))
-          .fontSize(this.compact ? 13 : 17)
+          .fontSize(this.compact ? 12 : 17)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.text_primary'))
 
         Row({ space: 6 }) {
           Row().width(7).height(7).borderRadius(4).backgroundColor($r('app.color.accent_strong'))
           Text($r('app.string.onboarding_visual_local'))
-            .fontSize(this.compact ? 11 : 13)
+            .fontSize(this.compact ? 10 : 13)
             .fontColor($r('app.color.text_secondary'))
         }
       }
