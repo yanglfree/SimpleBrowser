@@ -281,6 +281,14 @@ export class BrowserViewModel {
     }
   }
 
+  async listSavedArticles(): Promise<SavedArticle[]> {
+    return await this.articleLibrary.listArticles();
+  }
+
+  async readSavedArticleMarkdown(articleId: string): Promise<string | undefined> {
+    return await this.articleLibrary.readArticleMarkdown(articleId);
+  }
+
   async exportArticle(articleId: string, format: ArticleExportFormat): Promise<ArticleExportResult | undefined> {
     if (this.context === undefined) {
       Logger.warn(TAG, 'Article export was requested before initialization');

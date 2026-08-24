@@ -269,6 +269,10 @@ export struct ActionSheet {
       { key: 'history', label: $r('app.string.history_title'), icon: IconName.Clock, enabled: true, active: false },
       { key: 'downloads', label: $r('app.string.download_title'), icon: IconName.Download, enabled: true, active: false },
       { key: 'recent_tabs', label: $r('app.string.recent_tabs_title'), icon: IconName.Tabs, enabled: true, active: false },
+      {
+        key: 'article_library', label: $r('app.string.article_library'), icon: IconName.Reader,
+        enabled: true, active: false
+      },
       { key: 'settings', label: $r('app.string.settings'), icon: IconName.Settings, enabled: true, active: false }
     ];
   }

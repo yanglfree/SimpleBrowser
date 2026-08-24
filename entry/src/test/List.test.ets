@@ -13,6 +13,7 @@ import wideWindowRegressionTest from './WideWindowRegression.test';
 import browserV05FeaturesTest from './BrowserV05Features.test';
 import externalOpenRequestTest from './ExternalOpenRequest.test';
 import articleExportServiceTest from './ArticleExportService.test';
+import articleLibraryModelsTest from './ArticleLibraryModels.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -30,4 +31,5 @@ export default function testsuite(): void {
   browserV05FeaturesTest();
   externalOpenRequestTest();
   articleExportServiceTest();
+  articleLibraryModelsTest();
 }

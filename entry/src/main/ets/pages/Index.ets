@@ -81,6 +81,7 @@ import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/
 import { SecurityPanel } from '../components/SecurityPanel';
 import { SharePanel } from '../components/SharePanel';
 import { SavedItemEditSheet } from '../components/SavedItemEditSheet';
+import { ArticleLibrarySheet } from '../components/ArticleLibrarySheet';
 import { QuickSiteEditor } from '../components/QuickSiteEditor';
 import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
@@ -112,6 +113,8 @@ import { AppContext } from '../utils/AppContext';
 import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress, rawHost } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
 import { BrowserViewModel } from '../viewmodels/BrowserViewModel';
+import { SavedArticle } from '../models/ArticleLibraryModels';
+import { ArticleExportFormat, ArticleExportResult } from '../services/ArticleExportService';
 import {
   BrowserLayoutClass,
   BrowserWindowMetrics,
@@ -165,7 +168,8 @@ export enum Overlay {
   EditSavedItem = 18,
   HomeBackground = 19,
   UserAgent = 20,
-  QuickSiteEditor = 21
+  QuickSiteEditor = 21,
+  ArticleLibrary = 22
 }
 
 export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boolean {
@@ -341,6 +345,10 @@ struct Index {
   @State private backHistory: WebHistoryEntry[] = [];
   @State private history: HistoryEntry[] = [];
   @State private savedItems: SavedItem[] = [];
+  @State private articles: SavedArticle[] = [];
+  @State private selectedArticle: SavedArticle | undefined = undefined;
+  @State private selectedArticleMarkdown: string = '';
+  @State private isArticleLoading: boolean = false;
   @State private liveTabIds: string[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
@@ -1502,6 +1510,18 @@ struct Index {
         onDeleteSite: (host: string): void => { this.deleteHistorySite(host); }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.ArticleLibrary) {
+      ArticleLibrarySheet({
+        articles: this.articles,
+        selectedArticle: this.selectedArticle,
+        markdown: this.selectedArticleMarkdown,
+        isLoading: this.isArticleLoading,
+        onDismiss: (): void => { this.sheet = Overlay.None; },
+        onSelect: (articleId: string): void => { void this.openSavedArticle(articleId); },
+        onBackToList: (): void => this.closeSavedArticle(),
+        onExport: (format: ArticleExportFormat): void => { void this.exportSelectedArticle(format); }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Favorites) {
       HistorySheet({
         entries: [],
@@ -1616,7 +1636,8 @@ struct Index {
       return '100%';
     }
     if (this.sheet === Overlay.History ||
-      this.sheet === Overlay.Favorites || this.sheet === Overlay.Downloads) {
+      this.sheet === Overlay.Favorites || this.sheet === Overlay.Downloads ||
+      this.sheet === Overlay.ArticleLibrary) {
       return 820;
     }
     if (this.sheet === Overlay.Address) {
@@ -2390,6 +2411,10 @@ struct Index {
       this.recordActionUsage('history');
       return;
     }
+    if (key === 'article_library') {
+      await this.openArticleLibrary();
+      return;
+    }
     if (key === 'settings') {
       this.sheet = Overlay.Settings;
       this.recordActionUsage('settings');
@@ -2455,6 +2480,66 @@ struct Index {
       this.findCurrent = 0;
       this.findTotal = 0;
       this.sheet = Overlay.Find;
+    }
+  }
+
+  private async openArticleLibrary(): Promise<void> {
+    try {
+      this.articles = await this.viewModel.listSavedArticles();
+      this.closeSavedArticle();
+      this.sheet = Overlay.ArticleLibrary;
+    } catch (error) {
+      Logger.warn(TAG, `Article library unavailable: ${String(error)}`);
+      this.showToast($r('app.string.article_library_unavailable'));
+    }
+  }
+
+  private async openSavedArticle(articleId: string): Promise<void> {
+    const article: SavedArticle | undefined = this.articles.find(
+      (item: SavedArticle): boolean => item.id === articleId
+    );
+    if (article === undefined) {
+      return;
+    }
+    this.selectedArticle = article;
+    this.selectedArticleMarkdown = '';
+    this.isArticleLoading = true;
+    try {
+      const markdown: string | undefined = await this.viewModel.readSavedArticleMarkdown(articleId);
+      if (this.selectedArticle?.id !== articleId) {
+        return;
+      }
+      if (markdown === undefined) {
+        this.selectedArticle = undefined;
+        this.showToast($r('app.string.article_library_unavailable'));
+        return;
+      }
+      this.selectedArticleMarkdown = markdown;
+    } catch (error) {
+      Logger.warn(TAG, `Offline article unavailable: ${String(error)}`);
+      this.selectedArticle = undefined;
+      this.showToast($r('app.string.article_library_unavailable'));
+    } finally {
+      if (this.selectedArticle?.id === articleId) {
+        this.isArticleLoading = false;
+      }
+    }
+  }
+
+  private closeSavedArticle(): void {
+    this.selectedArticle = undefined;
+    this.selectedArticleMarkdown = '';
+    this.isArticleLoading = false;
+  }
+
+  private async exportSelectedArticle(format: ArticleExportFormat): Promise<void> {
+    const article: SavedArticle | undefined = this.selectedArticle;
+    if (article === undefined) {
+      return;
+    }
+    const result: ArticleExportResult | undefined = await this.viewModel.exportArticle(article.id, format);
+    if (result !== undefined) {
+      this.showToast($r('app.string.article_exported'));
     }
   }
 

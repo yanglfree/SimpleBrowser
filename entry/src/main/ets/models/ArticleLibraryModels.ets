@@ -71,3 +71,7 @@ export function cloneSavedArticle(article: SavedArticle): SavedArticle {
     failureMessage: article.failureMessage
   };
 }
+
+export function isReadableSavedArticle(article: SavedArticle): boolean {
+  return article.failure === ArticleSaveFailure.None;
+}
