@@ -7,6 +7,8 @@ import { AppContext } from '../utils/AppContext';
 import { Logger } from '../utils/Logger';
 import { MemoryPressureService } from '../services/MemoryPressureService';
 import { TelemetryService } from '../services/TelemetryService';
+import { createExternalOpenRequest, extractSharedUrl } from '../models/ExternalOpenRequest';
+import { ExternalOpenRouter } from '../services/ExternalOpenRouter';
 
 const TAG: string = 'EntryAbility';
 
@@ -32,8 +34,23 @@ export default class EntryAbility extends UIAbility {
       : `window-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
     this.tabTransfer = String(want.parameters?.['dolphin.tabTransfer'] ?? '');
     AppContext.setContext(this.windowToken, this.context);
+    this.routeExternalOpen(want);
     TelemetryService.registerCrashObservers();
     Logger.info(TAG, 'Ability created');
+  }
+
+  onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
+    this.routeExternalOpen(want);
+    Logger.info(TAG, 'Ability received a new Want');
+  }
+
+  private routeExternalOpen(want: Want): void {
+    const url: string = extractSharedUrl(want.uri, want.parameters);
+    const title: string = String(want.parameters?.['title'] ?? want.parameters?.['subject'] ?? '');
+    const request = createExternalOpenRequest(url, title);
+    if (request !== undefined) {
+      ExternalOpenRouter.deliver(this.windowToken, request);
+    }
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {

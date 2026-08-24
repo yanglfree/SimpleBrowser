@@ -580,6 +580,37 @@ export const READER_EXIT_SCRIPT: string = `
   return 'restored';
 })();`;
 
+/** Produces a detached, script-free article snapshot for the local library. */
+export const ARTICLE_CAPTURE_SCRIPT: string = `
+(function() {
+  var root = document.cloneNode(true);
+  var blocked = root.querySelectorAll('script,style,noscript,iframe,form,nav,footer,aside');
+  for (var i = 0; i < blocked.length; i++) blocked[i].remove();
+  var originalImages = document.images || [];
+  var copiedImages = root.querySelectorAll('img');
+  var images = [];
+  for (var imageIndex = 0; imageIndex < copiedImages.length && imageIndex < originalImages.length; imageIndex++) {
+    var source = originalImages[imageIndex].currentSrc || originalImages[imageIndex].src || '';
+    if (!/^https?:\\/\\//i.test(source)) continue;
+    var path = source.split('?')[0].split('#')[0];
+    var extension = (path.match(/\\.([a-zA-Z0-9]+)$/) || [])[1] || 'jpg';
+    extension = /^(jpg|jpeg|png|gif|webp|avif|svg)$/i.test(extension) ? extension.toLowerCase() : 'jpg';
+    var fileName = 'image-' + imageIndex + '.' + extension;
+    copiedImages[imageIndex].setAttribute('src', 'images/' + fileName);
+    copiedImages[imageIndex].removeAttribute('srcset');
+    copiedImages[imageIndex].removeAttribute('data-src');
+    images.push({ index: imageIndex, url: source, fileName: fileName });
+  }
+  var canonical = document.querySelector('link[rel="canonical"]');
+  return JSON.stringify({
+    title: document.title || '',
+    canonicalUrl: canonical && canonical.href ? canonical.href : location.href,
+    html: root.documentElement ? root.documentElement.outerHTML : '',
+    text: document.body ? document.body.innerText || '' : '',
+    images: images
+  });
+})();`;
+
 /** Counts visible text matches while ArkWeb owns native highlighting/navigation. */
 export function findCountScript(query: string): string {
   const serialized: string = JSON.stringify(query.trim().toLowerCase());

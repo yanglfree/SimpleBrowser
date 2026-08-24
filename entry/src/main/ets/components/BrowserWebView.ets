@@ -1,6 +1,7 @@
 import { webview } from '@kit.ArkWeb';
 import { scrolledFromTopScript } from '../constants/AppConstants';
 import { BrowserTab, WebDarkModePreference } from '../models/BrowserModels';
+import { BlockCategory } from '../models/BlockEventModels';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { WebKernelCallbacks, WebKernelService } from '../services/WebKernelService';
 import { Logger } from '../utils/Logger';
@@ -21,7 +22,11 @@ const ERR_ABORTED: number = -3;
 @Component
 export struct BrowserWebView {
   @Prop tab: BrowserTab;
+  /** Controls the combined ArkWeb system rule list. */
   @Prop blockAds: boolean;
+  /** The app's small, inspectable RuleEngine can honor this independently. */
+  @Prop interceptRequests: boolean = false;
+  @Prop blockTrackers: boolean = true;
   @Prop kernelCallbacks: WebKernelCallbacks;
   @Prop isAtTop: boolean = false;
   @Prop gesturesEnabled: boolean = true;
@@ -42,6 +47,8 @@ export struct BrowserWebView {
   onEdgeBack: () => void = (): void => {};
   onEdgeForward: () => void = (): void => {};
   onAdsBlocked: (urls: string[]) => void = (_urls: string[]): void => {};
+  onOwnRuleBlocked: (url: string, category: BlockCategory, ruleSource: string) => void =
+    (_url: string, _category: BlockCategory, _ruleSource: string): void => {};
   onLongPress: () => void = (): void => {};
   onPermissionRequest: (event: OnPermissionRequestEvent) => void =
     (_event: OnPermissionRequestEvent): void => {};
@@ -81,7 +88,13 @@ export struct BrowserWebView {
       .onProgressChange((event: OnProgressChangeEvent) =>
         this.kernelCallbacks.onProgressChange(event.newProgress))
       .onInterceptRequest((event: OnInterceptRequestEvent): WebResourceResponse | null =>
-        this.adsBlockService.interceptRequest(event.request, this.tab.url, this.blockAds))
+        this.adsBlockService.interceptRequest(
+          event.request,
+          this.tab.url,
+          this.interceptRequests,
+          this.blockTrackers,
+          this.onOwnRuleBlocked
+        ))
       .onScroll((event: OnScrollEvent) => this.onScroll(event.yOffset))
       .onInterceptKeyboardAttach((_info: WebKeyboardCallbackInfo): WebKeyboardOptions => {
         this.onKeyboardAttach();

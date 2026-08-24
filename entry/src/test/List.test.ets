@@ -11,6 +11,16 @@ import browserShortcutTest from './BrowserShortcut.test';
 import tabOverviewLayoutTest from './TabOverviewLayout.test';
 import wideWindowRegressionTest from './WideWindowRegression.test';
 import browserV05FeaturesTest from './BrowserV05Features.test';
+import externalOpenRequestTest from './ExternalOpenRequest.test';
+import articleWorkbenchModelsTest from './ArticleWorkbenchModels.test';
+import articleExportServiceTest from './ArticleExportService.test';
+import articleLibraryModelsTest from './ArticleLibraryModels.test';
+import articleHighlightLocatorTest from './ArticleHighlightLocator.test';
+import articleHighlightFactoryTest from './ArticleHighlightFactory.test';
+import articleSearchServiceTest from './ArticleSearchService.test';
+import articleImageStoreTest from './ArticleImageStore.test';
+import blockEventStoreTest from './BlockEventStore.test';
+import siteControlModelsTest from './SiteControlModels.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -26,4 +36,14 @@ export default function testsuite(): void {
   tabOverviewLayoutTest();
   wideWindowRegressionTest();
   browserV05FeaturesTest();
+  externalOpenRequestTest();
+  articleWorkbenchModelsTest();
+  blockEventStoreTest();
+  siteControlModelsTest();
+  articleExportServiceTest();
+  articleLibraryModelsTest();
+  articleHighlightLocatorTest();
+  articleHighlightFactoryTest();
+  articleSearchServiceTest();
+  articleImageStoreTest();
 }

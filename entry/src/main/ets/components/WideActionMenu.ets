@@ -164,6 +164,7 @@ export struct WideActionMenu {
       this.action('history', $r('app.string.history_title'), IconName.Clock, true, false),
       this.action('downloads', $r('app.string.download_title'), IconName.Download, true, false),
       this.action('recent_tabs', $r('app.string.recent_tabs_title'), IconName.Tabs, true, false),
+      this.action('article_library', $r('app.string.article_library'), IconName.Reader, true, false),
       this.action('settings', $r('app.string.settings'), IconName.Settings, true, false),
       this.action('share', $r('app.string.action_share'), IconName.Share, !this.isHome, false)
     ];

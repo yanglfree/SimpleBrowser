@@ -3,7 +3,9 @@ import { connection, http } from '@kit.NetworkKit';
 import { util } from '@kit.ArkTS';
 import { webview } from '@kit.ArkWeb';
 import fs from '@ohos.file.fs';
+import { BlockCategory } from '../models/BlockEventModels';
 import { Logger } from '../utils/Logger';
+import { classifyBlockCategory } from './BlockEventClassifier';
 import { CosmeticFilterService } from './CosmeticFilterService';
 import { RuleEngine, RuleMatchContext } from './RuleEngine';
 
@@ -171,19 +173,27 @@ export class AdsBlockService {
   interceptRequest(
     request: WebResourceRequest,
     pageUrl: string,
-    enabled: boolean
+    networkBlockingEnabled: boolean,
+    trackerBlockingEnabled: boolean,
+    onBlocked: (url: string, category: BlockCategory, ruleSource: string) => void =
+      (_url: string, _category: BlockCategory, _ruleSource: string): void => {}
   ): WebResourceResponse | null {
     // The top-level document is never an ad: answering it with a blocked
     // response aborts the navigation and leaves the tab blank.
-    if (!enabled || request.isMainFrame()) {
+    if (!networkBlockingEnabled || request.isMainFrame()) {
       return null;
     }
     const url: string = request.getRequestUrl();
-    if (!this.shouldBlock({
+    const match = AdsBlockService.compiledEngine?.match({
       url: url,
       pageUrl: pageUrl,
       resourceType: AdsBlockService.resourceTypeOf(request, url)
-    })) {
+    });
+    if (match?.blocked !== true) {
+      return null;
+    }
+    const category: BlockCategory = classifyBlockCategory(url, match.ruleSource);
+    if (category === BlockCategory.Tracker && !trackerBlockingEnabled) {
       return null;
     }
     try {
@@ -194,6 +204,7 @@ export class AdsBlockService {
       response.setReasonMessage('Blocked by browser rule');
       response.setResponseCode(204);
       response.setResponseIsReady(true);
+      onBlocked(url, category, match.ruleSource);
       return response;
     } catch (error) {
       Logger.warn(TAG, `Failed to build blocked response: ${String(error)}`);

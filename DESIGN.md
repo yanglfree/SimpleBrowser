@@ -119,6 +119,20 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
   being closed, so returning from a visit resumes where the reader left off. The owner
   holds that state; the pane itself is unmounted while closed.
 
+### Article workbench
+
+- **Compact layout**: article text, topics, notes, and highlights remain one scrolling
+  reading surface. The existing library flow and back path remain unchanged.
+- **Medium layout (600–839vp)**: the reader stays primary and an explicit, focusable
+  `显示笔记` control toggles the inspector. It is never hidden behind a gesture.
+- **Expanded layout (>=840vp)**: the inspector is fixed beside the offline reader;
+  it carries article information, topics, notes, and highlights without widening the
+  reading measure beyond 760vp. Narrower expanded windows may reduce the reader only
+  after reserving the fixed inspector.
+- **Continuity**: the page owns the selected article, annotations, inspector request,
+  and reader scroll offset. Resizing, folding, and split-screen therefore reflow the
+  same task rather than restarting it.
+
 ### Toolbar history entry
 
 - **Placement**: between the multi-window control and the tools menu on Medium and

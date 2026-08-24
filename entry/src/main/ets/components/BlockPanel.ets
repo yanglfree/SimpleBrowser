@@ -25,6 +25,8 @@ export struct BlockPanel {
   @Prop isDisabledForSite: boolean = false;
   onDismiss: () => void = (): void => {};
   onToggleSite: () => void = (): void => {};
+  onOpenEvents: () => void = (): void => {};
+  onOpenSiteControls: () => void = (): void => {};
   onOpenSettings: () => void = (): void => {};
 
   build() {
@@ -103,6 +105,36 @@ export struct BlockPanel {
       }
       .width('100%')
       .height(56)
+
+      Divider()
+        .strokeWidth(1)
+        .color($r('app.color.border'))
+
+      Row() {
+        Text($r('app.string.site_control_title'))
+          .fontSize(15)
+          .fontColor($r('app.color.text_primary'))
+          .layoutWeight(1)
+        AppIcon({ name: IconName.ChevronRight, glyphSize: 17, color: $r('app.color.text_secondary') })
+      }
+      .width('100%')
+      .height(56)
+      .onClick(() => this.onOpenSiteControls())
+
+      Divider()
+        .strokeWidth(1)
+        .color($r('app.color.border'))
+
+      Row() {
+        Text($r('app.string.block_event_title'))
+          .fontSize(15)
+          .fontColor($r('app.color.text_primary'))
+          .layoutWeight(1)
+        AppIcon({ name: IconName.ChevronRight, glyphSize: 17, color: $r('app.color.text_secondary') })
+      }
+      .width('100%')
+      .height(56)
+      .onClick(() => this.onOpenEvents())
 
       Divider()
         .strokeWidth(1)

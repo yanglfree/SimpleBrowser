@@ -33,8 +33,22 @@ import {
   emptyBlockStats,
   totalBlocked
 } from '../models/BrowserModels';
+import { EffectiveSiteControl, SiteControl, resolveSiteControl } from '../models/SiteControlModels';
 import { BrowserRepository } from '../repositories/BrowserRepository';
+import { ArticleLibraryRepository } from '../repositories/ArticleLibraryRepository';
+import { SiteControlRepository } from '../repositories/SiteControlRepository';
+import {
+  ArticleHighlight,
+  ArticleImageAsset,
+  ArticleNote,
+  ArticleSaveFailure,
+  createArticleId,
+  SavedArticle,
+  Topic
+} from '../models/ArticleLibraryModels';
 import { AdsBlockService } from '../services/AdsBlockService';
+import { ArticleExportFormat, ArticleExportResult, ArticleExportService } from '../services/ArticleExportService';
+import { createArticleHighlight } from '../services/ArticleHighlightFactory';
 import { DownloadService } from '../services/DownloadService';
 import { displayHost, isHomeUrl, looksLikeUrl, rawHost, searchUrl, siteBadge } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
@@ -43,6 +57,8 @@ const TAG: string = 'BrowserViewModel';
 
 export class BrowserViewModel {
   readonly repository: BrowserRepository = new BrowserRepository();
+  readonly articleLibrary: ArticleLibraryRepository = new ArticleLibraryRepository();
+  readonly siteControls: SiteControlRepository = new SiteControlRepository();
   readonly adsBlockService: AdsBlockService = new AdsBlockService();
   tabs: BrowserTab[] = [];
   savedItems: SavedItem[] = [];
@@ -53,6 +69,7 @@ export class BrowserViewModel {
   private tabSequence: number = 0;
   private sessionPersistenceEnabled: boolean = true;
   private restoredSession: boolean = false;
+  private context: common.UIAbilityContext | undefined;
 
   setSessionScope(scope: string, persistenceEnabled: boolean = true): void {
     this.repository.setSessionScope(scope);
@@ -60,7 +77,10 @@ export class BrowserViewModel {
   }
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
+    this.context = context;
     await this.repository.initialize(context);
+    await this.articleLibrary.initialize(context);
+    await this.siteControls.initialize(context);
     this.savedItems = this.repository.getSavedItems();
     this.history = this.repository.getHistory();
     this.settings = this.repository.getSettings();
@@ -109,9 +129,14 @@ export class BrowserViewModel {
     if (!this.sessionPersistenceEnabled) {
       return;
     }
+    const persistentTabs: BrowserTab[] = this.tabs.filter((tab: BrowserTab): boolean => !tab.isPrivate);
+    const persistentActiveTabId: string = persistentTabs.some((tab: BrowserTab): boolean =>
+      tab.id === this.activeTabId)
+      ? this.activeTabId
+      : persistentTabs[0]?.id ?? '';
     const session: BrowserSession = {
-      tabs: this.tabs,
-      activeTabId: this.activeTabId
+      tabs: persistentTabs,
+      activeTabId: persistentActiveTabId
     };
     this.repository.saveSession(session).catch((error: Error): void => {
       Logger.warn(TAG, `Failed to persist browser session: ${String(error)}`);
@@ -243,6 +268,99 @@ export class BrowserViewModel {
     this.savedItems = this.repository.getSavedItems();
   }
 
+  async saveExtractedArticle(
+    sourceUrl: string,
+    canonicalUrl: string,
+    title: string,
+    text: string,
+    html: string,
+    images: ArticleImageAsset[] = []
+  ): Promise<void> {
+    const now: number = Date.now();
+    const article: SavedArticle = {
+      id: createArticleId(now), sourceUrl: sourceUrl, canonicalUrl: canonicalUrl,
+      title: title.length > 0 ? title : displayHost(sourceUrl), excerpt: text.substring(0, 280),
+      createdAt: now, updatedAt: now,
+      failure: ArticleSaveFailure.None, failureMessage: ''
+    };
+    if (html.trim().length === 0 || text.trim().length === 0) {
+      await this.articleLibrary.saveFailure(article, ArticleSaveFailure.ExtractionUnavailable, 'No readable article content');
+      return;
+    }
+    try {
+      await this.articleLibrary.saveArticle(article, html, text, images);
+    } catch (error) {
+      await this.articleLibrary.saveFailure(article, ArticleSaveFailure.StorageUnavailable, String(error));
+      throw new Error(String(error));
+    }
+  }
+
+  async listSavedArticles(): Promise<SavedArticle[]> {
+    return await this.articleLibrary.listArticles();
+  }
+
+  async searchSavedArticles(query: string): Promise<SavedArticle[]> {
+    return await this.articleLibrary.searchArticles(query);
+  }
+
+  async readSavedArticleMarkdown(articleId: string): Promise<string | undefined> {
+    return await this.articleLibrary.readArticleMarkdown(articleId);
+  }
+
+  async listArticleNotes(articleId: string): Promise<ArticleNote[]> {
+    return await this.articleLibrary.listNotes(articleId);
+  }
+
+  async addArticleNote(articleId: string, body: string): Promise<ArticleNote | undefined> {
+    const normalized: string = body.trim();
+    return normalized.length === 0 ? undefined : await this.articleLibrary.createNote(articleId, normalized);
+  }
+
+  async listArticleTopics(articleId: string): Promise<Topic[]> {
+    return await this.articleLibrary.listTopicsForArticle(articleId);
+  }
+
+  async addArticleTopic(articleId: string, name: string): Promise<Topic | undefined> {
+    const topic: Topic | undefined = await this.articleLibrary.createTopic(name);
+    if (topic !== undefined) {
+      await this.articleLibrary.assignTopic(articleId, topic.id);
+    }
+    return topic;
+  }
+
+  async listArticleHighlights(articleId: string, articleText: string): Promise<ArticleHighlight[]> {
+    return await this.articleLibrary.restoreHighlights(articleId, articleText);
+  }
+
+  async addArticleHighlight(articleId: string, articleText: string, selectedText: string): Promise<ArticleHighlight | undefined> {
+    const highlight: ArticleHighlight | undefined = createArticleHighlight(articleId, articleText, selectedText);
+    if (highlight !== undefined) {
+      await this.articleLibrary.saveHighlight(highlight);
+    }
+    return highlight;
+  }
+
+  async exportArticle(articleId: string, format: ArticleExportFormat): Promise<ArticleExportResult | undefined> {
+    if (this.context === undefined) {
+      Logger.warn(TAG, 'Article export was requested before initialization');
+      return undefined;
+    }
+    const article: SavedArticle | undefined = await this.articleLibrary.getArticle(articleId);
+    if (article === undefined || article.failure !== ArticleSaveFailure.None) {
+      return undefined;
+    }
+    const markdown: string | undefined = await this.articleLibrary.readArticleMarkdown(articleId);
+    const html: string | undefined = await this.articleLibrary.readArticleHtml(articleId);
+    const content = await this.articleLibrary.getArticleContent(articleId);
+    if (markdown === undefined || html === undefined || content === undefined) {
+      Logger.warn(TAG, `Article export content is unavailable: ${articleId}`);
+      return undefined;
+    }
+    return await ArticleExportService.exportToPicker(
+      this.context, article, markdown, html, content.imageDirectoryPath, format
+    );
+  }
+
   async importSavedItems(items: SavedItem[]): Promise<number> {
     const imported: number = await this.repository.mergeSavedItems(items);
     this.savedItems = this.repository.getSavedItems();
@@ -261,7 +379,28 @@ export class BrowserViewModel {
   }
 
   preferredDesktopForUrl(url: string): boolean {
-    return this.userAgentPreferenceForUrl(url) === UserAgentPreference.Desktop;
+    return this.effectiveSiteControl(url).desktopUserAgentEnabled;
+  }
+
+  siteControlForUrl(url: string): SiteControl {
+    const host: string = rawHost(url);
+    return this.siteControls.get(host.length > 0 ? host : url.toLowerCase());
+  }
+
+  effectiveSiteControl(url: string): EffectiveSiteControl {
+    const control: SiteControl = this.siteControlForUrl(url);
+    return resolveSiteControl(
+      control,
+      this.settings.blockAds,
+      this.settings.blockTrackers,
+      this.settings.blockAds,
+      this.settings.webDarkMode,
+      this.userAgentPreferenceForUrl(url) === UserAgentPreference.Desktop
+    );
+  }
+
+  async updateSiteControl(control: SiteControl): Promise<void> {
+    await this.siteControls.save(control);
   }
 
   async setSiteUserAgentPreference(url: string, preference: UserAgentPreference): Promise<void> {

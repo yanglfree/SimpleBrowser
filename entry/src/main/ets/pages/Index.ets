@@ -14,6 +14,7 @@ import {
   READ_FAVICON_SCRIPT,
   READ_FORM_DRAFT_SCRIPT,
   READ_SCROLL_POSITION_SCRIPT,
+  ARTICLE_CAPTURE_SCRIPT,
   RESUME_PROMPT_TIMEOUT_MS,
   RESUME_WINDOW_DAYS,
   READER_FONT_MAX,
@@ -62,6 +63,7 @@ import { ActionSheet } from '../components/ActionSheet';
 import { AddressSheet } from '../components/AddressSheet';
 import { AppIcon, IconName } from '../components/AppIcon';
 import { BlockPanel } from '../components/BlockPanel';
+import { BlockEventSheet } from '../components/BlockEventSheet';
 import { BrowserWebView } from '../components/BrowserWebView';
 import { DownloadSheet } from '../components/DownloadSheet';
 import { ErrorStatePanel } from '../components/ErrorStatePanel';
@@ -78,8 +80,10 @@ import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { RecentTabsDock } from '../components/RecentTabsDock';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
+import { SiteControlSheet } from '../components/SiteControlSheet';
 import { SharePanel } from '../components/SharePanel';
 import { SavedItemEditSheet } from '../components/SavedItemEditSheet';
+import { ArticleLibrarySheet } from '../components/ArticleLibrarySheet';
 import { QuickSiteEditor } from '../components/QuickSiteEditor';
 import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
@@ -111,6 +115,19 @@ import { AppContext } from '../utils/AppContext';
 import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress, rawHost } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
 import { BrowserViewModel } from '../viewmodels/BrowserViewModel';
+import { BlockCategory, BlockEngine, BlockEvent, createBlockEvent } from '../models/BlockEventModels';
+import { classifyBlockCategory } from '../services/BlockEventClassifier';
+import { BlockEventStore } from '../services/BlockEventStore';
+import { SiteControl, SiteControlMode, defaultSiteControl } from '../models/SiteControlModels';
+import {
+  ArticleHighlight,
+  ArticleImageAsset,
+  ArticleNote,
+  SavedArticle,
+  Topic
+} from '../models/ArticleLibraryModels';
+import { ArticleExportFormat, ArticleExportResult } from '../services/ArticleExportService';
+import { articleWorkbenchOverlayWidth } from '../models/ArticleWorkbenchModels';
 import {
   BrowserLayoutClass,
   BrowserWindowMetrics,
@@ -129,6 +146,14 @@ import {
 } from '../models/FoldMetrics';
 import { FoldStateService } from '../services/FoldStateService';
 import { MultiWindowService } from '../services/MultiWindowService';
+import {
+  BrowseDisposition,
+  dispositionForExternalAction,
+  ExternalOpenAction,
+  ExternalOpenRequest,
+  restoreTrackingParameters
+} from '../models/ExternalOpenRequest';
+import { ExternalOpenRouter } from '../services/ExternalOpenRouter';
 
 const TAG: string = 'Index';
 const RECENTLY_CLOSED_TAB_LIMIT: number = 10;
@@ -156,7 +181,10 @@ export enum Overlay {
   EditSavedItem = 18,
   HomeBackground = 19,
   UserAgent = 20,
-  QuickSiteEditor = 21
+  QuickSiteEditor = 21,
+  ArticleLibrary = 22,
+  BlockEvents = 23,
+  SiteControls = 24
 }
 
 export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boolean {
@@ -253,6 +281,14 @@ interface ReaderPalette {
   title: string;
 }
 
+interface ArticleCaptureSnapshot {
+  title: string;
+  canonicalUrl: string;
+  html: string;
+  text: string;
+  images: ArticleImageAsset[];
+}
+
 const READER_PALETTES: ReaderPalette[] = [
   { background: '#FFFFFF', body: '#3A3934', title: '#1A1A18' },
   { background: '#F1EFEA', body: '#3A3934', title: '#1A1A18' },
@@ -263,6 +299,16 @@ const ACCENT_HEX: string = '#2E6B5C';
 const TAB_SWITCH_ANIMATION_DURATION: number = 220;
 const TAB_SWITCH_ANIMATION_DISTANCE: number = 28;
 const TAB_SWITCH_DOCK_DISTANCE: number = 10;
+
+class ExternalOpenMenuButton {
+  text: Resource;
+  color: Resource;
+
+  constructor(text: Resource, color: Resource) {
+    this.text = text;
+    this.color = color;
+  }
+}
 
 @Entry(storage)
 @Component
@@ -315,6 +361,17 @@ struct Index {
   @State private backHistory: WebHistoryEntry[] = [];
   @State private history: HistoryEntry[] = [];
   @State private savedItems: SavedItem[] = [];
+  @State private articles: SavedArticle[] = [];
+  @State private selectedArticle: SavedArticle | undefined = undefined;
+  @State private selectedArticleMarkdown: string = '';
+  @State private isArticleLoading: boolean = false;
+  @State private articleNotes: ArticleNote[] = [];
+  @State private articleTopics: Topic[] = [];
+  @State private articleHighlights: ArticleHighlight[] = [];
+  @State private articleInspectorVisible: boolean = false;
+  private articleReadingScrollOffset: number = 0;
+  @State private blockEvents: BlockEvent[] = [];
+  @State private siteControl: SiteControl = defaultSiteControl('');
   @State private liveTabIds: string[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
@@ -348,6 +405,10 @@ struct Index {
   @State private resumeRequest: ResumeRequest | undefined = undefined;
   private appVersionName: string = '';
   private resumeToken: number = 0;
+  /** Read & Close owns a private tab and closes it only when the reader exits. */
+  private disposableReaderTabId: string = '';
+  private pendingArticleSaveTabId: string = '';
+  private blockEventStore: BlockEventStore = new BlockEventStore();
   private downloadListener: (tasks: DownloadTask[]) => void = (tasks: DownloadTask[]): void => {
     this.downloadTasks = tasks;
   };
@@ -404,6 +465,9 @@ struct Index {
       );
       DownloadService.subscribe(this.downloadListener);
       this.isReady = true;
+      ExternalOpenRouter.subscribe(this.windowToken, (request: ExternalOpenRequest): void => {
+        void this.promptExternalOpen(request);
+      });
       this.promptExpiredTabs();
       if (!this.settings.onboardingCompleted) {
         this.sheet = Overlay.Onboarding;
@@ -464,6 +528,7 @@ struct Index {
     this.windowMetricsService.stop();
     this.foldStateService.stop();
     DownloadService.unsubscribe(this.downloadListener);
+    ExternalOpenRouter.unsubscribe(this.windowToken);
     MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
     PrivacyService.flushCookies();
@@ -635,10 +700,16 @@ struct Index {
           } else if (this.isTabLive(tab.id)) {
             BrowserWebView({
               tab: tab,
-              blockAds: this.settings.blockAds && !this.viewModel.isHostAllowed(tab.url),
+              blockAds: this.viewModel.effectiveSiteControl(tab.url).networkBlockingEnabled &&
+                this.viewModel.effectiveSiteControl(tab.url).trackerBlockingEnabled &&
+                !this.viewModel.isHostAllowed(tab.url),
+              interceptRequests: this.viewModel.effectiveSiteControl(tab.url).networkBlockingEnabled &&
+                !this.viewModel.isHostAllowed(tab.url),
+              blockTrackers: this.viewModel.effectiveSiteControl(tab.url).trackerBlockingEnabled,
               minimumFontSize: this.settings.minimumFontSize,
-              webDarkMode: this.settings.webDarkMode,
-              darkModeExcluded: this.isDarkModeExcluded(tab.url),
+              webDarkMode: this.viewModel.effectiveSiteControl(tab.url).webDarkMode,
+              darkModeExcluded: this.isDarkModeExcluded(tab.url) &&
+                this.viewModel.siteControlForUrl(tab.url).darkMode === SiteControlMode.Inherit,
               controller: this.controllerFor(tab.id),
               kernelCallbacks: {
                 onPageBegin: (url: string): void => this.handlePageBegin(tab.id, url),
@@ -663,6 +734,9 @@ struct Index {
               onEdgeBack: (): void => { this.edgeNavigate(tab.id, true); },
               onEdgeForward: (): void => { this.edgeNavigate(tab.id, false); },
               onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); },
+              onOwnRuleBlocked: (url: string, category: BlockCategory, ruleSource: string): void => {
+                void this.handleOwnRuleBlocked(tab.id, url, category, ruleSource);
+              },
               onLongPress: (): void => { void this.openLongPressActions(tab.id); },
               onPermissionRequest: (event: OnPermissionRequestEvent): void =>
                 this.handlePermissionRequest(event),
@@ -1405,9 +1479,24 @@ struct Index {
         isDisabledForSite: this.isSiteAllowed,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onToggleSite: (): void => { this.toggleSiteBlocking(); },
+        onOpenEvents: (): void => { this.openBlockEvents(); },
+        onOpenSiteControls: (): void => { this.openSiteControls(); },
         onOpenSettings: (): void => { this.sheet = Overlay.Settings; }
       })
         .transition(this.sheetTransition())
+    } else if (this.sheet === Overlay.BlockEvents) {
+      BlockEventSheet({
+        events: this.blockEvents,
+        onDismiss: (): void => { this.sheet = Overlay.Block; }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.SiteControls) {
+      SiteControlSheet({
+        control: this.siteControl,
+        onChange: (control: SiteControl): void => { void this.applySiteControl(control); },
+        onDismiss: (): void => { this.sheet = Overlay.Block; }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Settings) {
       SettingsPage({
         settings: this.settings,
@@ -1467,6 +1556,31 @@ struct Index {
         onSelect: (url: string): void => this.navigateTo(url),
         onDelete: (id: string): void => { this.deleteHistory(id); },
         onDeleteSite: (host: string): void => { this.deleteHistorySite(host); }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.ArticleLibrary) {
+      ArticleLibrarySheet({
+        articles: this.articles,
+        selectedArticle: this.selectedArticle,
+        markdown: this.selectedArticleMarkdown,
+        isLoading: this.isArticleLoading,
+        notes: this.articleNotes,
+        topics: this.articleTopics,
+        highlights: this.articleHighlights,
+        layoutClass: this.windowMetrics.layoutClass,
+        availableWidthVp: this.articleWorkbenchWidth(),
+        inspectorVisible: this.articleInspectorVisible,
+        initialReadingScrollOffset: this.articleReadingScrollOffset,
+        onDismiss: (): void => { this.sheet = Overlay.None; },
+        onSelect: (articleId: string): void => { void this.openSavedArticle(articleId); },
+        onBackToList: (): void => this.closeSavedArticle(),
+        onExport: (format: ArticleExportFormat): void => { void this.exportSelectedArticle(format); },
+        onSearch: (query: string): void => { void this.searchSavedArticles(query); },
+        onAddNote: (body: string): void => { void this.addArticleNote(body); },
+        onAddTopic: (name: string): void => { void this.addArticleTopic(name); },
+        onAddHighlight: (quote: string): void => { void this.addArticleHighlight(quote); },
+        onInspectorVisibilityChange: (visible: boolean): void => { this.articleInspectorVisible = visible; },
+        onReadingScroll: (offset: number): void => { this.articleReadingScrollOffset = offset; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Favorites) {
@@ -1583,7 +1697,11 @@ struct Index {
       return '100%';
     }
     if (this.sheet === Overlay.History ||
-      this.sheet === Overlay.Favorites || this.sheet === Overlay.Downloads) {
+      this.sheet === Overlay.Favorites || this.sheet === Overlay.Downloads ||
+      this.sheet === Overlay.ArticleLibrary) {
+      if (this.sheet === Overlay.ArticleLibrary) {
+        return this.articleWorkbenchWidth();
+      }
       return 820;
     }
     if (this.sheet === Overlay.Address) {
@@ -1593,6 +1711,10 @@ struct Index {
       return 520;
     }
     return 560;
+  }
+
+  private articleWorkbenchWidth(): number {
+    return articleWorkbenchOverlayWidth(this.windowMetrics.widthVp);
   }
 
   private sheetTransition(): TransitionEffect {
@@ -1778,6 +1900,82 @@ struct Index {
       return;
     }
     this.runOnActive((controller: webview.WebviewController) => controller.loadUrl(url));
+  }
+
+  private promptExternalOpen(request: ExternalOpenRequest): void {
+    if (request.removedTrackingParameters.length > 0) {
+      this.showExternalOpenMenu(request, [
+        this.externalOpenMenuButton($r('app.string.external_open_clean')),
+        this.externalOpenMenuButton($r('app.string.external_open_private')),
+        this.externalOpenMenuButton($r('app.string.external_open_read_close')),
+        this.externalOpenMenuButton($r('app.string.external_open_save_article')),
+        this.externalOpenMenuButton($r('app.string.external_open_original'))
+      ]);
+      return;
+    }
+    this.showExternalOpenMenu(request, [
+      this.externalOpenMenuButton($r('app.string.external_open_clean')),
+      this.externalOpenMenuButton($r('app.string.external_open_private')),
+      this.externalOpenMenuButton($r('app.string.external_open_read_close')),
+      this.externalOpenMenuButton($r('app.string.external_open_save_article'))
+    ]);
+  }
+
+  private externalOpenMenuButton(text: Resource): ExternalOpenMenuButton {
+    return new ExternalOpenMenuButton(text, $r('app.color.accent'));
+  }
+
+  private showExternalOpenMenu(
+    request: ExternalOpenRequest,
+    buttons: [
+      ExternalOpenMenuButton,
+      ExternalOpenMenuButton,
+      ExternalOpenMenuButton,
+      ExternalOpenMenuButton,
+      ExternalOpenMenuButton?
+    ]
+  ): void {
+    try {
+      this.getUIContext().getPromptAction().showActionMenu({
+        title: request.title.length > 0 ? request.title : displayHost(request.cleanUrl),
+        buttons: buttons
+      }, (_error, result) => {
+        if (result !== undefined) {
+          this.handleExternalOpenAction(request, result.index);
+        }
+      });
+    } catch (error) {
+      Logger.warn(TAG, `External open menu unavailable: ${String(error)}`);
+    }
+  }
+
+  private handleExternalOpenAction(request: ExternalOpenRequest, index: number): void {
+    const action: ExternalOpenAction = index === 1
+      ? ExternalOpenAction.PrivateOpen
+      : index === 2
+        ? ExternalOpenAction.ReadAndClose
+        : index === 3
+          ? ExternalOpenAction.SaveArticle
+          : ExternalOpenAction.CleanOpen;
+    const useOriginalUrl: boolean = index === 4;
+    const url: string = useOriginalUrl ? restoreTrackingParameters(request) : request.cleanUrl;
+    const disposition: BrowseDisposition = dispositionForExternalAction(action);
+    const isPrivate: boolean = disposition !== BrowseDisposition.Normal;
+    const tab: BrowserTab | undefined = this.viewModel.addTab(url, isPrivate);
+    if (tab === undefined) {
+      return;
+    }
+    this.liveTabIds = this.liveTabIds.concat([tab.id]);
+    this.isCapsuleHidden = false;
+    if (action === ExternalOpenAction.ReadAndClose) {
+      this.disposableReaderTabId = tab.id;
+    }
+    if (action === ExternalOpenAction.SaveArticle) {
+      this.pendingArticleSaveTabId = tab.id;
+    }
+    void this.activateTab(tab.id);
+    this.syncState();
+    void this.enforceLiveWebViewLimit(this.liveWebViewLimit());
   }
 
   private goHome(id: string): void {
@@ -2067,6 +2265,7 @@ struct Index {
 
   private closeTab(id: string): void {
     void this.captureScrollPosition(id);
+    this.blockEventStore.remove(id);
     const tab: BrowserTab | undefined = this.tabs.find((item: BrowserTab) => item.id === id);
     if (tab === undefined) {
       return;
@@ -2087,6 +2286,9 @@ struct Index {
       PrivacyService.flushCookies();
     }
     this.viewModel.closeTab(id);
+    if (id === this.disposableReaderTabId) {
+      this.disposableReaderTabId = '';
+    }
     // Pre-create the replacement tab's controller before destroying the old
     // one, so the ArkWeb engine never restarts and flushes fresh cookies away.
     this.controllerFor(this.viewModel.activeTabId);
@@ -2278,6 +2480,10 @@ struct Index {
       this.recordActionUsage('history');
       return;
     }
+    if (key === 'article_library') {
+      await this.openArticleLibrary();
+      return;
+    }
     if (key === 'settings') {
       this.sheet = Overlay.Settings;
       this.recordActionUsage('settings');
@@ -2343,6 +2549,145 @@ struct Index {
       this.findCurrent = 0;
       this.findTotal = 0;
       this.sheet = Overlay.Find;
+    }
+  }
+
+  private async openArticleLibrary(): Promise<void> {
+    try {
+      this.articles = await this.viewModel.listSavedArticles();
+      this.closeSavedArticle();
+      this.articleInspectorVisible = false;
+      this.sheet = Overlay.ArticleLibrary;
+    } catch (error) {
+      Logger.warn(TAG, `Article library unavailable: ${String(error)}`);
+      this.showToast($r('app.string.article_library_unavailable'));
+    }
+  }
+
+  private async searchSavedArticles(query: string): Promise<void> {
+    try {
+      this.articles = query.trim().length === 0
+        ? await this.viewModel.listSavedArticles()
+        : await this.viewModel.searchSavedArticles(query);
+    } catch (error) {
+      Logger.warn(TAG, `Article search unavailable: ${String(error)}`);
+    }
+  }
+
+  private async openSavedArticle(articleId: string): Promise<void> {
+    const article: SavedArticle | undefined = this.articles.find(
+      (item: SavedArticle): boolean => item.id === articleId
+    );
+    if (article === undefined) {
+      return;
+    }
+    this.selectedArticle = article;
+    this.selectedArticleMarkdown = '';
+    this.isArticleLoading = true;
+    this.articleReadingScrollOffset = 0;
+    try {
+      const markdown: string | undefined = await this.viewModel.readSavedArticleMarkdown(articleId);
+      if (this.selectedArticle?.id !== articleId) {
+        return;
+      }
+      if (markdown === undefined) {
+        this.selectedArticle = undefined;
+        this.showToast($r('app.string.article_library_unavailable'));
+        return;
+      }
+      this.selectedArticleMarkdown = markdown;
+      const annotations: [ArticleNote[], Topic[], ArticleHighlight[]] = await Promise.all([
+        this.viewModel.listArticleNotes(articleId),
+        this.viewModel.listArticleTopics(articleId),
+        this.viewModel.listArticleHighlights(articleId, markdown)
+      ]);
+      if (this.selectedArticle?.id !== articleId) {
+        return;
+      }
+      this.articleNotes = annotations[0];
+      this.articleTopics = annotations[1];
+      this.articleHighlights = annotations[2];
+    } catch (error) {
+      Logger.warn(TAG, `Offline article unavailable: ${String(error)}`);
+      this.selectedArticle = undefined;
+      this.showToast($r('app.string.article_library_unavailable'));
+    } finally {
+      if (this.selectedArticle?.id === articleId) {
+        this.isArticleLoading = false;
+      }
+    }
+  }
+
+  private closeSavedArticle(): void {
+    this.selectedArticle = undefined;
+    this.selectedArticleMarkdown = '';
+    this.isArticleLoading = false;
+    this.articleNotes = [];
+    this.articleTopics = [];
+    this.articleHighlights = [];
+    this.articleReadingScrollOffset = 0;
+  }
+
+  private async addArticleNote(body: string): Promise<void> {
+    const article: SavedArticle | undefined = this.selectedArticle;
+    if (article === undefined) {
+      return;
+    }
+    try {
+      const note: ArticleNote | undefined = await this.viewModel.addArticleNote(article.id, body);
+      if (note !== undefined && this.selectedArticle?.id === article.id) {
+        this.articleNotes = await this.viewModel.listArticleNotes(article.id);
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Article note could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.article_library_unavailable'));
+    }
+  }
+
+  private async addArticleTopic(name: string): Promise<void> {
+    const article: SavedArticle | undefined = this.selectedArticle;
+    if (article === undefined) {
+      return;
+    }
+    try {
+      const topic: Topic | undefined = await this.viewModel.addArticleTopic(article.id, name);
+      if (topic !== undefined && this.selectedArticle?.id === article.id) {
+        this.articleTopics = await this.viewModel.listArticleTopics(article.id);
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Article topic could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.article_library_unavailable'));
+    }
+  }
+
+  private async addArticleHighlight(quote: string): Promise<void> {
+    const article: SavedArticle | undefined = this.selectedArticle;
+    if (article === undefined) {
+      return;
+    }
+    try {
+      const highlight: ArticleHighlight | undefined = await this.viewModel.addArticleHighlight(
+        article.id, this.selectedArticleMarkdown, quote
+      );
+      if (highlight !== undefined && this.selectedArticle?.id === article.id) {
+        this.articleHighlights = await this.viewModel.listArticleHighlights(
+          article.id, this.selectedArticleMarkdown
+        );
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Article highlight could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.article_library_unavailable'));
+    }
+  }
+
+  private async exportSelectedArticle(format: ArticleExportFormat): Promise<void> {
+    const article: SavedArticle | undefined = this.selectedArticle;
+    if (article === undefined) {
+      return;
+    }
+    const result: ArticleExportResult | undefined = await this.viewModel.exportArticle(article.id, format);
+    if (result !== undefined) {
+      this.showToast($r('app.string.article_exported'));
     }
   }
 
@@ -2606,6 +2951,9 @@ struct Index {
       } catch (error) {
         Logger.warn(TAG, `Reader mode toast unavailable: ${String(error)}`);
       }
+      if (id === this.disposableReaderTabId) {
+        this.closeTab(id);
+      }
       return;
     }
     TelemetryService.reportReaderExtraction(true);
@@ -2629,6 +2977,9 @@ struct Index {
       await this.runScript(controller, restoreScrollPositionScript(tab.scrollY));
     }
     this.syncState();
+    if (id === this.disposableReaderTabId) {
+      this.closeTab(id);
+    }
   }
 
   private readerScript(): string {
@@ -3121,7 +3472,9 @@ struct Index {
     for (const tab of this.tabs) {
       const controller: webview.WebviewController | undefined = this.controllers.get(tab.id);
       if (controller !== undefined) {
-        const enabled: boolean = this.settings.blockAds && !this.viewModel.isHostAllowed(tab.url);
+        const effective = this.viewModel.effectiveSiteControl(tab.url);
+        const enabled: boolean = effective.networkBlockingEnabled && effective.trackerBlockingEnabled &&
+          !this.viewModel.isHostAllowed(tab.url);
         this.viewModel.adsBlockService.configure(controller, enabled);
       }
     }
@@ -3165,8 +3518,10 @@ struct Index {
     this.dismissResumePrompt();
     this.pageScrollOffsets.set(id, 0);
     this.pageLoadStartedAt.set(id, Date.now());
+    this.blockEventStore.clear(id);
     if (id === this.activeTabId) {
       this.isActivePageAtTop = true;
+      this.blockEvents = [];
     }
     this.showCapsule();
     const current: BrowserTab | undefined = this.viewModel.getTab(id);
@@ -3196,9 +3551,8 @@ struct Index {
       lastVisitedAt: Date.now()
     });
     this.syncTab(id);
-    // Element hiding follows the same policy as the network blocker: a site the
-    // user allow-listed gets neither.
-    if (this.settings.blockAds && !this.viewModel.isHostAllowed(url)) {
+    if (this.viewModel.effectiveSiteControl(url).cosmeticCleanupEnabled &&
+      !this.viewModel.isHostAllowed(url)) {
       void this.injectCosmeticRules(id, url);
     }
   }
@@ -3236,6 +3590,16 @@ struct Index {
       }
     }
     await this.enhancePage(id);
+    if (id === this.pendingArticleSaveTabId) {
+      await this.captureArticleForLibrary(id);
+      this.pendingArticleSaveTabId = '';
+    }
+    if (id === this.disposableReaderTabId) {
+      await this.enterReader(id);
+    } else if (this.viewModel.effectiveSiteControl(url).autoReaderEnabled &&
+      this.viewModel.getTab(id)?.isReader !== true) {
+      await this.enterReader(id);
+    }
     if (Index.securityStateForUrl(url) === SecurityState.Insecure) {
       const controller: webview.WebviewController | undefined = this.controllers.get(id);
       if (controller !== undefined) {
@@ -3243,6 +3607,23 @@ struct Index {
       }
     }
     this.syncState();
+  }
+
+  private async captureArticleForLibrary(id: string): Promise<void> {
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    const controller: webview.WebviewController | undefined = this.controllers.get(id);
+    if (tab === undefined || controller === undefined) {
+      return;
+    }
+    try {
+      const raw: string = await this.runScript(controller, ARTICLE_CAPTURE_SCRIPT);
+      const snapshot: ArticleCaptureSnapshot = JSON.parse(raw) as ArticleCaptureSnapshot;
+      await this.viewModel.saveExtractedArticle(
+        tab.url, snapshot.canonicalUrl, snapshot.title, snapshot.text, snapshot.html, snapshot.images ?? []
+      );
+    } catch (error) {
+      Logger.warn(TAG, `Article capture failed: ${String(error)}`);
+    }
   }
 
   /**
@@ -3583,6 +3964,12 @@ struct Index {
     let trackers: number = 0;
     let malicious: number = 0;
     for (const url of urls) {
+      this.recordBlockEvent(createBlockEvent(
+        id,
+        url,
+        classifyBlockCategory(url),
+        BlockEngine.ArkWebSystemRules
+      ));
       if (Index.isMaliciousUrl(url)) {
         malicious += 1;
       } else if (isTrackerUrl(url)) {
@@ -3602,6 +3989,63 @@ struct Index {
     if (id === this.activeTabId) {
       this.weeklyBlocked = this.viewModel.getWeeklyBlocked();
       this.cumulativeBlocked = this.viewModel.getCumulativeBlocked();
+    }
+  }
+
+  private async handleOwnRuleBlocked(
+    id: string,
+    url: string,
+    category: BlockCategory,
+    ruleSource: string
+  ): Promise<void> {
+    this.recordBlockEvent(createBlockEvent(id, url, category, BlockEngine.OwnRuleEngine, ruleSource));
+    await this.viewModel.recordBlocked(id, {
+      ads: category === BlockCategory.Advertisement ? 1 : 0,
+      trackers: category === BlockCategory.Tracker ? 1 : 0,
+      malicious: 0,
+      popups: 0,
+      cookieBanners: 0
+    });
+    this.syncTab(id);
+    if (id === this.activeTabId) {
+      this.weeklyBlocked = this.viewModel.getWeeklyBlocked();
+      this.cumulativeBlocked = this.viewModel.getCumulativeBlocked();
+    }
+  }
+
+  private recordBlockEvent(event: BlockEvent): void {
+    this.blockEventStore.record(event);
+    if (event.tabId === this.activeTabId) {
+      this.blockEvents = this.blockEventStore.list(event.tabId);
+    }
+  }
+
+  private openBlockEvents(): void {
+    this.blockEvents = this.activeTabId.length > 0 ? this.blockEventStore.list(this.activeTabId) : [];
+    this.sheet = Overlay.BlockEvents;
+  }
+
+  private openSiteControls(): void {
+    const url: string = this.activeTab()?.url ?? '';
+    this.siteControl = this.viewModel.siteControlForUrl(url);
+    this.sheet = Overlay.SiteControls;
+  }
+
+  private async applySiteControl(control: SiteControl): Promise<void> {
+    try {
+      await this.viewModel.updateSiteControl(control);
+      this.siteControl = this.viewModel.siteControlForUrl(control.host);
+      const tab: BrowserTab | undefined = this.activeTab();
+      if (tab !== undefined) {
+        const effective = this.viewModel.effectiveSiteControl(tab.url);
+        this.viewModel.updateTab(tab.id, { isDesktop: effective.desktopUserAgentEnabled });
+        this.reconfigureBlocking();
+        this.runOnActive((controller: webview.WebviewController): void => controller.refresh());
+      }
+      this.syncState();
+    } catch (error) {
+      Logger.warn(TAG, `Site control could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.site_control_save_failed'));
     }
   }
 
@@ -3649,15 +4093,16 @@ struct Index {
       return;
     }
 
+    const control = this.viewModel.effectiveSiteControl(tab.url);
     let delta: BlockStats = emptyBlockStats();
-    if (this.settings.blockAds) {
+    if (control.cosmeticCleanupEnabled) {
       const raw: string = await this.runScript(
         controller,
         contentCleanupScript(this.settings.ruleStrength === RuleStrength.Strict)
       );
       delta = this.mergeCounts(delta, raw);
     }
-    if (this.settings.blockAds) {
+    if (control.trackerBlockingEnabled) {
       const raw: string = await this.runScript(controller, TRACKER_BLOCK_SCRIPT);
       delta = this.mergeCounts(delta, raw);
     }
