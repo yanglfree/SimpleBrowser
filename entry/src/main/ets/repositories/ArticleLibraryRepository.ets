@@ -3,10 +3,20 @@ import { fileIo } from '@kit.CoreFileKit';
 import relationalStore from '@ohos.data.relationalStore';
 import {
   ArticleContent,
+  ArticleHighlight,
+  ArticleHighlightState,
   ArticleSaveFailure,
+  ArticleNote,
+  Topic,
+  cloneArticleHighlight,
+  cloneArticleNote,
   cloneSavedArticle,
+  cloneTopic,
+  createArticleRecordId,
   SavedArticle
 } from '../models/ArticleLibraryModels';
+import { restoreArticleHighlight } from '../services/ArticleHighlightLocator';
+import { articleMatchesSearch, normalizeArticleSearchTerms } from '../services/ArticleSearchService';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'ArticleLibraryRepository';
@@ -134,6 +144,206 @@ export class ArticleLibraryRepository {
     }
   }
 
+  async searchArticles(query: string): Promise<SavedArticle[]> {
+    const terms: string[] = normalizeArticleSearchTerms(query);
+    const articles: SavedArticle[] = await this.listArticles();
+    const matches: SavedArticle[] = [];
+    for (const article of articles) {
+      const markdown: string | undefined = await this.readArticleMarkdown(article.id);
+      if (articleMatchesSearch(article, markdown ?? '', terms)) {
+        matches.push(article);
+      }
+    }
+    return matches;
+  }
+
+  async saveNote(note: ArticleNote): Promise<void> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    await store.insert('article_note', {
+      id: note.id,
+      article_id: note.articleId,
+      body: note.body,
+      created_at: note.createdAt,
+      updated_at: note.updatedAt
+    }, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
+  }
+
+  async createNote(articleId: string, body: string): Promise<ArticleNote> {
+    const now: number = Date.now();
+    const note: ArticleNote = {
+      id: createArticleRecordId('note', now), articleId: articleId, body: body,
+      createdAt: now, updatedAt: now
+    };
+    await this.saveNote(note);
+    return note;
+  }
+
+  async listNotes(articleId: string): Promise<ArticleNote[]> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('article_note');
+    predicates.equalTo('article_id', articleId).orderByDesc('updated_at');
+    const result: relationalStore.ResultSet = await store.query(predicates);
+    const notes: ArticleNote[] = [];
+    try {
+      while (result.goToNextRow()) {
+        notes.push(cloneArticleNote({
+          id: result.getString(result.getColumnIndex('id')),
+          articleId: result.getString(result.getColumnIndex('article_id')),
+          body: result.getString(result.getColumnIndex('body')),
+          createdAt: result.getLong(result.getColumnIndex('created_at')),
+          updatedAt: result.getLong(result.getColumnIndex('updated_at'))
+        }));
+      }
+      return notes;
+    } finally {
+      result.close();
+    }
+  }
+
+  async saveHighlight(highlight: ArticleHighlight): Promise<void> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    await store.insert('article_highlight', {
+      id: highlight.id,
+      article_id: highlight.articleId,
+      text_quote: highlight.textQuote,
+      prefix: highlight.prefix,
+      suffix: highlight.suffix,
+      dom_path: highlight.domPath,
+      state: highlight.state,
+      created_at: highlight.createdAt
+    }, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
+  }
+
+  async listHighlights(articleId: string): Promise<ArticleHighlight[]> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('article_highlight');
+    predicates.equalTo('article_id', articleId).orderByAsc('created_at');
+    const result: relationalStore.ResultSet = await store.query(predicates);
+    const highlights: ArticleHighlight[] = [];
+    try {
+      while (result.goToNextRow()) {
+        highlights.push(cloneArticleHighlight({
+          id: result.getString(result.getColumnIndex('id')),
+          articleId: result.getString(result.getColumnIndex('article_id')),
+          textQuote: result.getString(result.getColumnIndex('text_quote')),
+          prefix: result.getString(result.getColumnIndex('prefix')),
+          suffix: result.getString(result.getColumnIndex('suffix')),
+          domPath: result.getString(result.getColumnIndex('dom_path')),
+          state: result.getLong(result.getColumnIndex('state')) as ArticleHighlightState,
+          createdAt: result.getLong(result.getColumnIndex('created_at'))
+        }));
+      }
+      return highlights;
+    } finally {
+      result.close();
+    }
+  }
+
+  async restoreHighlights(articleId: string, text: string): Promise<ArticleHighlight[]> {
+    const highlights: ArticleHighlight[] = await this.listHighlights(articleId);
+    const restored: ArticleHighlight[] = [];
+    for (const highlight of highlights) {
+      const next: ArticleHighlight = restoreArticleHighlight(highlight, text);
+      if (next.state !== highlight.state) {
+        await this.saveHighlight(next);
+      }
+      restored.push(next);
+    }
+    return restored;
+  }
+
+  async createTopic(name: string): Promise<Topic | undefined> {
+    const normalizedName: string = name.trim().replace(/\s+/g, ' ');
+    if (normalizedName.length === 0) {
+      return undefined;
+    }
+    const existing: Topic | undefined = await this.findTopicByName(normalizedName);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const topic: Topic = {
+      id: createArticleRecordId('topic'), name: normalizedName, createdAt: Date.now()
+    };
+    const store: relationalStore.RdbStore = this.requireStore();
+    await store.insert('topic', {
+      id: topic.id, name: topic.name, created_at: topic.createdAt
+    }, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
+    return topic;
+  }
+
+  async listTopics(): Promise<Topic[]> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('topic');
+    predicates.orderByAsc('name');
+    const result: relationalStore.ResultSet = await store.query(predicates);
+    const topics: Topic[] = [];
+    try {
+      while (result.goToNextRow()) {
+        topics.push(cloneTopic({
+          id: result.getString(result.getColumnIndex('id')),
+          name: result.getString(result.getColumnIndex('name')),
+          createdAt: result.getLong(result.getColumnIndex('created_at'))
+        }));
+      }
+      return topics;
+    } finally {
+      result.close();
+    }
+  }
+
+  async assignTopic(articleId: string, topicId: string): Promise<void> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    await store.insert('article_topic', {
+      article_id: articleId, topic_id: topicId
+    }, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
+  }
+
+  async listTopicsForArticle(articleId: string): Promise<Topic[]> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('article_topic');
+    predicates.equalTo('article_id', articleId);
+    const result: relationalStore.ResultSet = await store.query(predicates, ['topic_id']);
+    const topics: Topic[] = [];
+    try {
+      while (result.goToNextRow()) {
+        const topic: Topic | undefined = await this.getTopic(result.getString(0));
+        if (topic !== undefined) {
+          topics.push(topic);
+        }
+      }
+      return topics;
+    } finally {
+      result.close();
+    }
+  }
+
+  private async findTopicByName(name: string): Promise<Topic | undefined> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('topic');
+    predicates.equalTo('name', name);
+    const result: relationalStore.ResultSet = await store.query(predicates);
+    try {
+      if (!result.goToFirstRow()) {
+        return undefined;
+      }
+      return this.readTopic(result);
+    } finally {
+      result.close();
+    }
+  }
+
+  private async getTopic(topicId: string): Promise<Topic | undefined> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('topic');
+    predicates.equalTo('id', topicId);
+    const result: relationalStore.ResultSet = await store.query(predicates);
+    try {
+      return result.goToFirstRow() ? this.readTopic(result) : undefined;
+    } finally {
+      result.close();
+    }
+  }
+
   private async createSchema(store: relationalStore.RdbStore): Promise<void> {
     await store.executeSql(`CREATE TABLE IF NOT EXISTS ${ARTICLE_TABLE} (
       id TEXT PRIMARY KEY, source_url TEXT NOT NULL, canonical_url TEXT NOT NULL,
@@ -172,6 +382,14 @@ export class ArticleLibraryRepository {
       updatedAt: result.getLong(result.getColumnIndex('updated_at')),
       failure: result.getLong(result.getColumnIndex('failure')) as ArticleSaveFailure,
       failureMessage: result.getString(result.getColumnIndex('failure_message'))
+    });
+  }
+
+  private readTopic(result: relationalStore.ResultSet): Topic {
+    return cloneTopic({
+      id: result.getString(result.getColumnIndex('id')),
+      name: result.getString(result.getColumnIndex('name')),
+      createdAt: result.getLong(result.getColumnIndex('created_at'))
     });
   }
 

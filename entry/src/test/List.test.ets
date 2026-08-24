@@ -14,6 +14,8 @@ import browserV05FeaturesTest from './BrowserV05Features.test';
 import externalOpenRequestTest from './ExternalOpenRequest.test';
 import articleExportServiceTest from './ArticleExportService.test';
 import articleLibraryModelsTest from './ArticleLibraryModels.test';
+import articleHighlightLocatorTest from './ArticleHighlightLocator.test';
+import articleSearchServiceTest from './ArticleSearchService.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -32,4 +34,6 @@ export default function testsuite(): void {
   externalOpenRequestTest();
   articleExportServiceTest();
   articleLibraryModelsTest();
+  articleHighlightLocatorTest();
+  articleSearchServiceTest();
 }
