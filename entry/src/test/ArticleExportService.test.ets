@@ -44,5 +44,13 @@ export default function articleExportServiceTest(): void {
       expect(html).assertContain('<!doctype html>');
       expect(html).assertContain('<base href="https://example.com/story">');
     });
+
+    it('keeps local image references eligible for standalone embedding', 0, (): void => {
+      const html: string = ArticleExportService.standaloneHtmlDocument(
+        ARTICLE,
+        '<img src="images/image-0.webp">'
+      );
+      expect(html).assertContain('images/image-0.webp');
+    });
   });
 }

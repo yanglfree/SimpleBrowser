@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit';
+import { util } from '@kit.ArkTS';
 import fs from '@ohos.file.fs';
 import picker from '@ohos.file.picker';
 import { SavedArticle } from '../models/ArticleLibraryModels';
@@ -24,6 +25,7 @@ export class ArticleExportService {
     article: SavedArticle,
     markdown: string,
     html: string,
+    imageDirectoryPath: string,
     format: ArticleExportFormat
   ): Promise<ArticleExportResult | undefined> {
     try {
@@ -38,7 +40,8 @@ export class ArticleExportService {
       }
       const text: string = format === ArticleExportFormat.Markdown
         ? ArticleExportService.markdownDocument(article, markdown)
-        : ArticleExportService.standaloneHtmlDocument(article, html);
+        : ArticleExportService.standaloneHtmlDocument(article,
+          await ArticleExportService.inlineLocalImages(html, imageDirectoryPath));
       const file: fs.File = fs.openSync(uris[0], fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
       try {
         fs.writeSync(file.fd, text);
@@ -70,6 +73,64 @@ export class ArticleExportService {
       return `<!doctype html>\n${ArticleExportService.addDocumentMetadata(cleanedHtml, baseUrl, title)}`;
     }
     return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><base href="${baseUrl}"><title>${title}</title></head><body>${cleanedHtml}</body></html>`;
+  }
+
+  /** Replaces captured relative image paths with data URLs so the HTML is portable as one file. */
+  private static async inlineLocalImages(html: string, imageDirectoryPath: string): Promise<string> {
+    const names: string[] = [];
+    const pattern: RegExp = /images\/(image-\d+\.(?:jpg|jpeg|png|gif|webp|avif|svg))/gi;
+    let match: RegExpExecArray | null = pattern.exec(html);
+    while (match !== null) {
+      if (!names.includes(match[1])) {
+        names.push(match[1]);
+      }
+      match = pattern.exec(html);
+    }
+    let output: string = html;
+    for (const name of names) {
+      const dataUrl: string | undefined = await ArticleExportService.readImageDataUrl(`${imageDirectoryPath}/${name}`, name);
+      if (dataUrl !== undefined) {
+        output = output.replace(new RegExp(`images/${name}`, 'gi'), dataUrl);
+      }
+    }
+    return output;
+  }
+
+  private static async readImageDataUrl(path: string, fileName: string): Promise<string | undefined> {
+    try {
+      const stat: fs.Stat = fs.statSync(path);
+      if (stat.size <= 0) {
+        return undefined;
+      }
+      const file: fs.File = fs.openSync(path, fs.OpenMode.READ_ONLY);
+      try {
+        const bytes: ArrayBuffer = new ArrayBuffer(stat.size);
+        const length: number = fs.readSync(file.fd, bytes, { offset: 0, length: stat.size });
+        if (length <= 0) {
+          return undefined;
+        }
+        const base64: string = new util.Base64Helper().encodeToStringSync(
+          new Uint8Array(bytes.slice(0, length))
+        );
+        return `data:${ArticleExportService.imageMimeType(fileName)};base64,${base64}`;
+      } finally {
+        fs.closeSync(file.fd);
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Saved article image was not embedded: ${String(error)}`);
+      return undefined;
+    }
+  }
+
+  private static imageMimeType(fileName: string): string {
+    const extension: string = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+    if (extension === 'jpg' || extension === 'jpeg') {
+      return 'image/jpeg';
+    }
+    if (extension === 'svg') {
+      return 'image/svg+xml';
+    }
+    return `image/${extension}`;
   }
 
   private static fileNameFor(article: SavedArticle, format: ArticleExportFormat): string {

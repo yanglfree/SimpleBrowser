@@ -113,7 +113,13 @@ import { AppContext } from '../utils/AppContext';
 import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress, rawHost } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
 import { BrowserViewModel } from '../viewmodels/BrowserViewModel';
-import { ArticleImageAsset, SavedArticle } from '../models/ArticleLibraryModels';
+import {
+  ArticleHighlight,
+  ArticleImageAsset,
+  ArticleNote,
+  SavedArticle,
+  Topic
+} from '../models/ArticleLibraryModels';
 import { ArticleExportFormat, ArticleExportResult } from '../services/ArticleExportService';
 import {
   BrowserLayoutClass,
@@ -350,6 +356,9 @@ struct Index {
   @State private selectedArticle: SavedArticle | undefined = undefined;
   @State private selectedArticleMarkdown: string = '';
   @State private isArticleLoading: boolean = false;
+  @State private articleNotes: ArticleNote[] = [];
+  @State private articleTopics: Topic[] = [];
+  @State private articleHighlights: ArticleHighlight[] = [];
   @State private liveTabIds: string[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
@@ -1517,10 +1526,17 @@ struct Index {
         selectedArticle: this.selectedArticle,
         markdown: this.selectedArticleMarkdown,
         isLoading: this.isArticleLoading,
+        notes: this.articleNotes,
+        topics: this.articleTopics,
+        highlights: this.articleHighlights,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onSelect: (articleId: string): void => { void this.openSavedArticle(articleId); },
         onBackToList: (): void => this.closeSavedArticle(),
-        onExport: (format: ArticleExportFormat): void => { void this.exportSelectedArticle(format); }
+        onExport: (format: ArticleExportFormat): void => { void this.exportSelectedArticle(format); },
+        onSearch: (query: string): void => { void this.searchSavedArticles(query); },
+        onAddNote: (body: string): void => { void this.addArticleNote(body); },
+        onAddTopic: (name: string): void => { void this.addArticleTopic(name); },
+        onAddHighlight: (quote: string): void => { void this.addArticleHighlight(quote); }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Favorites) {
@@ -2495,6 +2511,16 @@ struct Index {
     }
   }
 
+  private async searchSavedArticles(query: string): Promise<void> {
+    try {
+      this.articles = query.trim().length === 0
+        ? await this.viewModel.listSavedArticles()
+        : await this.viewModel.searchSavedArticles(query);
+    } catch (error) {
+      Logger.warn(TAG, `Article search unavailable: ${String(error)}`);
+    }
+  }
+
   private async openSavedArticle(articleId: string): Promise<void> {
     const article: SavedArticle | undefined = this.articles.find(
       (item: SavedArticle): boolean => item.id === articleId
@@ -2516,6 +2542,17 @@ struct Index {
         return;
       }
       this.selectedArticleMarkdown = markdown;
+      const annotations: [ArticleNote[], Topic[], ArticleHighlight[]] = await Promise.all([
+        this.viewModel.listArticleNotes(articleId),
+        this.viewModel.listArticleTopics(articleId),
+        this.viewModel.listArticleHighlights(articleId, markdown)
+      ]);
+      if (this.selectedArticle?.id !== articleId) {
+        return;
+      }
+      this.articleNotes = annotations[0];
+      this.articleTopics = annotations[1];
+      this.articleHighlights = annotations[2];
     } catch (error) {
       Logger.warn(TAG, `Offline article unavailable: ${String(error)}`);
       this.selectedArticle = undefined;
@@ -2531,6 +2568,61 @@ struct Index {
     this.selectedArticle = undefined;
     this.selectedArticleMarkdown = '';
     this.isArticleLoading = false;
+    this.articleNotes = [];
+    this.articleTopics = [];
+    this.articleHighlights = [];
+  }
+
+  private async addArticleNote(body: string): Promise<void> {
+    const article: SavedArticle | undefined = this.selectedArticle;
+    if (article === undefined) {
+      return;
+    }
+    try {
+      const note: ArticleNote | undefined = await this.viewModel.addArticleNote(article.id, body);
+      if (note !== undefined && this.selectedArticle?.id === article.id) {
+        this.articleNotes = await this.viewModel.listArticleNotes(article.id);
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Article note could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.article_library_unavailable'));
+    }
+  }
+
+  private async addArticleTopic(name: string): Promise<void> {
+    const article: SavedArticle | undefined = this.selectedArticle;
+    if (article === undefined) {
+      return;
+    }
+    try {
+      const topic: Topic | undefined = await this.viewModel.addArticleTopic(article.id, name);
+      if (topic !== undefined && this.selectedArticle?.id === article.id) {
+        this.articleTopics = await this.viewModel.listArticleTopics(article.id);
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Article topic could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.article_library_unavailable'));
+    }
+  }
+
+  private async addArticleHighlight(quote: string): Promise<void> {
+    const article: SavedArticle | undefined = this.selectedArticle;
+    if (article === undefined) {
+      return;
+    }
+    try {
+      const highlight: ArticleHighlight | undefined = await this.viewModel.addArticleHighlight(
+        article.id, this.selectedArticleMarkdown, quote
+      );
+      if (highlight !== undefined && this.selectedArticle?.id === article.id) {
+        this.articleHighlights = await this.viewModel.listArticleHighlights(
+          article.id, this.selectedArticleMarkdown
+        );
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Article highlight could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.article_library_unavailable'));
+    }
   }
 
   private async exportSelectedArticle(format: ArticleExportFormat): Promise<void> {

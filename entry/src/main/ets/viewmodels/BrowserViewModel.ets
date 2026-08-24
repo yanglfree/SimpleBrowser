@@ -35,9 +35,18 @@ import {
 } from '../models/BrowserModels';
 import { BrowserRepository } from '../repositories/BrowserRepository';
 import { ArticleLibraryRepository } from '../repositories/ArticleLibraryRepository';
-import { ArticleImageAsset, ArticleSaveFailure, createArticleId, SavedArticle } from '../models/ArticleLibraryModels';
+import {
+  ArticleHighlight,
+  ArticleImageAsset,
+  ArticleNote,
+  ArticleSaveFailure,
+  createArticleId,
+  SavedArticle,
+  Topic
+} from '../models/ArticleLibraryModels';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { ArticleExportFormat, ArticleExportResult, ArticleExportService } from '../services/ArticleExportService';
+import { createArticleHighlight } from '../services/ArticleHighlightFactory';
 import { DownloadService } from '../services/DownloadService';
 import { displayHost, isHomeUrl, looksLikeUrl, rawHost, searchUrl, siteBadge } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
@@ -286,8 +295,45 @@ export class BrowserViewModel {
     return await this.articleLibrary.listArticles();
   }
 
+  async searchSavedArticles(query: string): Promise<SavedArticle[]> {
+    return await this.articleLibrary.searchArticles(query);
+  }
+
   async readSavedArticleMarkdown(articleId: string): Promise<string | undefined> {
     return await this.articleLibrary.readArticleMarkdown(articleId);
+  }
+
+  async listArticleNotes(articleId: string): Promise<ArticleNote[]> {
+    return await this.articleLibrary.listNotes(articleId);
+  }
+
+  async addArticleNote(articleId: string, body: string): Promise<ArticleNote | undefined> {
+    const normalized: string = body.trim();
+    return normalized.length === 0 ? undefined : await this.articleLibrary.createNote(articleId, normalized);
+  }
+
+  async listArticleTopics(articleId: string): Promise<Topic[]> {
+    return await this.articleLibrary.listTopicsForArticle(articleId);
+  }
+
+  async addArticleTopic(articleId: string, name: string): Promise<Topic | undefined> {
+    const topic: Topic | undefined = await this.articleLibrary.createTopic(name);
+    if (topic !== undefined) {
+      await this.articleLibrary.assignTopic(articleId, topic.id);
+    }
+    return topic;
+  }
+
+  async listArticleHighlights(articleId: string, articleText: string): Promise<ArticleHighlight[]> {
+    return await this.articleLibrary.restoreHighlights(articleId, articleText);
+  }
+
+  async addArticleHighlight(articleId: string, articleText: string, selectedText: string): Promise<ArticleHighlight | undefined> {
+    const highlight: ArticleHighlight | undefined = createArticleHighlight(articleId, articleText, selectedText);
+    if (highlight !== undefined) {
+      await this.articleLibrary.saveHighlight(highlight);
+    }
+    return highlight;
   }
 
   async exportArticle(articleId: string, format: ArticleExportFormat): Promise<ArticleExportResult | undefined> {
@@ -301,11 +347,14 @@ export class BrowserViewModel {
     }
     const markdown: string | undefined = await this.articleLibrary.readArticleMarkdown(articleId);
     const html: string | undefined = await this.articleLibrary.readArticleHtml(articleId);
-    if (markdown === undefined || html === undefined) {
+    const content = await this.articleLibrary.getArticleContent(articleId);
+    if (markdown === undefined || html === undefined || content === undefined) {
       Logger.warn(TAG, `Article export content is unavailable: ${articleId}`);
       return undefined;
     }
-    return await ArticleExportService.exportToPicker(this.context, article, markdown, html, format);
+    return await ArticleExportService.exportToPicker(
+      this.context, article, markdown, html, content.imageDirectoryPath, format
+    );
   }
 
   async importSavedItems(items: SavedItem[]): Promise<number> {

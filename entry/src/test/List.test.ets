@@ -15,6 +15,7 @@ import externalOpenRequestTest from './ExternalOpenRequest.test';
 import articleExportServiceTest from './ArticleExportService.test';
 import articleLibraryModelsTest from './ArticleLibraryModels.test';
 import articleHighlightLocatorTest from './ArticleHighlightLocator.test';
+import articleHighlightFactoryTest from './ArticleHighlightFactory.test';
 import articleSearchServiceTest from './ArticleSearchService.test';
 import articleImageStoreTest from './ArticleImageStore.test';
 
@@ -36,6 +37,7 @@ export default function testsuite(): void {
   articleExportServiceTest();
   articleLibraryModelsTest();
   articleHighlightLocatorTest();
+  articleHighlightFactoryTest();
   articleSearchServiceTest();
   articleImageStoreTest();
 }
