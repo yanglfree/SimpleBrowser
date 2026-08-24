@@ -12,6 +12,7 @@ import tabOverviewLayoutTest from './TabOverviewLayout.test';
 import wideWindowRegressionTest from './WideWindowRegression.test';
 import browserV05FeaturesTest from './BrowserV05Features.test';
 import externalOpenRequestTest from './ExternalOpenRequest.test';
+import articleWorkbenchModelsTest from './ArticleWorkbenchModels.test';
 import articleExportServiceTest from './ArticleExportService.test';
 import articleLibraryModelsTest from './ArticleLibraryModels.test';
 import articleHighlightLocatorTest from './ArticleHighlightLocator.test';
@@ -36,6 +37,7 @@ export default function testsuite(): void {
   wideWindowRegressionTest();
   browserV05FeaturesTest();
   externalOpenRequestTest();
+  articleWorkbenchModelsTest();
   blockEventStoreTest();
   siteControlModelsTest();
   articleExportServiceTest();

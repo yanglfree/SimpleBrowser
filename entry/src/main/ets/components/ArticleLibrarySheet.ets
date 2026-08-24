@@ -1,14 +1,22 @@
 import {
   ArticleHighlight,
-  ArticleHighlightState,
   ArticleNote,
   ArticleSaveFailure,
   isReadableSavedArticle,
   SavedArticle,
   Topic
 } from '../models/ArticleLibraryModels';
+import {
+  ARTICLE_WORKBENCH_INSPECTOR_WIDTH,
+  ArticleWorkbenchMode,
+  articleReaderMaxWidth,
+  articleWorkbenchMode,
+  shouldShowArticleInspector
+} from '../models/ArticleWorkbenchModels';
+import { BrowserLayoutClass } from '../models/WindowMetrics';
 import { ArticleExportFormat } from '../services/ArticleExportService';
 import { displayHost } from '../utils/UrlUtils';
+import { ArticleAnnotationPanel } from './ArticleAnnotationPanel';
 import { AppIcon, IconName } from './AppIcon';
 
 @Component
@@ -20,10 +28,13 @@ export struct ArticleLibrarySheet {
   @Prop notes: ArticleNote[] = [];
   @Prop topics: Topic[] = [];
   @Prop highlights: ArticleHighlight[] = [];
+  @Prop layoutClass: BrowserLayoutClass = BrowserLayoutClass.Compact;
+  @Prop availableWidthVp: number = 0;
+  @Prop inspectorVisible: boolean = false;
+  @Prop initialReadingScrollOffset: number = 0;
   @State private query: string = '';
-  @State private noteBody: string = '';
-  @State private topicName: string = '';
-  @State private highlightQuote: string = '';
+  private articleScroller: Scroller = new Scroller();
+  private readingScrollOffset: number = 0;
   onDismiss: () => void = (): void => {};
   onSelect: (articleId: string) => void = (_articleId: string): void => {};
   onBackToList: () => void = (): void => {};
@@ -32,6 +43,12 @@ export struct ArticleLibrarySheet {
   onAddNote: (body: string) => void = (_body: string): void => {};
   onAddTopic: (name: string) => void = (_name: string): void => {};
   onAddHighlight: (quote: string) => void = (_quote: string): void => {};
+  onInspectorVisibilityChange: (visible: boolean) => void = (_visible: boolean): void => {};
+  onReadingScroll: (offset: number) => void = (_offset: number): void => {};
+
+  aboutToAppear(): void {
+    this.readingScrollOffset = this.initialReadingScrollOffset;
+  }
 
   build() {
     Column() {
@@ -160,35 +177,75 @@ export struct ArticleLibrarySheet {
   @Builder
   private ArticleDetail(article: SavedArticle) {
     Column() {
-      Row({ space: 12 }) {
-        AppIcon({ name: IconName.ArrowLeft, glyphSize: 21, color: $r('app.color.text_primary') })
-          .onClick(() => this.onBackToList())
-        Text($r('app.string.article_library'))
-          .fontSize(18)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
-          .layoutWeight(1)
-        Text($r('app.string.article_export_markdown'))
-          .fontSize(12)
-          .fontColor($r('app.color.accent'))
-          .padding(8)
-          .borderRadius(8)
-          .backgroundColor($r('app.color.surface_subtle'))
-          .onClick(() => this.onExport(ArticleExportFormat.Markdown))
-        Text($r('app.string.article_export_html'))
-          .fontSize(12)
-          .fontColor($r('app.color.accent'))
-          .padding(8)
-          .borderRadius(8)
-          .backgroundColor($r('app.color.surface_subtle'))
-          .onClick(() => this.onExport(ArticleExportFormat.StandaloneHtml))
+      this.ArticleHeader()
+      if (this.showInspector()) {
+        Row() {
+          this.ArticleReader(article, false)
+          this.InspectorPane()
+        }
+        .width('100%')
+        .layoutWeight(1)
+      } else {
+        this.ArticleReader(article, true)
       }
-      .width('100%')
-      .height(62)
-      .padding({ left: 20, right: 20 })
-      .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+    }
+    .width('100%')
+    .height('100%')
+  }
 
-      Scroll() {
+  @Builder
+  private ArticleHeader() {
+    Row({ space: 12 }) {
+      AppIcon({ name: IconName.ArrowLeft, glyphSize: 21, color: $r('app.color.text_primary') })
+        .onClick(() => this.onBackToList())
+      Text($r('app.string.article_library'))
+        .fontSize(18)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+      if (this.canToggleInspector()) {
+        Text(this.inspectorVisible
+          ? $r('app.string.article_workbench_hide_inspector')
+          : $r('app.string.article_workbench_show_inspector'))
+          .fontSize(12)
+          .fontColor($r('app.color.accent'))
+          .padding(8)
+          .borderRadius(8)
+          .backgroundColor($r('app.color.surface_subtle'))
+          .focusable(true)
+          .hoverEffect(HoverEffect.Auto)
+          .id('article-workbench-inspector-toggle')
+          .onClick(() => this.onInspectorVisibilityChange(!this.inspectorVisible))
+      }
+      Text($r('app.string.article_export_markdown'))
+        .fontSize(12)
+        .fontColor($r('app.color.accent'))
+        .padding(8)
+        .borderRadius(8)
+        .backgroundColor($r('app.color.surface_subtle'))
+        .focusable(true)
+        .hoverEffect(HoverEffect.Auto)
+        .onClick(() => this.onExport(ArticleExportFormat.Markdown))
+      Text($r('app.string.article_export_html'))
+        .fontSize(12)
+        .fontColor($r('app.color.accent'))
+        .padding(8)
+        .borderRadius(8)
+        .backgroundColor($r('app.color.surface_subtle'))
+        .focusable(true)
+        .hoverEffect(HoverEffect.Auto)
+        .onClick(() => this.onExport(ArticleExportFormat.StandaloneHtml))
+    }
+    .width('100%')
+    .height(62)
+    .padding({ left: 20, right: 20 })
+    .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+  }
+
+  @Builder
+  private ArticleReader(article: SavedArticle, showInlineInspector: boolean) {
+    Scroll(this.articleScroller) {
+      Column() {
         Column({ space: 12 }) {
           Text(article.title)
             .fontSize(26)
@@ -211,115 +268,79 @@ export struct ArticleLibrarySheet {
               .fontColor($r('app.color.text_primary'))
               .width('100%')
               .textAlign(TextAlign.Start)
-
-            this.AnnotationPanel()
+            if (showInlineInspector) {
+              this.AnnotationPanel()
+            }
           }
         }
         .width('100%')
-        .padding({ left: 24, right: 24, top: 24, bottom: 40 })
+        .constraintSize({ maxWidth: this.readerMaxWidth() })
       }
-      .layoutWeight(1)
       .width('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
+      .alignItems(HorizontalAlign.Center)
+      .padding({ left: 24, right: 24, top: 24, bottom: 40 })
+      .onAreaChange((_old: Area, _current: Area): void => this.restoreReadingScrollOffset())
     }
+    .layoutWeight(1)
     .width('100%')
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .onDidScroll((): void => {
+      this.readingScrollOffset = Math.max(0, this.articleScroller.currentOffset().yOffset);
+      this.onReadingScroll(this.readingScrollOffset);
+    })
+  }
+
+  @Builder
+  private InspectorPane() {
+    Scroll() {
+      Column({ space: 12 }) {
+        Text($r('app.string.article_workbench_inspector'))
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+          .width('100%')
+        this.AnnotationPanel()
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 20, bottom: 36 })
+    }
+    .width(ARTICLE_WORKBENCH_INSPECTOR_WIDTH)
     .height('100%')
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .border({ width: { left: 1 }, color: $r('app.color.border') })
   }
 
   @Builder
   private AnnotationPanel() {
-    Column({ space: 10 }) {
-      Text($r('app.string.article_topics'))
-        .fontSize(15)
-        .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.text_primary'))
-        .width('100%')
-      if (this.topics.length > 0) {
-        Text(this.topics.map((topic: Topic): string => `#${topic.name}`).join('  '))
-          .fontSize(13)
-          .fontColor($r('app.color.accent'))
-          .width('100%')
-      }
-      TextInput({ text: this.topicName, placeholder: $r('app.string.article_topic_placeholder') })
-        .width('100%')
-        .height(40)
-        .padding({ left: 12, right: 12 })
-        .fontSize(14)
-        .fontColor($r('app.color.text_primary'))
-        .placeholderColor($r('app.color.text_secondary'))
-        .backgroundColor($r('app.color.surface_subtle'))
-        .borderRadius(10)
-        .onSubmit((): void => {
-          this.onAddTopic(this.topicName);
-          this.topicName = '';
-        })
-        .onChange((value: string): void => { this.topicName = value; })
+    ArticleAnnotationPanel({
+      notes: this.notes,
+      topics: this.topics,
+      highlights: this.highlights,
+      onAddNote: this.onAddNote,
+      onAddTopic: this.onAddTopic,
+      onAddHighlight: this.onAddHighlight
+    })
+      .margin({ top: 18 })
+  }
 
-      Text($r('app.string.article_notes'))
-        .fontSize(15)
-        .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.text_primary'))
-        .width('100%')
-      TextInput({ text: this.noteBody, placeholder: $r('app.string.article_note_placeholder') })
-        .width('100%')
-        .height(40)
-        .padding({ left: 12, right: 12 })
-        .fontSize(14)
-        .fontColor($r('app.color.text_primary'))
-        .placeholderColor($r('app.color.text_secondary'))
-        .backgroundColor($r('app.color.surface_subtle'))
-        .borderRadius(10)
-        .onSubmit((): void => {
-          this.onAddNote(this.noteBody);
-          this.noteBody = '';
-        })
-        .onChange((value: string): void => { this.noteBody = value; })
-      ForEach(this.notes, (note: ArticleNote) => {
-        Text(note.body)
-          .fontSize(14)
-          .lineHeight(21)
-          .fontColor($r('app.color.text_primary'))
-          .width('100%')
-          .padding(10)
-          .backgroundColor($r('app.color.surface_subtle'))
-          .borderRadius(10)
-      }, (note: ArticleNote): string => note.id)
+  private showInspector(): boolean {
+    return shouldShowArticleInspector(this.layoutClass, this.inspectorVisible);
+  }
 
-      Text($r('app.string.article_highlights'))
-        .fontSize(15)
-        .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.text_primary'))
-        .width('100%')
-      TextInput({ text: this.highlightQuote, placeholder: $r('app.string.article_highlight_placeholder') })
-        .width('100%')
-        .height(40)
-        .padding({ left: 12, right: 12 })
-        .fontSize(14)
-        .fontColor($r('app.color.text_primary'))
-        .placeholderColor($r('app.color.text_secondary'))
-        .backgroundColor($r('app.color.surface_subtle'))
-        .borderRadius(10)
-        .onSubmit((): void => {
-          this.onAddHighlight(this.highlightQuote);
-          this.highlightQuote = '';
-        })
-        .onChange((value: string): void => { this.highlightQuote = value; })
-      ForEach(this.highlights, (highlight: ArticleHighlight) => {
-        Text(highlight.state === ArticleHighlightState.Located
-          ? `“${highlight.textQuote}”`
-          : `${$r('app.string.article_highlight_needs_relocation')} “${highlight.textQuote}”`)
-          .fontSize(14)
-          .lineHeight(21)
-          .fontColor(highlight.state === ArticleHighlightState.Located
-            ? $r('app.color.text_primary') : $r('app.color.text_secondary'))
-          .width('100%')
-          .padding(10)
-          .backgroundColor($r('app.color.surface_subtle'))
-          .borderRadius(10)
-      }, (highlight: ArticleHighlight): string => highlight.id)
+  private canToggleInspector(): boolean {
+    return articleWorkbenchMode(this.layoutClass) === ArticleWorkbenchMode.SwitchableInspector;
+  }
+
+  private readerMaxWidth(): number {
+    return articleReaderMaxWidth(this.availableWidthVp, this.showInspector());
+  }
+
+  private restoreReadingScrollOffset(): void {
+    if (this.readingScrollOffset <= 0) {
+      return;
     }
-    .width('100%')
-    .margin({ top: 18 })
+    this.articleScroller.scrollTo({ xOffset: 0, yOffset: this.readingScrollOffset, animation: false });
   }
 }

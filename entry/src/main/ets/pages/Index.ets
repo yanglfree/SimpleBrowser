@@ -127,6 +127,7 @@ import {
   Topic
 } from '../models/ArticleLibraryModels';
 import { ArticleExportFormat, ArticleExportResult } from '../services/ArticleExportService';
+import { articleWorkbenchOverlayWidth } from '../models/ArticleWorkbenchModels';
 import {
   BrowserLayoutClass,
   BrowserWindowMetrics,
@@ -367,6 +368,8 @@ struct Index {
   @State private articleNotes: ArticleNote[] = [];
   @State private articleTopics: Topic[] = [];
   @State private articleHighlights: ArticleHighlight[] = [];
+  @State private articleInspectorVisible: boolean = false;
+  private articleReadingScrollOffset: number = 0;
   @State private blockEvents: BlockEvent[] = [];
   @State private siteControl: SiteControl = defaultSiteControl('');
   @State private liveTabIds: string[] = [];
@@ -1564,6 +1567,10 @@ struct Index {
         notes: this.articleNotes,
         topics: this.articleTopics,
         highlights: this.articleHighlights,
+        layoutClass: this.windowMetrics.layoutClass,
+        availableWidthVp: this.articleWorkbenchWidth(),
+        inspectorVisible: this.articleInspectorVisible,
+        initialReadingScrollOffset: this.articleReadingScrollOffset,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onSelect: (articleId: string): void => { void this.openSavedArticle(articleId); },
         onBackToList: (): void => this.closeSavedArticle(),
@@ -1571,7 +1578,9 @@ struct Index {
         onSearch: (query: string): void => { void this.searchSavedArticles(query); },
         onAddNote: (body: string): void => { void this.addArticleNote(body); },
         onAddTopic: (name: string): void => { void this.addArticleTopic(name); },
-        onAddHighlight: (quote: string): void => { void this.addArticleHighlight(quote); }
+        onAddHighlight: (quote: string): void => { void this.addArticleHighlight(quote); },
+        onInspectorVisibilityChange: (visible: boolean): void => { this.articleInspectorVisible = visible; },
+        onReadingScroll: (offset: number): void => { this.articleReadingScrollOffset = offset; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Favorites) {
@@ -1690,6 +1699,9 @@ struct Index {
     if (this.sheet === Overlay.History ||
       this.sheet === Overlay.Favorites || this.sheet === Overlay.Downloads ||
       this.sheet === Overlay.ArticleLibrary) {
+      if (this.sheet === Overlay.ArticleLibrary) {
+        return this.articleWorkbenchWidth();
+      }
       return 820;
     }
     if (this.sheet === Overlay.Address) {
@@ -1699,6 +1711,10 @@ struct Index {
       return 520;
     }
     return 560;
+  }
+
+  private articleWorkbenchWidth(): number {
+    return articleWorkbenchOverlayWidth(this.windowMetrics.widthVp);
   }
 
   private sheetTransition(): TransitionEffect {
@@ -2540,6 +2556,7 @@ struct Index {
     try {
       this.articles = await this.viewModel.listSavedArticles();
       this.closeSavedArticle();
+      this.articleInspectorVisible = false;
       this.sheet = Overlay.ArticleLibrary;
     } catch (error) {
       Logger.warn(TAG, `Article library unavailable: ${String(error)}`);
@@ -2567,6 +2584,7 @@ struct Index {
     this.selectedArticle = article;
     this.selectedArticleMarkdown = '';
     this.isArticleLoading = true;
+    this.articleReadingScrollOffset = 0;
     try {
       const markdown: string | undefined = await this.viewModel.readSavedArticleMarkdown(articleId);
       if (this.selectedArticle?.id !== articleId) {
@@ -2607,6 +2625,7 @@ struct Index {
     this.articleNotes = [];
     this.articleTopics = [];
     this.articleHighlights = [];
+    this.articleReadingScrollOffset = 0;
   }
 
   private async addArticleNote(body: string): Promise<void> {
