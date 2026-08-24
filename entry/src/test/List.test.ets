@@ -18,6 +18,8 @@ import articleHighlightLocatorTest from './ArticleHighlightLocator.test';
 import articleHighlightFactoryTest from './ArticleHighlightFactory.test';
 import articleSearchServiceTest from './ArticleSearchService.test';
 import articleImageStoreTest from './ArticleImageStore.test';
+import blockEventStoreTest from './BlockEventStore.test';
+import siteControlModelsTest from './SiteControlModels.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -34,6 +36,8 @@ export default function testsuite(): void {
   wideWindowRegressionTest();
   browserV05FeaturesTest();
   externalOpenRequestTest();
+  blockEventStoreTest();
+  siteControlModelsTest();
   articleExportServiceTest();
   articleLibraryModelsTest();
   articleHighlightLocatorTest();

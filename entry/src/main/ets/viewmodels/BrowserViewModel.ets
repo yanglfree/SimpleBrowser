@@ -33,8 +33,10 @@ import {
   emptyBlockStats,
   totalBlocked
 } from '../models/BrowserModels';
+import { EffectiveSiteControl, SiteControl, resolveSiteControl } from '../models/SiteControlModels';
 import { BrowserRepository } from '../repositories/BrowserRepository';
 import { ArticleLibraryRepository } from '../repositories/ArticleLibraryRepository';
+import { SiteControlRepository } from '../repositories/SiteControlRepository';
 import {
   ArticleHighlight,
   ArticleImageAsset,
@@ -56,6 +58,7 @@ const TAG: string = 'BrowserViewModel';
 export class BrowserViewModel {
   readonly repository: BrowserRepository = new BrowserRepository();
   readonly articleLibrary: ArticleLibraryRepository = new ArticleLibraryRepository();
+  readonly siteControls: SiteControlRepository = new SiteControlRepository();
   readonly adsBlockService: AdsBlockService = new AdsBlockService();
   tabs: BrowserTab[] = [];
   savedItems: SavedItem[] = [];
@@ -77,6 +80,7 @@ export class BrowserViewModel {
     this.context = context;
     await this.repository.initialize(context);
     await this.articleLibrary.initialize(context);
+    await this.siteControls.initialize(context);
     this.savedItems = this.repository.getSavedItems();
     this.history = this.repository.getHistory();
     this.settings = this.repository.getSettings();
@@ -375,7 +379,28 @@ export class BrowserViewModel {
   }
 
   preferredDesktopForUrl(url: string): boolean {
-    return this.userAgentPreferenceForUrl(url) === UserAgentPreference.Desktop;
+    return this.effectiveSiteControl(url).desktopUserAgentEnabled;
+  }
+
+  siteControlForUrl(url: string): SiteControl {
+    const host: string = rawHost(url);
+    return this.siteControls.get(host.length > 0 ? host : url.toLowerCase());
+  }
+
+  effectiveSiteControl(url: string): EffectiveSiteControl {
+    const control: SiteControl = this.siteControlForUrl(url);
+    return resolveSiteControl(
+      control,
+      this.settings.blockAds,
+      this.settings.blockTrackers,
+      this.settings.blockAds,
+      this.settings.webDarkMode,
+      this.userAgentPreferenceForUrl(url) === UserAgentPreference.Desktop
+    );
+  }
+
+  async updateSiteControl(control: SiteControl): Promise<void> {
+    await this.siteControls.save(control);
   }
 
   async setSiteUserAgentPreference(url: string, preference: UserAgentPreference): Promise<void> {

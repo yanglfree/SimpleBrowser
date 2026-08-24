@@ -63,6 +63,7 @@ import { ActionSheet } from '../components/ActionSheet';
 import { AddressSheet } from '../components/AddressSheet';
 import { AppIcon, IconName } from '../components/AppIcon';
 import { BlockPanel } from '../components/BlockPanel';
+import { BlockEventSheet } from '../components/BlockEventSheet';
 import { BrowserWebView } from '../components/BrowserWebView';
 import { DownloadSheet } from '../components/DownloadSheet';
 import { ErrorStatePanel } from '../components/ErrorStatePanel';
@@ -79,6 +80,7 @@ import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { RecentTabsDock } from '../components/RecentTabsDock';
 import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
+import { SiteControlSheet } from '../components/SiteControlSheet';
 import { SharePanel } from '../components/SharePanel';
 import { SavedItemEditSheet } from '../components/SavedItemEditSheet';
 import { ArticleLibrarySheet } from '../components/ArticleLibrarySheet';
@@ -113,6 +115,10 @@ import { AppContext } from '../utils/AppContext';
 import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress, rawHost } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
 import { BrowserViewModel } from '../viewmodels/BrowserViewModel';
+import { BlockCategory, BlockEngine, BlockEvent, createBlockEvent } from '../models/BlockEventModels';
+import { classifyBlockCategory } from '../services/BlockEventClassifier';
+import { BlockEventStore } from '../services/BlockEventStore';
+import { SiteControl, SiteControlMode, defaultSiteControl } from '../models/SiteControlModels';
 import {
   ArticleHighlight,
   ArticleImageAsset,
@@ -175,7 +181,9 @@ export enum Overlay {
   HomeBackground = 19,
   UserAgent = 20,
   QuickSiteEditor = 21,
-  ArticleLibrary = 22
+  ArticleLibrary = 22,
+  BlockEvents = 23,
+  SiteControls = 24
 }
 
 export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boolean {
@@ -359,6 +367,8 @@ struct Index {
   @State private articleNotes: ArticleNote[] = [];
   @State private articleTopics: Topic[] = [];
   @State private articleHighlights: ArticleHighlight[] = [];
+  @State private blockEvents: BlockEvent[] = [];
+  @State private siteControl: SiteControl = defaultSiteControl('');
   @State private liveTabIds: string[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
@@ -395,6 +405,7 @@ struct Index {
   /** Read & Close owns a private tab and closes it only when the reader exits. */
   private disposableReaderTabId: string = '';
   private pendingArticleSaveTabId: string = '';
+  private blockEventStore: BlockEventStore = new BlockEventStore();
   private downloadListener: (tasks: DownloadTask[]) => void = (tasks: DownloadTask[]): void => {
     this.downloadTasks = tasks;
   };
@@ -686,10 +697,16 @@ struct Index {
           } else if (this.isTabLive(tab.id)) {
             BrowserWebView({
               tab: tab,
-              blockAds: this.settings.blockAds && !this.viewModel.isHostAllowed(tab.url),
+              blockAds: this.viewModel.effectiveSiteControl(tab.url).networkBlockingEnabled &&
+                this.viewModel.effectiveSiteControl(tab.url).trackerBlockingEnabled &&
+                !this.viewModel.isHostAllowed(tab.url),
+              interceptRequests: this.viewModel.effectiveSiteControl(tab.url).networkBlockingEnabled &&
+                !this.viewModel.isHostAllowed(tab.url),
+              blockTrackers: this.viewModel.effectiveSiteControl(tab.url).trackerBlockingEnabled,
               minimumFontSize: this.settings.minimumFontSize,
-              webDarkMode: this.settings.webDarkMode,
-              darkModeExcluded: this.isDarkModeExcluded(tab.url),
+              webDarkMode: this.viewModel.effectiveSiteControl(tab.url).webDarkMode,
+              darkModeExcluded: this.isDarkModeExcluded(tab.url) &&
+                this.viewModel.siteControlForUrl(tab.url).darkMode === SiteControlMode.Inherit,
               controller: this.controllerFor(tab.id),
               kernelCallbacks: {
                 onPageBegin: (url: string): void => this.handlePageBegin(tab.id, url),
@@ -714,6 +731,9 @@ struct Index {
               onEdgeBack: (): void => { this.edgeNavigate(tab.id, true); },
               onEdgeForward: (): void => { this.edgeNavigate(tab.id, false); },
               onAdsBlocked: (urls: string[]): void => { this.handleAdsBlocked(tab.id, urls); },
+              onOwnRuleBlocked: (url: string, category: BlockCategory, ruleSource: string): void => {
+                void this.handleOwnRuleBlocked(tab.id, url, category, ruleSource);
+              },
               onLongPress: (): void => { void this.openLongPressActions(tab.id); },
               onPermissionRequest: (event: OnPermissionRequestEvent): void =>
                 this.handlePermissionRequest(event),
@@ -1456,9 +1476,24 @@ struct Index {
         isDisabledForSite: this.isSiteAllowed,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onToggleSite: (): void => { this.toggleSiteBlocking(); },
+        onOpenEvents: (): void => { this.openBlockEvents(); },
+        onOpenSiteControls: (): void => { this.openSiteControls(); },
         onOpenSettings: (): void => { this.sheet = Overlay.Settings; }
       })
         .transition(this.sheetTransition())
+    } else if (this.sheet === Overlay.BlockEvents) {
+      BlockEventSheet({
+        events: this.blockEvents,
+        onDismiss: (): void => { this.sheet = Overlay.Block; }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.SiteControls) {
+      SiteControlSheet({
+        control: this.siteControl,
+        onChange: (control: SiteControl): void => { void this.applySiteControl(control); },
+        onDismiss: (): void => { this.sheet = Overlay.Block; }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Settings) {
       SettingsPage({
         settings: this.settings,
@@ -2214,6 +2249,7 @@ struct Index {
 
   private closeTab(id: string): void {
     void this.captureScrollPosition(id);
+    this.blockEventStore.remove(id);
     const tab: BrowserTab | undefined = this.tabs.find((item: BrowserTab) => item.id === id);
     if (tab === undefined) {
       return;
@@ -3417,7 +3453,9 @@ struct Index {
     for (const tab of this.tabs) {
       const controller: webview.WebviewController | undefined = this.controllers.get(tab.id);
       if (controller !== undefined) {
-        const enabled: boolean = this.settings.blockAds && !this.viewModel.isHostAllowed(tab.url);
+        const effective = this.viewModel.effectiveSiteControl(tab.url);
+        const enabled: boolean = effective.networkBlockingEnabled && effective.trackerBlockingEnabled &&
+          !this.viewModel.isHostAllowed(tab.url);
         this.viewModel.adsBlockService.configure(controller, enabled);
       }
     }
@@ -3461,8 +3499,10 @@ struct Index {
     this.dismissResumePrompt();
     this.pageScrollOffsets.set(id, 0);
     this.pageLoadStartedAt.set(id, Date.now());
+    this.blockEventStore.clear(id);
     if (id === this.activeTabId) {
       this.isActivePageAtTop = true;
+      this.blockEvents = [];
     }
     this.showCapsule();
     const current: BrowserTab | undefined = this.viewModel.getTab(id);
@@ -3492,9 +3532,8 @@ struct Index {
       lastVisitedAt: Date.now()
     });
     this.syncTab(id);
-    // Element hiding follows the same policy as the network blocker: a site the
-    // user allow-listed gets neither.
-    if (this.settings.blockAds && !this.viewModel.isHostAllowed(url)) {
+    if (this.viewModel.effectiveSiteControl(url).cosmeticCleanupEnabled &&
+      !this.viewModel.isHostAllowed(url)) {
       void this.injectCosmeticRules(id, url);
     }
   }
@@ -3537,6 +3576,9 @@ struct Index {
       this.pendingArticleSaveTabId = '';
     }
     if (id === this.disposableReaderTabId) {
+      await this.enterReader(id);
+    } else if (this.viewModel.effectiveSiteControl(url).autoReaderEnabled &&
+      this.viewModel.getTab(id)?.isReader !== true) {
       await this.enterReader(id);
     }
     if (Index.securityStateForUrl(url) === SecurityState.Insecure) {
@@ -3903,6 +3945,12 @@ struct Index {
     let trackers: number = 0;
     let malicious: number = 0;
     for (const url of urls) {
+      this.recordBlockEvent(createBlockEvent(
+        id,
+        url,
+        classifyBlockCategory(url),
+        BlockEngine.ArkWebSystemRules
+      ));
       if (Index.isMaliciousUrl(url)) {
         malicious += 1;
       } else if (isTrackerUrl(url)) {
@@ -3922,6 +3970,63 @@ struct Index {
     if (id === this.activeTabId) {
       this.weeklyBlocked = this.viewModel.getWeeklyBlocked();
       this.cumulativeBlocked = this.viewModel.getCumulativeBlocked();
+    }
+  }
+
+  private async handleOwnRuleBlocked(
+    id: string,
+    url: string,
+    category: BlockCategory,
+    ruleSource: string
+  ): Promise<void> {
+    this.recordBlockEvent(createBlockEvent(id, url, category, BlockEngine.OwnRuleEngine, ruleSource));
+    await this.viewModel.recordBlocked(id, {
+      ads: category === BlockCategory.Advertisement ? 1 : 0,
+      trackers: category === BlockCategory.Tracker ? 1 : 0,
+      malicious: 0,
+      popups: 0,
+      cookieBanners: 0
+    });
+    this.syncTab(id);
+    if (id === this.activeTabId) {
+      this.weeklyBlocked = this.viewModel.getWeeklyBlocked();
+      this.cumulativeBlocked = this.viewModel.getCumulativeBlocked();
+    }
+  }
+
+  private recordBlockEvent(event: BlockEvent): void {
+    this.blockEventStore.record(event);
+    if (event.tabId === this.activeTabId) {
+      this.blockEvents = this.blockEventStore.list(event.tabId);
+    }
+  }
+
+  private openBlockEvents(): void {
+    this.blockEvents = this.activeTabId.length > 0 ? this.blockEventStore.list(this.activeTabId) : [];
+    this.sheet = Overlay.BlockEvents;
+  }
+
+  private openSiteControls(): void {
+    const url: string = this.activeTab()?.url ?? '';
+    this.siteControl = this.viewModel.siteControlForUrl(url);
+    this.sheet = Overlay.SiteControls;
+  }
+
+  private async applySiteControl(control: SiteControl): Promise<void> {
+    try {
+      await this.viewModel.updateSiteControl(control);
+      this.siteControl = this.viewModel.siteControlForUrl(control.host);
+      const tab: BrowserTab | undefined = this.activeTab();
+      if (tab !== undefined) {
+        const effective = this.viewModel.effectiveSiteControl(tab.url);
+        this.viewModel.updateTab(tab.id, { isDesktop: effective.desktopUserAgentEnabled });
+        this.reconfigureBlocking();
+        this.runOnActive((controller: webview.WebviewController): void => controller.refresh());
+      }
+      this.syncState();
+    } catch (error) {
+      Logger.warn(TAG, `Site control could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.site_control_save_failed'));
     }
   }
 
@@ -3969,15 +4074,16 @@ struct Index {
       return;
     }
 
+    const control = this.viewModel.effectiveSiteControl(tab.url);
     let delta: BlockStats = emptyBlockStats();
-    if (this.settings.blockAds) {
+    if (control.cosmeticCleanupEnabled) {
       const raw: string = await this.runScript(
         controller,
         contentCleanupScript(this.settings.ruleStrength === RuleStrength.Strict)
       );
       delta = this.mergeCounts(delta, raw);
     }
-    if (this.settings.blockAds) {
+    if (control.trackerBlockingEnabled) {
       const raw: string = await this.runScript(controller, TRACKER_BLOCK_SCRIPT);
       delta = this.mergeCounts(delta, raw);
     }
