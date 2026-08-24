@@ -161,12 +161,12 @@ export class ArticleLibraryRepository {
   }
 
   private async writeText(path: string, content: string): Promise<void> {
-    const fd: number = await fileIo.open(path, fileIo.OpenMode.READ_WRITE |
+    const file: fileIo.File = await fileIo.open(path, fileIo.OpenMode.READ_WRITE |
       fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC);
     try {
-      await fileIo.write(fd, content);
+      await fileIo.write(file.fd, content);
     } finally {
-      await fileIo.close(fd);
+      await fileIo.close(file.fd);
     }
   }
 

@@ -14,6 +14,7 @@ import {
   READ_FAVICON_SCRIPT,
   READ_FORM_DRAFT_SCRIPT,
   READ_SCROLL_POSITION_SCRIPT,
+  ARTICLE_CAPTURE_SCRIPT,
   RESUME_PROMPT_TIMEOUT_MS,
   RESUME_WINDOW_DAYS,
   READER_FONT_MAX,
@@ -261,6 +262,13 @@ interface ReaderPalette {
   title: string;
 }
 
+interface ArticleCaptureSnapshot {
+  title: string;
+  canonicalUrl: string;
+  html: string;
+  text: string;
+}
+
 const READER_PALETTES: ReaderPalette[] = [
   { background: '#FFFFFF', body: '#3A3934', title: '#1A1A18' },
   { background: '#F1EFEA', body: '#3A3934', title: '#1A1A18' },
@@ -368,6 +376,7 @@ struct Index {
   private resumeToken: number = 0;
   /** Read & Close owns a private tab and closes it only when the reader exits. */
   private disposableReaderTabId: string = '';
+  private pendingArticleSaveTabId: string = '';
   private downloadListener: (tasks: DownloadTask[]) => void = (tasks: DownloadTask[]): void => {
     this.downloadTasks = tasks;
   };
@@ -1873,7 +1882,7 @@ struct Index {
       this.disposableReaderTabId = tab.id;
     }
     if (action === ExternalOpenAction.SaveArticle) {
-      void this.viewModel.saveUrlForLater(url, request.title);
+      this.pendingArticleSaveTabId = tab.id;
     }
     void this.activateTab(tab.id);
     this.syncState();
@@ -3345,6 +3354,10 @@ struct Index {
       }
     }
     await this.enhancePage(id);
+    if (id === this.pendingArticleSaveTabId) {
+      await this.captureArticleForLibrary(id);
+      this.pendingArticleSaveTabId = '';
+    }
     if (id === this.disposableReaderTabId) {
       await this.enterReader(id);
     }
@@ -3355,6 +3368,23 @@ struct Index {
       }
     }
     this.syncState();
+  }
+
+  private async captureArticleForLibrary(id: string): Promise<void> {
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    const controller: webview.WebviewController | undefined = this.controllers.get(id);
+    if (tab === undefined || controller === undefined) {
+      return;
+    }
+    try {
+      const raw: string = await this.runScript(controller, ARTICLE_CAPTURE_SCRIPT);
+      const snapshot: ArticleCaptureSnapshot = JSON.parse(raw) as ArticleCaptureSnapshot;
+      await this.viewModel.saveExtractedArticle(
+        tab.url, snapshot.canonicalUrl, snapshot.title, snapshot.text, snapshot.html
+      );
+    } catch (error) {
+      Logger.warn(TAG, `Article capture failed: ${String(error)}`);
+    }
   }
 
   /**

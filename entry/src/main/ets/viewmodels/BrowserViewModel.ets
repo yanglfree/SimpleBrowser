@@ -34,6 +34,8 @@ import {
   totalBlocked
 } from '../models/BrowserModels';
 import { BrowserRepository } from '../repositories/BrowserRepository';
+import { ArticleLibraryRepository } from '../repositories/ArticleLibraryRepository';
+import { ArticleSaveFailure, createArticleId, SavedArticle } from '../models/ArticleLibraryModels';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { DownloadService } from '../services/DownloadService';
 import { displayHost, isHomeUrl, looksLikeUrl, rawHost, searchUrl, siteBadge } from '../utils/UrlUtils';
@@ -43,6 +45,7 @@ const TAG: string = 'BrowserViewModel';
 
 export class BrowserViewModel {
   readonly repository: BrowserRepository = new BrowserRepository();
+  readonly articleLibrary: ArticleLibraryRepository = new ArticleLibraryRepository();
   readonly adsBlockService: AdsBlockService = new AdsBlockService();
   tabs: BrowserTab[] = [];
   savedItems: SavedItem[] = [];
@@ -61,6 +64,7 @@ export class BrowserViewModel {
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
     await this.repository.initialize(context);
+    await this.articleLibrary.initialize(context);
     this.savedItems = this.repository.getSavedItems();
     this.history = this.repository.getHistory();
     this.settings = this.repository.getSettings();
@@ -246,6 +250,32 @@ export class BrowserViewModel {
       });
     }
     this.savedItems = this.repository.getSavedItems();
+  }
+
+  async saveExtractedArticle(
+    sourceUrl: string,
+    canonicalUrl: string,
+    title: string,
+    text: string,
+    html: string
+  ): Promise<void> {
+    const now: number = Date.now();
+    const article: SavedArticle = {
+      id: createArticleId(now), sourceUrl: sourceUrl, canonicalUrl: canonicalUrl,
+      title: title.length > 0 ? title : displayHost(sourceUrl), excerpt: text.substring(0, 280),
+      createdAt: now, updatedAt: now,
+      failure: ArticleSaveFailure.None, failureMessage: ''
+    };
+    if (html.trim().length === 0 || text.trim().length === 0) {
+      await this.articleLibrary.saveFailure(article, ArticleSaveFailure.ExtractionUnavailable, 'No readable article content');
+      return;
+    }
+    try {
+      await this.articleLibrary.saveArticle(article, html, text);
+    } catch (error) {
+      await this.articleLibrary.saveFailure(article, ArticleSaveFailure.StorageUnavailable, String(error));
+      throw new Error(String(error));
+    }
   }
 
   async importSavedItems(items: SavedItem[]): Promise<number> {
