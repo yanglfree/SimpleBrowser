@@ -76,15 +76,43 @@ export class ArticleLibraryRepository {
   }
 
   async readArticleHtml(articleId: string): Promise<string | undefined> {
+    const content: ArticleContent | undefined = await this.getArticleContent(articleId);
+    return content === undefined ? undefined : await fileIo.readText(content.htmlPath);
+  }
+
+  async readArticleMarkdown(articleId: string): Promise<string | undefined> {
+    const content: ArticleContent | undefined = await this.getArticleContent(articleId);
+    return content === undefined ? undefined : await fileIo.readText(content.markdownPath);
+  }
+
+  async getArticle(articleId: string): Promise<SavedArticle | undefined> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(ARTICLE_TABLE);
+    predicates.equalTo('id', articleId);
+    const result: relationalStore.ResultSet = await store.query(predicates);
+    try {
+      return result.goToFirstRow() ? this.readSavedArticle(result) : undefined;
+    } finally {
+      result.close();
+    }
+  }
+
+  async getArticleContent(articleId: string): Promise<ArticleContent | undefined> {
     const store: relationalStore.RdbStore = this.requireStore();
     const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(CONTENT_TABLE);
     predicates.equalTo('article_id', articleId);
-    const result: relationalStore.ResultSet = await store.query(predicates, ['html_path']);
+    const result: relationalStore.ResultSet = await store.query(predicates);
     try {
       if (!result.goToFirstRow()) {
         return undefined;
       }
-      return await fileIo.readText(result.getString(0));
+      return {
+        articleId: result.getString(result.getColumnIndex('article_id')),
+        htmlPath: result.getString(result.getColumnIndex('html_path')),
+        markdownPath: result.getString(result.getColumnIndex('markdown_path')),
+        imageDirectoryPath: result.getString(result.getColumnIndex('image_directory_path')),
+        extractedAt: result.getLong(result.getColumnIndex('extracted_at'))
+      };
     } finally {
       result.close();
     }
@@ -98,17 +126,7 @@ export class ArticleLibraryRepository {
     const articles: SavedArticle[] = [];
     try {
       while (result.goToNextRow()) {
-        articles.push(cloneSavedArticle({
-          id: result.getString(result.getColumnIndex('id')),
-          sourceUrl: result.getString(result.getColumnIndex('source_url')),
-          canonicalUrl: result.getString(result.getColumnIndex('canonical_url')),
-          title: result.getString(result.getColumnIndex('title')),
-          excerpt: result.getString(result.getColumnIndex('excerpt')),
-          createdAt: result.getLong(result.getColumnIndex('created_at')),
-          updatedAt: result.getLong(result.getColumnIndex('updated_at')),
-          failure: result.getLong(result.getColumnIndex('failure')) as ArticleSaveFailure,
-          failureMessage: result.getString(result.getColumnIndex('failure_message'))
-        }));
+        articles.push(this.readSavedArticle(result));
       }
       return articles;
     } finally {
@@ -141,6 +159,20 @@ export class ArticleLibraryRepository {
     await store.executeSql(`CREATE TABLE IF NOT EXISTS article_topic (
       article_id TEXT NOT NULL, topic_id TEXT NOT NULL, PRIMARY KEY (article_id, topic_id)
     )`);
+  }
+
+  private readSavedArticle(result: relationalStore.ResultSet): SavedArticle {
+    return cloneSavedArticle({
+      id: result.getString(result.getColumnIndex('id')),
+      sourceUrl: result.getString(result.getColumnIndex('source_url')),
+      canonicalUrl: result.getString(result.getColumnIndex('canonical_url')),
+      title: result.getString(result.getColumnIndex('title')),
+      excerpt: result.getString(result.getColumnIndex('excerpt')),
+      createdAt: result.getLong(result.getColumnIndex('created_at')),
+      updatedAt: result.getLong(result.getColumnIndex('updated_at')),
+      failure: result.getLong(result.getColumnIndex('failure')) as ArticleSaveFailure,
+      failureMessage: result.getString(result.getColumnIndex('failure_message'))
+    });
   }
 
   private async writeContent(articleId: string, html: string, markdown: string): Promise<ArticleContent> {

@@ -37,6 +37,7 @@ import { BrowserRepository } from '../repositories/BrowserRepository';
 import { ArticleLibraryRepository } from '../repositories/ArticleLibraryRepository';
 import { ArticleSaveFailure, createArticleId, SavedArticle } from '../models/ArticleLibraryModels';
 import { AdsBlockService } from '../services/AdsBlockService';
+import { ArticleExportFormat, ArticleExportResult, ArticleExportService } from '../services/ArticleExportService';
 import { DownloadService } from '../services/DownloadService';
 import { displayHost, isHomeUrl, looksLikeUrl, rawHost, searchUrl, siteBadge } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
@@ -56,6 +57,7 @@ export class BrowserViewModel {
   private tabSequence: number = 0;
   private sessionPersistenceEnabled: boolean = true;
   private restoredSession: boolean = false;
+  private context: common.UIAbilityContext | undefined;
 
   setSessionScope(scope: string, persistenceEnabled: boolean = true): void {
     this.repository.setSessionScope(scope);
@@ -63,6 +65,7 @@ export class BrowserViewModel {
   }
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
+    this.context = context;
     await this.repository.initialize(context);
     await this.articleLibrary.initialize(context);
     this.savedItems = this.repository.getSavedItems();
@@ -276,6 +279,24 @@ export class BrowserViewModel {
       await this.articleLibrary.saveFailure(article, ArticleSaveFailure.StorageUnavailable, String(error));
       throw new Error(String(error));
     }
+  }
+
+  async exportArticle(articleId: string, format: ArticleExportFormat): Promise<ArticleExportResult | undefined> {
+    if (this.context === undefined) {
+      Logger.warn(TAG, 'Article export was requested before initialization');
+      return undefined;
+    }
+    const article: SavedArticle | undefined = await this.articleLibrary.getArticle(articleId);
+    if (article === undefined || article.failure !== ArticleSaveFailure.None) {
+      return undefined;
+    }
+    const markdown: string | undefined = await this.articleLibrary.readArticleMarkdown(articleId);
+    const html: string | undefined = await this.articleLibrary.readArticleHtml(articleId);
+    if (markdown === undefined || html === undefined) {
+      Logger.warn(TAG, `Article export content is unavailable: ${articleId}`);
+      return undefined;
+    }
+    return await ArticleExportService.exportToPicker(this.context, article, markdown, html, format);
   }
 
   async importSavedItems(items: SavedItem[]): Promise<number> {
