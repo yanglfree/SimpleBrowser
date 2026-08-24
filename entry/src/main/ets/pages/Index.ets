@@ -129,6 +129,14 @@ import {
 } from '../models/FoldMetrics';
 import { FoldStateService } from '../services/FoldStateService';
 import { MultiWindowService } from '../services/MultiWindowService';
+import {
+  BrowseDisposition,
+  dispositionForExternalAction,
+  ExternalOpenAction,
+  ExternalOpenRequest,
+  restoreTrackingParameters
+} from '../models/ExternalOpenRequest';
+import { ExternalOpenRouter } from '../services/ExternalOpenRouter';
 
 const TAG: string = 'Index';
 const RECENTLY_CLOSED_TAB_LIMIT: number = 10;
@@ -264,6 +272,16 @@ const TAB_SWITCH_ANIMATION_DURATION: number = 220;
 const TAB_SWITCH_ANIMATION_DISTANCE: number = 28;
 const TAB_SWITCH_DOCK_DISTANCE: number = 10;
 
+class ExternalOpenMenuButton {
+  text: Resource;
+  color: Resource;
+
+  constructor(text: Resource, color: Resource) {
+    this.text = text;
+    this.color = color;
+  }
+}
+
 @Entry(storage)
 @Component
 struct Index {
@@ -348,6 +366,8 @@ struct Index {
   @State private resumeRequest: ResumeRequest | undefined = undefined;
   private appVersionName: string = '';
   private resumeToken: number = 0;
+  /** Read & Close owns a private tab and closes it only when the reader exits. */
+  private disposableReaderTabId: string = '';
   private downloadListener: (tasks: DownloadTask[]) => void = (tasks: DownloadTask[]): void => {
     this.downloadTasks = tasks;
   };
@@ -404,6 +424,9 @@ struct Index {
       );
       DownloadService.subscribe(this.downloadListener);
       this.isReady = true;
+      ExternalOpenRouter.subscribe(this.windowToken, (request: ExternalOpenRequest): void => {
+        void this.promptExternalOpen(request);
+      });
       this.promptExpiredTabs();
       if (!this.settings.onboardingCompleted) {
         this.sheet = Overlay.Onboarding;
@@ -464,6 +487,7 @@ struct Index {
     this.windowMetricsService.stop();
     this.foldStateService.stop();
     DownloadService.unsubscribe(this.downloadListener);
+    ExternalOpenRouter.unsubscribe(this.windowToken);
     MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
     PrivacyService.flushCookies();
@@ -1780,6 +1804,82 @@ struct Index {
     this.runOnActive((controller: webview.WebviewController) => controller.loadUrl(url));
   }
 
+  private promptExternalOpen(request: ExternalOpenRequest): void {
+    if (request.removedTrackingParameters.length > 0) {
+      this.showExternalOpenMenu(request, [
+        this.externalOpenMenuButton($r('app.string.external_open_clean')),
+        this.externalOpenMenuButton($r('app.string.external_open_private')),
+        this.externalOpenMenuButton($r('app.string.external_open_read_close')),
+        this.externalOpenMenuButton($r('app.string.external_open_save_article')),
+        this.externalOpenMenuButton($r('app.string.external_open_original'))
+      ]);
+      return;
+    }
+    this.showExternalOpenMenu(request, [
+      this.externalOpenMenuButton($r('app.string.external_open_clean')),
+      this.externalOpenMenuButton($r('app.string.external_open_private')),
+      this.externalOpenMenuButton($r('app.string.external_open_read_close')),
+      this.externalOpenMenuButton($r('app.string.external_open_save_article'))
+    ]);
+  }
+
+  private externalOpenMenuButton(text: Resource): ExternalOpenMenuButton {
+    return new ExternalOpenMenuButton(text, $r('app.color.accent'));
+  }
+
+  private showExternalOpenMenu(
+    request: ExternalOpenRequest,
+    buttons: [
+      ExternalOpenMenuButton,
+      ExternalOpenMenuButton,
+      ExternalOpenMenuButton,
+      ExternalOpenMenuButton,
+      ExternalOpenMenuButton?
+    ]
+  ): void {
+    try {
+      this.getUIContext().getPromptAction().showActionMenu({
+        title: request.title.length > 0 ? request.title : displayHost(request.cleanUrl),
+        buttons: buttons
+      }, (_error, result) => {
+        if (result !== undefined) {
+          this.handleExternalOpenAction(request, result.index);
+        }
+      });
+    } catch (error) {
+      Logger.warn(TAG, `External open menu unavailable: ${String(error)}`);
+    }
+  }
+
+  private handleExternalOpenAction(request: ExternalOpenRequest, index: number): void {
+    const action: ExternalOpenAction = index === 1
+      ? ExternalOpenAction.PrivateOpen
+      : index === 2
+        ? ExternalOpenAction.ReadAndClose
+        : index === 3
+          ? ExternalOpenAction.SaveArticle
+          : ExternalOpenAction.CleanOpen;
+    const useOriginalUrl: boolean = index === 4;
+    const url: string = useOriginalUrl ? restoreTrackingParameters(request) : request.cleanUrl;
+    const disposition: BrowseDisposition = dispositionForExternalAction(action);
+    const isPrivate: boolean = disposition !== BrowseDisposition.Normal;
+    const tab: BrowserTab | undefined = this.viewModel.addTab(url, isPrivate);
+    if (tab === undefined) {
+      return;
+    }
+    this.liveTabIds = this.liveTabIds.concat([tab.id]);
+    this.isCapsuleHidden = false;
+    if (action === ExternalOpenAction.ReadAndClose) {
+      this.disposableReaderTabId = tab.id;
+    }
+    if (action === ExternalOpenAction.SaveArticle) {
+      void this.viewModel.saveUrlForLater(url, request.title);
+    }
+    void this.activateTab(tab.id);
+    this.syncState();
+    void this.enforceLiveWebViewLimit(this.liveWebViewLimit());
+  }
+
   private goHome(id: string): void {
     this.viewModel.updateTab(id, {
       url: HOME_URL,
@@ -2087,6 +2187,9 @@ struct Index {
       PrivacyService.flushCookies();
     }
     this.viewModel.closeTab(id);
+    if (id === this.disposableReaderTabId) {
+      this.disposableReaderTabId = '';
+    }
     // Pre-create the replacement tab's controller before destroying the old
     // one, so the ArkWeb engine never restarts and flushes fresh cookies away.
     this.controllerFor(this.viewModel.activeTabId);
@@ -2606,6 +2709,9 @@ struct Index {
       } catch (error) {
         Logger.warn(TAG, `Reader mode toast unavailable: ${String(error)}`);
       }
+      if (id === this.disposableReaderTabId) {
+        this.closeTab(id);
+      }
       return;
     }
     TelemetryService.reportReaderExtraction(true);
@@ -2629,6 +2735,9 @@ struct Index {
       await this.runScript(controller, restoreScrollPositionScript(tab.scrollY));
     }
     this.syncState();
+    if (id === this.disposableReaderTabId) {
+      this.closeTab(id);
+    }
   }
 
   private readerScript(): string {
@@ -3236,6 +3345,9 @@ struct Index {
       }
     }
     await this.enhancePage(id);
+    if (id === this.disposableReaderTabId) {
+      await this.enterReader(id);
+    }
     if (Index.securityStateForUrl(url) === SecurityState.Insecure) {
       const controller: webview.WebviewController | undefined = this.controllers.get(id);
       if (controller !== undefined) {

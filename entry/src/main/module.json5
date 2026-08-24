@@ -60,6 +60,9 @@
           {
             "entities": ["entity.system.home"],
             "actions": ["action.system.home"]
+          },
+          {
+            "actions": ["ohos.want.action.sendData"]
           }
         ]
       }

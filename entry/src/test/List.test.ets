@@ -11,6 +11,7 @@ import browserShortcutTest from './BrowserShortcut.test';
 import tabOverviewLayoutTest from './TabOverviewLayout.test';
 import wideWindowRegressionTest from './WideWindowRegression.test';
 import browserV05FeaturesTest from './BrowserV05Features.test';
+import externalOpenRequestTest from './ExternalOpenRequest.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -26,4 +27,5 @@ export default function testsuite(): void {
   tabOverviewLayoutTest();
   wideWindowRegressionTest();
   browserV05FeaturesTest();
+  externalOpenRequestTest();
 }

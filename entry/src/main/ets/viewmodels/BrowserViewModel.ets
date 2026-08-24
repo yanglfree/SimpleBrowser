@@ -109,9 +109,14 @@ export class BrowserViewModel {
     if (!this.sessionPersistenceEnabled) {
       return;
     }
+    const persistentTabs: BrowserTab[] = this.tabs.filter((tab: BrowserTab): boolean => !tab.isPrivate);
+    const persistentActiveTabId: string = persistentTabs.some((tab: BrowserTab): boolean =>
+      tab.id === this.activeTabId)
+      ? this.activeTabId
+      : persistentTabs[0]?.id ?? '';
     const session: BrowserSession = {
-      tabs: this.tabs,
-      activeTabId: this.activeTabId
+      tabs: persistentTabs,
+      activeTabId: persistentActiveTabId
     };
     this.repository.saveSession(session).catch((error: Error): void => {
       Logger.warn(TAG, `Failed to persist browser session: ${String(error)}`);

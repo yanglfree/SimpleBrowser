@@ -321,6 +321,11 @@
     { "name": "about_app", "value": "关于本应用" },
     { "name": "about_version_unknown", "value": "版本未知" },
     { "name": "about_tagline", "value": "浏览器应该是一张安静的纸。" },
+    { "name": "external_open_clean", "value": "清洁打开" },
+    { "name": "external_open_private", "value": "私密打开" },
+    { "name": "external_open_read_close", "value": "阅读后关闭" },
+    { "name": "external_open_save_article", "value": "保存文章" },
+    { "name": "external_open_original", "value": "用原链接打开" },
 
     { "name": "initialization_error", "value": "无法启动极简浏览器" },
     { "name": "retry", "value": "重试" },
