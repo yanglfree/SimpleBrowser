@@ -35,7 +35,7 @@ import {
 } from '../models/BrowserModels';
 import { BrowserRepository } from '../repositories/BrowserRepository';
 import { ArticleLibraryRepository } from '../repositories/ArticleLibraryRepository';
-import { ArticleSaveFailure, createArticleId, SavedArticle } from '../models/ArticleLibraryModels';
+import { ArticleImageAsset, ArticleSaveFailure, createArticleId, SavedArticle } from '../models/ArticleLibraryModels';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { ArticleExportFormat, ArticleExportResult, ArticleExportService } from '../services/ArticleExportService';
 import { DownloadService } from '../services/DownloadService';
@@ -260,7 +260,8 @@ export class BrowserViewModel {
     canonicalUrl: string,
     title: string,
     text: string,
-    html: string
+    html: string,
+    images: ArticleImageAsset[] = []
   ): Promise<void> {
     const now: number = Date.now();
     const article: SavedArticle = {
@@ -274,7 +275,7 @@ export class BrowserViewModel {
       return;
     }
     try {
-      await this.articleLibrary.saveArticle(article, html, text);
+      await this.articleLibrary.saveArticle(article, html, text, images);
     } catch (error) {
       await this.articleLibrary.saveFailure(article, ArticleSaveFailure.StorageUnavailable, String(error));
       throw new Error(String(error));

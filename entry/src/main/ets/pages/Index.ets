@@ -113,7 +113,7 @@ import { AppContext } from '../utils/AppContext';
 import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress, rawHost } from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
 import { BrowserViewModel } from '../viewmodels/BrowserViewModel';
-import { SavedArticle } from '../models/ArticleLibraryModels';
+import { ArticleImageAsset, SavedArticle } from '../models/ArticleLibraryModels';
 import { ArticleExportFormat, ArticleExportResult } from '../services/ArticleExportService';
 import {
   BrowserLayoutClass,
@@ -271,6 +271,7 @@ interface ArticleCaptureSnapshot {
   canonicalUrl: string;
   html: string;
   text: string;
+  images: ArticleImageAsset[];
 }
 
 const READER_PALETTES: ReaderPalette[] = [
@@ -3465,7 +3466,7 @@ struct Index {
       const raw: string = await this.runScript(controller, ARTICLE_CAPTURE_SCRIPT);
       const snapshot: ArticleCaptureSnapshot = JSON.parse(raw) as ArticleCaptureSnapshot;
       await this.viewModel.saveExtractedArticle(
-        tab.url, snapshot.canonicalUrl, snapshot.title, snapshot.text, snapshot.html
+        tab.url, snapshot.canonicalUrl, snapshot.title, snapshot.text, snapshot.html, snapshot.images ?? []
       );
     } catch (error) {
       Logger.warn(TAG, `Article capture failed: ${String(error)}`);

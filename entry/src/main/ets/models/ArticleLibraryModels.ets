@@ -29,6 +29,12 @@ export interface ArticleContent {
   extractedAt: number;
 }
 
+export interface ArticleImageAsset {
+  index: number;
+  url: string;
+  fileName: string;
+}
+
 export interface ArticleNote {
   id: string;
   articleId: string;

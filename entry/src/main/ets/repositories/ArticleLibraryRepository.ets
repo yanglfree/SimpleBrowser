@@ -5,6 +5,7 @@ import {
   ArticleContent,
   ArticleHighlight,
   ArticleHighlightState,
+  ArticleImageAsset,
   ArticleSaveFailure,
   ArticleNote,
   Topic,
@@ -17,6 +18,7 @@ import {
 } from '../models/ArticleLibraryModels';
 import { restoreArticleHighlight } from '../services/ArticleHighlightLocator';
 import { articleMatchesSearch, normalizeArticleSearchTerms } from '../services/ArticleSearchService';
+import { ArticleImageStore } from '../services/ArticleImageStore';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'ArticleLibraryRepository';
@@ -43,9 +45,14 @@ export class ArticleLibraryRepository {
     await this.createSchema(this.store);
   }
 
-  async saveArticle(article: SavedArticle, html: string, markdown: string): Promise<ArticleContent> {
+  async saveArticle(
+    article: SavedArticle,
+    html: string,
+    markdown: string,
+    images: ArticleImageAsset[] = []
+  ): Promise<ArticleContent> {
     const store: relationalStore.RdbStore = this.requireStore();
-    const content: ArticleContent = await this.writeContent(article.id, html, markdown);
+    const content: ArticleContent = await this.writeContent(article.id, html, markdown, images);
     const values: relationalStore.ValuesBucket = {
       id: article.id,
       source_url: article.sourceUrl,
@@ -393,7 +400,12 @@ export class ArticleLibraryRepository {
     });
   }
 
-  private async writeContent(articleId: string, html: string, markdown: string): Promise<ArticleContent> {
+  private async writeContent(
+    articleId: string,
+    html: string,
+    markdown: string,
+    images: ArticleImageAsset[]
+  ): Promise<ArticleContent> {
     const articleDirectory: string = `${this.filesDirectory}/${articleId}`;
     const imageDirectoryPath: string = `${articleDirectory}/images`;
     await fileIo.mkdir(imageDirectoryPath, true);
@@ -401,6 +413,7 @@ export class ArticleLibraryRepository {
     const markdownPath: string = `${articleDirectory}/article.md`;
     await this.writeText(htmlPath, html);
     await this.writeText(markdownPath, markdown);
+    await ArticleImageStore.persist(images, imageDirectoryPath);
     return {
       articleId: articleId,
       htmlPath: htmlPath,

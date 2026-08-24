@@ -16,6 +16,7 @@ import articleExportServiceTest from './ArticleExportService.test';
 import articleLibraryModelsTest from './ArticleLibraryModels.test';
 import articleHighlightLocatorTest from './ArticleHighlightLocator.test';
 import articleSearchServiceTest from './ArticleSearchService.test';
+import articleImageStoreTest from './ArticleImageStore.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -36,4 +37,5 @@ export default function testsuite(): void {
   articleLibraryModelsTest();
   articleHighlightLocatorTest();
   articleSearchServiceTest();
+  articleImageStoreTest();
 }
