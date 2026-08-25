@@ -96,6 +96,10 @@ export function isReadableSavedArticle(article: SavedArticle): boolean {
   return article.failure === ArticleSaveFailure.None;
 }
 
+export function shouldRecordArticleSaveFailure(existing: SavedArticle | undefined): boolean {
+  return existing === undefined || !isReadableSavedArticle(existing);
+}
+
 export function cloneArticleNote(note: ArticleNote): ArticleNote {
   return {
     id: note.id,

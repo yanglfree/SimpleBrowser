@@ -137,6 +137,18 @@ export class ArticleLibraryRepository {
     }
   }
 
+  async findArticleBySourceUrl(sourceUrl: string): Promise<SavedArticle | undefined> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(ARTICLE_TABLE);
+    predicates.equalTo('source_url', sourceUrl);
+    const result: relationalStore.ResultSet = await store.query(predicates);
+    try {
+      return result.goToFirstRow() ? this.readSavedArticle(result) : undefined;
+    } finally {
+      result.close();
+    }
+  }
+
   async updateReadingPosition(articleId: string, readingPosition: number): Promise<void> {
     const store: relationalStore.RdbStore = this.requireStore();
     const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(ARTICLE_TABLE);

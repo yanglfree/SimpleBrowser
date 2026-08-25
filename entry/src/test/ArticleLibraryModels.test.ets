@@ -2,7 +2,8 @@ import { describe, expect, it } from '@ohos/hypium';
 import {
   ArticleSaveFailure,
   isReadableSavedArticle,
-  SavedArticle
+  SavedArticle,
+  shouldRecordArticleSaveFailure
 } from '../main/ets/models/ArticleLibraryModels';
 
 function articleWithFailure(failure: ArticleSaveFailure): SavedArticle {
@@ -29,6 +30,13 @@ export default function articleLibraryModelsTest(): void {
       expect(isReadableSavedArticle(articleWithFailure(ArticleSaveFailure.None))).assertTrue();
       expect(isReadableSavedArticle(articleWithFailure(ArticleSaveFailure.ExtractionUnavailable))).assertFalse();
       expect(isReadableSavedArticle(articleWithFailure(ArticleSaveFailure.StorageUnavailable))).assertFalse();
+    });
+
+    it('preserves the last readable snapshot when a refresh fails', 0, (): void => {
+      expect(shouldRecordArticleSaveFailure(undefined)).assertTrue();
+      expect(shouldRecordArticleSaveFailure(articleWithFailure(ArticleSaveFailure.ExtractionUnavailable)))
+        .assertTrue();
+      expect(shouldRecordArticleSaveFailure(articleWithFailure(ArticleSaveFailure.None))).assertFalse();
     });
   });
 }

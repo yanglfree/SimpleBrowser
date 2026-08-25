@@ -45,6 +45,7 @@ import {
   ArticleSaveFailure,
   createArticleId,
   SavedArticle,
+  shouldRecordArticleSaveFailure,
   Topic
 } from '../models/ArticleLibraryModels';
 import { AdsBlockService } from '../services/AdsBlockService';
@@ -298,20 +299,33 @@ export class BrowserViewModel {
       failure: ArticleSaveFailure.None, failureMessage: ''
     };
     if (html.trim().length === 0 || text.trim().length === 0) {
-      await this.articleLibrary.saveFailure(article, ArticleSaveFailure.ExtractionUnavailable, 'No readable article content');
+      if (shouldRecordArticleSaveFailure(existing)) {
+        await this.articleLibrary.saveFailure(
+          article,
+          ArticleSaveFailure.ExtractionUnavailable,
+          'No readable article content'
+        );
+      }
       return;
     }
     try {
       await this.articleLibrary.saveArticle(article, html, markdown, images);
     } catch (error) {
-      await this.articleLibrary.saveFailure(article, ArticleSaveFailure.StorageUnavailable, String(error));
+      if (shouldRecordArticleSaveFailure(existing)) {
+        await this.articleLibrary.saveFailure(article, ArticleSaveFailure.StorageUnavailable, String(error));
+      }
       throw new Error(String(error));
     }
   }
 
   async saveArticleFailure(sourceUrl: string, title: string, message: string): Promise<void> {
     const now: number = Date.now();
-    const existing: SavedArticle | undefined = await this.articleLibrary.findArticleByCanonicalUrl(sourceUrl);
+    const canonicalMatch: SavedArticle | undefined = await this.articleLibrary.findArticleByCanonicalUrl(sourceUrl);
+    const existing: SavedArticle | undefined = canonicalMatch ??
+      await this.articleLibrary.findArticleBySourceUrl(sourceUrl);
+    if (!shouldRecordArticleSaveFailure(existing)) {
+      return;
+    }
     const article: SavedArticle = {
       id: existing?.id ?? createArticleId(now), sourceUrl: sourceUrl, canonicalUrl: sourceUrl,
       title: title.length > 0 ? title : displayHost(sourceUrl), author: existing?.author ?? '',
