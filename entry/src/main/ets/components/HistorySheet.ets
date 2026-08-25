@@ -4,6 +4,12 @@ import { displayHost, rawHost } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 
 const HISTORY_SWIPE_DISTANCE: number = 26;
+const HISTORY_HEADER_MIN_TOP_PADDING: number = 18;
+const HISTORY_HEADER_SAFE_AREA_GAP: number = 12;
+
+export function historyHeaderTopPadding(topInset: number): number {
+  return Math.max(HISTORY_HEADER_MIN_TOP_PADDING, Math.max(0, topInset) + HISTORY_HEADER_SAFE_AREA_GAP);
+}
 
 interface HistoryGroup {
   key: string;
@@ -17,7 +23,7 @@ export struct HistorySheet {
   @Prop entries: HistoryEntry[] = [];
   @Prop savedItems: SavedItem[] = [];
   @Prop favoritesOnly: boolean = false;
-  @Prop usesFullscreenBars: boolean = false;
+  @Prop topInset: number = 0;
   /**
    * Where the list was left the last time it was shown. The sidebar unmounts the
    * sheet when it closes, so opening a history item and coming back would
@@ -61,7 +67,7 @@ export struct HistorySheet {
           .fontFeature('"tnum" 1')
       }
       .width('100%')
-        .padding({ top: this.usesFullscreenBars ? 48 : 18, left: 24, right: 24, bottom: 12 })
+      .padding({ top: historyHeaderTopPadding(this.topInset), left: 24, right: 24, bottom: 12 })
 
       TextInput({ text: this.query, placeholder: $r('app.string.global_search_placeholder') })
         .width('100%')
@@ -111,6 +117,7 @@ export struct HistorySheet {
         }
         .layoutWeight(1)
         .width('100%')
+        .align(Alignment.TopStart)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.Spring)
         .onDidScroll((): void => {

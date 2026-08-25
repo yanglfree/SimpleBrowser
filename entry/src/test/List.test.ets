@@ -24,6 +24,7 @@ import siteControlModelsTest from './SiteControlModels.test';
 import pageIssueDiagnosticServiceTest from './PageIssueDiagnosticService.test';
 import proModelsTest from './ProModels.test';
 import privateTaskPersistenceTest from './PrivateTaskPersistence.test';
+import browserReportedBugsTest from './BrowserReportedBugs.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -52,4 +53,5 @@ export default function testsuite(): void {
   articleImageStoreTest();
   proModelsTest();
   privateTaskPersistenceTest();
+  browserReportedBugsTest();
 }

@@ -62,6 +62,7 @@ export struct BrowserDock {
   @Prop blockingGestureEnabled: boolean = true;
   @Prop addressMenuVisible: boolean = false;
   @Prop isBookmarked: boolean = false;
+  @Prop isPrivate: boolean = false;
   /** Drives the history button's active tint while its panel owns the screen. */
   @Prop historyOpen: boolean = false;
   onOpenAddress: () => void = (): void => {};
@@ -144,6 +145,9 @@ export struct BrowserDock {
       // placeholder gets the pill to itself.
       Stack({ alignContent: Alignment.Bottom }) {
         Row() {
+          if (this.isPrivate) {
+            this.PrivateIndicator()
+          }
           if (!this.isHome && this.blockedCount > 0) {
             Row({ space: 3 }) {
               AppIcon({
@@ -443,7 +447,10 @@ export struct BrowserDock {
   @Builder
   private CollapsedBar() {
     Row() {
-      Row() {
+      Row({ space: 6 }) {
+        if (this.isPrivate) {
+          this.PrivateIndicator()
+        }
         Text(this.host)
           .fontSize(12.5)
           .fontColor($r('app.color.text_primary'))
@@ -478,6 +485,26 @@ export struct BrowserDock {
           })
       )
     )
+  }
+
+  @Builder
+  private PrivateIndicator() {
+    Row({ space: 3 }) {
+      AppIcon({
+        name: IconName.Incognito,
+        glyphSize: 15,
+        color: this.iconColor(),
+        strokeWidth: 1.8
+      })
+      Text($r('app.string.private_badge'))
+        .fontSize(11.5)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.iconColor())
+        .maxLines(1)
+    }
+    .padding({ left: 3, right: 5 })
+    .accessibilityText($r('app.string.private_badge'))
+    .hitTestBehavior(HitTestMode.None)
   }
 
   /**

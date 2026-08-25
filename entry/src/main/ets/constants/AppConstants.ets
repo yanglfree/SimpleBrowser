@@ -454,14 +454,18 @@ export function readerApplyScript(
       for (var noiseIndex = 0; noiseIndex < probeNoise.length; noiseIndex++) {
         probeNoise[noiseIndex].remove();
       }
-      var text = (probe.innerText || '').trim();
+      // ArkWeb can return an empty innerText for detached clones. textContent
+      // keeps candidate scoring on the complete DOM instead of falling back to
+      // an arbitrary run of long paragraphs that may omit a valid short lead.
+      var text = (probe.innerText || probe.textContent || '').trim();
       var length = text.length;
       if (length < 240) continue;
       var paragraphs = candidate.querySelectorAll('p').length;
-      var links = candidate.querySelectorAll('a').length;
+      var linkNodes = candidate.querySelectorAll('a');
+      var links = linkNodes.length;
       var linkText = 0;
       for (var linkIndex = 0; linkIndex < links; linkIndex++) {
-        linkText += (candidate.querySelectorAll('a')[linkIndex].innerText || '').length;
+        linkText += (linkNodes[linkIndex].innerText || linkNodes[linkIndex].textContent || '').length;
       }
       var punctuation = (text.match(/[。！？.!?]/g) || []).length;
       var paragraphDensity = paragraphs === 0 ? 0 : Math.min(1, punctuation / paragraphs / 2);
@@ -480,8 +484,8 @@ export function readerApplyScript(
       var fallbackLength = 0;
       for (var paragraphIndex = 0; paragraphIndex < paragraphNodes.length; paragraphIndex++) {
         var paragraph = paragraphNodes[paragraphIndex];
-        var paragraphText = (paragraph.innerText || '').trim();
-        if (paragraphText.length < 40) continue;
+        var paragraphText = (paragraph.innerText || paragraph.textContent || '').trim();
+        if (paragraphText.length < 24) continue;
         fallback.appendChild(paragraph.cloneNode(true));
         fallbackLength += paragraphText.length;
         if (fallbackLength >= 1600) break;
@@ -495,7 +499,7 @@ export function readerApplyScript(
 
     var heading = best.querySelector ? best.querySelector('h1') : null;
     var ogTitle = document.querySelector('meta[property="og:title"]');
-    var headingText = heading ? heading.innerText :
+    var headingText = heading ? (heading.innerText || heading.textContent || '') :
       (ogTitle ? ogTitle.getAttribute('content') : document.title);
     var content = best.innerHTML;
 
@@ -526,7 +530,7 @@ export function readerApplyScript(
     for (var chromeIndex = 0; chromeIndex < chrome.length; chromeIndex++) {
       chrome[chromeIndex].remove();
     }
-    if ((wrapper.innerText || '').trim().length < 240) {
+    if ((wrapper.innerText || wrapper.textContent || '').trim().length < 240) {
       document.body.innerHTML = S.body;
       document.body.setAttribute('style', S.bodyStyle);
       return 'no-article';

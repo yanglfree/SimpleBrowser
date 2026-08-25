@@ -1029,6 +1029,7 @@ struct Index {
       blockingGestureEnabled: this.settings.gestureBlockingEnabled,
       addressMenuVisible: this.isAddressMenuVisible,
       isBookmarked: this.isActiveBookmarked,
+      isPrivate: this.activeTab()?.isPrivate === true,
       historyOpen: this.sidebarPanel === SidebarPanel.History || this.sheet === Overlay.History,
       onOpenAddress: (): void => this.openAddress(),
       onBack: (): void => { void this.performAction('back'); },
@@ -1583,7 +1584,7 @@ struct Index {
       HistorySheet({
         entries: this.history,
         savedItems: this.savedItems,
-        usesFullscreenBars: this.isActiveHome(),
+        topInset: this.topInset,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onSelect: (url: string): void => this.navigateTo(url),
         onDelete: (id: string): void => { this.deleteHistory(id); },
@@ -1622,7 +1623,7 @@ struct Index {
         entries: [],
         savedItems: this.savedItems,
         favoritesOnly: true,
-        usesFullscreenBars: this.isActiveHome(),
+        topInset: this.topInset,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onSelect: (url: string): void => this.navigateTo(url),
         onDelete: (id: string): void => { this.deleteFavorite(id); },
@@ -2969,6 +2970,11 @@ struct Index {
     const outcome: ShareOutcome = await ShareService.share(this.appContext(), tab.url, tab.title);
     if (outcome === ShareOutcome.Shared) {
       this.sheet = Overlay.None;
+    } else if (outcome === ShareOutcome.Copied) {
+      this.showCopyToast();
+      this.sheet = Overlay.None;
+    } else {
+      this.showToast($r('app.string.share_failed'));
     }
   }
 
@@ -3006,9 +3012,12 @@ struct Index {
         this.appContext(), shot, tab.title);
       if (outcome === ShareOutcome.Shared) {
         this.sheet = Overlay.None;
+      } else {
+        this.showToast($r('app.string.screenshot_share_failed'));
       }
     } catch (error) {
       Logger.warn(TAG, `Page screenshot unavailable: ${String(error)}`);
+      this.showToast($r('app.string.screenshot_share_failed'));
     }
   }
 
@@ -3093,10 +3102,17 @@ struct Index {
     if (tab === undefined) {
       return;
     }
-    await this.viewModel.saveForLater(tab);
-    this.isActiveBookmarked = this.viewModel.isSaved(tab.url);
-    this.isActiveSavedForLater = this.viewModel.isSavedForLater(tab.url);
-    this.sheet = Overlay.None;
+    try {
+      await this.viewModel.saveForLater(tab);
+      this.savedItems = this.viewModel.savedItems.slice();
+      this.isActiveBookmarked = this.viewModel.isSaved(tab.url);
+      this.isActiveSavedForLater = this.viewModel.isSavedForLater(tab.url);
+      this.sheet = Overlay.None;
+      this.showToast($r('app.string.action_save_later_saved'));
+    } catch (error) {
+      Logger.warn(TAG, `Save for later unavailable: ${String(error)}`);
+      this.showToast($r('app.string.save_later_failed'));
+    }
   }
 
   private async deleteHistory(id: string): Promise<void> {
