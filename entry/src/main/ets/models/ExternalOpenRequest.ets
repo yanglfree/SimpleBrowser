@@ -108,14 +108,40 @@ export function withExternalOpenAction(
 }
 
 export function extractSharedUrl(uri: string | undefined, parameters: Record<string, Object> | undefined): string {
-  if (isHttpUrl(uri ?? '')) {
-    return (uri ?? '').trim();
+  const uriUrl: string = extractHttpUrl(uri ?? '');
+  if (uriUrl.length > 0) {
+    return uriUrl;
   }
   const keys: string[] = ['url', 'uri', 'link', 'shareUrl', 'text'];
   for (const key of keys) {
     const candidate: string = String(parameters?.[key] ?? '').trim();
-    if (isHttpUrl(candidate)) {
-      return candidate;
+    const candidateUrl: string = extractHttpUrl(candidate);
+    if (candidateUrl.length > 0) {
+      return candidateUrl;
+    }
+  }
+  return '';
+}
+
+export function extractDroppedUrl(candidates: string[]): string {
+  for (const candidate of candidates) {
+    const url: string = extractHttpUrl(candidate);
+    if (url.length > 0) {
+      return url;
+    }
+  }
+  return '';
+}
+
+export function extractDroppedInput(candidates: string[]): string {
+  const url: string = extractDroppedUrl(candidates);
+  if (url.length > 0) {
+    return url;
+  }
+  for (const candidate of candidates) {
+    const text: string = candidate.trim();
+    if (text.length > 0) {
+      return text.substring(0, 2048);
     }
   }
   return '';
@@ -163,4 +189,13 @@ function isExplicitMarketingParameter(name: string): boolean {
 
 function isHttpUrl(value: string): boolean {
   return /^https?:\/\/[^\s/?#]+/i.test(value.trim());
+}
+
+function extractHttpUrl(value: string): string {
+  const match: RegExpMatchArray | null = value.trim().match(/https?:\/\/[^\s<>"']+/i);
+  if (match === null) {
+    return '';
+  }
+  const candidate: string = match[0].replace(/[\])}>.,;!，。；！]+$/g, '');
+  return isHttpUrl(candidate) ? candidate : '';
 }

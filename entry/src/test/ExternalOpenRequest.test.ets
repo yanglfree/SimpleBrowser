@@ -3,6 +3,8 @@ import {
   BrowseDisposition,
   createExternalOpenRequest,
   dispositionForExternalAction,
+  extractDroppedInput,
+  extractDroppedUrl,
   ExternalOpenAction,
   extractSharedUrl,
   restoreTrackingParameters,
@@ -40,6 +42,17 @@ export default function externalOpenRequestTest(): void {
       expect(dispositionForExternalAction(ExternalOpenAction.CleanOpen)).assertEqual(BrowseDisposition.Normal);
       expect(dispositionForExternalAction(ExternalOpenAction.PrivateOpen)).assertEqual(BrowseDisposition.Private);
       expect(dispositionForExternalAction(ExternalOpenAction.ReadAndClose)).assertEqual(BrowseDisposition.Disposable);
+    });
+
+    it('extracts links embedded in shared or dropped text', 0, (): void => {
+      expect(extractSharedUrl('Read this: https://example.com/article?id=7.', undefined))
+        .assertEqual('https://example.com/article?id=7');
+      expect(extractDroppedUrl(['Plain note', 'Open https://example.com/drop?source=desktop。']))
+        .assertEqual('https://example.com/drop?source=desktop');
+      expect(extractDroppedUrl(['ftp://example.com/file', 'no link here'])).assertEqual('');
+      expect(extractDroppedInput(['  local-first reading workflow  '])).assertEqual('local-first reading workflow');
+      expect(extractDroppedInput(['note', 'https://example.com/preferred']))
+        .assertEqual('https://example.com/preferred');
     });
 
     it('retains the source and resolves the selected task strategy in the request', 0, (): void => {

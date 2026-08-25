@@ -1,6 +1,7 @@
 import { webview } from '@kit.ArkWeb';
 import { abilityAccessCtrl, common, PermissionRequestResult, Permissions } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
+import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
 
 import { image } from '@kit.ImageKit';
 import {
@@ -150,6 +151,9 @@ import { FoldStateService } from '../services/FoldStateService';
 import { MultiWindowService } from '../services/MultiWindowService';
 import {
   BrowseDisposition,
+  createExternalOpenRequest,
+  extractDroppedInput,
+  extractDroppedUrl,
   ExternalOpenAction,
   ExternalOpenRequest,
   restoreTrackingParameters,
@@ -633,6 +637,11 @@ struct Index {
     .backgroundColor($r('app.color.page_background'))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .focusable(true)
+    .allowDrop([
+      uniformTypeDescriptor.UniformDataType.HYPERLINK,
+      uniformTypeDescriptor.UniformDataType.PLAIN_TEXT
+    ])
+    .onDrop((event: DragEvent): void => this.handleDroppedContent(event))
     .onKeyEvent((event: KeyEvent): boolean => this.handleBrowserShortcut(event))
   }
 
@@ -1944,6 +1953,39 @@ struct Index {
       this.externalOpenMenuButton($r('app.string.external_open_read_close')),
       this.externalOpenMenuButton($r('app.string.external_open_save_article'))
     ]);
+  }
+
+  private handleDroppedContent(event: DragEvent): void {
+    try {
+      const candidates: string[] = [];
+      const records: unifiedDataChannel.UnifiedRecord[] = event.getData().getRecords();
+      for (const record of records) {
+        if (record instanceof unifiedDataChannel.Hyperlink) {
+          candidates.push(record.url);
+        } else if (record instanceof unifiedDataChannel.PlainText) {
+          candidates.push(record.textContent);
+        }
+      }
+      const input: string = extractDroppedInput(candidates);
+      if (input.length === 0) {
+        return;
+      }
+      const droppedUrl: string = extractDroppedUrl(candidates);
+      const url: string = droppedUrl.length > 0
+        ? droppedUrl
+        : normalizeAddress(input, this.settings.searchEngine, this.settings.customSearchTemplate);
+      const request: ExternalOpenRequest | undefined = createExternalOpenRequest(
+        url,
+        droppedUrl.length > 0 ? '' : input.substring(0, 80),
+        Date.now(),
+        'drag-drop'
+      );
+      if (request !== undefined) {
+        this.promptExternalOpen(request);
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Dropped content could not be read: ${String(error)}`);
+    }
   }
 
   private externalOpenMenuButton(text: Resource): ExternalOpenMenuButton {
