@@ -31,6 +31,10 @@
           "applyToProducts": ["default"]
         }
       ]
+    },
+    {
+      "name": "iap_paywall_kit",
+      "srcPath": "./iap_paywall_kit"
     }
   ]
 }

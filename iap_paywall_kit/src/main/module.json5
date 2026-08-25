@@ -1,0 +1,12 @@
+{
+  "module": {
+    "name": "iap_paywall_kit",
+    "type": "har",
+    "deviceTypes": [
+      "default",
+      "phone",
+      "tablet",
+      "2in1"
+    ]
+  }
+}

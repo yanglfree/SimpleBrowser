@@ -185,6 +185,7 @@ export struct SettingsPage {
   @Prop currentHostDarkModeEnabled: boolean = false;
   @Prop rulesLastUpdatedAt: number = 0;
   @Prop appVersion: string = '';
+  @Prop isPro: boolean = false;
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
   onResetGestures: () => void = (): void => {};
   onClearData: (selection: ClearDataSelection) => void = (_selection: ClearDataSelection): void => {};
@@ -196,6 +197,7 @@ export struct SettingsPage {
     (_origin: string, _kind: string, _decision: SitePermissionDecision): void => {};
   onToggleCurrentSiteDarkMode: () => void = (): void => {};
   onUpdateRules: () => void = (): void => {};
+  onOpenPro: () => void = (): void => {};
   onBack: () => void = (): void => {};
   @State private picker: PickerKind = PickerKind.None;
   @State private isEditingSearchTemplate: boolean = false;
@@ -477,6 +479,12 @@ export struct SettingsPage {
 
           this.GroupLabel($r('app.string.group_about'), 20)
           Column() {
+            this.ValueRowText(
+              $r('app.string.pro_settings_title'),
+              this.isPro ? $r('app.string.pro_settings_active') : $r('app.string.pro_settings_free'),
+              true,
+              () => this.onOpenPro()
+            )
             this.ValueRowText($r('app.string.about_app'), this.appVersionLabel(), false, () => this.showAbout())
           }
           .groupCard()
@@ -1612,6 +1620,12 @@ export struct SettingsPage {
           .textAlign(TextAlign.Center)
           .width('100%')
           .margin({ top: 12 })
+        Text($r('app.string.support_email'))
+          .fontSize(13)
+          .fontColor($r('app.color.text_secondary'))
+          .textAlign(TextAlign.Center)
+          .width('100%')
+          .margin({ top: 10 })
         Text($r('app.string.done'))
           .fontSize(16)
           .fontColor($r('app.color.accent'))

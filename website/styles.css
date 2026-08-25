@@ -392,6 +392,22 @@ h1 {
 }
 
 .footer-layout p { margin: 0; }
+.footer-links { display: flex; gap: 20px; }
+
+.legal-page { padding-block: 64px 96px; }
+.legal-back { display: inline-block; margin-bottom: 28px; color: var(--accent); font-size: 14px; }
+.legal-card {
+  max-width: 840px;
+  padding: clamp(28px, 5vw, 64px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-medium);
+  background: var(--panel);
+}
+.legal-card h1 { margin: 12px 0 8px; font-size: clamp(38px, 7vw, 72px); line-height: 1.05; }
+.legal-card h2 { margin: 40px 0 12px; font-size: 20px; }
+.legal-card p { color: var(--body); line-height: 1.9; }
+.legal-card a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.legal-updated { margin-bottom: 48px; color: var(--muted) !important; font-size: 13px; }
 
 .not-found { min-height: 100dvh; }
 .not-found h1 { font-size: clamp(40px, 8vw, 80px); }
@@ -432,6 +448,7 @@ h1 {
   .closing { flex-direction: column; text-align: center; gap: 32px; }
   .closing img { width: 96px; height: 96px; }
   .footer-layout { min-height: 120px; flex-direction: column; justify-content: center; text-align: center; }
+  .legal-page { padding-block: 32px 64px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

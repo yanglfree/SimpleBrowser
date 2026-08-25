@@ -84,6 +84,7 @@ import { SiteControlSheet } from '../components/SiteControlSheet';
 import { SharePanel } from '../components/SharePanel';
 import { SavedItemEditSheet } from '../components/SavedItemEditSheet';
 import { ArticleLibrarySheet } from '../components/ArticleLibrarySheet';
+import { ZhuoProPaywall } from '../components/ZhuoProPaywall';
 import { QuickSiteEditor } from '../components/QuickSiteEditor';
 import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
@@ -155,6 +156,9 @@ import {
   withExternalOpenAction
 } from '../models/ExternalOpenRequest';
 import { ExternalOpenRouter } from '../services/ExternalOpenRouter';
+import { ProFeature } from '../models/ProModels';
+import { ProBillingAdapter } from '../services/ProBillingAdapter';
+import { ProEntitlementService } from '../services/ProEntitlementService';
 
 const TAG: string = 'Index';
 const RECENTLY_CLOSED_TAB_LIMIT: number = 10;
@@ -185,7 +189,8 @@ export enum Overlay {
   QuickSiteEditor = 21,
   ArticleLibrary = 22,
   BlockEvents = 23,
-  SiteControls = 24
+  SiteControls = 24,
+  ProPaywall = 25
 }
 
 export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boolean {
@@ -391,6 +396,8 @@ struct Index {
     BrowserWindowMode.Unknown
   );
   @State private multiWindowSupported: boolean = false;
+  @State private isPro: boolean = false;
+  private proBillingAdapter: ProBillingAdapter = new ProBillingAdapter();
   private isTabSoftLimitPromptVisible: boolean = false;
   /**
    * The sidebar's history list is unmounted whenever the panel closes, so where
@@ -468,6 +475,7 @@ struct Index {
       );
       DownloadService.subscribe(this.downloadListener);
       this.isReady = true;
+      void this.syncProEntitlement('app_start');
       ExternalOpenRouter.subscribe(this.windowToken, (request: ExternalOpenRequest): void => {
         void this.promptExternalOpen(request);
       });
@@ -1513,6 +1521,7 @@ struct Index {
         currentHostDarkModeEnabled: !this.isDarkModeExcluded(this.activeTab()?.url ?? ''),
         rulesLastUpdatedAt: this.rulesLastUpdatedAt,
         appVersion: this.appVersionName,
+        isPro: this.isPro,
         onChange: (settings: BrowserSettings): void => { this.applySettings(settings); },
         onResetGestures: (): void => { this.resetGestures(); },
         onClearData: (selection: ClearDataSelection): void => { this.clearBrowsingData(selection); },
@@ -1525,7 +1534,16 @@ struct Index {
         },
         onToggleCurrentSiteDarkMode: (): void => { void this.toggleCurrentSiteDarkMode(); },
         onUpdateRules: (): void => { void this.updateRules(); },
+        onOpenPro: (): void => { this.sheet = Overlay.ProPaywall; },
         onBack: (): void => { this.sheet = Overlay.None; }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.ProPaywall) {
+      ZhuoProPaywall({
+        isPro: this.isPro,
+        proExpiresText: this.proExpiresText(),
+        onClose: (): void => { this.sheet = Overlay.None; },
+        onEntitlementChanged: (): void => { this.refreshProState(); }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Permission && this.pendingSitePermission !== undefined) {
@@ -1965,6 +1983,9 @@ struct Index {
           ? ExternalOpenAction.SaveArticle
           : ExternalOpenAction.CleanOpen;
     const useOriginalUrl: boolean = index === 4;
+    if (action === ExternalOpenAction.SaveArticle && !this.requirePro(ProFeature.OFFLINE_ARTICLE)) {
+      return;
+    }
     const resolvedRequest: ExternalOpenRequest = withExternalOpenAction(request, action);
     const url: string = useOriginalUrl ? restoreTrackingParameters(resolvedRequest) : resolvedRequest.cleanUrl;
     const isPrivate: boolean = resolvedRequest.disposition !== BrowseDisposition.Normal;
@@ -2436,7 +2457,9 @@ struct Index {
         if (this.isActiveHome() || this.activeTab()?.isPrivate === true) {
           handled = false;
         } else {
-          void this.captureArticleForLibrary(this.activeTabId);
+          if (this.requirePro(ProFeature.OFFLINE_ARTICLE)) {
+            void this.captureArticleForLibrary(this.activeTabId);
+          }
         }
         break;
       default:
@@ -2606,6 +2629,9 @@ struct Index {
   }
 
   private async openArticleLibrary(): Promise<void> {
+    if (!this.requirePro(ProFeature.ARTICLE_LIBRARY)) {
+      return;
+    }
     try {
       this.articles = await this.viewModel.listSavedArticles();
       this.closeSavedArticle();
@@ -3723,6 +3749,9 @@ struct Index {
   }
 
   private async captureArticleForLibrary(id: string): Promise<void> {
+    if (!this.requirePro(ProFeature.OFFLINE_ARTICLE)) {
+      return;
+    }
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     const controller: webview.WebviewController | undefined = this.controllers.get(id);
     if (tab === undefined || controller === undefined) {
@@ -3745,6 +3774,38 @@ struct Index {
         Logger.warn(TAG, `Article failure record could not be saved: ${String(storageError)}`);
       }
     }
+  }
+
+  private requirePro(feature: ProFeature): boolean {
+    if (this.isPro) {
+      return true;
+    }
+    Logger.info(TAG, `Pro feature requested: ${feature}`);
+    this.showToast($r('app.string.pro_required_toast'));
+    this.sheet = Overlay.ProPaywall;
+    return false;
+  }
+
+  private async syncProEntitlement(reason: string): Promise<void> {
+    try {
+      this.isPro = await ProEntitlementService.getInstance().initialize(this.appContext());
+      this.isPro = await this.proBillingAdapter.syncEntitlements(this.appContext(), reason);
+    } catch (error) {
+      Logger.warn(TAG, `Pro entitlement sync failed: ${String(error)}`);
+      this.isPro = ProEntitlementService.getInstance().isPro();
+    }
+  }
+
+  private refreshProState(): void {
+    this.isPro = ProEntitlementService.getInstance().isPro();
+  }
+
+  private proExpiresText(): ResourceStr {
+    const entitlement = ProEntitlementService.getInstance().current();
+    if (entitlement === null || entitlement.expiresAt <= 0) {
+      return '';
+    }
+    return new Date(entitlement.expiresAt).toLocaleDateString();
   }
 
   /**

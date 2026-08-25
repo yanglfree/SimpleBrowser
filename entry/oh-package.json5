@@ -5,5 +5,7 @@
   "main": "",
   "author": "onevcat",
   "license": "Apache-2.0",
-  "dependencies": {}
+  "dependencies": {
+    "iap_paywall_kit": "file:../iap_paywall_kit"
+  }
 }

@@ -1,0 +1,11 @@
+{
+  "name": "iap_paywall_kit",
+  "version": "1.0.0",
+  "description": "Reusable HarmonyOS IAP paywall module.",
+  "main": "Index.ets",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {},
+  "devDependencies": {},
+  "dynamicDependencies": {}
+}
