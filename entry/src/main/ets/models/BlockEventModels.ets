@@ -63,3 +63,11 @@ export function cloneBlockEvent(event: BlockEvent): BlockEvent {
     occurredAt: event.occurredAt
   };
 }
+
+export function formatBlockEventTime(occurredAt: number): string {
+  const date: Date = new Date(occurredAt);
+  const hour: string = String(date.getHours()).padStart(2, '0');
+  const minute: string = String(date.getMinutes()).padStart(2, '0');
+  const second: string = String(date.getSeconds()).padStart(2, '0');
+  return `${hour}:${minute}:${second}`;
+}

@@ -8,6 +8,13 @@ export function articleMatchesSearch(article: SavedArticle, content: string, ter
   if (terms.length === 0) {
     return true;
   }
-  const haystack: string = `${article.title}\n${article.excerpt}\n${article.canonicalUrl}\n${content}`.toLocaleLowerCase();
+  const haystack: string = [
+    article.title,
+    article.author,
+    article.excerpt,
+    article.canonicalUrl,
+    article.tags.join(' '),
+    content
+  ].join('\n').toLocaleLowerCase();
   return terms.every((term: string): boolean => haystack.includes(term));
 }

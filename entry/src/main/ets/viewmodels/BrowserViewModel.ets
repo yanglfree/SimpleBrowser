@@ -38,6 +38,7 @@ import { BrowserRepository } from '../repositories/BrowserRepository';
 import { ArticleLibraryRepository } from '../repositories/ArticleLibraryRepository';
 import { SiteControlRepository } from '../repositories/SiteControlRepository';
 import {
+  ArticleContent,
   ArticleHighlight,
   ArticleImageAsset,
   ArticleNote,
@@ -47,7 +48,12 @@ import {
   Topic
 } from '../models/ArticleLibraryModels';
 import { AdsBlockService } from '../services/AdsBlockService';
-import { ArticleExportFormat, ArticleExportResult, ArticleExportService } from '../services/ArticleExportService';
+import {
+  ArticleExportExtras,
+  ArticleExportFormat,
+  ArticleExportResult,
+  ArticleExportService
+} from '../services/ArticleExportService';
 import { createArticleHighlight } from '../services/ArticleHighlightFactory';
 import { DownloadService } from '../services/DownloadService';
 import { displayHost, isHomeUrl, looksLikeUrl, rawHost, searchUrl, siteBadge } from '../utils/UrlUtils';
@@ -272,15 +278,23 @@ export class BrowserViewModel {
     sourceUrl: string,
     canonicalUrl: string,
     title: string,
+    author: string,
     text: string,
     html: string,
+    markdown: string,
     images: ArticleImageAsset[] = []
   ): Promise<void> {
     const now: number = Date.now();
+    const resolvedCanonicalUrl: string = canonicalUrl.length > 0 ? canonicalUrl : sourceUrl;
+    const existing: SavedArticle | undefined = await this.articleLibrary.findArticleByCanonicalUrl(
+      resolvedCanonicalUrl
+    );
     const article: SavedArticle = {
-      id: createArticleId(now), sourceUrl: sourceUrl, canonicalUrl: canonicalUrl,
-      title: title.length > 0 ? title : displayHost(sourceUrl), excerpt: text.substring(0, 280),
-      createdAt: now, updatedAt: now,
+      id: existing?.id ?? createArticleId(now), sourceUrl: sourceUrl, canonicalUrl: resolvedCanonicalUrl,
+      title: title.length > 0 ? title : displayHost(sourceUrl), author: author.trim(),
+      excerpt: text.substring(0, 280), createdAt: existing?.createdAt ?? now, updatedAt: now,
+      readingPosition: existing?.readingPosition ?? 0, tags: existing?.tags ?? [],
+      isArchived: existing?.isArchived ?? false,
       failure: ArticleSaveFailure.None, failureMessage: ''
     };
     if (html.trim().length === 0 || text.trim().length === 0) {
@@ -288,11 +302,25 @@ export class BrowserViewModel {
       return;
     }
     try {
-      await this.articleLibrary.saveArticle(article, html, text, images);
+      await this.articleLibrary.saveArticle(article, html, markdown, images);
     } catch (error) {
       await this.articleLibrary.saveFailure(article, ArticleSaveFailure.StorageUnavailable, String(error));
       throw new Error(String(error));
     }
+  }
+
+  async saveArticleFailure(sourceUrl: string, title: string, message: string): Promise<void> {
+    const now: number = Date.now();
+    const existing: SavedArticle | undefined = await this.articleLibrary.findArticleByCanonicalUrl(sourceUrl);
+    const article: SavedArticle = {
+      id: existing?.id ?? createArticleId(now), sourceUrl: sourceUrl, canonicalUrl: sourceUrl,
+      title: title.length > 0 ? title : displayHost(sourceUrl), author: existing?.author ?? '',
+      excerpt: existing?.excerpt ?? '', createdAt: existing?.createdAt ?? now, updatedAt: now,
+      readingPosition: existing?.readingPosition ?? 0, tags: existing?.tags ?? [],
+      isArchived: existing?.isArchived ?? false,
+      failure: ArticleSaveFailure.ExtractionUnavailable, failureMessage: message
+    };
+    await this.articleLibrary.saveFailure(article, ArticleSaveFailure.ExtractionUnavailable, message);
   }
 
   async listSavedArticles(): Promise<SavedArticle[]> {
@@ -305,6 +333,21 @@ export class BrowserViewModel {
 
   async readSavedArticleMarkdown(articleId: string): Promise<string | undefined> {
     return await this.articleLibrary.readArticleMarkdown(articleId);
+  }
+
+  async updateArticleReadingPosition(articleId: string, readingPosition: number): Promise<void> {
+    await this.articleLibrary.updateReadingPosition(articleId, readingPosition);
+  }
+
+  async updateArticleTags(articleId: string, tags: string[]): Promise<void> {
+    const normalized: string[] = tags.map((tag: string): string => tag.trim().replace(/\s+/g, ' '))
+      .filter((tag: string): boolean => tag.length > 0)
+      .filter((tag: string, index: number, values: string[]): boolean => values.indexOf(tag) === index);
+    await this.articleLibrary.updateTags(articleId, normalized);
+  }
+
+  async setArticleArchived(articleId: string, isArchived: boolean): Promise<void> {
+    await this.articleLibrary.setArchived(articleId, isArchived);
   }
 
   async listArticleNotes(articleId: string): Promise<ArticleNote[]> {
@@ -351,13 +394,24 @@ export class BrowserViewModel {
     }
     const markdown: string | undefined = await this.articleLibrary.readArticleMarkdown(articleId);
     const html: string | undefined = await this.articleLibrary.readArticleHtml(articleId);
-    const content = await this.articleLibrary.getArticleContent(articleId);
+    const content: ArticleContent | undefined = await this.articleLibrary.getArticleContent(articleId);
     if (markdown === undefined || html === undefined || content === undefined) {
       Logger.warn(TAG, `Article export content is unavailable: ${articleId}`);
       return undefined;
     }
+    const annotations: [ArticleNote[], Topic[], ArticleHighlight[]] = await Promise.all([
+      this.articleLibrary.listNotes(articleId),
+      this.articleLibrary.listTopicsForArticle(articleId),
+      this.articleLibrary.listHighlights(articleId)
+    ]);
+    const extras: ArticleExportExtras = {
+      notes: annotations[0],
+      topics: annotations[1],
+      highlights: annotations[2],
+      imageFailedCount: content.imageFailedCount
+    };
     return await ArticleExportService.exportToPicker(
-      this.context, article, markdown, html, content.imageDirectoryPath, format
+      this.context, article, markdown, html, content.imageDirectoryPath, format, extras
     );
   }
 

@@ -5,7 +5,8 @@ import {
   dispositionForExternalAction,
   ExternalOpenAction,
   extractSharedUrl,
-  restoreTrackingParameters
+  restoreTrackingParameters,
+  withExternalOpenAction
 } from '../main/ets/models/ExternalOpenRequest';
 
 export default function externalOpenRequestTest(): void {
@@ -39,6 +40,20 @@ export default function externalOpenRequestTest(): void {
       expect(dispositionForExternalAction(ExternalOpenAction.CleanOpen)).assertEqual(BrowseDisposition.Normal);
       expect(dispositionForExternalAction(ExternalOpenAction.PrivateOpen)).assertEqual(BrowseDisposition.Private);
       expect(dispositionForExternalAction(ExternalOpenAction.ReadAndClose)).assertEqual(BrowseDisposition.Disposable);
+    });
+
+    it('retains the source and resolves the selected task strategy in the request', 0, (): void => {
+      const request = createExternalOpenRequest('https://example.com/article', 'Article', 44, 'com.example.news');
+      expect(request?.sourceApp).assertEqual('com.example.news');
+      if (request === undefined) {
+        return;
+      }
+      const disposable = withExternalOpenAction(request, ExternalOpenAction.ReadAndClose);
+      const save = withExternalOpenAction(request, ExternalOpenAction.SaveArticle);
+      expect(disposable.disposition).assertEqual(BrowseDisposition.Disposable);
+      expect(disposable.autoReader).assertTrue();
+      expect(disposable.shouldSave).assertFalse();
+      expect(save.shouldSave).assertTrue();
     });
   });
 }

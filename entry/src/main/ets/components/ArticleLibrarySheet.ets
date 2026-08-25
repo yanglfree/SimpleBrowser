@@ -42,6 +42,8 @@ export struct ArticleLibrarySheet {
   onSearch: (query: string) => void = (_query: string): void => {};
   onAddNote: (body: string) => void = (_body: string): void => {};
   onAddTopic: (name: string) => void = (_name: string): void => {};
+  onUpdateTags: (tags: string[]) => void = (_tags: string[]): void => {};
+  onArchive: (isArchived: boolean) => void = (_isArchived: boolean): void => {};
   onAddHighlight: (quote: string) => void = (_quote: string): void => {};
   onInspectorVisibilityChange: (visible: boolean) => void = (_visible: boolean): void => {};
   onReadingScroll: (offset: number) => void = (_offset: number): void => {};
@@ -156,6 +158,11 @@ export struct ArticleLibrarySheet {
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
+        if (article.isArchived) {
+          Text($r('app.string.article_archived'))
+            .fontSize(12)
+            .fontColor($r('app.color.text_secondary'))
+        }
       }
       .layoutWeight(1)
       AppIcon({ name: IconName.ChevronRight, glyphSize: 16, color: $r('app.color.text_secondary') })
@@ -235,6 +242,16 @@ export struct ArticleLibrarySheet {
         .focusable(true)
         .hoverEffect(HoverEffect.Auto)
         .onClick(() => this.onExport(ArticleExportFormat.StandaloneHtml))
+      Text(this.selectedArticle?.isArchived === true
+        ? $r('app.string.article_unarchive') : $r('app.string.article_archive'))
+        .fontSize(12)
+        .fontColor($r('app.color.accent'))
+        .padding(8)
+        .borderRadius(8)
+        .backgroundColor($r('app.color.surface_subtle'))
+        .focusable(true)
+        .hoverEffect(HoverEffect.Auto)
+        .onClick(() => this.onArchive(this.selectedArticle?.isArchived !== true))
     }
     .width('100%')
     .height(62)
@@ -256,6 +273,12 @@ export struct ArticleLibrarySheet {
             .fontSize(13)
             .fontColor($r('app.color.text_secondary'))
             .width('100%')
+          if (article.author.length > 0) {
+            Text(article.author)
+              .fontSize(13)
+              .fontColor($r('app.color.text_secondary'))
+              .width('100%')
+          }
           if (this.isLoading) {
             LoadingProgress()
               .width(28)
@@ -268,6 +291,8 @@ export struct ArticleLibrarySheet {
               .fontColor($r('app.color.text_primary'))
               .width('100%')
               .textAlign(TextAlign.Start)
+              .copyOption(CopyOptions.LocalDevice)
+              .textSelectable(TextSelectableMode.SELECTABLE_FOCUSABLE)
             if (showInlineInspector) {
               this.AnnotationPanel()
             }
@@ -317,9 +342,11 @@ export struct ArticleLibrarySheet {
     ArticleAnnotationPanel({
       notes: this.notes,
       topics: this.topics,
+      tags: this.selectedArticle?.tags ?? [],
       highlights: this.highlights,
       onAddNote: this.onAddNote,
       onAddTopic: this.onAddTopic,
+      onUpdateTags: this.onUpdateTags,
       onAddHighlight: this.onAddHighlight
     })
       .margin({ top: 18 })

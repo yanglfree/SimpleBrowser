@@ -47,7 +47,10 @@ export default class EntryAbility extends UIAbility {
   private routeExternalOpen(want: Want): void {
     const url: string = extractSharedUrl(want.uri, want.parameters);
     const title: string = String(want.parameters?.['title'] ?? want.parameters?.['subject'] ?? '');
-    const request = createExternalOpenRequest(url, title);
+    const sourceApp: string = String(
+      want.parameters?.['sourceApp'] ?? want.parameters?.['callerBundleName'] ?? ''
+    );
+    const request = createExternalOpenRequest(url, title, Date.now(), sourceApp);
     if (request !== undefined) {
       ExternalOpenRouter.deliver(this.windowToken, request);
     }

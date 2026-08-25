@@ -27,6 +27,7 @@ export struct BlockPanel {
   onToggleSite: () => void = (): void => {};
   onOpenEvents: () => void = (): void => {};
   onOpenSiteControls: () => void = (): void => {};
+  onReportIssue: () => void = (): void => {};
   onOpenSettings: () => void = (): void => {};
 
   build() {
@@ -105,6 +106,21 @@ export struct BlockPanel {
       }
       .width('100%')
       .height(56)
+
+      Divider()
+        .strokeWidth(1)
+        .color($r('app.color.border'))
+
+      Row() {
+        Text($r('app.string.page_issue_report'))
+          .fontSize(15)
+          .fontColor($r('app.color.text_primary'))
+          .layoutWeight(1)
+        AppIcon({ name: IconName.ChevronRight, glyphSize: 17, color: $r('app.color.text_secondary') })
+      }
+      .width('100%')
+      .height(56)
+      .onClick(() => this.onReportIssue())
 
       Divider()
         .strokeWidth(1)

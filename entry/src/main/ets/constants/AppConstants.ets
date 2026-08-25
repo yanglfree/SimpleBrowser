@@ -580,14 +580,56 @@ export const READER_EXIT_SCRIPT: string = `
   return 'restored';
 })();`;
 
-/** Produces a detached, script-free article snapshot for the local library. */
+/** Extracts the best readable article candidate into a detached, script-free snapshot. */
 export const ARTICLE_CAPTURE_SCRIPT: string = `
 (function() {
-  var root = document.cloneNode(true);
-  var blocked = root.querySelectorAll('script,style,noscript,iframe,form,nav,footer,aside');
-  for (var i = 0; i < blocked.length; i++) blocked[i].remove();
-  var originalImages = document.images || [];
-  var copiedImages = root.querySelectorAll('img');
+  var candidates = document.querySelectorAll(
+    'article,main,[role="main"],[itemprop="articleBody"],.article,.article-body,.article-content,' +
+    '.post,.post-body,.post-content,.entry-content,.story-body,.story-content,.content,#content'
+  );
+  var best = null;
+  var bestScore = 0;
+  for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
+    var candidate = candidates[candidateIndex];
+    var probe = candidate.cloneNode(true);
+    var probeNoise = probe.querySelectorAll(
+      'script,style,noscript,iframe,form,button,nav,aside,header,footer,' +
+      '[role="navigation"],[role="complementary"],[aria-label*="comment"]'
+    );
+    for (var probeIndex = 0; probeIndex < probeNoise.length; probeIndex++) probeNoise[probeIndex].remove();
+    var candidateText = (probe.innerText || probe.textContent || '').trim();
+    if (candidateText.length < 240) continue;
+    var paragraphs = candidate.querySelectorAll('p').length;
+    var linkText = 0;
+    var links = candidate.querySelectorAll('a');
+    for (var linkIndex = 0; linkIndex < links.length; linkIndex++) {
+      linkText += (links[linkIndex].innerText || links[linkIndex].textContent || '').length;
+    }
+    var punctuation = (candidateText.match(/[。！？.!?]/g) || []).length;
+    var semanticBoost = /^(ARTICLE|MAIN)$/i.test(candidate.tagName) ? 240 : 0;
+    var score = candidateText.length + Math.min(paragraphs, 80) * 70 + punctuation * 8 +
+      semanticBoost - Math.min(linkText, candidateText.length) * 0.6;
+    if (score > bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+  if (!best) {
+    return JSON.stringify({ title: document.title || '', author: '', canonicalUrl: location.href,
+      html: '', text: '', markdown: '', images: [] });
+  }
+
+  var article = best.cloneNode(true);
+  var blocked = article.querySelectorAll(
+    'script,style,noscript,iframe,form,button,nav,aside,header,footer,video,' +
+    '[role="navigation"],[role="complementary"],[aria-label*="comment"],' +
+    '[class*="comment"],[class*="recommend"],[class*="related"],[class*="breadcrumb"],' +
+    '[class*="sidebar"],[class*="advert"],[id*="comment"]'
+  );
+  for (var blockedIndex = 0; blockedIndex < blocked.length; blockedIndex++) blocked[blockedIndex].remove();
+
+  var originalImages = best.querySelectorAll('img');
+  var copiedImages = article.querySelectorAll('img');
   var images = [];
   for (var imageIndex = 0; imageIndex < copiedImages.length && imageIndex < originalImages.length; imageIndex++) {
     var source = originalImages[imageIndex].currentSrc || originalImages[imageIndex].src || '';
@@ -601,12 +643,73 @@ export const ARTICLE_CAPTURE_SCRIPT: string = `
     copiedImages[imageIndex].removeAttribute('data-src');
     images.push({ index: imageIndex, url: source, fileName: fileName });
   }
+  var elements = article.querySelectorAll('*');
+  for (var elementIndex = 0; elementIndex < elements.length; elementIndex++) {
+    var attributes = Array.prototype.slice.call(elements[elementIndex].attributes || []);
+    for (var attributeIndex = 0; attributeIndex < attributes.length; attributeIndex++) {
+      var attributeName = attributes[attributeIndex].name.toLowerCase();
+      if (attributeName.indexOf('on') === 0 || attributeName === 'style') {
+        elements[elementIndex].removeAttribute(attributes[attributeIndex].name);
+      }
+    }
+    var href = elements[elementIndex].getAttribute('href') || '';
+    if (/^javascript:/i.test(href)) elements[elementIndex].removeAttribute('href');
+  }
+
+  function normalizedText(node) {
+    return (node.textContent || '').replace(/\\s+/g, ' ').trim();
+  }
+  function markdownFor(node) {
+    if (!node) return '';
+    if (node.nodeType === 3) return (node.nodeValue || '').replace(/\\s+/g, ' ');
+    if (node.nodeType !== 1) return '';
+    var tag = node.tagName.toLowerCase();
+    if (tag === 'img') {
+      var imageSource = node.getAttribute('src') || '';
+      var imageAlt = (node.getAttribute('alt') || '').replace(/[\\[\\]]/g, '');
+      return imageSource ? '![' + imageAlt + '](' + imageSource + ')' : '';
+    }
+    if (tag === 'pre') {
+      var fence = String.fromCharCode(96, 96, 96);
+      return '\\n\\n' + fence + '\\n' + (node.textContent || '').trim() + '\\n' + fence + '\\n\\n';
+    }
+    var childMarkdown = '';
+    for (var childIndex = 0; childIndex < node.childNodes.length; childIndex++) {
+      childMarkdown += markdownFor(node.childNodes[childIndex]);
+    }
+    childMarkdown = childMarkdown.trim();
+    if (!childMarkdown) return '';
+    if (/^h[1-6]$/.test(tag)) {
+      return '\\n\\n' + new Array(Number(tag.substring(1)) + 1).join('#') + ' ' + childMarkdown + '\\n\\n';
+    }
+    if (tag === 'p' || tag === 'section' || tag === 'div') return '\\n\\n' + childMarkdown + '\\n\\n';
+    if (tag === 'li') return '\\n- ' + childMarkdown;
+    if (tag === 'blockquote') return '\\n\\n> ' + childMarkdown.replace(/\\n/g, '\\n> ') + '\\n\\n';
+    if (tag === 'br') return '\\n';
+    if (tag === 'strong' || tag === 'b') return '**' + childMarkdown + '**';
+    if (tag === 'em' || tag === 'i') return '*' + childMarkdown + '*';
+    if (tag === 'a') {
+      var link = node.getAttribute('href') || '';
+      return link ? '[' + childMarkdown + '](' + link + ')' : childMarkdown;
+    }
+    return childMarkdown;
+  }
   var canonical = document.querySelector('link[rel="canonical"]');
+  var authorMeta = document.querySelector(
+    'meta[name="author"],meta[property="article:author"],[rel="author"],[itemprop="author"]'
+  );
+  var author = authorMeta ? (authorMeta.getAttribute('content') || normalizedText(authorMeta)) : '';
+  var heading = best.querySelector('h1');
+  var title = heading ? normalizedText(heading) : (document.title || '');
+  var text = normalizedText(article);
+  var markdown = markdownFor(article).replace(/\\n{3,}/g, '\\n\\n').trim();
   return JSON.stringify({
-    title: document.title || '',
+    title: title,
+    author: author,
     canonicalUrl: canonical && canonical.href ? canonical.href : location.href,
-    html: root.documentElement ? root.documentElement.outerHTML : '',
-    text: document.body ? document.body.innerText || '' : '',
+    html: article.outerHTML || '',
+    text: text,
+    markdown: markdown,
     images: images
   });
 })();`;

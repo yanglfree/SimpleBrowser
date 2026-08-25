@@ -18,6 +18,8 @@ export default function browserShortcutTest(): void {
         .assertEqual(BrowserShortcut.Reload);
       expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_F, ctrl: true, shift: false, keyDown: true }))
         .assertEqual(BrowserShortcut.Find);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_S, ctrl: true, shift: false, keyDown: true }))
+        .assertEqual(BrowserShortcut.SaveArticle);
     });
 
     it('uses shift only for reopen and reverse tab traversal', 0, (): void => {

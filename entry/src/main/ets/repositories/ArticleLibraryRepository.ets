@@ -18,7 +18,7 @@ import {
 } from '../models/ArticleLibraryModels';
 import { restoreArticleHighlight } from '../services/ArticleHighlightLocator';
 import { articleMatchesSearch, normalizeArticleSearchTerms } from '../services/ArticleSearchService';
-import { ArticleImageStore } from '../services/ArticleImageStore';
+import { ArticleImageStore, ArticleImageStoreResult } from '../services/ArticleImageStore';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'ArticleLibraryRepository';
@@ -43,6 +43,7 @@ export class ArticleLibraryRepository {
     this.filesDirectory = `${context.filesDir}/${CONTENT_DIRECTORY}`;
     await fileIo.mkdir(this.filesDirectory, true);
     await this.createSchema(this.store);
+    await this.migrateSchema(this.store);
   }
 
   async saveArticle(
@@ -58,9 +59,13 @@ export class ArticleLibraryRepository {
       source_url: article.sourceUrl,
       canonical_url: article.canonicalUrl,
       title: article.title,
+      author: article.author,
       excerpt: article.excerpt,
       created_at: article.createdAt,
       updated_at: article.updatedAt,
+      reading_position: article.readingPosition,
+      tags_json: JSON.stringify(article.tags),
+      is_archived: article.isArchived ? 1 : 0,
       failure: article.failure,
       failure_message: article.failureMessage
     };
@@ -69,7 +74,9 @@ export class ArticleLibraryRepository {
       html_path: content.htmlPath,
       markdown_path: content.markdownPath,
       image_directory_path: content.imageDirectoryPath,
-      extracted_at: content.extractedAt
+      extracted_at: content.extractedAt,
+      image_saved_count: content.imageSavedCount,
+      image_failed_count: content.imageFailedCount
     };
     await store.insert(ARTICLE_TABLE, values, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
     await store.insert(CONTENT_TABLE, contentValues, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
@@ -83,9 +90,13 @@ export class ArticleLibraryRepository {
       source_url: article.sourceUrl,
       canonical_url: article.canonicalUrl,
       title: article.title,
+      author: article.author,
       excerpt: article.excerpt,
       created_at: article.createdAt,
       updated_at: Date.now(),
+      reading_position: article.readingPosition,
+      tags_json: JSON.stringify(article.tags),
+      is_archived: article.isArchived ? 1 : 0,
       failure: failure,
       failure_message: message
     };
@@ -114,6 +125,42 @@ export class ArticleLibraryRepository {
     }
   }
 
+  async findArticleByCanonicalUrl(canonicalUrl: string): Promise<SavedArticle | undefined> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(ARTICLE_TABLE);
+    predicates.equalTo('canonical_url', canonicalUrl);
+    const result: relationalStore.ResultSet = await store.query(predicates);
+    try {
+      return result.goToFirstRow() ? this.readSavedArticle(result) : undefined;
+    } finally {
+      result.close();
+    }
+  }
+
+  async updateReadingPosition(articleId: string, readingPosition: number): Promise<void> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(ARTICLE_TABLE);
+    predicates.equalTo('id', articleId);
+    await store.update({
+      reading_position: Math.max(0, readingPosition),
+      updated_at: Date.now()
+    }, predicates);
+  }
+
+  async updateTags(articleId: string, tags: string[]): Promise<void> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(ARTICLE_TABLE);
+    predicates.equalTo('id', articleId);
+    await store.update({ tags_json: JSON.stringify(tags), updated_at: Date.now() }, predicates);
+  }
+
+  async setArchived(articleId: string, isArchived: boolean): Promise<void> {
+    const store: relationalStore.RdbStore = this.requireStore();
+    const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(ARTICLE_TABLE);
+    predicates.equalTo('id', articleId);
+    await store.update({ is_archived: isArchived ? 1 : 0, updated_at: Date.now() }, predicates);
+  }
+
   async getArticleContent(articleId: string): Promise<ArticleContent | undefined> {
     const store: relationalStore.RdbStore = this.requireStore();
     const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates(CONTENT_TABLE);
@@ -128,7 +175,9 @@ export class ArticleLibraryRepository {
         htmlPath: result.getString(result.getColumnIndex('html_path')),
         markdownPath: result.getString(result.getColumnIndex('markdown_path')),
         imageDirectoryPath: result.getString(result.getColumnIndex('image_directory_path')),
-        extractedAt: result.getLong(result.getColumnIndex('extracted_at'))
+        extractedAt: result.getLong(result.getColumnIndex('extracted_at')),
+        imageSavedCount: result.getLong(result.getColumnIndex('image_saved_count')),
+        imageFailedCount: result.getLong(result.getColumnIndex('image_failed_count'))
       };
     } finally {
       result.close();
@@ -354,12 +403,15 @@ export class ArticleLibraryRepository {
   private async createSchema(store: relationalStore.RdbStore): Promise<void> {
     await store.executeSql(`CREATE TABLE IF NOT EXISTS ${ARTICLE_TABLE} (
       id TEXT PRIMARY KEY, source_url TEXT NOT NULL, canonical_url TEXT NOT NULL,
-      title TEXT NOT NULL, excerpt TEXT NOT NULL, created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL, failure INTEGER NOT NULL, failure_message TEXT NOT NULL
+      title TEXT NOT NULL, author TEXT NOT NULL DEFAULT '', excerpt TEXT NOT NULL,
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+      reading_position INTEGER NOT NULL DEFAULT 0, tags_json TEXT NOT NULL DEFAULT '[]',
+      is_archived INTEGER NOT NULL DEFAULT 0, failure INTEGER NOT NULL, failure_message TEXT NOT NULL
     )`);
     await store.executeSql(`CREATE TABLE IF NOT EXISTS ${CONTENT_TABLE} (
       article_id TEXT PRIMARY KEY, html_path TEXT NOT NULL, markdown_path TEXT NOT NULL,
-      image_directory_path TEXT NOT NULL, extracted_at INTEGER NOT NULL
+      image_directory_path TEXT NOT NULL, extracted_at INTEGER NOT NULL,
+      image_saved_count INTEGER NOT NULL DEFAULT 0, image_failed_count INTEGER NOT NULL DEFAULT 0
     )`);
     await store.executeSql(`CREATE TABLE IF NOT EXISTS article_note (
       id TEXT PRIMARY KEY, article_id TEXT NOT NULL, body TEXT NOT NULL,
@@ -378,15 +430,52 @@ export class ArticleLibraryRepository {
     )`);
   }
 
+  private async migrateSchema(store: relationalStore.RdbStore): Promise<void> {
+    await this.addColumnIfMissing(store, ARTICLE_TABLE, 'author', "TEXT NOT NULL DEFAULT ''");
+    await this.addColumnIfMissing(store, ARTICLE_TABLE, 'reading_position', 'INTEGER NOT NULL DEFAULT 0');
+    await this.addColumnIfMissing(store, ARTICLE_TABLE, 'tags_json', "TEXT NOT NULL DEFAULT '[]'");
+    await this.addColumnIfMissing(store, ARTICLE_TABLE, 'is_archived', 'INTEGER NOT NULL DEFAULT 0');
+    await this.addColumnIfMissing(store, CONTENT_TABLE, 'image_saved_count', 'INTEGER NOT NULL DEFAULT 0');
+    await this.addColumnIfMissing(store, CONTENT_TABLE, 'image_failed_count', 'INTEGER NOT NULL DEFAULT 0');
+  }
+
+  private async addColumnIfMissing(
+    store: relationalStore.RdbStore,
+    table: string,
+    column: string,
+    definition: string
+  ): Promise<void> {
+    const result: relationalStore.ResultSet = await store.querySql(`PRAGMA table_info(${table})`, []);
+    let exists: boolean = false;
+    try {
+      while (result.goToNextRow()) {
+        if (result.getString(result.getColumnIndex('name')) === column) {
+          exists = true;
+          break;
+        }
+      }
+    } finally {
+      result.close();
+    }
+    if (!exists) {
+      await store.executeSql(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+      Logger.info(TAG, `Migrated ${table}.${column}`);
+    }
+  }
+
   private readSavedArticle(result: relationalStore.ResultSet): SavedArticle {
     return cloneSavedArticle({
       id: result.getString(result.getColumnIndex('id')),
       sourceUrl: result.getString(result.getColumnIndex('source_url')),
       canonicalUrl: result.getString(result.getColumnIndex('canonical_url')),
       title: result.getString(result.getColumnIndex('title')),
+      author: result.getString(result.getColumnIndex('author')),
       excerpt: result.getString(result.getColumnIndex('excerpt')),
       createdAt: result.getLong(result.getColumnIndex('created_at')),
       updatedAt: result.getLong(result.getColumnIndex('updated_at')),
+      readingPosition: result.getLong(result.getColumnIndex('reading_position')),
+      tags: this.decodeTags(result.getString(result.getColumnIndex('tags_json'))),
+      isArchived: result.getLong(result.getColumnIndex('is_archived')) === 1,
       failure: result.getLong(result.getColumnIndex('failure')) as ArticleSaveFailure,
       failureMessage: result.getString(result.getColumnIndex('failure_message'))
     });
@@ -398,6 +487,18 @@ export class ArticleLibraryRepository {
       name: result.getString(result.getColumnIndex('name')),
       createdAt: result.getLong(result.getColumnIndex('created_at'))
     });
+  }
+
+  private decodeTags(raw: string): string[] {
+    try {
+      const decoded: Object = JSON.parse(raw) as Object;
+      return Array.isArray(decoded)
+        ? decoded.filter((tag: Object): boolean => typeof tag === 'string').map((tag: Object): string => String(tag))
+        : [];
+    } catch (error) {
+      Logger.warn(TAG, `Saved article tags were invalid: ${String(error)}`);
+      return [];
+    }
   }
 
   private async writeContent(
@@ -413,13 +514,15 @@ export class ArticleLibraryRepository {
     const markdownPath: string = `${articleDirectory}/article.md`;
     await this.writeText(htmlPath, html);
     await this.writeText(markdownPath, markdown);
-    await ArticleImageStore.persist(images, imageDirectoryPath);
+    const imageResult: ArticleImageStoreResult = await ArticleImageStore.persist(images, imageDirectoryPath);
     return {
       articleId: articleId,
       htmlPath: htmlPath,
       markdownPath: markdownPath,
       imageDirectoryPath: imageDirectoryPath,
-      extractedAt: Date.now()
+      extractedAt: Date.now(),
+      imageSavedCount: imageResult.savedCount,
+      imageFailedCount: imageResult.failedCount
     };
   }
 

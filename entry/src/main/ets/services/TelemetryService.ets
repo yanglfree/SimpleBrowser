@@ -43,11 +43,20 @@ interface ReaderPayload {
  */
 export class TelemetryService {
   private static registered: boolean = false;
-  private static enabled: boolean = true;
+  private static enabled: boolean = false;
+  private static consentResolved: boolean = false;
+  private static pendingStartupMs: number | undefined = undefined;
 
   /** Set from the privacy settings; off disables every write immediately. */
   static setEnabled(enabled: boolean): void {
     TelemetryService.enabled = enabled;
+    TelemetryService.consentResolved = true;
+    const pendingStartupMs: number | undefined = TelemetryService.pendingStartupMs;
+    TelemetryService.pendingStartupMs = undefined;
+    if (enabled && pendingStartupMs !== undefined) {
+      const payload: StartupPayload = { duration_ms: TelemetryService.clamp(pendingStartupMs) };
+      TelemetryService.writeEvent('startup', payload);
+    }
     Logger.info(TAG, `Telemetry ${enabled ? 'enabled' : 'disabled'}`);
   }
 
@@ -75,6 +84,10 @@ export class TelemetryService {
 
   /** Startup is measured from ability creation to first page load. */
   static recordStartup(ms: number): void {
+    if (!TelemetryService.consentResolved) {
+      TelemetryService.pendingStartupMs = TelemetryService.clamp(ms);
+      return;
+    }
     const payload: StartupPayload = { duration_ms: TelemetryService.clamp(ms) };
     TelemetryService.writeEvent('startup', payload);
   }

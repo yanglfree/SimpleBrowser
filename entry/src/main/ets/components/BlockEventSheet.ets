@@ -1,4 +1,10 @@
-import { BlockCategory, BlockEngine, BlockEvent } from '../models/BlockEventModels';
+import {
+  BlockCategory,
+  BlockEngine,
+  BlockEvent,
+  BlockResult,
+  formatBlockEventTime
+} from '../models/BlockEventModels';
 import { AppIcon, IconName } from './AppIcon';
 
 @Component
@@ -61,7 +67,15 @@ export struct BlockEventSheet {
         Text(this.engineLabel(event.engine))
           .fontSize(12)
           .fontColor($r('app.color.text_secondary'))
+        Blank()
+        Text(formatBlockEventTime(event.occurredAt))
+          .fontSize(12)
+          .fontColor($r('app.color.text_secondary'))
       }
+      Text(this.resultLabel(event.result))
+        .fontSize(12)
+        .fontColor($r('app.color.text_secondary'))
+        .width('100%')
       .width('100%')
       Text(event.resourceHost.length > 0 ? event.resourceHost : event.resourceUrl)
         .fontSize(15)
@@ -102,5 +116,11 @@ export struct BlockEventSheet {
     return engine === BlockEngine.OwnRuleEngine
       ? $r('app.string.block_event_engine_own')
       : $r('app.string.block_event_engine_system');
+  }
+
+  private resultLabel(result: BlockResult): Resource {
+    return result === BlockResult.Blocked
+      ? $r('app.string.block_event_result_blocked')
+      : $r('app.string.block_event_result_unknown');
   }
 }

@@ -20,6 +20,10 @@ export interface ExternalOpenRequest {
   rawUrl: string;
   cleanUrl: string;
   title: string;
+  sourceApp: string;
+  disposition: BrowseDisposition;
+  autoReader: boolean;
+  shouldSave: boolean;
   removedTrackingParameters: string[];
 }
 
@@ -42,7 +46,8 @@ const MARKETING_PARAMETERS: string[] = [
 export function createExternalOpenRequest(
   rawUrl: string,
   title: string = '',
-  now: number = Date.now()
+  now: number = Date.now(),
+  sourceApp: string = ''
 ): ExternalOpenRequest | undefined {
   const normalized: string = rawUrl.trim();
   if (!isHttpUrl(normalized)) {
@@ -53,7 +58,7 @@ export function createExternalOpenRequest(
   const fragment: string = split >= 0 ? normalized.substring(split) : '';
   const queryStart: number = beforeFragment.indexOf('?');
   if (queryStart < 0) {
-    return request(now, normalized, normalized, title, []);
+    return request(now, normalized, normalized, title, sourceApp, []);
   }
   const base: string = beforeFragment.substring(0, queryStart);
   const query: string = beforeFragment.substring(queryStart + 1);
@@ -68,7 +73,7 @@ export function createExternalOpenRequest(
     }
   }
   const suffix: string = retained.length > 0 ? `?${retained.join('&')}` : '';
-  return request(now, normalized, `${base}${suffix}${fragment}`, title, removed);
+  return request(now, normalized, `${base}${suffix}${fragment}`, title, sourceApp, removed);
 }
 
 export function restoreTrackingParameters(request: ExternalOpenRequest): string {
@@ -83,6 +88,23 @@ export function dispositionForExternalAction(action: ExternalOpenAction): Browse
     return BrowseDisposition.Disposable;
   }
   return BrowseDisposition.Normal;
+}
+
+export function withExternalOpenAction(
+  request: ExternalOpenRequest,
+  action: ExternalOpenAction
+): ExternalOpenRequest {
+  return {
+    id: request.id,
+    rawUrl: request.rawUrl,
+    cleanUrl: request.cleanUrl,
+    title: request.title,
+    sourceApp: request.sourceApp,
+    disposition: dispositionForExternalAction(action),
+    autoReader: action === ExternalOpenAction.ReadAndClose,
+    shouldSave: action === ExternalOpenAction.SaveArticle,
+    removedTrackingParameters: request.removedTrackingParameters.slice(0)
+  };
 }
 
 export function extractSharedUrl(uri: string | undefined, parameters: Record<string, Object> | undefined): string {
@@ -104,6 +126,7 @@ function request(
   rawUrl: string,
   cleanUrl: string,
   title: string,
+  sourceApp: string,
   removedTrackingParameters: string[]
 ): ExternalOpenRequest {
   return {
@@ -111,6 +134,10 @@ function request(
     rawUrl: rawUrl,
     cleanUrl: cleanUrl,
     title: title.trim(),
+    sourceApp: sourceApp.trim(),
+    disposition: BrowseDisposition.Normal,
+    autoReader: false,
+    shouldSave: false,
     removedTrackingParameters: removedTrackingParameters.slice(0)
   };
 }

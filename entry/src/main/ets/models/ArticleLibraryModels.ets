@@ -14,9 +14,13 @@ export interface SavedArticle {
   sourceUrl: string;
   canonicalUrl: string;
   title: string;
+  author: string;
   excerpt: string;
   createdAt: number;
   updatedAt: number;
+  readingPosition: number;
+  tags: string[];
+  isArchived: boolean;
   failure: ArticleSaveFailure;
   failureMessage: string;
 }
@@ -27,6 +31,8 @@ export interface ArticleContent {
   markdownPath: string;
   imageDirectoryPath: string;
   extractedAt: number;
+  imageSavedCount: number;
+  imageFailedCount: number;
 }
 
 export interface ArticleImageAsset {
@@ -74,9 +80,13 @@ export function cloneSavedArticle(article: SavedArticle): SavedArticle {
     sourceUrl: article.sourceUrl,
     canonicalUrl: article.canonicalUrl,
     title: article.title,
+    author: article.author,
     excerpt: article.excerpt,
     createdAt: article.createdAt,
     updatedAt: article.updatedAt,
+    readingPosition: article.readingPosition,
+    tags: article.tags.slice(0),
+    isArchived: article.isArchived,
     failure: article.failure,
     failureMessage: article.failureMessage
   };

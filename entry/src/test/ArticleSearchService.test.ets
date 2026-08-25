@@ -4,7 +4,8 @@ import { articleMatchesSearch, normalizeArticleSearchTerms } from '../main/ets/s
 
 const ARTICLE: SavedArticle = {
   id: 'article-1', sourceUrl: 'https://example.com/original', canonicalUrl: 'https://example.com/story',
-  title: 'Local reader', excerpt: 'A quiet reading workspace', createdAt: 1, updatedAt: 1,
+  title: 'Local reader', author: 'Author', excerpt: 'A quiet reading workspace', createdAt: 1, updatedAt: 1,
+  readingPosition: 0, tags: ['research'], isArchived: false,
   failure: ArticleSaveFailure.None, failureMessage: ''
 };
 

@@ -329,7 +329,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     webDarkModeExcludedHosts: [],
     sitePermissions: [],
     clearCookiesOnTabClose: false,
-    telemetryEnabled: true,
+    telemetryEnabled: false,
     readerFontSize: 17,
     readerLineHeight: 205,
     readerPaper: ReaderPaper.Sepia
@@ -433,7 +433,7 @@ export function normalizeBrowserSettings(settings: BrowserSettings): BrowserSett
       notifications: SitePermissionDecision.Deny
     })),
     clearCookiesOnTabClose: settings.clearCookiesOnTabClose,
-    telemetryEnabled: settings.telemetryEnabled,
+    telemetryEnabled: settings.telemetryEnabled === true,
     readerFontSize: settings.readerFontSize,
     readerLineHeight: settings.readerLineHeight,
     readerPaper: settings.readerPaper

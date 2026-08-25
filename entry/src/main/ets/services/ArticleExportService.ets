@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit';
 import { util } from '@kit.ArkTS';
 import fs from '@ohos.file.fs';
 import picker from '@ohos.file.picker';
-import { SavedArticle } from '../models/ArticleLibraryModels';
+import { ArticleHighlight, ArticleNote, SavedArticle, Topic } from '../models/ArticleLibraryModels';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'ArticleExportService';
@@ -18,6 +18,20 @@ export interface ArticleExportResult {
   fileName: string;
 }
 
+export interface ArticleExportExtras {
+  notes: ArticleNote[];
+  topics: Topic[];
+  highlights: ArticleHighlight[];
+  imageFailedCount: number;
+}
+
+const EMPTY_EXPORT_EXTRAS: ArticleExportExtras = {
+  notes: [],
+  topics: [],
+  highlights: [],
+  imageFailedCount: 0
+};
+
 /** Exports only content already stored in the local article library. */
 export class ArticleExportService {
   static async exportToPicker(
@@ -26,7 +40,8 @@ export class ArticleExportService {
     markdown: string,
     html: string,
     imageDirectoryPath: string,
-    format: ArticleExportFormat
+    format: ArticleExportFormat,
+    extras: ArticleExportExtras = EMPTY_EXPORT_EXTRAS
   ): Promise<ArticleExportResult | undefined> {
     try {
       const fileName: string = ArticleExportService.fileNameFor(article, format);
@@ -39,9 +54,9 @@ export class ArticleExportService {
         return undefined;
       }
       const text: string = format === ArticleExportFormat.Markdown
-        ? ArticleExportService.markdownDocument(article, markdown)
+        ? ArticleExportService.markdownDocument(article, markdown, extras)
         : ArticleExportService.standaloneHtmlDocument(article,
-          await ArticleExportService.inlineLocalImages(html, imageDirectoryPath));
+          await ArticleExportService.inlineLocalImages(html, imageDirectoryPath), extras);
       const file: fs.File = fs.openSync(uris[0], fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
       try {
         fs.writeSync(file.fd, text);
@@ -55,24 +70,91 @@ export class ArticleExportService {
     }
   }
 
-  static markdownDocument(article: SavedArticle, markdown: string): string {
+  static markdownDocument(
+    article: SavedArticle,
+    markdown: string,
+    extras: ArticleExportExtras = EMPTY_EXPORT_EXTRAS
+  ): string {
     const source: string = article.canonicalUrl.length > 0 ? article.canonicalUrl : article.sourceUrl;
-    return `# ${article.title}\n\nSource: ${source}\n\n${markdown.trim()}\n`;
+    const metadata: string[] = [`Source: ${source}`];
+    if (article.author.length > 0) {
+      metadata.push(`Author: ${article.author}`);
+    }
+    if (article.tags.length > 0) {
+      metadata.push(`Tags: ${article.tags.join(', ')}`);
+    }
+    if (extras.topics.length > 0) {
+      metadata.push(`Topics: ${extras.topics.map((topic: Topic): string => topic.name).join(', ')}`);
+    }
+    return [
+      `# ${article.title}`,
+      metadata.join('\n'),
+      markdown.trim(),
+      ArticleExportService.markdownAnnotations(extras)
+    ].filter((section: string): boolean => section.length > 0).join('\n\n') + '\n';
   }
 
-  static standaloneHtmlDocument(article: SavedArticle, html: string): string {
+  static standaloneHtmlDocument(
+    article: SavedArticle,
+    html: string,
+    extras: ArticleExportExtras = EMPTY_EXPORT_EXTRAS
+  ): string {
     const baseUrl: string = ArticleExportService.escapeAttribute(
       article.canonicalUrl.length > 0 ? article.canonicalUrl : article.sourceUrl
     );
     const title: string = ArticleExportService.escapeHtml(article.title);
+    const annotations: string = ArticleExportService.htmlAnnotations(extras);
     const cleanedHtml: string = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
     if (/<!doctype\s+html/i.test(cleanedHtml)) {
-      return ArticleExportService.addDocumentMetadata(cleanedHtml, baseUrl, title);
+      return ArticleExportService.appendToBody(
+        ArticleExportService.addDocumentMetadata(cleanedHtml, baseUrl, title), annotations
+      );
     }
     if (/<html\b/i.test(cleanedHtml)) {
-      return `<!doctype html>\n${ArticleExportService.addDocumentMetadata(cleanedHtml, baseUrl, title)}`;
+      const document: string = ArticleExportService.addDocumentMetadata(cleanedHtml, baseUrl, title);
+      return `<!doctype html>\n${ArticleExportService.appendToBody(document, annotations)}`;
     }
-    return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><base href="${baseUrl}"><title>${title}</title></head><body>${cleanedHtml}</body></html>`;
+    return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><base href="${baseUrl}"><title>${title}</title></head><body>${cleanedHtml}${annotations}</body></html>`;
+  }
+
+  private static markdownAnnotations(extras: ArticleExportExtras): string {
+    const sections: string[] = [];
+    if (extras.notes.length > 0) {
+      sections.push(`## Notes\n\n${extras.notes.map((note: ArticleNote): string => `- ${note.body}`).join('\n')}`);
+    }
+    if (extras.highlights.length > 0) {
+      sections.push(`## Highlights\n\n${extras.highlights
+        .map((highlight: ArticleHighlight): string => `> ${highlight.textQuote}`).join('\n\n')}`);
+    }
+    if (extras.imageFailedCount > 0) {
+      sections.push(`> ${extras.imageFailedCount} image(s) could not be saved for offline export.`);
+    }
+    return sections.join('\n\n');
+  }
+
+  private static htmlAnnotations(extras: ArticleExportExtras): string {
+    const sections: string[] = [];
+    if (extras.notes.length > 0) {
+      const notes: string = extras.notes.map((note: ArticleNote): string =>
+        `<li>${ArticleExportService.escapeHtml(note.body)}</li>`).join('');
+      sections.push(`<section><h2>Notes</h2><ul>${notes}</ul></section>`);
+    }
+    if (extras.highlights.length > 0) {
+      const highlights: string = extras.highlights.map((highlight: ArticleHighlight): string =>
+        `<blockquote>${ArticleExportService.escapeHtml(highlight.textQuote)}</blockquote>`).join('');
+      sections.push(`<section><h2>Highlights</h2>${highlights}</section>`);
+    }
+    if (extras.imageFailedCount > 0) {
+      sections.push(`<p>${extras.imageFailedCount} image(s) could not be saved for offline export.</p>`);
+    }
+    return sections.length > 0 ? `<aside data-zhuoyue-annotations>${sections.join('')}</aside>` : '';
+  }
+
+  private static appendToBody(html: string, content: string): string {
+    if (content.length === 0) {
+      return html;
+    }
+    return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${content}</body>`) : `${html}${content}`;
   }
 
   /** Replaces captured relative image paths with data URLs so the HTML is portable as one file. */

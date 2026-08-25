@@ -9,6 +9,12 @@ import {
 
 export default function browserSettingsTest(): void {
   describe('BrowserSettings persistence shape', (): void => {
+    it('keeps telemetry disabled until the user explicitly opts in', 0, (): void => {
+      const settings: BrowserSettings = defaultBrowserSettings();
+
+      expect(settings.telemetryEnabled).assertFalse();
+    });
+
     it('clones the persisted schema shape without sharing mutable arrays', 0, (): void => {
       const settings: BrowserSettings = defaultBrowserSettings();
       settings.blockAds = false;

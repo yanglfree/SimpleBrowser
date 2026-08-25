@@ -118,6 +118,7 @@ import { BrowserViewModel } from '../viewmodels/BrowserViewModel';
 import { BlockCategory, BlockEngine, BlockEvent, createBlockEvent } from '../models/BlockEventModels';
 import { classifyBlockCategory } from '../services/BlockEventClassifier';
 import { BlockEventStore } from '../services/BlockEventStore';
+import { PageIssueDiagnostic, PageIssueDiagnosticService } from '../services/PageIssueDiagnosticService';
 import { SiteControl, SiteControlMode, defaultSiteControl } from '../models/SiteControlModels';
 import {
   ArticleHighlight,
@@ -148,10 +149,10 @@ import { FoldStateService } from '../services/FoldStateService';
 import { MultiWindowService } from '../services/MultiWindowService';
 import {
   BrowseDisposition,
-  dispositionForExternalAction,
   ExternalOpenAction,
   ExternalOpenRequest,
-  restoreTrackingParameters
+  restoreTrackingParameters,
+  withExternalOpenAction
 } from '../models/ExternalOpenRequest';
 import { ExternalOpenRouter } from '../services/ExternalOpenRouter';
 
@@ -283,9 +284,11 @@ interface ReaderPalette {
 
 interface ArticleCaptureSnapshot {
   title: string;
+  author: string;
   canonicalUrl: string;
   html: string;
   text: string;
+  markdown: string;
   images: ArticleImageAsset[];
 }
 
@@ -525,6 +528,7 @@ struct Index {
   }
 
   aboutToDisappear(): void {
+    void this.persistArticleReadingPosition();
     this.windowMetricsService.stop();
     this.foldStateService.stop();
     DownloadService.unsubscribe(this.downloadListener);
@@ -1481,6 +1485,7 @@ struct Index {
         onToggleSite: (): void => { this.toggleSiteBlocking(); },
         onOpenEvents: (): void => { this.openBlockEvents(); },
         onOpenSiteControls: (): void => { this.openSiteControls(); },
+        onReportIssue: (): void => { this.reportPageIssue(); },
         onOpenSettings: (): void => { this.sheet = Overlay.Settings; }
       })
         .transition(this.sheetTransition())
@@ -1571,13 +1576,15 @@ struct Index {
         availableWidthVp: this.articleWorkbenchWidth(),
         inspectorVisible: this.articleInspectorVisible,
         initialReadingScrollOffset: this.articleReadingScrollOffset,
-        onDismiss: (): void => { this.sheet = Overlay.None; },
+        onDismiss: (): void => this.dismissArticleLibrary(),
         onSelect: (articleId: string): void => { void this.openSavedArticle(articleId); },
         onBackToList: (): void => this.closeSavedArticle(),
         onExport: (format: ArticleExportFormat): void => { void this.exportSelectedArticle(format); },
         onSearch: (query: string): void => { void this.searchSavedArticles(query); },
         onAddNote: (body: string): void => { void this.addArticleNote(body); },
         onAddTopic: (name: string): void => { void this.addArticleTopic(name); },
+        onUpdateTags: (tags: string[]): void => { void this.updateArticleTags(tags); },
+        onArchive: (isArchived: boolean): void => { void this.setSelectedArticleArchived(isArchived); },
         onAddHighlight: (quote: string): void => { void this.addArticleHighlight(quote); },
         onInspectorVisibilityChange: (visible: boolean): void => { this.articleInspectorVisible = visible; },
         onReadingScroll: (offset: number): void => { this.articleReadingScrollOffset = offset; }
@@ -1958,23 +1965,24 @@ struct Index {
           ? ExternalOpenAction.SaveArticle
           : ExternalOpenAction.CleanOpen;
     const useOriginalUrl: boolean = index === 4;
-    const url: string = useOriginalUrl ? restoreTrackingParameters(request) : request.cleanUrl;
-    const disposition: BrowseDisposition = dispositionForExternalAction(action);
-    const isPrivate: boolean = disposition !== BrowseDisposition.Normal;
+    const resolvedRequest: ExternalOpenRequest = withExternalOpenAction(request, action);
+    const url: string = useOriginalUrl ? restoreTrackingParameters(resolvedRequest) : resolvedRequest.cleanUrl;
+    const isPrivate: boolean = resolvedRequest.disposition !== BrowseDisposition.Normal;
     const tab: BrowserTab | undefined = this.viewModel.addTab(url, isPrivate);
     if (tab === undefined) {
       return;
     }
     this.liveTabIds = this.liveTabIds.concat([tab.id]);
     this.isCapsuleHidden = false;
-    if (action === ExternalOpenAction.ReadAndClose) {
+    if (resolvedRequest.disposition === BrowseDisposition.Disposable) {
       this.disposableReaderTabId = tab.id;
     }
-    if (action === ExternalOpenAction.SaveArticle) {
+    if (resolvedRequest.shouldSave) {
       this.pendingArticleSaveTabId = tab.id;
     }
     void this.activateTab(tab.id);
     this.syncState();
+    TelemetryService.reportActionUsage('share_open_success');
     void this.enforceLiveWebViewLimit(this.liveWebViewLimit());
   }
 
@@ -2025,6 +2033,44 @@ struct Index {
     this.siteStats = this.viewModel.getSiteBlocked(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
     this.sheet = Overlay.Block;
+  }
+
+  private reportPageIssue(): void {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined) {
+      return;
+    }
+    const diagnostic: PageIssueDiagnostic = PageIssueDiagnosticService.create(
+      this.appVersionName,
+      this.windowMetrics,
+      tab.loadError,
+      this.blockEventStore.list(tab.id),
+      this.viewModel.siteControlForUrl(tab.url)
+    );
+    const summary: string = PageIssueDiagnosticService.summary(diagnostic);
+    try {
+      this.getUIContext().showAlertDialog({
+        title: $r('app.string.page_issue_report_title'),
+        message: summary,
+        primaryButton: {
+          value: $r('app.string.page_issue_report_copy'),
+          action: (): void => { void this.copyPageIssueDiagnostic(summary); }
+        },
+        secondaryButton: {
+          value: $r('app.string.cancel'),
+          action: (): void => {}
+        }
+      });
+    } catch (error) {
+      Logger.warn(TAG, `Page issue confirmation unavailable: ${String(error)}`);
+    }
+  }
+
+  private async copyPageIssueDiagnostic(summary: string): Promise<void> {
+    const outcome: ShareOutcome = await ShareService.copy(summary);
+    if (outcome === ShareOutcome.Copied) {
+      this.showToast($r('app.string.page_issue_report_copied'));
+    }
   }
 
   private openBlockPresentation(): void {
@@ -2386,6 +2432,13 @@ struct Index {
           this.sheet = Overlay.Find;
         }
         break;
+      case BrowserShortcut.SaveArticle:
+        if (this.isActiveHome() || this.activeTab()?.isPrivate === true) {
+          handled = false;
+        } else {
+          void this.captureArticleForLibrary(this.activeTabId);
+        }
+        break;
       default:
         handled = false;
         break;
@@ -2584,7 +2637,10 @@ struct Index {
     this.selectedArticle = article;
     this.selectedArticleMarkdown = '';
     this.isArticleLoading = true;
-    this.articleReadingScrollOffset = 0;
+    this.articleReadingScrollOffset = article.readingPosition;
+    if (article.isArchived) {
+      TelemetryService.reportActionUsage('archive_revisit');
+    }
     try {
       const markdown: string | undefined = await this.viewModel.readSavedArticleMarkdown(articleId);
       if (this.selectedArticle?.id !== articleId) {
@@ -2619,6 +2675,7 @@ struct Index {
   }
 
   private closeSavedArticle(): void {
+    void this.persistArticleReadingPosition();
     this.selectedArticle = undefined;
     this.selectedArticleMarkdown = '';
     this.isArticleLoading = false;
@@ -2626,6 +2683,23 @@ struct Index {
     this.articleTopics = [];
     this.articleHighlights = [];
     this.articleReadingScrollOffset = 0;
+  }
+
+  private dismissArticleLibrary(): void {
+    void this.persistArticleReadingPosition();
+    this.sheet = Overlay.None;
+  }
+
+  private async persistArticleReadingPosition(): Promise<void> {
+    const articleId: string | undefined = this.selectedArticle?.id;
+    if (articleId === undefined) {
+      return;
+    }
+    try {
+      await this.viewModel.updateArticleReadingPosition(articleId, this.articleReadingScrollOffset);
+    } catch (error) {
+      Logger.warn(TAG, `Article reading position could not be saved: ${String(error)}`);
+    }
   }
 
   private async addArticleNote(body: string): Promise<void> {
@@ -2637,6 +2711,7 @@ struct Index {
       const note: ArticleNote | undefined = await this.viewModel.addArticleNote(article.id, body);
       if (note !== undefined && this.selectedArticle?.id === article.id) {
         this.articleNotes = await this.viewModel.listArticleNotes(article.id);
+        TelemetryService.reportActionUsage('article_note_created');
       }
     } catch (error) {
       Logger.warn(TAG, `Article note could not be saved: ${String(error)}`);
@@ -2658,6 +2733,39 @@ struct Index {
       Logger.warn(TAG, `Article topic could not be saved: ${String(error)}`);
       this.showToast($r('app.string.article_library_unavailable'));
     }
+  }
+
+  private async updateArticleTags(tags: string[]): Promise<void> {
+    const article: SavedArticle | undefined = this.selectedArticle;
+    if (article === undefined) {
+      return;
+    }
+    try {
+      await this.viewModel.updateArticleTags(article.id, tags);
+      await this.refreshSelectedArticle(article.id);
+    } catch (error) {
+      Logger.warn(TAG, `Article tags could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.article_library_unavailable'));
+    }
+  }
+
+  private async setSelectedArticleArchived(isArchived: boolean): Promise<void> {
+    const article: SavedArticle | undefined = this.selectedArticle;
+    if (article === undefined) {
+      return;
+    }
+    try {
+      await this.viewModel.setArticleArchived(article.id, isArchived);
+      await this.refreshSelectedArticle(article.id);
+    } catch (error) {
+      Logger.warn(TAG, `Article archive state could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.article_library_unavailable'));
+    }
+  }
+
+  private async refreshSelectedArticle(articleId: string): Promise<void> {
+    this.articles = await this.viewModel.listSavedArticles();
+    this.selectedArticle = this.articles.find((article: SavedArticle): boolean => article.id === articleId);
   }
 
   private async addArticleHighlight(quote: string): Promise<void> {
@@ -2688,6 +2796,7 @@ struct Index {
     const result: ArticleExportResult | undefined = await this.viewModel.exportArticle(article.id, format);
     if (result !== undefined) {
       this.showToast($r('app.string.article_exported'));
+      TelemetryService.reportActionUsage('article_exported');
     }
   }
 
@@ -2942,10 +3051,13 @@ struct Index {
     if (controller === undefined) {
       return;
     }
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     const applied: string = await this.runScript(controller, this.readerScript());
     if (applied.includes('no-article') || !applied.includes('reader')) {
       Logger.info(TAG, 'Reader mode found no article to reflow');
-      TelemetryService.reportReaderExtraction(false);
+      if (tab?.isPrivate !== true) {
+        TelemetryService.reportReaderExtraction(false);
+      }
       try {
         this.getUIContext().getPromptAction().showToast({ message: $r('app.string.reader_mode_unavailable') });
       } catch (error) {
@@ -2956,9 +3068,10 @@ struct Index {
       }
       return;
     }
-    TelemetryService.reportReaderExtraction(true);
+    if (tab?.isPrivate !== true) {
+      TelemetryService.reportReaderExtraction(true);
+    }
     this.viewModel.updateTab(id, { isReader: true });
-    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (tab !== undefined && tab.readerScrollY > 0) {
       await this.prepareScrollResume(tab);
     }
@@ -3558,8 +3671,9 @@ struct Index {
   }
 
   private async handlePageEnd(id: string, url: string): Promise<void> {
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     const startedAt: number | undefined = this.pageLoadStartedAt.get(id);
-    if (startedAt !== undefined) {
+    if (startedAt !== undefined && tab?.isPrivate !== true) {
       TelemetryService.recordPageLoad(displayHost(url), Date.now() - startedAt);
     }
     // Chromium commits an error page like any other document, so this fires
@@ -3577,7 +3691,6 @@ struct Index {
     // The login flow often finishes here; persist cookies now rather than wait
     // for ArkWeb's 30s disk flush so a quick tab close keeps the session.
     PrivacyService.flushCookies();
-    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (tab !== undefined) {
       await this.viewModel.recordPageVisit(tab);
       this.viewModel.persistSession();
@@ -3619,10 +3732,18 @@ struct Index {
       const raw: string = await this.runScript(controller, ARTICLE_CAPTURE_SCRIPT);
       const snapshot: ArticleCaptureSnapshot = JSON.parse(raw) as ArticleCaptureSnapshot;
       await this.viewModel.saveExtractedArticle(
-        tab.url, snapshot.canonicalUrl, snapshot.title, snapshot.text, snapshot.html, snapshot.images ?? []
+        tab.url, snapshot.canonicalUrl, snapshot.title, snapshot.author, snapshot.text,
+        snapshot.html, snapshot.markdown, snapshot.images ?? []
       );
+      TelemetryService.reportActionUsage('article_save_success');
     } catch (error) {
       Logger.warn(TAG, `Article capture failed: ${String(error)}`);
+      TelemetryService.reportActionUsage('article_save_failed');
+      try {
+        await this.viewModel.saveArticleFailure(tab.url, tab.title, 'Article extraction failed');
+      } catch (storageError) {
+        Logger.warn(TAG, `Article failure record could not be saved: ${String(storageError)}`);
+      }
     }
   }
 

@@ -21,6 +21,7 @@ import articleSearchServiceTest from './ArticleSearchService.test';
 import articleImageStoreTest from './ArticleImageStore.test';
 import blockEventStoreTest from './BlockEventStore.test';
 import siteControlModelsTest from './SiteControlModels.test';
+import pageIssueDiagnosticServiceTest from './PageIssueDiagnosticService.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -40,6 +41,7 @@ export default function testsuite(): void {
   articleWorkbenchModelsTest();
   blockEventStoreTest();
   siteControlModelsTest();
+  pageIssueDiagnosticServiceTest();
   articleExportServiceTest();
   articleLibraryModelsTest();
   articleHighlightLocatorTest();

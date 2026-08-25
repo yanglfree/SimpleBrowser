@@ -9,7 +9,8 @@ export enum BrowserShortcut {
   NextTab = 5,
   PreviousTab = 6,
   Reload = 7,
-  Find = 8
+  Find = 8,
+  SaveArticle = 9
 }
 
 export interface BrowserShortcutInput {
@@ -36,6 +37,8 @@ export function resolveBrowserShortcut(input: BrowserShortcutInput): BrowserShor
       return input.shift ? BrowserShortcut.None : BrowserShortcut.Reload;
     case KeyCode.KEYCODE_F:
       return input.shift ? BrowserShortcut.None : BrowserShortcut.Find;
+    case KeyCode.KEYCODE_S:
+      return input.shift ? BrowserShortcut.None : BrowserShortcut.SaveArticle;
     default:
       return BrowserShortcut.None;
   }

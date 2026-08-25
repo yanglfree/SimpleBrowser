@@ -11,9 +11,13 @@ function articleWithFailure(failure: ArticleSaveFailure): SavedArticle {
     sourceUrl: 'https://example.com/original',
     canonicalUrl: 'https://example.com/story',
     title: 'A story',
+    author: 'Author',
     excerpt: 'Excerpt',
     createdAt: 1,
     updatedAt: 1,
+    readingPosition: 0,
+    tags: [],
+    isArchived: false,
     failure: failure,
     failureMessage: ''
   };
