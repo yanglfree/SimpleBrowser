@@ -41,7 +41,7 @@ export class ArticleLibraryRepository {
     };
     this.store = await relationalStore.getRdbStore(context, config);
     this.filesDirectory = `${context.filesDir}/${CONTENT_DIRECTORY}`;
-    await fileIo.mkdir(this.filesDirectory, true);
+    await this.ensureDirectory(this.filesDirectory);
     await this.createSchema(this.store);
     await this.migrateSchema(this.store);
   }
@@ -521,7 +521,7 @@ export class ArticleLibraryRepository {
   ): Promise<ArticleContent> {
     const articleDirectory: string = `${this.filesDirectory}/${articleId}`;
     const imageDirectoryPath: string = `${articleDirectory}/images`;
-    await fileIo.mkdir(imageDirectoryPath, true);
+    await this.ensureDirectory(imageDirectoryPath);
     const htmlPath: string = `${articleDirectory}/article.html`;
     const markdownPath: string = `${articleDirectory}/article.md`;
     await this.writeText(htmlPath, html);
@@ -545,6 +545,12 @@ export class ArticleLibraryRepository {
       await fileIo.write(file.fd, content);
     } finally {
       await fileIo.close(file.fd);
+    }
+  }
+
+  private async ensureDirectory(path: string): Promise<void> {
+    if (!await fileIo.access(path)) {
+      await fileIo.mkdir(path, true);
     }
   }
 
