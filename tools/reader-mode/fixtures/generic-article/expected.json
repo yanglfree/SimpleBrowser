@@ -1,0 +1,10 @@
+{
+  "name": "Generic semantic article",
+  "expectedResult": "complete",
+  "expectedStrategy": "heuristic",
+  "minimumTextLength": 850,
+  "minimumParagraphs": 6,
+  "minimumImages": 0,
+  "requiredAnchors": ["FIRST_ANCHOR", "MIDDLE_ANCHOR", "LAST_ANCHOR"],
+  "forbiddenAnchors": ["GLOBAL_NAVIGATION_NOISE", "COMMENT_NOISE", "SIDEBAR_NOISE"]
+}

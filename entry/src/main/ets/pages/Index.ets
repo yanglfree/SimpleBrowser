@@ -163,6 +163,10 @@ import { ExternalOpenRouter } from '../services/ExternalOpenRouter';
 import { ProFeature } from '../models/ProModels';
 import { ProBillingAdapter } from '../services/ProBillingAdapter';
 import { ProEntitlementService } from '../services/ProEntitlementService';
+import {
+  ReaderExtractionReport,
+  parseReaderExtractionReport
+} from '../models/ReaderExtractionModels';
 
 const TAG: string = 'Index';
 const RECENTLY_CLOSED_TAB_LIMIT: number = 10;
@@ -3137,10 +3141,11 @@ struct Index {
     }
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     const applied: string = await this.runScript(controller, this.readerScript());
-    if (applied.includes('no-article') || !applied.includes('reader')) {
+    const report: ReaderExtractionReport = parseReaderExtractionReport(applied);
+    if (report.result === 'unavailable' || !applied.includes('reader')) {
       Logger.info(TAG, 'Reader mode found no article to reflow');
       if (tab?.isPrivate !== true) {
-        TelemetryService.reportReaderExtraction(false);
+        TelemetryService.reportReaderExtraction(report, rawHost(tab?.url ?? ''));
       }
       try {
         this.getUIContext().getPromptAction().showToast({ message: $r('app.string.reader_mode_unavailable') });
@@ -3153,7 +3158,7 @@ struct Index {
       return;
     }
     if (tab?.isPrivate !== true) {
-      TelemetryService.reportReaderExtraction(true);
+      TelemetryService.reportReaderExtraction(report, rawHost(tab?.url ?? ''));
     }
     this.viewModel.updateTab(id, { isReader: true });
     if (tab !== undefined && tab.readerScrollY > 0) {

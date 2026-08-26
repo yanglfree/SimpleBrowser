@@ -17,3 +17,4 @@ entry/.test/
 iap_paywall_kit/build/
 iap_paywall_kit/.test/
 .DS_Store
+node_modules/

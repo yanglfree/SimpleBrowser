@@ -1,6 +1,11 @@
 import { errorManager } from '@kit.AbilityKit';
 import { hiAppEvent } from '@kit.PerformanceAnalysisKit';
 import { Logger } from '../utils/Logger';
+import {
+  ReaderExtractionReport,
+  ReaderExtractionBuckets,
+  readerExtractionBuckets
+} from '../models/ReaderExtractionModels';
 
 const TAG: string = 'TelemetryService';
 const EVENT_DOMAIN: string = 'dolphin_browser';
@@ -29,7 +34,14 @@ interface ActionUsagePayload {
 }
 
 interface ReaderPayload {
-  success: boolean;
+  result: string;
+  strategy: string;
+  host: string;
+  candidate_chars: string;
+  output_ratio: string;
+  paragraphs: string;
+  image_count: number;
+  duration_ms: number;
 }
 
 /**
@@ -110,12 +122,19 @@ export class TelemetryService {
     TelemetryService.writeEvent('memory_pressure', payload);
   }
 
-  /**
-   * Reader-mode extraction outcome. Success/failure counts let the >85%
-   * acceptance metric be measured from real usage without harvesting content.
-   */
-  static reportReaderExtraction(success: boolean): void {
-    const payload: ReaderPayload = { success: success };
+  /** Records only the host and coarse quality metrics, never page or article content. */
+  static reportReaderExtraction(report: ReaderExtractionReport, host: string): void {
+    const buckets: ReaderExtractionBuckets = readerExtractionBuckets(report);
+    const payload: ReaderPayload = {
+      result: report.result,
+      strategy: report.strategy,
+      host: TelemetryService.trim(host.toLowerCase(), 120),
+      candidate_chars: buckets.candidateChars,
+      output_ratio: buckets.outputRatio,
+      paragraphs: buckets.paragraphs,
+      image_count: Math.min(1000, Math.max(0, report.imageCount)),
+      duration_ms: TelemetryService.clamp(report.durationMs)
+    };
     TelemetryService.writeEvent('reader_extraction', payload);
   }
 

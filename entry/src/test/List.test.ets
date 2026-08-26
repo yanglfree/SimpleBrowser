@@ -26,6 +26,7 @@ import proModelsTest from './ProModels.test';
 import privateTaskPersistenceTest from './PrivateTaskPersistence.test';
 import browserReportedBugsTest from './BrowserReportedBugs.test';
 import readerModeRegressionTest from './ReaderModeRegression.test';
+import readerExtractionModelsTest from './ReaderExtractionModels.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -56,4 +57,5 @@ export default function testsuite(): void {
   privateTaskPersistenceTest();
   browserReportedBugsTest();
   readerModeRegressionTest();
+  readerExtractionModelsTest();
 }

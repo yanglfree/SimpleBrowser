@@ -1,0 +1,12 @@
+[
+  {
+    "name": "WeChat InfoQ Harness article",
+    "url": "https://mp.weixin.qq.com/s/mh8XQH5oDk5gq4EZq6oMlQ",
+    "minimumTextLength": 9000,
+    "requiredAnchors": [
+      "从 AI Coding 走向 AI 全链路",
+      "用混合 Agent 架构对抗黑盒与随机漂移",
+      "当需求边界足够清晰"
+    ]
+  }
+]

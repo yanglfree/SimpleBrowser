@@ -1,0 +1,10 @@
+{
+  "name": "Non-article directory",
+  "expectedResult": "unavailable",
+  "expectedStrategy": "none",
+  "minimumTextLength": 0,
+  "minimumParagraphs": 0,
+  "minimumImages": 0,
+  "requiredAnchors": [],
+  "forbiddenAnchors": []
+}

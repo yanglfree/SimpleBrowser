@@ -1,0 +1,10 @@
+{
+  "name": "Full-document paragraph fallback",
+  "expectedResult": "partial",
+  "expectedStrategy": "paragraph_fallback",
+  "minimumTextLength": 2700,
+  "minimumParagraphs": 21,
+  "minimumImages": 0,
+  "requiredAnchors": ["FIRST_ANCHOR", "MIDDLE_ANCHOR", "LAST_ANCHOR"],
+  "forbiddenAnchors": []
+}

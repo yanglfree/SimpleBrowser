@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta property="og:title" content="WeChat long-form regression fixture">
+  <title>WeChat long-form regression fixture</title>
+</head>
+<body>
+  <div class="rich_media_area_primary">
+    <div id="js_content" class="rich_media_content js_underline_content">
+      <section><span>作者｜ZhuoBrowser Reader QA</span></section>
+      <h2>FIRST_ANCHOR Reader extraction begins</h2>
+      <p>Reader mode must preserve the complete article rather than treating the first group of long paragraphs as the whole story. This opening paragraph establishes a stable beginning anchor for the golden fixture.</p>
+      <p>A semantic platform container should outrank arbitrary content blocks. The extractor must copy the complete body before removing navigation, comments, recommendations, forms, scripts, and other page chrome.</p>
+      <p>Long-form pages frequently combine paragraphs, sections, images, emphasized spans, lists, and headings. Candidate scoring must not depend on one specific publishing template or on detached innerText alone.</p>
+      <p>Changing font size, line height, or paper color must restyle the extracted article without running a second extraction that can select a different candidate or lose the saved scroll position.</p>
+      <p>Golden fixtures are deterministic. A frozen DOM makes failures reproducible even when the live publisher changes markup, requires authentication, performs an anti-bot redirect, or removes the original page.</p>
+      <p>Completeness is not the same as returning a non-empty string. A partial result with only the opening paragraphs is a failure when the source contains a much longer body and important material near the end.</p>
+      <h2>MIDDLE_ANCHOR Quality gates are measurable</h2>
+      <p>The middle anchor catches prefix-only extraction. Tests also check paragraph count, output length, retained ratio, image preservation, and the absence of known navigation or recommendation text.</p>
+      <p>Reader extraction and offline article capture must share the same candidate selection and cleanup core. Different wrappers may render HTML or generate Markdown, but they must begin with the same extracted node.</p>
+      <p>Fallback extraction may combine valid paragraphs when no semantic container exists, but it must inspect the entire document. It must never stop after an arbitrary character budget and silently report success.</p>
+      <p>Unknown pages can return partial or unavailable. Explicit uncertainty is safer than presenting a truncated document as complete, because telemetry and user feedback can then distinguish quality from availability.</p>
+      <p>Privacy-safe metrics contain only the host and coarse numeric buckets. They never contain a page path, title, extracted sentence, image URL, selected text, form value, or any other article content.</p>
+      <p>Dynamic browser canaries detect publisher drift, while local fixtures remain the release gate. A network failure is recorded separately and cannot be confused with a regression in the extraction algorithm.</p>
+      <p>Device tests serve the same fixture over a local HTTP endpoint so ArkWeb exercises its real JavaScript and DOM behavior. Build success alone does not prove that reader interaction works on hardware.</p>
+      <p>Every reported failure becomes a permanent fixture. This turns production discoveries into durable coverage and prevents a later scoring adjustment from reopening an already repaired class of data loss.</p>
+      <p>Clean output should retain legitimate technical prose even when a class name happens to contain a suspicious substring. Noise removal must use explicit page chrome signals and avoid broad destructive guesses.</p>
+      <p>Images using data-src are normalized before rendering so lazy-loaded illustrations remain available. Unsafe scripts, event handlers, javascript links, forms, and embedded frames are excluded from the result.</p>
+      <p>The extraction result includes the chosen strategy, candidate size, output size, retained ratio, paragraph count, image count, and elapsed time. These fields support tests and coarse telemetry.</p>
+      <p>Repeated extraction against the same frozen DOM must produce the same normalized text and quality classification. Determinism makes regression diagnosis fast and prevents flaky release gates.</p>
+      <p>Negative fixtures such as search pages and navigation directories ensure that a larger recall target does not create an unacceptable false-positive rate for pages that are not readable articles.</p>
+      <h2>LAST_ANCHOR Complete articles reach their conclusion</h2>
+      <p>The final anchor proves the reader retained the conclusion. When all required anchors, structure thresholds, safety checks, and quality ratios pass, the fixture can be classified as complete.</p>
+      <img data-src="https://example.com/reader-diagram.png" alt="Reader diagram">
+    </div>
+  </div>
+</body>
+</html>

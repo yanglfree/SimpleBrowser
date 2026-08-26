@@ -1,0 +1,14 @@
+{
+  "name": "WeChat long-form article",
+  "expectedResult": "complete",
+  "expectedStrategy": "site_adapter",
+  "minimumTextLength": 3000,
+  "minimumParagraphs": 20,
+  "minimumImages": 1,
+  "requiredAnchors": [
+    "FIRST_ANCHOR",
+    "MIDDLE_ANCHOR",
+    "LAST_ANCHOR"
+  ],
+  "forbiddenAnchors": []
+}

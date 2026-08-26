@@ -1,0 +1,13 @@
+{
+  "name": "zhuobrowser-reader-mode-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test reader-mode.test.mjs",
+    "test:live": "node live-canary.mjs",
+    "serve": "node fixture-server.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}
