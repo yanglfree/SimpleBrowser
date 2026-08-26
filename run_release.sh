@@ -9,6 +9,33 @@ cd "$(dirname "$0")"
 # 出错时立即退出
 set -e
 
+# Normalize the HarmonyOS command-line toolchain. DevEco Studio may have been
+# removed while its environment variables remain in the parent shell.
+COMMAND_LINE_TOOLS_ROOT="$HOME/Library/Huawei/CommandLineTools"
+if [ ! -d "${DEVECO_HOME:-}" ] || [ ! -d "${DEVECO_SDK_HOME:-}" ]; then
+    COMMAND_LINE_TOOLS_HOME=""
+    for candidate in \
+        "$COMMAND_LINE_TOOLS_ROOT/current" \
+        $(find "$COMMAND_LINE_TOOLS_ROOT" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -r); do
+        if [ -d "$candidate/sdk" ] && [ -x "$candidate/tool/node/bin/node" ]; then
+            COMMAND_LINE_TOOLS_HOME="$candidate"
+            break
+        fi
+    done
+
+    if [ -z "$COMMAND_LINE_TOOLS_HOME" ]; then
+        echo "❌ 未找到 Huawei CommandLineTools，请安装并设置 DEVECO_HOME。"
+        exit 1
+    fi
+
+    export DEVECO_HOME="$COMMAND_LINE_TOOLS_HOME"
+    export DEVECO_TOOLS="$DEVECO_HOME"
+    export DEVECO_NODE_HOME="$DEVECO_TOOLS/tool/node"
+    export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
+    export HVIGORW_HOME="$DEVECO_HOME/hvigor"
+    export NODE_HOME="$DEVECO_NODE_HOME"
+fi
+
 # 定位工具链 -----------------------------------------------------------
 # hvigorw：优先 HVIGORW_HOME / 项目自带 / CommandLineTools / DevEco Studio 内置
 HVIGORW=""
@@ -34,6 +61,7 @@ fi
 HDC=""
 for candidate in \
     "$(command -v hdc 2>/dev/null)" \
+    "${DEVECO_SDK_HOME:-}/default/openharmony/toolchains/hdc" \
     "$HOME/Library/Huawei/CommandLineTools/current/sdk/default/openharmony/toolchains/hdc" \
     "$HOME/Library/OpenHarmony/Sdk/15/toolchains/hdc" \
     "$HOME/Library/OpenHarmony/Sdk/13/toolchains/hdc" \
