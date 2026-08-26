@@ -301,7 +301,7 @@ export struct BrowserWebView {
   }
 
   private updatePullDistance(event: GestureEvent): void {
-    if (this.pullBlocked || !this.isAtTop || this.tab.isLoading || event.offsetY <= 0 ||
+    if (this.tab.isReader || this.pullBlocked || !this.isAtTop || this.tab.isLoading || event.offsetY <= 0 ||
       Math.abs(event.offsetY) < Math.abs(event.offsetX)) {
       this.pullDistance = 0;
       return;
@@ -310,7 +310,7 @@ export struct BrowserWebView {
   }
 
   private finishPull(): void {
-    const shouldRefresh: boolean = this.pullDistance >= 64 && this.isAtTop && !this.tab.isLoading;
+    const shouldRefresh: boolean = !this.tab.isReader && this.pullDistance >= 64 && this.isAtTop && !this.tab.isLoading;
     this.pullDistance = 0;
     this.pullBlocked = false;
     if (shouldRefresh) {

@@ -4059,7 +4059,7 @@ struct Index {
     }
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     const controller: webview.WebviewController | undefined = this.controllers.get(id);
-    if (tab === undefined || controller === undefined || tab.isLoading) {
+    if (tab === undefined || controller === undefined || tab.isLoading || tab.isReader) {
       return;
     }
     this.dismissResumePrompt();
