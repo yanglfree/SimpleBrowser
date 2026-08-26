@@ -42,6 +42,58 @@ export enum ReaderPaper {
   Night = 2
 }
 
+export interface ReaderTheme {
+  background: string;
+  pillBackground: string;
+  pillBorder: string;
+  textPrimary: string;
+  textSecondary: string;
+  border: string;
+  isDark: boolean;
+  body: string;
+  title: string;
+}
+
+export function getReaderTheme(paper: ReaderPaper): ReaderTheme {
+  if (paper === ReaderPaper.White) {
+    return {
+      background: '#FFFFFF',
+      pillBackground: '#F4F3EF',
+      pillBorder: '#E6E3DC',
+      textPrimary: '#1A1A18',
+      textSecondary: '#7A7870',
+      border: '#EAE7E1',
+      isDark: false,
+      body: '#3A3934',
+      title: '#1A1A18'
+    };
+  }
+  if (paper === ReaderPaper.Night) {
+    return {
+      background: '#26251F',
+      pillBackground: '#33322B',
+      pillBorder: '#424037',
+      textPrimary: '#F5F3EE',
+      textSecondary: '#8E8B82',
+      border: '#383630',
+      isDark: true,
+      body: '#C9C6BE',
+      title: '#F5F3EE'
+    };
+  }
+  return {
+    background: '#F1EFEA',
+    pillBackground: '#E6E3DC',
+    pillBorder: '#D8D4CA',
+    textPrimary: '#1A1A18',
+    textSecondary: '#7A7870',
+    border: '#E2DDD5',
+    isDark: false,
+    body: '#3A3934',
+    title: '#1A1A18'
+  };
+}
+
 export enum StartPageBackgroundSource {
   BuiltIn = 0,
   Custom = 1
@@ -530,4 +582,27 @@ export function withQuickSiteIcon(icons: QuickSiteIcon[], host: string, path: st
     next.push({ host: host, path: path });
   }
   return next;
+}
+
+export function presetSiteIconResource(host: string): Resource | undefined {
+  const clean: string = host.toLowerCase().replace(/^(https?:\/\/)?(www\.|m\.)?/, '').replace(/\/.*$/, '');
+  if (clean.includes('zhihu.com')) {
+    return $r('app.media.site_zhihu');
+  }
+  if (clean.includes('bilibili.com')) {
+    return $r('app.media.site_bilibili');
+  }
+  if (clean.includes('sspai.com')) {
+    return $r('app.media.site_sspai');
+  }
+  if (clean.includes('weibo.com') || clean.includes('weibo.cn')) {
+    return $r('app.media.site_weibo');
+  }
+  if (clean.includes('douban.com')) {
+    return $r('app.media.site_douban');
+  }
+  if (clean.includes('36kr.com')) {
+    return $r('app.media.site_36kr');
+  }
+  return undefined;
 }

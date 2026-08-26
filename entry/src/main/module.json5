@@ -62,6 +62,23 @@
             "actions": ["action.system.home"]
           },
           {
+            "entities": [
+              "entity.system.browsable",
+              "entity.system.default"
+            ],
+            "actions": [
+              "ohos.want.action.viewData"
+            ],
+            "uris": [
+              {
+                "scheme": "http"
+              },
+              {
+                "scheme": "https"
+              }
+            ]
+          },
+          {
             "actions": ["ohos.want.action.sendData"]
           }
         ]

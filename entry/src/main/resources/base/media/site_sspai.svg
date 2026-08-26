@@ -1,0 +1,13 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="28" fill="#FAF9F7"/>
+  <circle cx="64" cy="64" r="42" fill="#D71A1B"/>
+  <!-- Greek Pi 'π' -->
+  <g fill="#FAF9F7">
+    <!-- Top bar with left serif -->
+    <path d="M 40 48 C 42 46 45 44 48 44 L 86 44 L 86 50 L 44 50 Z"/>
+    <!-- Left vertical stem with bottom hook -->
+    <path d="M 50 48 L 56 48 L 56 75 C 56 79 53 82 48 83 C 47 81 46 79.5 45 78 C 48 77 50 75.5 50 72 Z"/>
+    <!-- Right stem with bottom curve right -->
+    <path d="M 72 48 L 78 48 L 78 72 C 78 76 80 78 84 78 C 85.5 78 87 77.5 88 76.5 L 89 81.5 C 87 83 84 83.5 81 83.5 C 75 83.5 72 79.5 72 73 Z"/>
+  </g>
+</svg>

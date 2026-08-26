@@ -5,7 +5,7 @@ import { BrowserTab, cloneTab } from '../models/BrowserModels';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'MultiWindowService';
-const BUNDLE_NAME: string = 'com.youdroid.dolphin';
+const BUNDLE_NAME: string = 'com.youdroid.zhuobrowser';
 
 export class MultiWindowService {
   static async isSupported(): Promise<boolean> {

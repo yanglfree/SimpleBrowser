@@ -3,6 +3,7 @@ import {
   BrowserTab,
   QuickSiteIcon,
   clampTabMoveTarget,
+  presetSiteIconResource,
   quickSiteIconPath,
   withQuickSiteIcon
 } from '../main/ets/models/BrowserModels';
@@ -139,6 +140,16 @@ export default function browserV05FeaturesTest(): void {
       expect(quickSiteIconPath(icons, '')).assertEqual('');
     });
 
+    it('resolves preset icon resources for default sites', 0, (): void => {
+      expect(presetSiteIconResource('zhihu.com')).assertDeepEquals($r('app.media.site_zhihu'));
+      expect(presetSiteIconResource('https://www.bilibili.com/video/1')).assertDeepEquals($r('app.media.site_bilibili'));
+      expect(presetSiteIconResource('sspai.com')).assertDeepEquals($r('app.media.site_sspai'));
+      expect(presetSiteIconResource('m.weibo.cn')).assertDeepEquals($r('app.media.site_weibo'));
+      expect(presetSiteIconResource('www.douban.com')).assertDeepEquals($r('app.media.site_douban'));
+      expect(presetSiteIconResource('36kr.com')).assertDeepEquals($r('app.media.site_36kr'));
+      expect(presetSiteIconResource('unknown-site.org')).assertUndefined();
+    });
+
     it('replaces a host\'s icon rather than accumulating duplicates', 0, (): void => {
       let icons: QuickSiteIcon[] = withQuickSiteIcon([], 'zhihu.com', '/a.icon');
       icons = withQuickSiteIcon(icons, 'weibo.com', '/b.icon');
@@ -199,10 +210,11 @@ export default function browserV05FeaturesTest(): void {
       expect(looksLikeIconData(new Uint8Array([0x89]))).assertFalse();
     });
 
-    it('rejects legacy low-resolution artwork before it reaches a shortcut tile', 0, (): void => {
+    it('accepts standard resolution artwork (>= 16px) and rejects sub-16px data', 0, (): void => {
       expect(iconPixelSize(icoBytesWithSize(32))).assertEqual(32);
       expect(iconPixelSize(pngBytesWithSize(152, 152))).assertEqual(152);
-      expect(isShortcutIconLargeEnough(icoBytesWithSize(32))).assertFalse();
+      expect(isShortcutIconLargeEnough(icoBytesWithSize(32))).assertTrue();
+      expect(isShortcutIconLargeEnough(icoBytesWithSize(8))).assertFalse();
       expect(isShortcutIconLargeEnough(pngBytesWithSize(152, 152))).assertTrue();
     });
 

@@ -1,0 +1,19 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="28" fill="#00B51D"/>
+  <g fill="#FFFFFF">
+    <!-- Top horizontal -->
+    <path d="M 34 27 L 94 27 L 94 33.5 L 34 33.5 Z"/>
+    <!-- Middle "口" box -->
+    <!-- Outer rectangle -->
+    <path d="M 38 43 L 90 43 L 90 67 L 38 67 Z"/>
+    <!-- Cutout inner of 口 -->
+    <path d="M 44.5 49 L 83.5 49 L 83.5 61 L 44.5 61 Z" fill="#00B51D"/>
+    <!-- Bottom left dot / slant 丷 -->
+    <path d="M 46 76 C 44 82 40 88 34 93 C 32 91 30.5 89.5 29 88 C 34 83.5 37.5 78 39.5 73 Z" fill="#FFFFFF"/>
+    <!-- Bottom right dot / slant 丷 -->
+    <path d="M 82 73 C 84 78 88 84 93 88 C 91.5 89.5 90 91 88 93 C 83 88 79 82 76.5 76 Z" fill="#FFFFFF"/>
+    <!-- Bottom center vertical support or horizontal base -->
+    <path d="M 61 67 L 67 67 L 67 92 L 61 92 Z" fill="#FFFFFF"/>
+    <path d="M 24 93 L 104 93 L 104 99.5 L 24 99.5 Z" fill="#FFFFFF"/>
+  </g>
+</svg>

@@ -1,4 +1,5 @@
 import { AppIcon, IconName } from './AppIcon';
+import { ReaderPaper, getReaderTheme } from '../models/BrowserModels';
 import {
   DOCK_BADGE_SIZE,
   DOCK_COLLAPSED_HEIGHT,
@@ -45,6 +46,8 @@ export function compactDockOpticalOffset(
 @Component
 export struct BrowserDock {
   @Prop isHome: boolean = false;
+  @Prop isReader: boolean = false;
+  @Prop readerPaper: ReaderPaper = ReaderPaper.Sepia;
   @Prop homeBackgroundEnabled: boolean = true;
   @Prop collapsed: boolean = false;
   @Prop wide: boolean = false;
@@ -113,7 +116,12 @@ export struct BrowserDock {
     .width('100%')
     .height(DOCK_HEIGHT)
     .justifyContent(FlexAlign.Center)
-    .backgroundColor(this.usesHomeColors() ? Color.Transparent : $r('app.color.page_background'))
+    .backgroundColor(this.isReader
+      ? getReaderTheme(this.readerPaper).background
+      : (this.usesHomeColors() ? Color.Transparent : $r('app.color.page_background')))
+    .border(this.isReader && !this.wide
+      ? { width: { top: 1 }, color: getReaderTheme(this.readerPaper).border }
+      : undefined)
     .borderRadius(this.desktop ? 0 : this.wide ? DOCK_HEIGHT / 2 : 0)
     .shadow(this.desktop ? undefined : this.wide
       ? { radius: 16, color: $r('app.color.shadow_soft'), offsetY: 3 }
@@ -230,7 +238,9 @@ export struct BrowserDock {
       .backdropBlur(24)
       .border({
         width: 1,
-        color: this.usesHomeColors() ? $r('app.color.home_control_border') : $r('app.color.border')
+        color: this.isReader
+          ? getReaderTheme(this.readerPaper).pillBorder
+          : (this.usesHomeColors() ? $r('app.color.home_control_border') : $r('app.color.border'))
       })
       .focusable(true)
       .defaultFocus(this.wide)
@@ -453,7 +463,7 @@ export struct BrowserDock {
         }
         Text(this.host)
           .fontSize(12.5)
-          .fontColor($r('app.color.text_primary'))
+          .fontColor(this.isReader ? getReaderTheme(this.readerPaper).textPrimary : $r('app.color.text_primary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
@@ -461,9 +471,12 @@ export struct BrowserDock {
       .height(DOCK_COLLAPSED_PILL_HEIGHT)
       .padding({ left: 16, right: 16 })
       .borderRadius(DOCK_COLLAPSED_PILL_HEIGHT / 2)
-      .backgroundColor($r('app.color.capsule_background'))
+      .backgroundColor(this.isReader ? getReaderTheme(this.readerPaper).pillBackground : $r('app.color.capsule_background'))
       .backdropBlur(24)
-      .border({ width: 1, color: $r('app.color.border') })
+      .border({
+        width: 1,
+        color: this.isReader ? getReaderTheme(this.readerPaper).pillBorder : $r('app.color.border')
+      })
       .opacity(0.94)
     }
     .width('100%')
@@ -551,11 +564,17 @@ export struct BrowserDock {
     })
   }
 
-  private chromeColor(): ResourceColor {
+  private chromeColor(): ResourceColor | string {
+    if (this.isReader) {
+      return getReaderTheme(this.readerPaper).pillBackground;
+    }
     return this.usesHomeColors() ? $r('app.color.home_chrome_background') : $r('app.color.capsule_background');
   }
 
-  private primaryColor(): ResourceColor {
+  private primaryColor(): ResourceColor | string {
+    if (this.isReader) {
+      return getReaderTheme(this.readerPaper).textPrimary;
+    }
     return this.usesHomeColors() ? $r('app.color.home_text_primary') : $r('app.color.text_primary');
   }
 
@@ -563,7 +582,10 @@ export struct BrowserDock {
    * Controls sit a step back from the address they surround: at full text weight
    * four black glyphs read as heavier than the page they belong to.
    */
-  private iconColor(): ResourceColor {
+  private iconColor(): ResourceColor | string {
+    if (this.isReader) {
+      return getReaderTheme(this.readerPaper).textSecondary;
+    }
     return this.usesHomeColors() ? $r('app.color.home_text_secondary') : $r('app.color.dock_icon');
   }
 

@@ -21,6 +21,7 @@ import { AppIcon, IconName } from './AppIcon';
 
 @Component
 export struct ArticleLibrarySheet {
+  @Prop topInset: number = 0;
   @Prop articles: SavedArticle[] = [];
   @Prop selectedArticle: SavedArticle | undefined = undefined;
   @Prop markdown: string = '';
@@ -82,8 +83,9 @@ export struct ArticleLibrarySheet {
         .fontFeature('"tnum" 1')
     }
     .width('100%')
-    .height(62)
-    .padding({ left: 24, right: 24 })
+    .height(56 + Math.max(0, this.topInset))
+    .padding({ top: Math.max(0, this.topInset), left: 24, right: 24 })
+    .alignItems(VerticalAlign.Center)
     .border({ width: { bottom: 1 }, color: $r('app.color.border') })
 
     TextInput({ text: this.query, placeholder: $r('app.string.article_search_placeholder') })
@@ -254,8 +256,9 @@ export struct ArticleLibrarySheet {
         .onClick(() => this.onArchive(this.selectedArticle?.isArchived !== true))
     }
     .width('100%')
-    .height(62)
-    .padding({ left: 20, right: 20 })
+    .height(56 + Math.max(0, this.topInset))
+    .padding({ top: Math.max(0, this.topInset), left: 20, right: 20 })
+    .alignItems(VerticalAlign.Center)
     .border({ width: { bottom: 1 }, color: $r('app.color.border') })
   }
 

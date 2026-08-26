@@ -1,0 +1,17 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="28" fill="#FB7299"/>
+  <!-- Antennas -->
+  <path d="M 46 26 L 36 38" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+  <path d="M 82 26 L 92 38" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+  <!-- TV Body -->
+  <rect x="22" y="38" width="84" height="66" rx="18" fill="#FFFFFF"/>
+  <!-- Screen cutout -->
+  <rect x="28" y="44" width="72" height="54" rx="14" fill="#FB7299"/>
+  <!-- Face: eyes and smile -->
+  <!-- Left eye > -->
+  <path d="M 44 63 L 53 69 L 44 75" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Right eye < -->
+  <path d="M 84 63 L 75 69 L 84 75" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Smile -->
+  <path d="M 60 76 Q 64 80 68 76" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+</svg>

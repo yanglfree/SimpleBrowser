@@ -1,6 +1,6 @@
 import { ConfigurationConstant, common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
-import { AppearanceMode } from '../models/BrowserModels';
+import { AppearanceMode, ReaderPaper, ReaderTheme, getReaderTheme } from '../models/BrowserModels';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'ThemeService';
@@ -41,12 +41,16 @@ export class ThemeService {
     context: common.UIAbilityContext,
     appearance: AppearanceMode,
     isHome: boolean,
-    homeBackgroundEnabled: boolean
+    homeBackgroundEnabled: boolean,
+    isReader: boolean = false,
+    readerPaper: ReaderPaper = ReaderPaper.Sepia
   ): void {
     ThemeService.applySystemBars(
       context,
       ThemeService.isDark(context, appearance),
-      isHome && homeBackgroundEnabled
+      isHome && homeBackgroundEnabled,
+      isReader,
+      readerPaper
     );
   }
 
@@ -70,9 +74,20 @@ export class ThemeService {
     return ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET;
   }
 
-  private static applySystemBars(context: common.UIAbilityContext, isDark: boolean, isHome: boolean): void {
-    const background: string = isDark ? DARK_BACKGROUND : LIGHT_BACKGROUND;
-    const content: string = isDark ? DARK_CONTENT : LIGHT_CONTENT;
+  private static applySystemBars(
+    context: common.UIAbilityContext,
+    isDark: boolean,
+    isHome: boolean,
+    isReader: boolean = false,
+    readerPaper: ReaderPaper = ReaderPaper.Sepia
+  ): void {
+    let background: string = isDark ? DARK_BACKGROUND : LIGHT_BACKGROUND;
+    let content: string = isDark ? DARK_CONTENT : LIGHT_CONTENT;
+    if (isReader) {
+      const theme: ReaderTheme = getReaderTheme(readerPaper);
+      background = theme.background;
+      content = theme.isDark ? DARK_CONTENT : LIGHT_CONTENT;
+    }
     const isFullScreen: boolean = shouldLayoutFullScreen(isHome);
     window.getLastWindow(context).then((mainWindow: window.Window) => {
       const properties: window.SystemBarProperties = {

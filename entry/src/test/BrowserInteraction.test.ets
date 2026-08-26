@@ -26,7 +26,7 @@ export default function browserInteractionTest(): void {
 
     it('reserves only the collapsed pill height beneath a scrolled page', 0, (): void => {
       expect(DOCK_COLLAPSED_HEIGHT).assertEqual(DOCK_COLLAPSED_PILL_HEIGHT);
-      expect(TAB_WEB_BOTTOM_INSET_COMPACT).assertEqual(DOCK_COLLAPSED_PILL_HEIGHT + 4);
+      expect(TAB_WEB_BOTTOM_INSET_COMPACT).assertEqual(DOCK_COLLAPSED_PILL_HEIGHT + 2);
     });
 
     it('hides the current-site dark-mode row only when web dark mode is light', 0, (): void => {

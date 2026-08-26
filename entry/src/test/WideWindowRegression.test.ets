@@ -13,6 +13,7 @@ import {
   shouldShowBrowserChrome,
   shouldMountOverlayLayer,
   resolveDockBottomPadding,
+  resolveReaderBarTopInset,
   resolveTabTopInset,
   resolveBottomAvoidAreaHeight,
   shouldUseResponsivePanel,
@@ -158,6 +159,10 @@ export default function wideWindowRegressionTest(): void {
       expect(resolveTabTopInset(false, true, 35, 52)).assertEqual(0);
       expect(resolveTabTopInset(false, false, 35, 52)).assertEqual(35);
       expect(resolveTabTopInset(true, false, 35, 52)).assertEqual(95);
+      expect(resolveTabTopInset(false, false, 35, 52, true)).assertEqual(0);
+      expect(resolveTabTopInset(true, false, 35, 52, true)).assertEqual(0);
+      expect(resolveReaderBarTopInset(false, 35, 52)).assertEqual(35);
+      expect(resolveReaderBarTopInset(true, 35, 52)).assertEqual(95);
     });
 
     it('uses the largest bottom avoid area', 0, (): void => {

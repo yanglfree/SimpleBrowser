@@ -78,7 +78,7 @@ fi
 
 HAP_DIR="entry/build/default/outputs/default"
 HAP="$HAP_DIR/entry-default-signed.hap"
-BUNDLE_NAME="com.youdroid.dolphin"
+BUNDLE_NAME="com.youdroid.zhuobrowser"
 MAIN_ABILITY="EntryAbility"
 DEVICE_ID=""
 

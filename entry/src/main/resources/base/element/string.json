@@ -480,6 +480,9 @@
     { "name": "pro_compare_library", "value": "离线文章库" },
     { "name": "pro_compare_annotations", "value": "搜索、批注与导出" },
     { "name": "pro_compare_yes", "value": "支持" },
-    { "name": "pro_compare_no", "value": "—" }
+    { "name": "pro_compare_no", "value": "—" },
+    { "name": "set_as_default_browser", "value": "设为默认浏览器" },
+    { "name": "set_as_default_browser_toast", "value": "请在系统【默认应用】->【浏览器】中选择卓阅浏览器" },
+    { "name": "set_as_default_browser_failed", "value": "无法打开系统设置，请前往系统【设置】->【应用】->【默认应用】手动设置" }
   ]
 }

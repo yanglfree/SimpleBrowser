@@ -1,4 +1,4 @@
-import { QuickSite, QuickSiteIcon, quickSiteDropTarget, quickSiteIconPath } from '../models/BrowserModels';
+import { QuickSite, QuickSiteIcon, presetSiteIconResource, quickSiteDropTarget, quickSiteIconPath } from '../models/BrowserModels';
 import { rawHost } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 import {
@@ -6,8 +6,7 @@ import {
   QUICK_SITE_WIDE_LANDSCAPE_COLUMNS,
   QUICK_SITE_DONE_FONT_SIZE, QUICK_SITE_DONE_RADIUS, QUICK_SITE_DONE_WIDTH,
   QUICK_SITE_DRAG_SHADOW_OFFSET_Y, QUICK_SITE_DRAG_SHADOW_RADIUS, QUICK_SITE_EDIT_LONG_PRESS_DURATION,
-  QUICK_SITE_GRID_SECTION_GAP, QUICK_SITE_HORIZONTAL_PADDING, QUICK_SITE_ICON_RATIO,
-  QUICK_SITE_ICON_CORNER_RATIO, QUICK_SITE_ICON_PLATE_RATIO,
+  QUICK_SITE_GRID_SECTION_GAP, QUICK_SITE_HORIZONTAL_PADDING,
   QUICK_SITE_PHONE_ADD_GLYPH_SIZE,
   QUICK_SITE_PHONE_COLUMN_GAP, QUICK_SITE_PHONE_ITEM_GAP, QUICK_SITE_PHONE_MAX_WIDTH,
   QUICK_SITE_PHONE_ROW_EXTRA, QUICK_SITE_PHONE_ROW_GAP, QUICK_SITE_PHONE_TILE_FONT_SIZE,
@@ -48,7 +47,7 @@ export struct QuickSiteGrid {
   @State private wiggleScale: number = 0;
   @State private dragBadge: string = '';
   @State private dragColorIndex: number = 0;
-  @State private dragIconPath: string = '';
+  @State private dragIconSource: PixelMap | ResourceStr | undefined = undefined;
   /** Hosts whose cached file would not decode; they fall back to the letter tile. */
   @State private brokenIconHosts: string[] = [];
   private wiggleTimer: number = -1;
@@ -108,7 +107,7 @@ export struct QuickSiteGrid {
           const site: QuickSite = this.visibleSites()[itemIndex];
           this.dragBadge = site.badge;
           this.dragColorIndex = site.colorIndex;
-          this.dragIconPath = this.iconPath(site);
+          this.dragIconSource = this.iconSource(site);
           this.enterEditing();
           return this.DragPreview();
         }
@@ -130,16 +129,10 @@ export struct QuickSiteGrid {
   private SiteTile(site: QuickSite, index: number) {
     Column({ space: this.isWide ? QUICK_SITE_WIDE_ITEM_GAP : QUICK_SITE_PHONE_ITEM_GAP }) {
       Stack({ alignContent: Alignment.TopEnd }) {
-        if (this.iconPath(site).length > 0) {
+        if (this.iconSource(site) !== undefined) {
           this.IconTile(site)
         } else {
-          Text(site.badge)
-            .width(this.tileSize()).height(this.tileSize())
-            .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
-            .backgroundColor(tileColor(TILE_BACKGROUNDS, site.colorIndex))
-            .fontColor(tileColor(TILE_FOREGROUNDS, site.colorIndex))
-            .fontSize(this.isWide ? QUICK_SITE_WIDE_TILE_FONT_SIZE : QUICK_SITE_PHONE_TILE_FONT_SIZE)
-            .fontWeight(FontWeight.Bold).textAlign(TextAlign.Center)
+          this.TextTile(site)
         }
 
         if (this.isEditing) {
@@ -182,36 +175,42 @@ export struct QuickSiteGrid {
     )
   }
 
-  /**
-   * The real site icon on a plain card rather than the coloured letter tile: a
-   * favicon carries its own brand colour, and a transparent one needs a neutral
-   * surface behind it instead of a letter showing through.
-   */
   @Builder
   private IconTile(site: QuickSite) {
     Column() {
-      Column() {
-        Image(this.iconPath(site))
-          .width(this.iconSize())
-          .height(this.iconSize())
-          .objectFit(ImageFit.Contain)
-          .interpolation(ImageInterpolation.High)
-          .borderRadius(this.iconCornerRadius())
-          .clip(true)
-          .draggable(false)
-          .onError(() => this.markIconBroken(site))
-      }
-      .width(this.iconPlateSize()).height(this.iconPlateSize())
-      .justifyContent(FlexAlign.Center)
-      .borderRadius(this.iconPlateCornerRadius())
-      .backgroundColor($r('app.color.surface_subtle'))
-      .clip(true)
+      Image(this.iconSource(site))
+        .width('100%')
+        .height('100%')
+        .objectFit(ImageFit.Cover)
+        .interpolation(ImageInterpolation.High)
+        .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
+        .clip(true)
+        .draggable(false)
+        .onError(() => this.markIconBroken(site))
     }
     .width(this.tileSize()).height(this.tileSize())
     .justifyContent(FlexAlign.Center)
     .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
     .backgroundColor(this.backgroundEnabled
       ? $r('app.color.home_tile_background') : $r('app.color.surface_panel'))
+    .clip(true)
+  }
+
+  @Builder
+  private TextTile(site: QuickSite) {
+    Column() {
+      Text(site.badge)
+        .fontSize(this.isWide ? QUICK_SITE_WIDE_TILE_FONT_SIZE : QUICK_SITE_PHONE_TILE_FONT_SIZE)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.backgroundEnabled
+          ? $r('app.color.home_text_primary') : tileColor(TILE_FOREGROUNDS, site.colorIndex))
+        .textAlign(TextAlign.Center)
+    }
+    .width(this.tileSize()).height(this.tileSize())
+    .justifyContent(FlexAlign.Center)
+    .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
+    .backgroundColor(this.backgroundEnabled
+      ? $r('app.color.home_tile_background') : tileColor(TILE_BACKGROUNDS, site.colorIndex))
   }
 
   @Builder
@@ -244,22 +243,15 @@ export struct QuickSiteGrid {
 
   @Builder
   private DragPreview() {
-    if (this.dragIconPath.length > 0) {
+    if (this.dragIconSource !== undefined) {
       Column() {
-        Column() {
-          Image(this.dragIconPath)
-            .width(this.iconSize()).height(this.iconSize())
-            .objectFit(ImageFit.Contain)
-            .interpolation(ImageInterpolation.High)
-            .borderRadius(this.iconCornerRadius())
-            .clip(true)
-            .draggable(false)
-        }
-        .width(this.iconPlateSize()).height(this.iconPlateSize())
-        .justifyContent(FlexAlign.Center)
-        .borderRadius(this.iconPlateCornerRadius())
-        .backgroundColor($r('app.color.surface_subtle'))
-        .clip(true)
+        Image(this.dragIconSource)
+          .width('100%').height('100%')
+          .objectFit(ImageFit.Cover)
+          .interpolation(ImageInterpolation.High)
+          .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
+          .clip(true)
+          .draggable(false)
       }
       .width(this.tileSize()).height(this.tileSize())
       .justifyContent(FlexAlign.Center)
@@ -272,18 +264,24 @@ export struct QuickSiteGrid {
         offsetY: QUICK_SITE_DRAG_SHADOW_OFFSET_Y
       })
     } else {
-      Text(this.dragBadge)
-        .width(this.tileSize()).height(this.tileSize())
-        .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
-        .backgroundColor(tileColor(TILE_BACKGROUNDS, this.dragColorIndex))
-        .fontColor(tileColor(TILE_FOREGROUNDS, this.dragColorIndex))
-        .fontSize(this.isWide ? QUICK_SITE_WIDE_TILE_FONT_SIZE : QUICK_SITE_PHONE_TILE_FONT_SIZE)
-        .fontWeight(FontWeight.Bold).textAlign(TextAlign.Center)
-        .shadow({
-          radius: QUICK_SITE_DRAG_SHADOW_RADIUS,
-          color: $r('app.color.shadow_soft'),
-          offsetY: QUICK_SITE_DRAG_SHADOW_OFFSET_Y
-        })
+      Column() {
+        Text(this.dragBadge)
+          .fontSize(this.isWide ? QUICK_SITE_WIDE_TILE_FONT_SIZE : QUICK_SITE_PHONE_TILE_FONT_SIZE)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.backgroundEnabled
+            ? $r('app.color.home_text_primary') : tileColor(TILE_FOREGROUNDS, this.dragColorIndex))
+          .textAlign(TextAlign.Center)
+      }
+      .width(this.tileSize()).height(this.tileSize())
+      .justifyContent(FlexAlign.Center)
+      .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
+      .backgroundColor(this.backgroundEnabled
+        ? $r('app.color.home_tile_background') : tileColor(TILE_BACKGROUNDS, this.dragColorIndex))
+      .shadow({
+        radius: QUICK_SITE_DRAG_SHADOW_RADIUS,
+        color: $r('app.color.shadow_soft'),
+        offsetY: QUICK_SITE_DRAG_SHADOW_OFFSET_Y
+      })
     }
   }
 
@@ -295,29 +293,18 @@ export struct QuickSiteGrid {
     return this.isWide ? QUICK_SITE_WIDE_TILE_SIZE : QUICK_SITE_PHONE_TILE_SIZE;
   }
 
-  /** Inset so a square favicon does not touch the rounded corners of its card. */
-  private iconSize(): number {
-    return Math.round(this.tileSize() * QUICK_SITE_ICON_RATIO);
-  }
-
-  private iconPlateSize(): number {
-    return Math.round(this.tileSize() * QUICK_SITE_ICON_PLATE_RATIO);
-  }
-
-  private iconCornerRadius(): number {
-    return Math.round(this.iconSize() * QUICK_SITE_ICON_CORNER_RATIO);
-  }
-
-  private iconPlateCornerRadius(): number {
-    return Math.round(this.iconPlateSize() * QUICK_SITE_ICON_CORNER_RATIO);
-  }
-
-  private iconPath(site: QuickSite): string {
+  private iconSource(site: QuickSite): PixelMap | ResourceStr | undefined {
     const host: string = rawHost(site.url);
-    if (host.length === 0 || this.brokenIconHosts.includes(host)) {
-      return '';
+    if (host.length === 0) {
+      return undefined;
     }
-    return quickSiteIconPath(this.siteIcons, host);
+    if (!this.brokenIconHosts.includes(host)) {
+      const cachedPath: string = quickSiteIconPath(this.siteIcons, host);
+      if (cachedPath.length > 0) {
+        return cachedPath;
+      }
+    }
+    return presetSiteIconResource(host);
   }
 
   private markIconBroken(site: QuickSite): void {

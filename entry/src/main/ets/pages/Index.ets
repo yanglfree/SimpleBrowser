@@ -38,6 +38,8 @@ import {
   QuickSite,
   QuickSiteIcon,
   ReaderPaper,
+  ReaderTheme,
+  getReaderTheme,
   RuleStrength,
   SavedItem,
   SearchEngine,
@@ -163,6 +165,7 @@ import { ExternalOpenRouter } from '../services/ExternalOpenRouter';
 import { ProFeature } from '../models/ProModels';
 import { ProBillingAdapter } from '../services/ProBillingAdapter';
 import { ProEntitlementService } from '../services/ProEntitlementService';
+import { DefaultBrowserService } from '../services/DefaultBrowserService';
 import {
   ReaderExtractionReport,
   parseReaderExtractionReport
@@ -243,12 +246,27 @@ export function resolveDockBottomPadding(
   return usesWideChrome ? 0 : Math.max(0, bottomInset);
 }
 
+export function resolveReaderBarTopInset(
+  usesWideChrome: boolean,
+  topInset: number,
+  wideChromeHeight: number
+): number {
+  if (usesWideChrome) {
+    return topInset + wideChromeHeight + 8;
+  }
+  return Math.max(0, topInset);
+}
+
 export function resolveTabTopInset(
   usesWideChrome: boolean,
   isHome: boolean,
   topInset: number,
-  wideChromeHeight: number
+  wideChromeHeight: number,
+  isReader: boolean = false
 ): number {
+  if (isReader) {
+    return 0;
+  }
   if (usesWideChrome) {
     return topInset + wideChromeHeight + 8;
   }
@@ -289,12 +307,6 @@ interface PendingSitePermission {
   displayResources: Resource[];
 }
 
-interface ReaderPalette {
-  background: string;
-  body: string;
-  title: string;
-}
-
 interface ArticleCaptureSnapshot {
   title: string;
   author: string;
@@ -304,12 +316,6 @@ interface ArticleCaptureSnapshot {
   markdown: string;
   images: ArticleImageAsset[];
 }
-
-const READER_PALETTES: ReaderPalette[] = [
-  { background: '#FFFFFF', body: '#3A3934', title: '#1A1A18' },
-  { background: '#F1EFEA', body: '#3A3934', title: '#1A1A18' },
-  { background: '#26251F', body: '#C9C6BE', title: '#F5F3EE' }
-];
 
 const ACCENT_HEX: string = '#2E6B5C';
 const TAB_SWITCH_ANIMATION_DURATION: number = 220;
@@ -638,7 +644,9 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.page_background'))
+    .backgroundColor(this.isActiveReader()
+      ? getReaderTheme(this.settings.readerPaper).background
+      : $r('app.color.page_background'))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .focusable(true)
     .allowDrop([
@@ -665,6 +673,11 @@ struct Index {
       } else {
         if (this.isActiveReader()) {
           ReaderBar({
+            topInset: resolveReaderBarTopInset(
+              this.usesWideChrome(),
+              this.topInset,
+              this.wideChromeHeight()
+            ),
             paper: this.settings.readerPaper,
             canShrink: this.settings.readerFontSize > READER_FONT_MIN,
             canGrow: this.settings.readerFontSize < READER_FONT_MAX,
@@ -782,7 +795,8 @@ struct Index {
             this.usesWideChrome(),
             isHomeUrl(tab.url),
             this.topInset,
-            this.wideChromeHeight()
+            this.wideChromeHeight(),
+            tab.isReader
           ),
           bottom: isHomeUrl(tab.url) || this.usesWideChrome() ? 0 : this.webBottomInset()
         })
@@ -981,6 +995,9 @@ struct Index {
           this.BrowserDockContent()
         }
         .padding({ bottom: this.compactDockBottomPadding() })
+        .backgroundColor(this.isActiveReader()
+          ? getReaderTheme(this.settings.readerPaper).background
+          : Color.Transparent)
       }
     }
   }
@@ -1010,6 +1027,8 @@ struct Index {
       }
       BrowserDock({
       isHome: this.isActiveHome(),
+      isReader: this.isActiveReader(),
+      readerPaper: this.settings.readerPaper,
       homeBackgroundEnabled: this.settings.startPageBackgroundEnabled,
       collapsed: this.usesWideChrome() ? false : this.isDockCollapsed(),
       wide: this.usesWideChrome(),
@@ -1514,12 +1533,14 @@ struct Index {
     } else if (this.sheet === Overlay.BlockEvents) {
       BlockEventSheet({
         events: this.blockEvents,
+        topInset: this.topInset,
         onDismiss: (): void => { this.sheet = Overlay.Block; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.SiteControls) {
       SiteControlSheet({
         control: this.siteControl,
+        topInset: this.topInset,
         onChange: (control: SiteControl): void => { void this.applySiteControl(control); },
         onDismiss: (): void => { this.sheet = Overlay.Block; }
       })
@@ -1548,6 +1569,7 @@ struct Index {
         },
         onToggleCurrentSiteDarkMode: (): void => { void this.toggleCurrentSiteDarkMode(); },
         onUpdateRules: (): void => { void this.updateRules(); },
+        onSetDefaultBrowser: (): void => { void this.setDefaultBrowser(); },
         onOpenPro: (): void => { this.sheet = Overlay.ProPaywall; },
         onBack: (): void => { this.sheet = Overlay.None; }
       })
@@ -1598,6 +1620,7 @@ struct Index {
     } else if (this.sheet === Overlay.ArticleLibrary) {
       ArticleLibrarySheet({
         articles: this.articles,
+        topInset: this.topInset,
         selectedArticle: this.selectedArticle,
         markdown: this.selectedArticleMarkdown,
         isLoading: this.isArticleLoading,
@@ -3187,13 +3210,13 @@ struct Index {
   }
 
   private readerScript(): string {
-    const palette: ReaderPalette = READER_PALETTES[this.settings.readerPaper as number];
+    const theme: ReaderTheme = getReaderTheme(this.settings.readerPaper);
     return readerApplyScript(
       this.settings.readerFontSize,
       this.settings.readerLineHeight,
-      palette.background,
-      palette.body,
-      palette.title,
+      theme.background,
+      theme.body,
+      theme.title,
       ACCENT_HEX
     );
   }
@@ -3223,6 +3246,7 @@ struct Index {
     if (controller !== undefined) {
       await this.runScript(controller, this.readerScript());
     }
+    this.syncState();
   }
 
   // ---------------------------------------------------------------- settings
@@ -3248,7 +3272,9 @@ struct Index {
       this.appContext(),
       normalized.appearance,
       this.isActiveHome(),
-      normalized.startPageBackgroundEnabled
+      normalized.startPageBackgroundEnabled,
+      this.isActiveReader(),
+      normalized.readerPaper
     );
     await this.enforceLiveWebViewLimit(this.liveWebViewLimit());
     this.reconfigureBlocking();
@@ -3523,6 +3549,20 @@ struct Index {
       }
     } catch (error) {
       Logger.warn(TAG, `Rules update toast unavailable: ${String(error)}`);
+    }
+  }
+
+  private async setDefaultBrowser(): Promise<void> {
+    try {
+      const launched: boolean = await DefaultBrowserService.requestSetDefaultBrowser(this.appContext());
+      if (launched) {
+        this.showToast($r('app.string.set_as_default_browser_toast'));
+      } else {
+        this.showToast($r('app.string.set_as_default_browser_failed'));
+      }
+    } catch (error) {
+      Logger.warn(TAG, `Failed to request default browser: ${String(error)}`);
+      this.showToast($r('app.string.set_as_default_browser_failed'));
     }
   }
 
@@ -4542,7 +4582,9 @@ struct Index {
       this.appContext(),
       this.settings.appearance,
       isHomeUrl(url),
-      this.settings.startPageBackgroundEnabled
+      this.settings.startPageBackgroundEnabled,
+      this.isActiveReader(),
+      this.settings.readerPaper
     );
   }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { historyHeaderTopPadding } from '../main/ets/components/HistorySheet';
 import { readerApplyScript } from '../main/ets/constants/AppConstants';
+import { ReaderPaper, getReaderTheme } from '../main/ets/models/BrowserModels';
 import {
   SCREENSHOT_CACHE_RETENTION_MS,
   buildLinkShareRecord,
@@ -33,15 +34,39 @@ export default function browserReportedBugsTest(): void {
     it('uses detached-node text fallbacks and keeps short lead paragraphs', 0, (): void => {
       const script: string = readerApplyScript(17, 205, '#fff', '#111', '#111', '#06f');
 
-      expect(script.includes('probe.innerText || probe.textContent')).assertTrue();
+      expect(script.includes('node.innerText || node.textContent')).assertTrue();
       expect(script.includes('paragraphText.length < 24')).assertTrue();
-      expect(script.includes('wrapper.innerText || wrapper.textContent')).assertTrue();
+      expect(script.includes('wrapper.className = \'__mb-reader-body\'')).assertTrue();
     });
 
     it('positions full-screen list headers below the real status bar inset', 0, (): void => {
       expect(historyHeaderTopPadding(0)).assertEqual(18);
       expect(historyHeaderTopPadding(34)).assertEqual(46);
       expect(historyHeaderTopPadding(-10)).assertEqual(18);
+    });
+
+    it('returns consistent reader theme color schemes for each paper type', 0, (): void => {
+      const white = getReaderTheme(ReaderPaper.White);
+      expect(white.background).assertEqual('#FFFFFF');
+      expect(white.isDark).assertFalse();
+
+      const sepia = getReaderTheme(ReaderPaper.Sepia);
+      expect(sepia.background).assertEqual('#F1EFEA');
+      expect(sepia.isDark).assertFalse();
+
+      const night = getReaderTheme(ReaderPaper.Night);
+      expect(night.background).assertEqual('#26251F');
+      expect(night.isDark).assertTrue();
+    });
+
+    it('enables text selection and touch-callout in reader mode styles', 0, (): void => {
+      const script: string = readerApplyScript(17, 205, '#fff', '#111', '#111', '#06f');
+
+      expect(script.includes('user-select:text !important')).assertTrue();
+      expect(script.includes('-webkit-user-select:text !important')).assertTrue();
+      expect(script.includes('-webkit-touch-callout:default !important')).assertTrue();
+      expect(script.includes('document.onselectstart = null')).assertTrue();
+      expect(script.includes('document.oncopy = null')).assertTrue();
     });
   });
 }

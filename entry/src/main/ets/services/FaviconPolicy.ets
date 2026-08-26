@@ -1,4 +1,4 @@
-const MIN_SHORTCUT_ICON_PIXELS: number = 64;
+const MIN_SHORTCUT_ICON_PIXELS: number = 16;
 const CACHE_TTL_MS: number = 14 * 24 * 60 * 60 * 1000;
 
 export function faviconCacheFileName(host: string): string {
@@ -6,9 +6,24 @@ export function faviconCacheFileName(host: string): string {
   return safe.length > 0 ? `${safe}.icon` : '';
 }
 
+function isSvgBytes(bytes: Uint8Array): boolean {
+  if (bytes.length < 4) {
+    return false;
+  }
+  const len: number = Math.min(bytes.length, 512);
+  let head: string = '';
+  for (let i = 0; i < len; i += 1) {
+    head += String.fromCharCode(bytes[i]);
+  }
+  return head.includes('<svg') || (head.includes('<?xml') && head.includes('<svg'));
+}
+
 export function looksLikeIconData(bytes: Uint8Array): boolean {
   if (bytes.length < 4) {
     return false;
+  }
+  if (isSvgBytes(bytes)) {
+    return true;
   }
   if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
     return true;
@@ -117,6 +132,9 @@ function webpPixelSize(bytes: Uint8Array): number {
 export function iconPixelSize(bytes: Uint8Array): number {
   if (!looksLikeIconData(bytes)) {
     return 0;
+  }
+  if (isSvgBytes(bytes)) {
+    return 512;
   }
   if (bytes[0] === 0x89 && bytes.length >= 24) {
     return Math.min(bigEndian32(bytes, 16), bigEndian32(bytes, 20));

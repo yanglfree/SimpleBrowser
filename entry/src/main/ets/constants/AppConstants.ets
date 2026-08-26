@@ -618,6 +618,17 @@ ${READER_EXTRACTION_CORE_SCRIPT}
     S.active = true;
   }
 
+  try {
+    document.onselectstart = null;
+    document.oncopy = null;
+    document.oncontextmenu = null;
+    if (document.body) {
+      document.body.onselectstart = null;
+      document.body.oncopy = null;
+      document.body.oncontextmenu = null;
+    }
+  } catch (e) {}
+
   var sheet = document.getElementById('__mb-reader-css');
   if (!sheet) {
     sheet = document.createElement('style');
@@ -625,7 +636,9 @@ ${READER_EXTRACTION_CORE_SCRIPT}
     document.head.appendChild(sheet);
   }
   sheet.textContent =
-    'html,body{background:' + paper + ' !important;margin:0 !important;padding:0 !important}' +
+    'html,body{background:' + paper + ' !important;margin:0 !important;padding:0 !important;' +
+      '-webkit-user-select:text !important;user-select:text !important;-webkit-touch-callout:default !important}' +
+    '#__mb-reader, #__mb-reader *{-webkit-user-select:text !important;user-select:text !important;-webkit-touch-callout:default !important}' +
     '#__mb-reader{max-width:680px;margin:0 auto;padding:26px 22px 64px;' +
       'font-family:"Noto Serif SC","Songti SC",Georgia,serif;color:' + body + '}' +
     '#__mb-reader h1{font-size:' + (fontSize + 8) + 'px;line-height:1.55;font-weight:600;' +
@@ -641,7 +654,7 @@ ${READER_EXTRACTION_CORE_SCRIPT}
     '#__mb-reader pre{overflow-x:auto;padding:14px;border-radius:10px;background:rgba(128,128,128,.12)}' +
     '#__mb-reader blockquote{margin:1.4em 0;padding-left:16px;border-left:2px solid ' + accent + ';opacity:.85}';
 
-  document.body.setAttribute('style', 'margin:0;background:' + paper + ';');
+  document.body.setAttribute('style', 'margin:0;background:' + paper + ';-webkit-user-select:text !important;user-select:text !important;');
   var metrics = S.metrics || {};
   return JSON.stringify({ status: 'reader', result: metrics.result || 'complete',
     strategy: metrics.strategy || 'unknown', candidateChars: metrics.candidateChars || 0,

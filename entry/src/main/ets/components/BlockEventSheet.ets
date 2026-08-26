@@ -9,6 +9,7 @@ import { AppIcon, IconName } from './AppIcon';
 
 @Component
 export struct BlockEventSheet {
+  @Prop topInset: number = 0;
   @Prop events: BlockEvent[] = [];
   onDismiss: () => void = (): void => {};
 
@@ -24,8 +25,9 @@ export struct BlockEventSheet {
           .layoutWeight(1)
       }
       .width('100%')
-      .height(62)
-      .padding({ left: 24, right: 24 })
+      .height(56 + Math.max(0, this.topInset))
+      .padding({ top: Math.max(0, this.topInset), left: 24, right: 24 })
+      .alignItems(VerticalAlign.Center)
       .border({ width: { bottom: 1 }, color: $r('app.color.border') })
 
       if (this.events.length === 0) {
@@ -37,7 +39,8 @@ export struct BlockEventSheet {
         }
         .width('100%')
         .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
+        .padding({ top: 48 })
+        .justifyContent(FlexAlign.Start)
       } else {
         List({ space: 0 }) {
           ForEach(this.events, (event: BlockEvent) => {
@@ -54,6 +57,7 @@ export struct BlockEventSheet {
     }
     .width('100%')
     .height('100%')
+    .justifyContent(FlexAlign.Start)
     .backgroundColor($r('app.color.page_background'))
   }
 

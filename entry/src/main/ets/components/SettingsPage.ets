@@ -197,6 +197,7 @@ export struct SettingsPage {
     (_origin: string, _kind: string, _decision: SitePermissionDecision): void => {};
   onToggleCurrentSiteDarkMode: () => void = (): void => {};
   onUpdateRules: () => void = (): void => {};
+  onSetDefaultBrowser: () => void = (): void => {};
   onOpenPro: () => void = (): void => {};
   onBack: () => void = (): void => {};
   @State private picker: PickerKind = PickerKind.None;
@@ -265,6 +266,7 @@ export struct SettingsPage {
 
           this.GroupLabel($r('app.string.group_general'), 20)
           Column() {
+            this.ActionRow($r('app.string.set_as_default_browser'), true, () => this.onSetDefaultBrowser())
             this.ValueRow(
               $r('app.string.default_search_engine'),
               SEARCH_ENGINE_LABELS[this.settings.searchEngine as number],
@@ -602,6 +604,12 @@ export struct SettingsPage {
         label: $r('app.string.rules_update'),
         keywords: '更新 拦截 规则',
         action: () => this.onUpdateRules()
+      },
+      {
+        key: 'set_as_default_browser',
+        label: $r('app.string.set_as_default_browser'),
+        keywords: '默认 浏览器 设为默认 系统默认 网页打开',
+        action: () => this.onSetDefaultBrowser()
       },
       {
         key: 'search_engine',

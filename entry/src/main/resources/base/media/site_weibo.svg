@@ -1,0 +1,17 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="28" fill="#FFFFFF"/>
+  <g transform="translate(14, 16)">
+    <!-- Eye Body -->
+    <path d="M 46 86 C 24 86 8 72 8 54 C 8 36 24 24 46 24 C 68 24 84 36 84 54 C 84 72 68 86 46 86 Z" fill="#E6162D"/>
+    <!-- Yellow inner crescent / glow -->
+    <path d="M 46 78 C 30 78 18 68 18 54 C 18 42 28 32 42 30 C 32 35 26 44 26 54 C 26 66 35 74 46 74 C 54 74 61 70 65 64 C 61 72 54 78 46 78 Z" fill="#F8B600"/>
+    <!-- Black eye center -->
+    <circle cx="52" cy="52" r="16" fill="#1A1A18"/>
+    <!-- White eye reflection -->
+    <circle cx="48" cy="48" r="5" fill="#FFFFFF"/>
+    <!-- Outer antenna broadcast wave 1 -->
+    <path d="M 68 22 C 78 26 86 35 88 46" fill="none" stroke="#F8B600" stroke-width="5" stroke-linecap="round"/>
+    <!-- Outer antenna broadcast wave 2 -->
+    <path d="M 78 14 C 92 20 102 33 104 48" fill="none" stroke="#E6162D" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

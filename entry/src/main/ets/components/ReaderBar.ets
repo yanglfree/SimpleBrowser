@@ -1,5 +1,5 @@
 import { READER_LINE_HEIGHTS } from '../constants/AppConstants';
-import { ReaderPaper } from '../models/BrowserModels';
+import { ReaderPaper, ReaderTheme, getReaderTheme } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 
 interface PaperSwatch {
@@ -20,6 +20,7 @@ const SWATCHES: PaperSwatch[] = [
  */
 @Component
 export struct ReaderBar {
+  @Prop topInset: number = 0;
   @Prop paper: ReaderPaper = ReaderPaper.Sepia;
   @Prop canShrink: boolean = true;
   @Prop canGrow: boolean = true;
@@ -30,77 +31,91 @@ export struct ReaderBar {
   onDone: () => void = (): void => {};
 
   build() {
-    Row() {
-      Row({ space: 18 }) {
-        Text('A−')
-          .constraintSize({ minWidth: 44, minHeight: 44 })
-          .textAlign(TextAlign.Center)
-          .fontSize(13)
-          .fontColor($r('app.color.text_secondary'))
-          .opacity(this.canShrink ? 1 : 0.35)
-          .onClick(() => {
-            if (this.canShrink) {
-              this.onShrink();
-            }
-          })
-        Text('A+')
-          .constraintSize({ minWidth: 44, minHeight: 44 })
-          .textAlign(TextAlign.Center)
-          .fontSize(17)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
-          .opacity(this.canGrow ? 1 : 0.35)
-          .onClick(() => {
-            if (this.canGrow) {
-              this.onGrow();
-            }
-          })
-      }
-      .alignItems(VerticalAlign.Bottom)
+    Column() {
+      Row() {
+        Row({ space: 2 }) {
+          Text('A−')
+            .width(32)
+            .height(44)
+            .textAlign(TextAlign.Center)
+            .fontSize(13)
+            .fontColor(this.theme().textSecondary)
+            .opacity(this.canShrink ? 1 : 0.35)
+            .onClick(() => {
+              if (this.canShrink) {
+                this.onShrink();
+              }
+            })
+          Text('A+')
+            .width(32)
+            .height(44)
+            .textAlign(TextAlign.Center)
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(this.theme().textPrimary)
+            .opacity(this.canGrow ? 1 : 0.35)
+            .onClick(() => {
+              if (this.canGrow) {
+                this.onGrow();
+              }
+            })
+        }
+        .alignItems(VerticalAlign.Center)
 
-      Row({ space: 6 }) {
-        AppIcon({ name: IconName.LineHeight, glyphSize: 15, color: $r('app.color.text_secondary') })
-        Text($r('app.string.reader_line_height'))
-          .fontSize(12)
-          .fontColor($r('app.color.text_secondary'))
-      }
-      .constraintSize({ minWidth: 44, minHeight: 44 })
-      .accessibilityText($r('app.string.reader_line_height'))
-      .onClick(() => this.onCycleLineHeight())
+        Row({ space: 4 }) {
+          AppIcon({ name: IconName.LineHeight, glyphSize: 15, color: this.theme().textSecondary })
+          Text($r('app.string.reader_line_height'))
+            .fontSize(12)
+            .fontColor(this.theme().textSecondary)
+        }
+        .height(44)
+        .padding({ left: 4, right: 4 })
+        .accessibilityText($r('app.string.reader_line_height'))
+        .onClick(() => this.onCycleLineHeight())
 
-      Row({ space: 10 }) {
-        ForEach(SWATCHES, (swatch: PaperSwatch) => {
-          Row() {
-            Circle()
-              .width(20)
-              .height(20)
-              .fill(swatch.color)
-              .stroke(this.paper === swatch.paper
-                ? $r('app.color.accent')
-                : $r('app.color.border'))
-              .strokeWidth(this.paper === swatch.paper ? 1.5 : 1)
-          }
-          .width(44)
+        Row({ space: 6 }) {
+          ForEach(SWATCHES, (swatch: PaperSwatch) => {
+            Row() {
+              Circle()
+                .width(18)
+                .height(18)
+                .fill(swatch.color)
+                .stroke(this.paper === swatch.paper
+                  ? $r('app.color.accent')
+                  : this.theme().border)
+                .strokeWidth(this.paper === swatch.paper ? 1.5 : 1)
+            }
+            .width(28)
+            .height(44)
+            .justifyContent(FlexAlign.Center)
+            .accessibilityText(swatch.label)
+            .onClick(() => this.onPickPaper(swatch.paper))
+          }, (swatch: PaperSwatch) => `${swatch.paper}`)
+        }
+
+        Text($r('app.string.done'))
           .height(44)
-          .justifyContent(FlexAlign.Center)
-          .accessibilityText(swatch.label)
-          .onClick(() => this.onPickPaper(swatch.paper))
-        }, (swatch: PaperSwatch) => `${swatch.paper}`)
+          .padding({ left: 6, right: 2 })
+          .textAlign(TextAlign.Center)
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.theme().textPrimary)
+          .onClick(() => this.onDone())
       }
-
-      Text($r('app.string.done'))
-        .constraintSize({ minWidth: 44, minHeight: 44 })
-        .textAlign(TextAlign.Center)
-        .fontSize(13)
-        .fontColor($r('app.color.text_secondary'))
-        .onClick(() => this.onDone())
+      .width('100%')
+      .height(44)
+      .padding({ left: 16, right: 16 })
+      .justifyContent(FlexAlign.SpaceBetween)
+      .alignItems(VerticalAlign.Center)
     }
     .width('100%')
-    .height(44)
-    .padding({ left: 24, right: 24 })
-    .justifyContent(FlexAlign.SpaceBetween)
-    .backgroundColor($r('app.color.page_background'))
-    .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+    .padding({ top: Math.max(0, this.topInset) })
+    .backgroundColor(this.theme().background)
+    .border({ width: { bottom: 1 }, color: this.theme().border })
+  }
+
+  private theme(): ReaderTheme {
+    return getReaderTheme(this.paper);
   }
 }
 

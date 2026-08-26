@@ -70,6 +70,7 @@ export struct BrowserWebView {
       .initialScale(100)
       .darkMode(this.webDarkModeValue())
       .forceDarkAccess(this.shouldForceDark())
+      .copyOptions(CopyOptions.LocalDevice)
       .backgroundColor($r('app.color.content_background'))
       .width('100%')
       .height('100%')
@@ -135,9 +136,13 @@ export struct BrowserWebView {
           .onActionEnd((_event: GestureEvent) => this.finishPull())
           .onActionCancel(() => this.cancelPull())
       )
-      .gesture(
+      .parallelGesture(
         LongPressGesture({ repeat: false, duration: 500 })
-          .onAction(() => this.onLongPress())
+          .onAction(() => {
+            if (!this.tab.isReader) {
+              this.onLongPress();
+            }
+          })
       )
 
       if (this.gesturesEnabled) {
