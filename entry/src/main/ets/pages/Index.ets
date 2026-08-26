@@ -2637,6 +2637,7 @@ struct Index {
     }
     if (key === 'bookmark') {
       const added: boolean = await this.viewModel.toggleSaved(tab);
+      this.savedItems = this.viewModel.savedItems.slice();
       this.isActiveBookmarked = this.viewModel.isSaved(tab.url);
       this.isActiveSavedForLater = this.viewModel.isSavedForLater(tab.url);
       this.showToast(added ? $r('app.string.bookmark_added') : $r('app.string.bookmark_removed'));
@@ -2645,6 +2646,7 @@ struct Index {
     }
     if (key === 'save_later') {
       await this.viewModel.saveForLater(tab);
+      this.savedItems = this.viewModel.savedItems.slice();
       this.isActiveBookmarked = this.viewModel.isSaved(tab.url);
       this.isActiveSavedForLater = this.viewModel.isSavedForLater(tab.url);
       return;

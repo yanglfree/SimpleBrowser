@@ -973,7 +973,7 @@ export class BrowserViewModel {
     this.history = [];
   }
 
-  /** Start-page tiles: user bookmarks first, then shipped defaults. */
+  /** Start-page tiles: explicit shortcuts first, then shipped defaults. */
   getQuickSites(): QuickSite[] {
     const hiddenHosts: string[] = this.repository.getHiddenQuickHosts();
     const visibleSites: QuickSite[] = [];
@@ -984,25 +984,6 @@ export class BrowserViewModel {
         visibleSites.push(cloneQuickSite(custom));
       }
     }
-    const bookmarks: SavedItem[] = this.savedItems.slice()
-      .sort((left: SavedItem, right: SavedItem): number => right.updatedAt - left.updatedAt);
-    for (const bookmark of bookmarks) {
-      if (visibleSites.length >= QUICK_SITE_COUNT) {
-        break;
-      }
-      const host: string = rawHost(bookmark.url);
-      if (host.length === 0 || hiddenHosts.includes(host) ||
-        visibleSites.some((site: QuickSite): boolean => rawHost(site.url) === host)) {
-        continue;
-      }
-      visibleSites.push({
-        title: bookmark.title.length > 0 ? bookmark.title : displayHost(bookmark.url),
-        url: bookmark.url,
-        badge: siteBadge(bookmark.title, bookmark.url),
-        colorIndex: BrowserViewModel.colorIndexFor(host)
-      });
-    }
-
     for (const fallback of DEFAULT_QUICK_SITES) {
       if (visibleSites.length >= QUICK_SITE_COUNT) {
         break;

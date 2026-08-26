@@ -93,7 +93,7 @@ export default function browserViewModelTest(): void {
   });
 
   describe('BrowserViewModel start-page shortcuts', (): void => {
-    it('shows user bookmarks before presets and never promotes browsing history', 0, (): void => {
+    it('keeps bookmarks and browsing history out of start-page shortcuts', 0, (): void => {
       const viewModel: BrowserViewModel = new BrowserViewModel();
       const now: number = Date.now();
       const favorite: SavedItem = {
@@ -117,8 +117,7 @@ export default function browserViewModelTest(): void {
 
       const sites: QuickSite[] = viewModel.getQuickSites();
 
-      expect(sites[0].title).assertEqual('Dolphin Docs');
-      expect(sites[0].url).assertEqual(favorite.url);
+      expect(sites.some((site: QuickSite): boolean => site.url === favorite.url)).assertFalse();
       expect(sites.some((site: QuickSite): boolean => site.url.includes('visited.example'))).assertFalse();
       expect(sites.some((site: QuickSite): boolean => site.title === '知乎')).assertTrue();
       expect(sites.some((site: QuickSite): boolean => site.url.includes('m.weibo.cn'))).assertFalse();

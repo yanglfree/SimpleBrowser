@@ -157,9 +157,9 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
 
 ### Start-page shortcuts
 
-- **Source order**: explicitly added shortcuts first, then user-saved bookmarks,
-  followed by shipped preset sites. Browsing history is never promoted automatically;
-  it only becomes a shortcut when the user selects it in the add dialog.
+- **Source order**: explicitly added shortcuts first, followed by shipped preset
+  sites. Bookmarks and browsing history are never promoted automatically; either
+  becomes a shortcut only when the user selects it in the add dialog.
 - **Deduplication**: one tile per host; hidden hosts remain excluded.
 - **Icons**: the site's own highest-quality declared icon on a neutral card. Page
   metadata and high-resolution touch icons take precedence over the legacy root
