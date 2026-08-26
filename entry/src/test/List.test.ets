@@ -25,6 +25,7 @@ import pageIssueDiagnosticServiceTest from './PageIssueDiagnosticService.test';
 import proModelsTest from './ProModels.test';
 import privateTaskPersistenceTest from './PrivateTaskPersistence.test';
 import browserReportedBugsTest from './BrowserReportedBugs.test';
+import readerModeRegressionTest from './ReaderModeRegression.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -54,4 +55,5 @@ export default function testsuite(): void {
   proModelsTest();
   privateTaskPersistenceTest();
   browserReportedBugsTest();
+  readerModeRegressionTest();
 }

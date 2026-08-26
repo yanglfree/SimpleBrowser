@@ -441,7 +441,8 @@ export function readerApplyScript(
   if (!S.active) {
     var candidates = document.querySelectorAll(
       'article, main, [role="main"], [itemprop="articleBody"], .article, .article-body, .article-content, ' +
-      '.post, .post-body, .post-content, .entry-content, .story-body, .story-content, .content, #content'
+      '.post, .post-body, .post-content, .entry-content, .story-body, .story-content, .content, #content, ' +
+      '#js_content, .rich_media_content'
     );
     var best = null, bestScore = 0, bestLength = 0;
     for (var i = 0; i < candidates.length; i++) {
