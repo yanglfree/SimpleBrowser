@@ -111,6 +111,7 @@ import { MemoryPressureService } from '../services/MemoryPressureService';
 import { DownloadPolicyReason, DownloadService, DownloadTask } from '../services/DownloadService';
 import { BookmarkTransferService } from '../services/BookmarkTransferService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
+import { LongScreenshotService } from '../services/LongScreenshotService';
 import { HomeBackgroundService } from '../services/HomeBackgroundService';
 import { ThemeService } from '../services/ThemeService';
 import { TelemetryService } from '../services/TelemetryService';
@@ -411,6 +412,7 @@ struct Index {
   );
   @State private multiWindowSupported: boolean = false;
   @State private isPro: boolean = false;
+  @State private isGeneratingScreenshot: boolean = false;
   private proBillingAdapter: ProBillingAdapter = new ProBillingAdapter();
   private isTabSoftLimitPromptVisible: boolean = false;
   /**
@@ -639,6 +641,9 @@ struct Index {
         this.CapsuleLayer()
         if (shouldMountOverlayLayer(this.sheet)) {
           this.OverlayLayer()
+        }
+        if (this.isGeneratingScreenshot) {
+          this.ScreenshotLoadingLayer()
         }
       }
     }
@@ -913,6 +918,36 @@ struct Index {
    * tab ForEach: those items are keyed and reused, so a change of error state
    * inside one would never be drawn.
    */
+  @Builder
+  private ScreenshotLoadingLayer() {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor($r('app.color.scrim'))
+
+      Column({ space: 14 }) {
+        LoadingProgress()
+          .width(40)
+          .height(40)
+          .color($r('app.color.accent'))
+        Text($r('app.string.screenshot_generating'))
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+      }
+      .padding({ top: 22, bottom: 22, left: 28, right: 28 })
+      .borderRadius(16)
+      .backgroundColor($r('app.color.surface_panel'))
+      .border({ width: 1, color: $r('app.color.border') })
+      .shadow({ radius: 20, color: '#1A000000', offsetY: 4 })
+    }
+    .width('100%')
+    .height('100%')
+    .zIndex(100)
+    .hitTestBehavior(HitTestMode.Block)
+  }
+
   @Builder
   private ErrorLayer() {
     if (!this.isActiveHome() && this.activeErrorKind() !== LoadErrorKind.None) {
@@ -1491,6 +1526,7 @@ struct Index {
         .transition(TransitionEffect.OPACITY.animation({ duration: 180, curve: Curve.EaseOut }))
     } else if (this.sheet === Overlay.Address) {
       AddressSheet({
+        topInset: this.topInset,
         suggestions: this.suggestions,
         currentHost: displayHost(this.activeTab()?.url ?? ''),
         initialText: this.isActiveHome() ? '' : (this.activeTab()?.url ?? ''),
@@ -1680,6 +1716,7 @@ struct Index {
     } else if (this.sheet === Overlay.Downloads) {
       DownloadSheet({
         tasks: this.downloadTasks,
+        topInset: this.topInset,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onPause: (id: string): void => DownloadService.pause(id),
         onResume: (id: string): void => DownloadService.resume(id),
@@ -1692,6 +1729,7 @@ struct Index {
         .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.Find) {
       FindSheet({
+        topInset: this.topInset,
         query: this.findQuery,
         current: this.findCurrent,
         total: this.findTotal,
@@ -3030,23 +3068,53 @@ struct Index {
   }
 
   private async shareActiveScreenshot(): Promise<void> {
+    if (this.isGeneratingScreenshot) {
+      return;
+    }
     const tab: BrowserTab | undefined = this.activeTab();
     if (tab === undefined) {
       return;
     }
+    this.isGeneratingScreenshot = true;
+    this.sheet = Overlay.None;
     try {
-      const shot: image.PixelMap =
-        await this.getUIContext().getComponentSnapshot().get(`tab-view-${tab.id}`);
+      // Yield to allow UI frame to render loading overlay
+      await new Promise<void>((resolve: () => void) => setTimeout(resolve, 80));
+
+      let shot: image.PixelMap;
+      const controller: webview.WebviewController | undefined = this.controllers.get(tab.id);
+      if (!isHomeUrl(tab.url) && controller !== undefined) {
+        shot = await LongScreenshotService.capture(
+          controller,
+          async (): Promise<image.PixelMap> => {
+            try {
+              return await this.getUIContext().getComponentSnapshot().get(`web-core-${tab.id}`);
+            } catch (_err) {
+              return await this.getUIContext().getComponentSnapshot().get(`tab-view-${tab.id}`);
+            }
+          },
+          (ctrl: webview.WebviewController, script: string): Promise<string> => {
+            return this.runScript(ctrl, script);
+          },
+          tab.isReader
+        );
+      } else {
+        try {
+          shot = await this.getUIContext().getComponentSnapshot().get(`web-core-${tab.id}`);
+        } catch (_err) {
+          shot = await this.getUIContext().getComponentSnapshot().get(`tab-view-${tab.id}`);
+        }
+      }
       const outcome: ShareOutcome = await ShareService.shareImage(
         this.appContext(), shot, tab.title);
-      if (outcome === ShareOutcome.Shared) {
-        this.sheet = Overlay.None;
-      } else {
+      if (outcome !== ShareOutcome.Shared) {
         this.showToast($r('app.string.screenshot_share_failed'));
       }
     } catch (error) {
       Logger.warn(TAG, `Page screenshot unavailable: ${String(error)}`);
       this.showToast($r('app.string.screenshot_share_failed'));
+    } finally {
+      this.isGeneratingScreenshot = false;
     }
   }
 

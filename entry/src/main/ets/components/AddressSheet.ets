@@ -20,6 +20,7 @@ function suggestionIcon(kind: SuggestionKind): IconName {
  */
 @Component
 export struct AddressSheet {
+  @Prop topInset: number = 0;
   @Prop suggestions: Suggestion[] = [];
   @Prop currentHost: string = '';
   initialText: string = '';
@@ -45,16 +46,26 @@ export struct AddressSheet {
     }
     .width('100%')
     .height('100%')
+    .padding({ top: Math.max(0, this.topInset) })
     .backgroundColor($r('app.color.page_background'))
   }
 
   @Builder
   private Panel() {
     Column() {
-      // Reversed: most relevant last, i.e. directly above the input.
-      ForEach(this.suggestions.slice(0).reverse(), (item: Suggestion, index: number) => {
-        this.SuggestionRow(item, index === this.suggestions.length - 1)
-      }, (item: Suggestion) => item.id)
+      if (this.suggestions.length > 0) {
+        Scroll() {
+          Column() {
+            // Reversed: most relevant last, i.e. directly above the input.
+            ForEach(this.suggestions.slice(0).reverse(), (item: Suggestion, index: number) => {
+              this.SuggestionRow(item, index === this.suggestions.length - 1)
+            }, (item: Suggestion) => item.id)
+          }
+          .width('100%')
+        }
+        .constraintSize({ maxHeight: '50%' })
+        .scrollBar(BarState.Off)
+      }
 
       Row({ space: 10 }) {
         Row({ space: 10 }) {

@@ -2,6 +2,7 @@ import { AppIcon, IconName } from './AppIcon';
 
 @Component
 export struct FindSheet {
+  @Prop topInset: number = 0;
   @Prop query: string = '';
   @Prop current: number = 0;
   @Prop total: number = 0;
@@ -55,7 +56,8 @@ export struct FindSheet {
         .onClick(() => this.onDismiss())
       }
       .width('100%')
-      .padding({ top: 12, left: 14, right: 10, bottom: 10 })
+      .padding({ top: Math.max(0, this.topInset) + 8, left: 14, right: 10, bottom: 10 })
+      .alignItems(VerticalAlign.Center)
       .backgroundColor($r('app.color.surface_panel'))
       .border({ width: { bottom: 1 }, color: $r('app.color.border') })
 

@@ -3,6 +3,7 @@ import { DownloadTask, DownloadTaskStatus } from '../services/DownloadService';
 
 @Component
 export struct DownloadSheet {
+  @Prop topInset: number = 0;
   @Prop tasks: DownloadTask[] = [];
   onDismiss: () => void = (): void => {};
   onPause: (id: string) => void = (_id: string): void => {};
@@ -22,9 +23,19 @@ export struct DownloadSheet {
           .fontSize(24)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.text_primary'))
+          .layoutWeight(1)
+        if (this.tasks.length > 0) {
+          Text(`${this.tasks.length}`)
+            .fontSize(14)
+            .fontColor($r('app.color.text_secondary'))
+            .fontFeature('"tnum" 1')
+        }
       }
       .width('100%')
-      .padding({ top: 22, left: 24, right: 24, bottom: 18 })
+      .height(56 + Math.max(0, this.topInset))
+      .padding({ top: Math.max(0, this.topInset), left: 24, right: 24 })
+      .alignItems(VerticalAlign.Center)
+      .border({ width: { bottom: 1 }, color: $r('app.color.border') })
 
       if (this.tasks.length === 0) {
         Column({ space: 10 }) {
@@ -33,9 +44,10 @@ export struct DownloadSheet {
             .fontSize(14)
             .fontColor($r('app.color.text_secondary'))
         }
-        .layoutWeight(1)
         .width('100%')
-        .justifyContent(FlexAlign.Center)
+        .layoutWeight(1)
+        .padding({ top: 48 })
+        .justifyContent(FlexAlign.Start)
       } else {
         Scroll() {
           Column({ space: 10 }) {
@@ -44,14 +56,17 @@ export struct DownloadSheet {
             }, (task: DownloadTask) => task.id)
           }
           .width('100%')
-          .padding({ left: 24, right: 24, bottom: 32 })
+          .padding({ left: 24, right: 24, top: 16, bottom: 32 })
         }
+        .width('100%')
         .layoutWeight(1)
+        .align(Alignment.TopStart)
         .scrollBar(BarState.Off)
       }
     }
     .width('100%')
     .height('100%')
+    .justifyContent(FlexAlign.Start)
     .backgroundColor($r('app.color.page_background'))
   }
 
