@@ -1,11 +1,14 @@
-import { AppIcon, IconName } from './AppIcon';
+import { AppIcon, IconName, iconStrokeUnits } from './AppIcon';
 import { ReaderPaper, getReaderTheme } from '../models/BrowserModels';
 import {
+  DOCK_BADGE_ICON_STROKE,
   DOCK_BADGE_SIZE,
   DOCK_COLLAPSED_HEIGHT,
   DOCK_COLLAPSED_PILL_HEIGHT,
   DOCK_HEIGHT,
   DOCK_ICON_SIZE,
+  DOCK_ICON_STROKE,
+  DOCK_PILL_ICON_SIZE,
   DOCK_ROW_HEIGHT,
   DOCK_SLOT_WIDTH,
   DOCK_TAB_INDICATOR_ACTIVE_WIDTH,
@@ -119,33 +122,31 @@ export struct BrowserDock {
     .backgroundColor(this.isReader
       ? getReaderTheme(this.readerPaper).background
       : (this.usesHomeColors() ? Color.Transparent : $r('app.color.page_background')))
-    .border(this.isReader && !this.wide
-      ? { width: { top: 1 }, color: getReaderTheme(this.readerPaper).border }
-      : undefined)
+    .border(this.barBorder())
     .borderRadius(this.desktop ? 0 : this.wide ? DOCK_HEIGHT / 2 : 0)
     .shadow(this.desktop ? undefined : this.wide
       ? { radius: 16, color: $r('app.color.shadow_soft'), offsetY: 3 }
       : undefined)
   }
 
+  private barBorder(): BorderOptions | undefined {
+    if (this.desktop) {
+      return { width: { bottom: 1 }, color: $r('app.color.border') };
+    }
+    if (this.isReader && !this.wide) {
+      return { width: { top: 1 }, color: getReaderTheme(this.readerPaper).border };
+    }
+    return undefined;
+  }
+
   @Builder
   private ExpandedRow() {
     Row({ space: 4 }) {
-      this.NavButton(IconName.ChevronLeft, this.canGoBack, $r('app.string.action_back'), this.onBack)
-      this.NavButton(IconName.ChevronRight, this.canGoForward, $r('app.string.action_forward'), this.onForward)
+      this.BackButton()
+      this.ForwardButton()
       if (this.desktop) {
-        this.NavButton(
-          this.isLoading ? IconName.Stop : IconName.Refresh,
-          canUseDesktopPageActions(this.host, this.isHome),
-          this.isLoading ? $r('app.string.action_stop') : $r('app.string.action_reload'),
-          this.onReload
-        )
-        this.NavButton(
-          IconName.Home,
-          canUseDesktopPageActions(this.host, this.isHome),
-          $r('app.string.home'),
-          this.onHome
-        )
+        this.ReloadButton()
+        this.HomeButton()
       }
 
       // Shield, address, reload — the three things a page-level bar owes the
@@ -162,7 +163,7 @@ export struct BrowserDock {
                 name: IconName.ShieldCheck,
                 glyphSize: 16,
                 color: $r('app.color.accent'),
-                strokeWidth: 1.8
+                strokeWidth: iconStrokeUnits(16, DOCK_BADGE_ICON_STROKE)
               })
               Text(`${this.blockedCount}`)
                 .fontSize(12)
@@ -190,12 +191,12 @@ export struct BrowserDock {
             Column() {
               AppIcon({
                 name: this.isLoading ? IconName.Stop : IconName.Refresh,
-                glyphSize: 19,
+                glyphSize: DOCK_PILL_ICON_SIZE,
                 color: this.iconColor(),
-                strokeWidth: 1.8
+                strokeWidth: iconStrokeUnits(DOCK_PILL_ICON_SIZE, DOCK_ICON_STROKE)
               })
             }
-            .width(28)
+            .width(30)
             .height(DOCK_ROW_HEIGHT)
             .justifyContent(FlexAlign.Center)
             .accessibilityText(this.isLoading ? $r('app.string.action_stop') : $r('app.string.action_reload'))
@@ -206,13 +207,13 @@ export struct BrowserDock {
             Row() {
               AppIcon({
                 name: IconName.Star,
-                glyphSize: 19,
+                glyphSize: DOCK_PILL_ICON_SIZE,
                 color: this.isBookmarked ? $r('app.color.accent') : this.iconColor(),
-                strokeWidth: 1.8,
+                strokeWidth: iconStrokeUnits(DOCK_PILL_ICON_SIZE, DOCK_ICON_STROKE),
                 filled: this.isBookmarked
               })
             }
-            .width(28)
+            .width(30)
             .height(DOCK_ROW_HEIGHT)
             .justifyContent(FlexAlign.Center)
             .accessibilityText(this.isBookmarked
@@ -235,9 +236,9 @@ export struct BrowserDock {
       .padding({ left: 8, right: 8 })
       .borderRadius(this.desktop ? 12 : DOCK_ROW_HEIGHT / 2)
       .backgroundColor(this.chromeColor())
-      .backdropBlur(24)
+      .backdropBlur(this.desktop ? 0 : 24)
       .border({
-        width: 1,
+        width: this.desktop && !this.isReader ? 0 : 1,
         color: this.isReader
           ? getReaderTheme(this.readerPaper).pillBorder
           : (this.usesHomeColors() ? $r('app.color.home_control_border') : $r('app.color.border'))
@@ -288,7 +289,7 @@ export struct BrowserDock {
         .width(DOCK_BADGE_SIZE)
         .height(DOCK_BADGE_SIZE)
         .borderRadius(7)
-        .border({ width: 1.8, color: this.iconColor() })
+        .border({ width: DOCK_ICON_STROKE, color: this.iconColor() })
         .margin({
           left: (DOCK_SLOT_WIDTH - DOCK_BADGE_SIZE) / 2,
           right: (DOCK_SLOT_WIDTH - DOCK_BADGE_SIZE) / 2
@@ -364,7 +365,7 @@ export struct BrowserDock {
         name: IconName.ChevronRight,
         glyphSize: 18,
         color: $r('app.color.text_secondary'),
-        strokeWidth: 1.8
+        strokeWidth: iconStrokeUnits(18, DOCK_BADGE_ICON_STROKE)
       })
       Text($r('app.string.address_menu_visit_clipboard'))
         .layoutWeight(1)
@@ -407,7 +408,12 @@ export struct BrowserDock {
   @Builder
   private AddressMenuItem(icon: IconName, label: Resource, action: () => void) {
     Row({ space: 12 }) {
-      AppIcon({ name: icon, glyphSize: 18, color: $r('app.color.text_secondary'), strokeWidth: 1.8 })
+      AppIcon({
+        name: icon,
+        glyphSize: 18,
+        color: $r('app.color.text_secondary'),
+        strokeWidth: iconStrokeUnits(18, DOCK_BADGE_ICON_STROKE)
+      })
       Text(label)
         .fontSize(14)
         .fontWeight(FontWeight.Medium)
@@ -507,7 +513,7 @@ export struct BrowserDock {
         name: IconName.Incognito,
         glyphSize: 15,
         color: this.iconColor(),
-        strokeWidth: 1.8
+        strokeWidth: iconStrokeUnits(15, DOCK_BADGE_ICON_STROKE)
       })
       Text($r('app.string.private_badge'))
         .fontSize(11.5)
@@ -518,6 +524,110 @@ export struct BrowserDock {
     .padding({ left: 3, right: 5 })
     .accessibilityText($r('app.string.private_badge'))
     .hitTestBehavior(HitTestMode.None)
+  }
+
+  @Builder
+  private BackButton() {
+    Column() {
+      AppIcon({
+        name: IconName.ChevronLeft,
+        glyphSize: DOCK_ICON_SIZE,
+        color: this.iconColor(),
+        strokeWidth: iconStrokeUnits(DOCK_ICON_SIZE, DOCK_ICON_STROKE)
+      })
+    }
+    .id('browser-dock-back')
+    .width(DOCK_SLOT_WIDTH)
+    .height(DOCK_ROW_HEIGHT)
+    .justifyContent(FlexAlign.Center)
+    .opacity(this.canGoBack ? 1 : 0.34)
+    .accessibilityText($r('app.string.action_back'))
+    .focusable(true)
+    .hoverEffect(HoverEffect.Auto)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.92 })
+    .onClick(() => {
+      if (this.canGoBack) {
+        this.onBack();
+      }
+    })
+  }
+
+  @Builder
+  private ForwardButton() {
+    Column() {
+      AppIcon({
+        name: IconName.ChevronRight,
+        glyphSize: DOCK_ICON_SIZE,
+        color: this.iconColor(),
+        strokeWidth: iconStrokeUnits(DOCK_ICON_SIZE, DOCK_ICON_STROKE)
+      })
+    }
+    .id('browser-dock-forward')
+    .width(DOCK_SLOT_WIDTH)
+    .height(DOCK_ROW_HEIGHT)
+    .justifyContent(FlexAlign.Center)
+    .opacity(this.canGoForward ? 1 : 0.34)
+    .accessibilityText($r('app.string.action_forward'))
+    .focusable(true)
+    .hoverEffect(HoverEffect.Auto)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.92 })
+    .onClick(() => {
+      if (this.canGoForward) {
+        this.onForward();
+      }
+    })
+  }
+
+  @Builder
+  private ReloadButton() {
+    Column() {
+      AppIcon({
+        name: this.isLoading ? IconName.Stop : IconName.Refresh,
+        glyphSize: DOCK_ICON_SIZE,
+        color: this.iconColor(),
+        strokeWidth: iconStrokeUnits(DOCK_ICON_SIZE, DOCK_ICON_STROKE)
+      })
+    }
+    .id('browser-dock-reload')
+    .width(DOCK_SLOT_WIDTH)
+    .height(DOCK_ROW_HEIGHT)
+    .justifyContent(FlexAlign.Center)
+    .opacity(canUseDesktopPageActions(this.host, this.isHome) ? 1 : 0.34)
+    .accessibilityText(this.isLoading ? $r('app.string.action_stop') : $r('app.string.action_reload'))
+    .focusable(true)
+    .hoverEffect(HoverEffect.Auto)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.92 })
+    .onClick(() => {
+      if (canUseDesktopPageActions(this.host, this.isHome)) {
+        this.onReload();
+      }
+    })
+  }
+
+  @Builder
+  private HomeButton() {
+    Column() {
+      AppIcon({
+        name: IconName.Home,
+        glyphSize: DOCK_ICON_SIZE,
+        color: this.iconColor(),
+        strokeWidth: iconStrokeUnits(DOCK_ICON_SIZE, DOCK_ICON_STROKE)
+      })
+    }
+    .id('browser-dock-home')
+    .width(DOCK_SLOT_WIDTH)
+    .height(DOCK_ROW_HEIGHT)
+    .justifyContent(FlexAlign.Center)
+    .opacity(canUseDesktopPageActions(this.host, this.isHome) ? 1 : 0.34)
+    .accessibilityText($r('app.string.home'))
+    .focusable(true)
+    .hoverEffect(HoverEffect.Auto)
+    .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.92 })
+    .onClick(() => {
+      if (canUseDesktopPageActions(this.host, this.isHome)) {
+        this.onHome();
+      }
+    })
   }
 
   /**
@@ -531,7 +641,7 @@ export struct BrowserDock {
         name: IconName.Clock,
         glyphSize: DOCK_ICON_SIZE,
         color: this.historyOpen ? $r('app.color.accent') : this.iconColor(),
-        strokeWidth: 1.8
+        strokeWidth: iconStrokeUnits(DOCK_ICON_SIZE, DOCK_ICON_STROKE)
       })
     }
     .id('browser-dock-history')
@@ -550,7 +660,12 @@ export struct BrowserDock {
   @Builder
   private NavButton(icon: IconName, enabled: boolean, label: Resource, onTap: () => void) {
     Column() {
-      AppIcon({ name: icon, glyphSize: DOCK_ICON_SIZE, color: this.iconColor(), strokeWidth: 1.8 })
+      AppIcon({
+        name: icon,
+        glyphSize: DOCK_ICON_SIZE,
+        color: this.iconColor(),
+        strokeWidth: iconStrokeUnits(DOCK_ICON_SIZE, DOCK_ICON_STROKE)
+      })
     }
     .width(DOCK_SLOT_WIDTH)
     .height(DOCK_ROW_HEIGHT)
@@ -568,7 +683,10 @@ export struct BrowserDock {
     if (this.isReader) {
       return getReaderTheme(this.readerPaper).pillBackground;
     }
-    return this.usesHomeColors() ? $r('app.color.home_chrome_background') : $r('app.color.capsule_background');
+    if (this.usesHomeColors()) {
+      return $r('app.color.home_chrome_background');
+    }
+    return this.desktop ? $r('app.color.surface_subtle') : $r('app.color.capsule_background');
   }
 
   private primaryColor(): ResourceColor | string {

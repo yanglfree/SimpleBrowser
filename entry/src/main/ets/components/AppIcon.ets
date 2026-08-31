@@ -33,15 +33,16 @@ export enum IconName {
   Mic = 27,
   Star = 28,
   WifiOff = 29,
-  CloudOff = 30
+  CloudOff = 30,
+  Globe = 31
 }
 
 const COMMANDS: string[] = [
   'M12 3l7 2.6v5.2c0 4.6-2.9 7.6-7 9.2-4.1-1.6-7-4.6-7-9.2V5.6z',
   'M12 3l7 2.6v5.2c0 4.6-2.9 7.6-7 9.2-4.1-1.6-7-4.6-7-9.2V5.6zM9.2 11.8l2 2 3.6-3.8',
-  'M15 6l-6 6 6 6',
-  'M9 6l6 6-6 6',
-  'M6 15l6-6 6 6',
+  'M15.25 4.75L8 12l7.25 7.25',
+  'M8.75 4.75L16 12l-7.25 7.25',
+  'M4.75 15.25L12 8l7.25 7.25',
   'M20 12a8 8 0 1 1-2.3-5.6M20 3.5V8h-4.5',
   'M12 14V3M8.5 6L12 3l3.5 3M7 10H5v11h14V10h-2',
   'M7 4h10v16l-5-3.8L7 20z',
@@ -53,13 +54,14 @@ const COMMANDS: string[] = [
   'M12 5v14M5 12h14',
   'M19 12H5M11 6l-6 6 6 6',
   'M8 7h12M8 12h12M8 17h12M4 6.5v11M4 6.5l-1.4 1.6M4 6.5l1.4 1.6M4 17.5l-1.4-1.6M4 17.5l1.4-1.6',
-  'M7.5 7.5h9v9h-9z',
+  'M6 6l12 12M18 6L6 18',
   'M16 15.5L8.5 8M15.5 8h-7v7',
   'M5 12.5l4.5 4.5L19 7.5',
-  'M5 5h10v10H5zM9 9h10v10H9z',
+  'M10.5 8.5h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z'
+    + 'M6.5 15.5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2',
   'M4 7h9M17 7h3M4 17h3M11 17h9M13 4v6M7 14v6',
-  'M4 6h16M4 12h16M4 18h16',
-  'M3.5 11.5L12 4l8.5 7.5M6 10v10h12V10M10 20v-6h4v6',
+  'M4.5 7h15M4.5 12h15M4.5 17h15',
+  'M4 11.75L12 4.5l8 7.25M6.5 10.3V19.5h11V10.3M10 19.5v-5.5h4v5.5',
   'M3 15l2-7h14l2 7M5 15h5l2-2 2 2h5M8 11h2M14 11h2',
   'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 1 0 0-7' +
     'M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1A8 8 0 0 0 15 6l-.3-2.5h-4' +
@@ -68,13 +70,29 @@ const COMMANDS: string[] = [
   'M12 3v12M7 10l5 5 5-5M5 20h14',
   'M5 7h14M9 7V4h6v3M8 10v7M12 10v7M16 10v7M7 7l1 14h8l1-14',
   'M12 3a4 4 0 0 0-4 4v5a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6',
-  'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z',
+  'M12 4l2.18 5.01 5.43.52-4.09 3.61 1.18 5.33L12 15.7'
+    + 'l-4.7 2.77 1.18-5.33-4.09-3.61 5.44-.52z',
   'M1.42 9a16 16 0 0 1 21.16 0M5 12.55a11 11 0 0 1 14.08 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01M3 3l18 18',
-  'M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10zM3 3l18 18'
+  'M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10zM3 3l18 18',
+  'M4 12a8 8 0 1 0 16 0a8 8 0 1 0-16 0'
+    + 'M12 4a11.6 11.6 0 0 0 0 16a11.6 11.6 0 0 0 0-16M4 12h16'
 ];
 
 /** The grid every command string above is authored on. */
-const GLYPH_GRID: number = 24;
+export const GLYPH_GRID: number = 24;
+
+/**
+ * `strokeWidth` is expressed in grid units, so the drawn line thickens with the
+ * glyph box: the same 1.8 reads as 1.2vp on a 16 glyph and 2.1vp on a 28 one. A
+ * bar of controls wants one weight across boxes of different sizes, which means
+ * converting the intended vp back into grid units per glyph.
+ */
+export function iconStrokeUnits(glyphSize: number, strokeVp: number): number {
+  if (glyphSize <= 0) {
+    return strokeVp;
+  }
+  return strokeVp * GLYPH_GRID / glyphSize;
+}
 
 const SCALED_COMMANDS: Map<string, string> = new Map<string, string>();
 
@@ -222,6 +240,8 @@ export struct AppIcon {
         return $r('app.string.voice_search');
       case IconName.Star:
         return this.filled ? $r('app.string.action_bookmark_remove') : $r('app.string.action_bookmark_add');
+      case IconName.Globe:
+        return $r('app.string.address_placeholder');
       case IconName.WifiOff:
       case IconName.CloudOff:
         return $r('app.string.error_offline_title');

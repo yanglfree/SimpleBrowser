@@ -32,14 +32,26 @@ The app uses the Harmony system sans-serif family. The existing scale is compact
 and operational: 30sp display greeting, 20sp sheet titles, 14-16sp body controls,
 and 11-13sp metadata. Numeric counters use tabular figures where supported.
 
-## 4. Spacing & Layout
+## 4. Iconography
+
+Glyphs are authored as stroke paths on a 24-unit grid (`components/AppIcon.ets`) and
+share one live area of roughly 16 units, so no icon reads larger or heavier than the
+one beside it. Directional chevrons are the deliberate exception: narrower, and about
+15 units tall, because a full-width V outweighs a closed shape of the same box.
+
+`strokeWidth` is expressed in grid units, which means the drawn line thickens with the
+glyph box. A bar holding several glyph sizes therefore states its weight in vp and
+converts per glyph with `iconStrokeUnits`: the browser toolbar draws every control at
+1.6vp and the status glyphs inside the address field a step lighter at 1.35vp.
+
+## 5. Spacing & Layout
 
 Spacing follows a 4vp rhythm. Existing surfaces use 8, 12, 16, 20, 24, 32, 40,
 and 46vp values for control gaps, card padding, and safe bottom margins. Full-width
 content is used for browsing; floating controls keep a 24vp side margin and the web
 viewport reserves a 96vp bottom inset so the dock never obscures live page content.
 
-## 5. Components
+## 6. Components
 
 ### Tab launcher
 
@@ -145,6 +157,14 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
 
 ### Desktop tab strip
 
+- **Surface**: the strip is the recessed rail the toolbar sits on — subtle surface
+  behind it, tabs flush with its bottom edge and rounded at the top only. The active
+  tab carries the toolbar's own page colour so the two read as one continuous
+  surface; inactive tabs are transparent and the toolbar closes the chrome with a
+  hairline border against the page.
+- **Titles**: the active title is primary text at medium weight and inactive titles
+  step back one level to the dock-icon tone, which stays legible on the rail in both
+  themes. Secondary text is too weak against the subtle surface.
 - **Adjust mode**: a long press on a tab lifts it and outlines it in accent. A tap
   anywhere, Escape, or completing a drag leaves the mode; a tap never selects a tab
   while the mode is active, so the long press cannot be misread as "open this".
@@ -176,21 +196,21 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
   unchanged. The add action opens a constrained dialog on wide windows and a bottom
   sheet on compact windows, with custom, bookmark, and history sources.
 
-## 6. Motion & Interaction
+## 7. Motion & Interaction
 
 Taps are the primary path for tabs, address entry, and actions. Existing gestures
 remain as shortcuts: address-bar swipes switch tabs, action sheets escalate, and tab
 cards can swipe left to close. A gesture must never be the only discoverable route
 to a core browser task.
 
-## 7. Depth & Surface
+## 8. Depth & Surface
 
 The surface strategy is mixed: tonal shifts establish hierarchy, while one-pixel
 resource-token borders and soft shadows separate floating controls from content.
 Capsules and tab cards use the shared panel, border, and shadow tokens so new chrome
 does not introduce a competing material language.
 
-## 8. Product Landing Page
+## 9. Product Landing Page
 
 The public website extends the in-app identity rather than introducing a separate
 marketing theme. It uses the same warm paper, ink, border, and accent colors, with

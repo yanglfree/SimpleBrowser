@@ -11,6 +11,19 @@ const TAB_STRIP_PINNED_WIDTH: number = 52;
 const TAB_STRIP_HORIZONTAL_PADDING: number = 16;
 const TAB_STRIP_NEW_TAB_WIDTH: number = 36;
 const TAB_STRIP_ITEM_GAP: number = 4;
+const TAB_STRIP_TAB_HEIGHT: number = 36;
+/**
+ * Rounded at the top only and flush with the strip's bottom edge: the active tab
+ * has to run into the toolbar to read as the toolbar's tab rather than a card
+ * floating on the rail.
+ */
+const TAB_STRIP_TAB_RADIUS: BorderRadiuses = {
+  topLeft: 10,
+  topRight: 10,
+  bottomLeft: 0,
+  bottomRight: 0
+};
+const TAB_STRIP_FAVICON_SIZE: number = 15;
 const TAB_REORDER_DISTANCE: number = 36;
 const TAB_PREVIEW_DELAY_MS: number = 350;
 const ESCAPE_KEY_CODE: number = 2070;
@@ -107,25 +120,33 @@ export struct DesktopTabStrip {
       List({ space: 4, scroller: this.scroller }) {
         ForEach(this.tabs, (tab: BrowserTab) => {
           ListItem() {
-            this.Tab(tab)
+            Column() {
+              this.Tab(tab)
+            }
+            .height(DESKTOP_TAB_STRIP_HEIGHT)
+            .justifyContent(FlexAlign.End)
           }
           .width(this.tabWidth(tab))
         }, (tab: BrowserTab): string => `${tab.id}-${tab.isPinned}-${tab.title}`)
 
         ListItem() {
-          Row() {
-            AppIcon({ name: IconName.Plus, glyphSize: 17, color: $r('app.color.text_secondary') })
+          Column() {
+            Row() {
+              AppIcon({ name: IconName.Plus, glyphSize: 17, color: $r('app.color.dock_icon') })
+            }
+            .id('desktop-new-tab')
+            .width(TAB_STRIP_NEW_TAB_WIDTH)
+            .height(TAB_STRIP_TAB_HEIGHT)
+            .justifyContent(FlexAlign.Center)
+            .borderRadius(TAB_STRIP_TAB_RADIUS)
+            .focusable(true)
+            .hoverEffect(HoverEffect.Auto)
+            .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.92 })
+            .accessibilityText($r('app.string.new_tab'))
+            .onClick(() => this.onNewTab())
           }
-          .id('desktop-new-tab')
-          .width(TAB_STRIP_NEW_TAB_WIDTH)
-          .height(36)
-          .justifyContent(FlexAlign.Center)
-          .borderRadius(18)
-          .focusable(true)
-          .hoverEffect(HoverEffect.Auto)
-          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.92 })
-          .accessibilityText($r('app.string.new_tab'))
-          .onClick(() => this.onNewTab())
+          .height(DESKTOP_TAB_STRIP_HEIGHT)
+          .justifyContent(FlexAlign.End)
         }
         .width(TAB_STRIP_NEW_TAB_WIDTH)
       }
@@ -155,24 +176,24 @@ export struct DesktopTabStrip {
   @Builder
   private Tab(tab: BrowserTab) {
     Row({ space: 7 }) {
-      if (tab.isPrivate) {
-        AppIcon({ name: IconName.Incognito, glyphSize: 15, color: $r('app.color.text_secondary') })
-      } else {
-        AppIcon({ name: IconName.Desktop, glyphSize: 15, color: $r('app.color.text_secondary') })
-      }
+      AppIcon({
+        name: tab.isPrivate ? IconName.Incognito : IconName.Globe,
+        glyphSize: TAB_STRIP_FAVICON_SIZE,
+        color: $r('app.color.text_secondary')
+      })
       Text(this.tabTitle(tab))
         .fontSize(13)
         .fontWeight(tab.id === this.activeTabId ? FontWeight.Medium : FontWeight.Regular)
         .fontColor(tab.id === this.activeTabId
           ? $r('app.color.text_primary')
-          : $r('app.color.text_secondary'))
+          : $r('app.color.dock_icon'))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .layoutWeight(1)
 
       if (!tab.isPinned) {
         Row() {
-          AppIcon({ name: IconName.Close, glyphSize: 13, color: $r('app.color.text_secondary') })
+          AppIcon({ name: IconName.Close, glyphSize: 13, color: $r('app.color.dock_icon') })
         }
         .width(26)
         .height(26)
@@ -185,11 +206,11 @@ export struct DesktopTabStrip {
     }
     .id(`desktop-tab-${tab.id}`)
     .width('100%')
-    .height(36)
+    .height(TAB_STRIP_TAB_HEIGHT)
     .padding({ left: tab.isPinned ? 10 : 12, right: tab.isPinned ? 10 : 5 })
-    .borderRadius(8)
+    .borderRadius(TAB_STRIP_TAB_RADIUS)
     .backgroundColor(tab.id === this.activeTabId
-      ? $r('app.color.surface_panel')
+      ? $r('app.color.page_background')
       : Color.Transparent)
     .border(this.adjustingTabId === tab.id
       ? { width: 1.5, color: $r('app.color.accent') }

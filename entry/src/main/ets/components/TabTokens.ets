@@ -69,7 +69,17 @@ export const RECENT_TAB_LIMIT: number = 5;
 /** Bottom dock: one 46vp row in a tightly-centred container. */
 export const DOCK_ROW_HEIGHT: number = 46;
 export const DOCK_SLOT_WIDTH: number = 40;
-export const DOCK_ICON_SIZE: number = 28;
+export const DOCK_ICON_SIZE: number = 26;
+/** Controls inside the address field sit one size down from the bar's own. */
+export const DOCK_PILL_ICON_SIZE: number = 20;
+/**
+ * The bar draws one stroke weight in vp, not in grid units: the glyph boxes here
+ * differ by six units and a grid-relative stroke made the larger ones look coarse
+ * next to the smaller. `iconStrokeUnits` converts these back per glyph.
+ */
+export const DOCK_ICON_STROKE: number = 1.6;
+/** Status glyphs inside the field read as annotation, so they stay a hair lighter. */
+export const DOCK_BADGE_ICON_STROKE: number = 1.35;
 /** Outlined square holding the tab count, the way every mobile browser draws it. */
 export const DOCK_BADGE_SIZE: number = 24;
 export const DOCK_HEIGHT: number = 52;
