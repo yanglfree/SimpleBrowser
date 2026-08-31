@@ -36,7 +36,7 @@ import {
   BrowserTab,
   HistoryEntry,
   QuickSite,
-  QuickSiteIcon,
+  SiteIcon,
   ReaderPaper,
   ReaderTheme,
   getReaderTheme,
@@ -58,8 +58,8 @@ import {
   emptyBlockStats,
   normalizeBrowserSettings,
   moveQuickSite,
-  quickSiteIconPath,
-  withQuickSiteIcon,
+  siteIconPath,
+  withSiteIcon,
   totalBlocked
 } from '../models/BrowserModels';
 import { ActionSheet } from '../components/ActionSheet';
@@ -107,6 +107,7 @@ import { CertificateService } from '../services/CertificateService';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { AppMetadataService } from '../services/AppMetadataService';
 import { FaviconService } from '../services/FaviconService';
+import { SiteIconRequest, siteIconSignature, siteIconTargets } from '../services/FaviconPolicy';
 import { MemoryPressureService } from '../services/MemoryPressureService';
 import { DownloadPolicyReason, DownloadService, DownloadTask } from '../services/DownloadService';
 import { BookmarkTransferService } from '../services/BookmarkTransferService';
@@ -362,9 +363,10 @@ struct Index {
   @State private isAddressMenuVisible: boolean = false;
   @State private suggestions: Suggestion[] = [];
   @State private quickSites: QuickSite[] = [];
-  @State private quickSiteIcons: QuickSiteIcon[] = [];
-  /** The tile hosts the current icon set was fetched for; see refreshQuickSiteIcons. */
-  private quickSiteIconSignature: string = '';
+  /** Shared by the start page's tiles and the desktop tab strip; keyed by host. */
+  @State private siteIcons: SiteIcon[] = [];
+  /** The hosts the current icon set was fetched for; see refreshSiteIcons. */
+  private siteIconSignature: string = '';
   @State private weeklyBlocked: number = 0;
   @State private cumulativeBlocked: number = 0;
   @State private isActivePageAtTop: boolean = true;
@@ -724,7 +726,7 @@ struct Index {
           if (isHomeUrl(tab.url)) {
             StartPage({
               quickSites: this.quickSites,
-              siteIcons: this.quickSiteIcons,
+              siteIcons: this.siteIcons,
               quickSitesEnabled: this.settings.quickSitesEnabled,
               quickSiteLimit: this.settings.quickSiteLimit,
               backgroundEnabled: this.settings.startPageBackgroundEnabled,
@@ -1046,6 +1048,7 @@ struct Index {
           availableWidth: this.chromeWidth(),
           activeTabId: this.activeTabId,
           thumbnails: this.thumbnails,
+          siteIcons: this.siteIcons,
           liveTabIds: this.liveTabIds,
           canMoveToWindow: this.multiWindowSupported,
           onSelect: (id: string): void => { void this.selectTab(id); },
@@ -4644,7 +4647,7 @@ struct Index {
     this.isActiveBookmarked = this.viewModel.isSaved(url);
     this.isActiveSavedForLater = this.viewModel.isSavedForLater(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
-    this.refreshQuickSiteIcons();
+    this.refreshSiteIcons();
     this.repairPaneReferences();
     ThemeService.applySurface(
       this.appContext(),
@@ -4658,35 +4661,52 @@ struct Index {
 
   /**
    * syncState runs on nearly every browser event, so the fetch is gated on the
-   * tile list actually changing. FaviconService memoises per host on top of that,
+   * host set actually changing. FaviconService memoises per host on top of that,
    * which is what keeps a second launch off the network entirely.
    */
-  private refreshQuickSiteIcons(): void {
-    const visible: QuickSite[] = this.quickSites.slice(0, this.settings.quickSiteLimit);
-    const signature: string = visible.map((site: QuickSite): string => rawHost(site.url)).join('|');
-    if (signature === this.quickSiteIconSignature) {
+  private refreshSiteIcons(): void {
+    const targets: SiteIconRequest[] = siteIconTargets(this.siteIconRequests());
+    const signature: string = siteIconSignature(targets);
+    if (signature === this.siteIconSignature) {
       return;
     }
-    this.quickSiteIconSignature = signature;
-    void this.loadQuickSiteIcons(visible);
+    this.siteIconSignature = signature;
+    void this.loadSiteIcons(targets);
   }
 
-  private async loadQuickSiteIcons(sites: QuickSite[]): Promise<void> {
+  /**
+   * Shortcut tiles and open tabs draw the same artwork, so they queue together and
+   * a host opened in a tab costs the start page nothing. siteIconTargets drops the
+   * private tabs before any of this reaches the network.
+   */
+  private siteIconRequests(): SiteIconRequest[] {
+    const requests: SiteIconRequest[] = this.quickSites
+      .slice(0, this.settings.quickSiteLimit)
+      .map((site: QuickSite): SiteIconRequest => {
+        return { url: site.url, isPrivate: false };
+      });
+    for (const tab of this.tabs) {
+      requests.push({ url: tab.url, isPrivate: tab.isPrivate });
+    }
+    return requests;
+  }
+
+  private async loadSiteIcons(targets: SiteIconRequest[]): Promise<void> {
     const requests: Promise<void>[] = [];
-    for (const site of sites) {
-      const host: string = rawHost(site.url);
-      if (host.length === 0 || quickSiteIconPath(this.quickSiteIcons, host).length > 0) {
+    for (const target of targets) {
+      const host: string = rawHost(target.url);
+      if (siteIconPath(this.siteIcons, host).length > 0) {
         continue;
       }
-      requests.push(this.loadQuickSiteIcon(site, host));
+      requests.push(this.loadSiteIcon(target.url, host));
     }
     await Promise.all(requests);
   }
 
-  private async loadQuickSiteIcon(site: QuickSite, host: string): Promise<void> {
-    const path: string = await FaviconService.iconFor(site.url);
+  private async loadSiteIcon(url: string, host: string): Promise<void> {
+    const path: string = await FaviconService.iconFor(url);
     if (path.length > 0) {
-      this.quickSiteIcons = withQuickSiteIcon(this.quickSiteIcons, host, path);
+      this.siteIcons = withSiteIcon(this.siteIcons, host, path);
     }
   }
 

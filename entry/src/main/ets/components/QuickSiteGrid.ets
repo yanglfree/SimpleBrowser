@@ -1,4 +1,4 @@
-import { QuickSite, QuickSiteIcon, presetSiteIconResource, quickSiteDropTarget, quickSiteIconPath } from '../models/BrowserModels';
+import { QuickSite, SiteIcon, presetSiteIconResource, quickSiteDropTarget, siteIconPath } from '../models/BrowserModels';
 import { rawHost } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 import {
@@ -37,7 +37,7 @@ function tileColor(palette: Resource[], index: number): Resource {
 @Component
 export struct QuickSiteGrid {
   @Prop quickSites: QuickSite[] = [];
-  @Prop siteIcons: QuickSiteIcon[] = [];
+  @Prop siteIcons: SiteIcon[] = [];
   @Prop quickSiteLimit: number = 6;
   @Prop backgroundEnabled: boolean = true;
   @Prop isWide: boolean = false;
@@ -299,7 +299,7 @@ export struct QuickSiteGrid {
       return undefined;
     }
     if (!this.brokenIconHosts.includes(host)) {
-      const cachedPath: string = quickSiteIconPath(this.siteIcons, host);
+      const cachedPath: string = siteIconPath(this.siteIcons, host);
       if (cachedPath.length > 0) {
         return cachedPath;
       }

@@ -162,6 +162,12 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
   tab carries the toolbar's own page colour so the two read as one continuous
   surface; inactive tabs are transparent and the toolbar closes the chrome with a
   hairline border against the page.
+- **Identity**: a tab shows the site's own icon, drawn from the same host-keyed cache
+  the start page's shortcut tiles use, so a site open in a tab costs the tiles nothing.
+  A site with no usable icon falls back to a neutral globe — never to the desktop-mode
+  monitor, which states something about the page that is not true. Private tabs keep
+  the incognito glyph and are never resolved: the request would leave the incognito
+  session and cache a file that outlives the tab.
 - **Titles**: the active title is primary text at medium weight and inactive titles
   step back one level to the dock-icon tone, which stays legible on the rail in both
   themes. Secondary text is too weak against the subtle surface.

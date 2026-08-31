@@ -1,5 +1,44 @@
+import { isHomeUrl, rawHost } from '../utils/UrlUtils';
+
 const MIN_SHORTCUT_ICON_PIXELS: number = 16;
 const CACHE_TTL_MS: number = 14 * 24 * 60 * 60 * 1000;
+
+/** A surface asking for a host's artwork: a shortcut tile, or an open tab. */
+export interface SiteIconRequest {
+  url: string;
+  isPrivate: boolean;
+}
+
+/**
+ * The URLs worth resolving artwork for: one per host, start page excluded because
+ * it is native and has no host.
+ *
+ * Private tabs are dropped rather than deduplicated away. A favicon request leaves
+ * the incognito session on its own connection and writes a cache file keyed by the
+ * host, which would outlive the tab that caused it — the one trace a private tab
+ * must never leave.
+ */
+export function siteIconTargets(requests: SiteIconRequest[]): SiteIconRequest[] {
+  const targets: SiteIconRequest[] = [];
+  const seen: Set<string> = new Set<string>();
+  for (const request of requests) {
+    if (request.isPrivate || isHomeUrl(request.url)) {
+      continue;
+    }
+    const host: string = rawHost(request.url);
+    if (host.length === 0 || seen.has(host)) {
+      continue;
+    }
+    seen.add(host);
+    targets.push({ url: request.url, isPrivate: false });
+  }
+  return targets;
+}
+
+/** The change gate for a fetch pass: identical hosts mean nothing new to resolve. */
+export function siteIconSignature(targets: SiteIconRequest[]): string {
+  return targets.map((target: SiteIconRequest): string => rawHost(target.url)).join('|');
+}
 
 export function faviconCacheFileName(host: string): string {
   const safe: string = host.toLowerCase().replace(/[^a-z0-9.-]/g, '_');

@@ -1,4 +1,4 @@
-import { QuickSite, QuickSiteIcon, StartPageBackgroundSource } from '../models/BrowserModels';
+import { QuickSite, SiteIcon, StartPageBackgroundSource } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 import { QuickSiteGrid } from './QuickSiteGrid';
 
@@ -6,7 +6,7 @@ import { QuickSiteGrid } from './QuickSiteGrid';
 export struct StartPage {
   @Prop quickSites: QuickSite[] = [];
   /** Resolved site icons, keyed by host; a tile without one keeps its letter. */
-  @Prop siteIcons: QuickSiteIcon[] = [];
+  @Prop siteIcons: SiteIcon[] = [];
   @Prop quickSitesEnabled: boolean = true;
   @Prop quickSiteLimit: number = 6;
   @Prop backgroundEnabled: boolean = true;

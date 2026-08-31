@@ -1,21 +1,24 @@
 import { describe, expect, it } from '@ohos/hypium';
 import {
   BrowserTab,
-  QuickSiteIcon,
+  SiteIcon,
   clampTabMoveTarget,
   presetSiteIconResource,
-  quickSiteIconPath,
-  withQuickSiteIcon
+  siteIconPath,
+  withSiteIcon
 } from '../main/ets/models/BrowserModels';
 import { BrowserViewModel } from '../main/ets/viewmodels/BrowserViewModel';
 import { tabDragDropIndex, tabReorderShift } from '../main/ets/components/DesktopTabStrip';
 import {
+  SiteIconRequest,
   faviconCacheFileName,
   faviconFileUri,
   iconPixelSize,
   isCachedIconFresh,
   isShortcutIconLargeEnough,
-  looksLikeIconData
+  looksLikeIconData,
+  siteIconSignature,
+  siteIconTargets
 } from '../main/ets/services/FaviconPolicy';
 import {
   faviconCandidates,
@@ -132,12 +135,38 @@ export default function browserV05FeaturesTest(): void {
 
   // YOU-260
   describe('Quick site icons', (): void => {
-    it('reads an icon back by host and leaves unknown hosts to the letter tile', 0, (): void => {
-      const icons: QuickSiteIcon[] = [{ host: 'zhihu.com', path: '/cache/favicons/zhihu.com.icon' }];
+    it('never resolves artwork for a private tab', 0, (): void => {
+      const requests: SiteIconRequest[] = [
+        { url: 'https://zhihu.com/', isPrivate: false },
+        { url: 'https://secret.example.com/', isPrivate: true },
+        { url: 'browser://home', isPrivate: false }
+      ];
 
-      expect(quickSiteIconPath(icons, 'zhihu.com')).assertEqual('/cache/favicons/zhihu.com.icon');
-      expect(quickSiteIconPath(icons, 'weibo.com')).assertEqual('');
-      expect(quickSiteIconPath(icons, '')).assertEqual('');
+      const targets: SiteIconRequest[] = siteIconTargets(requests);
+
+      expect(targets.length).assertEqual(1);
+      expect(siteIconSignature(targets)).assertEqual('zhihu.com');
+    });
+
+    it('resolves a host shared by a shortcut and a tab exactly once', 0, (): void => {
+      const requests: SiteIconRequest[] = [
+        { url: 'https://zhihu.com/', isPrivate: false },
+        { url: 'https://zhihu.com/question/1', isPrivate: false },
+        { url: 'https://weibo.com/', isPrivate: false }
+      ];
+
+      expect(siteIconSignature(siteIconTargets(requests))).assertEqual('zhihu.com|weibo.com');
+      // The gate compares hosts, so a new path on a known host is not a new fetch.
+      expect(siteIconSignature(siteIconTargets(requests.slice(1))))
+        .assertEqual('zhihu.com|weibo.com');
+    });
+
+    it('reads an icon back by host and leaves unknown hosts to the letter tile', 0, (): void => {
+      const icons: SiteIcon[] = [{ host: 'zhihu.com', path: '/cache/favicons/zhihu.com.icon' }];
+
+      expect(siteIconPath(icons, 'zhihu.com')).assertEqual('/cache/favicons/zhihu.com.icon');
+      expect(siteIconPath(icons, 'weibo.com')).assertEqual('');
+      expect(siteIconPath(icons, '')).assertEqual('');
     });
 
     it('resolves preset icon resources for default sites', 0, (): void => {
@@ -151,14 +180,14 @@ export default function browserV05FeaturesTest(): void {
     });
 
     it('replaces a host\'s icon rather than accumulating duplicates', 0, (): void => {
-      let icons: QuickSiteIcon[] = withQuickSiteIcon([], 'zhihu.com', '/a.icon');
-      icons = withQuickSiteIcon(icons, 'weibo.com', '/b.icon');
-      icons = withQuickSiteIcon(icons, 'zhihu.com', '/c.icon');
+      let icons: SiteIcon[] = withSiteIcon([], 'zhihu.com', '/a.icon');
+      icons = withSiteIcon(icons, 'weibo.com', '/b.icon');
+      icons = withSiteIcon(icons, 'zhihu.com', '/c.icon');
 
       expect(icons.length).assertEqual(2);
-      expect(quickSiteIconPath(icons, 'zhihu.com')).assertEqual('/c.icon');
+      expect(siteIconPath(icons, 'zhihu.com')).assertEqual('/c.icon');
       // An empty path drops the entry, which is how a broken icon is forgotten.
-      expect(withQuickSiteIcon(icons, 'zhihu.com', '').length).assertEqual(1);
+      expect(withSiteIcon(icons, 'zhihu.com', '').length).assertEqual(1);
     });
 
     it('prefers high-resolution site icons before the legacy root favicon', 0, (): void => {

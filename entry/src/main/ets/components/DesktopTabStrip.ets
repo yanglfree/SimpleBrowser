@@ -1,5 +1,5 @@
-import { BrowserTab, LoadErrorKind } from '../models/BrowserModels';
-import { displayHost, isHomeUrl } from '../utils/UrlUtils';
+import { BrowserTab, LoadErrorKind, SiteIcon, siteIconPath } from '../models/BrowserModels';
+import { displayHost, isHomeUrl, rawHost } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 import { TabThumbnail } from './TabOverview';
 
@@ -93,6 +93,7 @@ export struct DesktopTabStrip {
   @Prop availableWidth: number = 0;
   @Prop @Watch('activeTabChanged') activeTabId: string = '';
   @Prop thumbnails: TabThumbnail[] = [];
+  @Prop siteIcons: SiteIcon[] = [];
   @Prop liveTabIds: string[] = [];
   @Prop canMoveToWindow: boolean = false;
   onSelect: (id: string) => void = (_id: string): void => {};
@@ -113,6 +114,8 @@ export struct DesktopTabStrip {
   /** Non-empty while the strip is in adjust mode; holds the tab that was pressed. */
   @State private adjustingTabId: string = '';
   @State private dragOffsetX: number = 0;
+  /** Hosts whose cached artwork would not decode; they fall back for this session. */
+  @State private brokenIconHosts: string[] = [];
   @State private dropIndex: number = -1;
 
   build() {
@@ -127,7 +130,7 @@ export struct DesktopTabStrip {
             .justifyContent(FlexAlign.End)
           }
           .width(this.tabWidth(tab))
-        }, (tab: BrowserTab): string => `${tab.id}-${tab.isPinned}-${tab.title}`)
+        }, (tab: BrowserTab): string => `${tab.id}-${tab.isPinned}-${tab.title}-${this.faviconPath(tab)}`)
 
         ListItem() {
           Column() {
@@ -176,11 +179,22 @@ export struct DesktopTabStrip {
   @Builder
   private Tab(tab: BrowserTab) {
     Row({ space: 7 }) {
-      AppIcon({
-        name: tab.isPrivate ? IconName.Incognito : IconName.Globe,
-        glyphSize: TAB_STRIP_FAVICON_SIZE,
-        color: $r('app.color.text_secondary')
-      })
+      if (this.faviconPath(tab).length > 0) {
+        Image(this.faviconPath(tab))
+          .width(TAB_STRIP_FAVICON_SIZE)
+          .height(TAB_STRIP_FAVICON_SIZE)
+          .objectFit(ImageFit.Contain)
+          .interpolation(ImageInterpolation.High)
+          .borderRadius(3)
+          .draggable(false)
+          .onError(() => this.markIconBroken(tab))
+      } else {
+        AppIcon({
+          name: tab.isPrivate ? IconName.Incognito : IconName.Globe,
+          glyphSize: TAB_STRIP_FAVICON_SIZE,
+          color: $r('app.color.text_secondary')
+        })
+      }
       Text(this.tabTitle(tab))
         .fontSize(13)
         .fontWeight(tab.id === this.activeTabId ? FontWeight.Medium : FontWeight.Regular)
@@ -376,6 +390,25 @@ export struct DesktopTabStrip {
           : $r('app.string.tab_pin') })
           .onClick(() => this.onTogglePinned(this.contextTabId))
       }
+    }
+  }
+
+  /**
+   * Private tabs keep the incognito glyph: the page never resolves artwork for
+   * them, so asking here would only ever miss.
+   */
+  private faviconPath(tab: BrowserTab): string {
+    const host: string = rawHost(tab.url);
+    if (tab.isPrivate || this.brokenIconHosts.includes(host)) {
+      return '';
+    }
+    return siteIconPath(this.siteIcons, host);
+  }
+
+  private markIconBroken(tab: BrowserTab): void {
+    const host: string = rawHost(tab.url);
+    if (host.length > 0 && !this.brokenIconHosts.includes(host)) {
+      this.brokenIconHosts = this.brokenIconHosts.concat([host]);
     }
   }
 

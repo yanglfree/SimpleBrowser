@@ -558,24 +558,28 @@ function sharesTabGroup(left: BrowserTab, right: BrowserTab): boolean {
 }
 
 /** Where the start page looks up the cached icon file for a tile. */
-export interface QuickSiteIcon {
+/**
+ * One host's resolved artwork. The start page's shortcut tiles and the desktop tab
+ * strip draw from the same set, so a site that appears in both is fetched once.
+ */
+export interface SiteIcon {
   host: string;
   path: string;
 }
 
-export function quickSiteIconPath(icons: QuickSiteIcon[], host: string): string {
+export function siteIconPath(icons: SiteIcon[], host: string): string {
   if (host.length === 0) {
     return '';
   }
-  const match: QuickSiteIcon | undefined = icons.find(
-    (icon: QuickSiteIcon): boolean => icon.host === host);
+  const match: SiteIcon | undefined = icons.find(
+    (icon: SiteIcon): boolean => icon.host === host);
   return match !== undefined ? match.path : '';
 }
 
-export function withQuickSiteIcon(icons: QuickSiteIcon[], host: string, path: string): QuickSiteIcon[] {
-  const next: QuickSiteIcon[] = icons
-    .filter((icon: QuickSiteIcon): boolean => icon.host !== host)
-    .map((icon: QuickSiteIcon): QuickSiteIcon => {
+export function withSiteIcon(icons: SiteIcon[], host: string, path: string): SiteIcon[] {
+  const next: SiteIcon[] = icons
+    .filter((icon: SiteIcon): boolean => icon.host !== host)
+    .map((icon: SiteIcon): SiteIcon => {
       return { host: icon.host, path: icon.path };
     });
   if (path.length > 0) {
