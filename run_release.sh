@@ -160,8 +160,8 @@ fi
 echo "📱 目标设备: $DEVICE_ID"
 
 # 构建 release 包 ------------------------------------------------------
-echo "🛠️  编译 Release 包 (hvigorw assembleHap)..."
-"$HVIGORW" assembleHap
+echo "🛠️  编译 Release 包 (hvigorw assembleHap -p buildMode=release)..."
+"$HVIGORW" assembleHap -p buildMode=release
 
 if [ ! -f "$HAP" ]; then
     echo "❌ 构建产物不存在: $HAP"

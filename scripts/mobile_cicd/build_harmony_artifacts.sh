@@ -48,7 +48,7 @@ cp "${SIGNING_SOURCE}" "${SIGNING_TARGET}"
   if [[ "${RUN_HARMONY_TESTS:-0}" == "1" ]]; then
     "${HVIGOR_BIN}" test
   fi
-  "${HVIGOR_BIN}" assembleHap
+  "${HVIGOR_BIN}" assembleHap -p buildMode=release
 )
 
 HAP_PATH="$(find "${REPO_ROOT}/entry/build" -type f -name '*-signed.hap' -print | sort | tail -1)"
