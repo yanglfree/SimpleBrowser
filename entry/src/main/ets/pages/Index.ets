@@ -2714,8 +2714,15 @@ struct Index {
     }
     if (key === 'reload') {
       this.sheet = Overlay.None;
-      this.runOnActive((controller: webview.WebviewController) =>
-        tab.isLoading ? WebKernelService.stop(controller) : WebKernelService.reload(controller));
+      this.runOnActive((controller: webview.WebviewController) => {
+        if (tab.isLoading) {
+          WebKernelService.stop(controller);
+          this.viewModel.updateTab(tab.id, { isLoading: false });
+          this.syncTab(tab.id);
+        } else {
+          WebKernelService.reload(controller);
+        }
+      });
       return;
     }
     if (key === 'share') {
@@ -4178,12 +4185,20 @@ struct Index {
   }
 
   private handleProgress(id: string, progress: number): void {
+    const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (tab === undefined) {
+      return;
+    }
+    const clampedProgress: number = WebKernelService.clampProgress(progress);
     // Progress keeps ticking while the kernel commits its own error page, so
     // this must not clear the error the kernel just reported. Only the start of
     // a navigation clears it.
+    // If the page already completed loading (handlePageEnd set isLoading: false),
+    // late subresource/background progress updates (< 100) must not revert isLoading back to true.
+    const isLoading: boolean = tab.isLoading ? clampedProgress < 100 : false;
     this.viewModel.updateTab(id, {
-      progress: WebKernelService.clampProgress(progress),
-      isLoading: progress < 100
+      progress: clampedProgress,
+      isLoading: isLoading
     });
     this.syncTab(id);
   }

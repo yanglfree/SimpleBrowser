@@ -13,18 +13,19 @@ export class DefaultBrowserService {
   static async requestSetDefaultBrowser(context: common.UIAbilityContext): Promise<boolean> {
     const bundleName: string = context.abilityInfo?.bundleName ?? 'com.youdroid.zhuobrowser';
 
-    // 1. Try navigating directly to Default Apps setting
+    // 1. Try navigating to "Apps & Services" settings page (application_and_service_settings)
+    // where "Default apps" (默认应用) is directly located.
     try {
-      const defaultAppWant: Want = {
+      const appAndServiceWant: Want = {
         bundleName: SETTINGS_BUNDLE_NAME,
         abilityName: SETTINGS_MAIN_ABILITY,
-        uri: 'default_app_settings'
+        uri: 'application_and_service_settings'
       };
-      await context.startAbility(defaultAppWant);
-      Logger.info(TAG, 'Launched default app settings');
+      await context.startAbility(appAndServiceWant);
+      Logger.info(TAG, 'Launched application_and_service_settings');
       return true;
-    } catch (defaultError) {
-      Logger.warn(TAG, `Failed to open default_app_settings: ${String(defaultError)}`);
+    } catch (appAndServiceError) {
+      Logger.warn(TAG, `Failed to open application_and_service_settings: ${String(appAndServiceError)}`);
     }
 
     // 2. Try navigating to Application Info setting
