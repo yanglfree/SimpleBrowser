@@ -27,6 +27,7 @@ import privateTaskPersistenceTest from './PrivateTaskPersistence.test';
 import browserReportedBugsTest from './BrowserReportedBugs.test';
 import readerModeRegressionTest from './ReaderModeRegression.test';
 import readerExtractionModelsTest from './ReaderExtractionModels.test';
+import longScreenshotServiceTest from './LongScreenshotService.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -58,4 +59,5 @@ export default function testsuite(): void {
   browserReportedBugsTest();
   readerModeRegressionTest();
   readerExtractionModelsTest();
+  longScreenshotServiceTest();
 }

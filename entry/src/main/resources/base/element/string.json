@@ -491,6 +491,7 @@
     { "name": "external_protocol_payment_title", "value": "打开支付应用？" },
     { "name": "external_protocol_open", "value": "继续" },
     { "name": "external_protocol_unavailable", "value": "未找到可处理此链接的应用" },
-    { "name": "external_protocol_blocked", "value": "已阻止不安全的内部协议" }
+    { "name": "external_protocol_blocked", "value": "已阻止不安全的内部协议" },
+    { "name": "screenshot_generating", "value": "正在截取长图..." }
   ]
 }
