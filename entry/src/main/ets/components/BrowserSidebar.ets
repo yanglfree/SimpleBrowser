@@ -1,6 +1,6 @@
 import { BlockStats, BrowserTab, HistoryEntry, SavedItem, totalBlocked } from '../models/BrowserModels';
 import { DownloadTask } from '../services/DownloadService';
-import { displayHost } from '../utils/UrlUtils';
+import { tabDisplayTitle } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 import { DownloadSheet } from './DownloadSheet';
 import { HistorySheet } from './HistorySheet';
@@ -207,10 +207,10 @@ export struct BrowserSidebar {
   }
 
   private tabTitle(tab: BrowserTab): ResourceStr {
-    if (tab.title.length > 0) {
-      return tab.title;
+    const title: string = tabDisplayTitle(tab.title, tab.url);
+    if (title.length > 0) {
+      return title;
     }
-    const host: string = displayHost(tab.url);
-    return host.length > 0 ? host : $r('app.string.new_tab');
+    return $r('app.string.new_tab');
   }
 }

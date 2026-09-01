@@ -1,5 +1,5 @@
 import { BrowserTab, LoadErrorKind, SiteIcon, siteIconPath } from '../models/BrowserModels';
-import { displayHost, isHomeUrl, rawHost } from '../utils/UrlUtils';
+import { displayHost, isHomeUrl, rawHost, tabDisplayTitle } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 import { TabThumbnail } from './TabOverview';
 
@@ -534,9 +534,9 @@ export struct DesktopTabStrip {
       const host: string = displayHost(tab.url);
       return host.length > 0 ? host.slice(0, 1).toUpperCase() : '+';
     }
-    if (tab.title.length > 0) {
-      return tab.title;
+    if (isHomeUrl(tab.url)) {
+      return $r('app.string.new_tab');
     }
-    return isHomeUrl(tab.url) ? $r('app.string.new_tab') : displayHost(tab.url);
+    return tabDisplayTitle(tab.title, tab.url);
   }
 }

@@ -105,6 +105,31 @@ export function rawHost(url: string): string {
   return match[1].split(':')[0].toLowerCase();
 }
 
+/**
+ * The label a tab carries. A page that never rendered — offline, an error, a bare
+ * directory listing — is reported by the kernel with its own URL as the title, and
+ * a raw URL with its query string is unreadable in the width a tab has. Fall back
+ * to the host, which is what the tab is about either way.
+ *
+ * The test is deliberately narrow: a title is only treated as a URL when it carries
+ * a scheme or opens with the page's own host, so a legitimate `Node.js` or
+ * `and/or` keeps the title its author wrote.
+ */
+export function tabDisplayTitle(title: string, url: string): string {
+  const value: string = title.trim();
+  if (value.length === 0 || value === url.trim()) {
+    return displayHost(url);
+  }
+  if (value.match(/^[a-z][a-z0-9+.-]*:\/\//i) !== null) {
+    return displayHost(url);
+  }
+  const host: string = rawHost(url);
+  if (host.length > 0 && value.includes('/') && value.toLowerCase().startsWith(host)) {
+    return displayHost(url);
+  }
+  return value;
+}
+
 /** First character of a site name, used for the start-page tiles. */
 export function siteBadge(title: string, url: string): string {
   const source: string = title.trim().length > 0 ? title.trim() : displayHost(url);

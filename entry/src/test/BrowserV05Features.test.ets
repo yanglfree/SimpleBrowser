@@ -9,6 +9,7 @@ import {
 } from '../main/ets/models/BrowserModels';
 import { BrowserViewModel } from '../main/ets/viewmodels/BrowserViewModel';
 import { tabDragDropIndex, tabReorderShift } from '../main/ets/components/DesktopTabStrip';
+import { tabDisplayTitle } from '../main/ets/utils/UrlUtils';
 import {
   SiteIconRequest,
   faviconCacheFileName,
@@ -63,6 +64,24 @@ function icoBytesWithSize(size: number): Uint8Array {
 
 export default function browserV05FeaturesTest(): void {
   // YOU-259
+  describe('Tab labels', (): void => {
+    it('shows the host when the kernel reports the URL as the title', 0, (): void => {
+      // A page that never rendered comes back titled with its own address.
+      expect(tabDisplayTitle('zhihu.com/signin?next=%2F', 'https://zhihu.com/signin?next=%2F'))
+        .assertEqual('zhihu.com');
+      expect(tabDisplayTitle('https://www.weibo.com/newlogin', 'https://www.weibo.com/newlogin'))
+        .assertEqual('weibo.com');
+      expect(tabDisplayTitle('', 'https://m.douban.com/group')).assertEqual('douban.com');
+    });
+
+    it('leaves a real title alone even when it reads like an address', 0, (): void => {
+      expect(tabDisplayTitle('Node.js', 'https://nodejs.org/en')).assertEqual('Node.js');
+      expect(tabDisplayTitle('and/or', 'https://example.com/x')).assertEqual('and/or');
+      expect(tabDisplayTitle('知乎 - 有问题，就会有答案', 'https://zhihu.com/'))
+        .assertEqual('知乎 - 有问题，就会有答案');
+    });
+  });
+
   describe('Tab strip drag reordering', (): void => {
     it('lands on a whole slot and clamps at both ends of the strip', 0, (): void => {
       expect(tabDragDropIndex(1, 4, 0, SLOT)).assertEqual(1);
