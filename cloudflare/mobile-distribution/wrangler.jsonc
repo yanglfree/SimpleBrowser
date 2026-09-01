@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "replace-with-zhuobrowser-mobile-worker",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "r2_buckets": [
+    {
+      "binding": "BUILDS",
+      "bucket_name": "replace-with-zhuobrowser-r2-bucket"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "RELEASE_DB",
+      "database_name": "replace-with-zhuobrowser-d1-database",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "APP_ID": "zhuobrowser",
+    "DOWNLOAD_SLUG": "replace-with-an-unlisted-download-channel"
+  }
+}

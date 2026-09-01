@@ -1,0 +1,105 @@
+name: HarmonyOS Signed Artifacts
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zhuobrowser-harmony-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: false
+
+env:
+  PATH: /Users/liang/Library/Huawei/CommandLineTools/current/bin:/Users/liang/.nvm/versions/node/v24.19.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
+  HVIGOR_BIN: /Users/liang/Library/Huawei/CommandLineTools/current/bin/hvigorw
+  HARMONY_SIGNING_PROFILE: /Users/liang/.config/zhuobrowser/build-profile.release.json5
+  SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  retain:
+    name: Build and retain signed HarmonyOS artifacts
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
+    timeout-minutes: 60
+    environment: mobile-distribution
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout accepted source revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Verify source identity and runner
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git fetch origin main
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+          test "$(uname -m)" = "arm64"
+          test -x "$HVIGOR_BIN"
+          test -f "$HARMONY_SIGNING_PROFILE"
+          test "$(stat -f '%OLp' "$HARMONY_SIGNING_PROFILE")" = "600"
+          df -Pk . | awk 'NR == 2 { if ($4 < 8388608) { print "At least 8 GiB free disk is required."; exit 1 } }'
+
+      - name: Validate distribution configuration
+        env:
+          UPLOAD_TOKEN: ${{ secrets.DISTRIBUTION_UPLOAD_TOKEN }}
+          UPLOAD_URL: ${{ vars.DISTRIBUTION_UPLOAD_URL }}
+          DOWNLOAD_URL: ${{ vars.HARMONY_DOWNLOAD_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$UPLOAD_TOKEN"
+          [[ "$UPLOAD_URL" == https://*/api/artifacts ]]
+          [[ "$DOWNLOAD_URL" == https://* ]]
+
+      - name: Resolve HarmonyOS dependencies
+        run: ohpm install --all
+
+      - name: Build and validate signed HAP
+        run: |
+          scripts/mobile_cicd/build_harmony_artifacts.sh "$RUNNER_TEMP/zhuobrowser-harmony-release"
+
+      - name: Upload immutable artifacts to Cloudflare
+        env:
+          UPLOAD_TOKEN: ${{ secrets.DISTRIBUTION_UPLOAD_TOKEN }}
+          UPLOAD_URL: ${{ vars.DISTRIBUTION_UPLOAD_URL }}
+          DOWNLOAD_URL: ${{ vars.HARMONY_DOWNLOAD_URL }}
+        run: |
+          set -euo pipefail
+          output_dir="$RUNNER_TEMP/zhuobrowser-harmony-release"
+          metadata="$output_dir/release-metadata.json"
+          version="$(jq -r .versionName "$metadata")"
+          build="$(jq -r .versionCode "$metadata")"
+          artifact_count=0
+          for artifact in "$output_dir"/*; do
+            scripts/mobile_cicd/upload_artifact.sh \
+              --file "$artifact" \
+              --source-sha "$SOURCE_SHA" \
+              --version "$version" \
+              --build "$build" \
+              --upload-url "$UPLOAD_URL" \
+              --upload-token "$UPLOAD_TOKEN"
+            artifact_count=$((artifact_count + 1))
+          done
+          test "$artifact_count" -eq 3
+          scripts/mobile_cicd/verify_build_status.sh "$DOWNLOAD_URL" "$SOURCE_SHA" uploaded 3
+          {
+            echo "## ZhuoBrowser HarmonyOS signed artifacts"
+            echo
+            echo "- Version: \`$version ($build)\`"
+            echo "- Source: \`$SOURCE_SHA\`"
+            echo "- Retention: immutable Cloudflare R2 objects with D1 metadata"
+            echo "- downloads.youdroid.top registration: pending first verified artifact"
+            echo "- AppGallery Connect upload and submission: not performed"
+          } >> "$GITHUB_STEP_SUMMARY"

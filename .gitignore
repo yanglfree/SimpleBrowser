@@ -19,3 +19,7 @@ iap_paywall_kit/.test/
 .DS_Store
 node_modules/
 .playwright-cli/
+
+# Mobile distribution production bindings and local dependencies.
+/cloudflare/mobile-distribution/wrangler.production.jsonc
+/cloudflare/mobile-distribution/node_modules/

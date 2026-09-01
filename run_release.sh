@@ -161,12 +161,7 @@ echo "📱 目标设备: $DEVICE_ID"
 
 # 构建 release 包 ------------------------------------------------------
 echo "🛠️  编译 Release 包 (hvigorw assembleHap)..."
-"$HVIGORW" assembleHap \
-    --mode module \
-    -p product=default \
-    -p module=entry@default \
-    -p buildMode=release \
-    --no-daemon
+"$HVIGORW" assembleHap
 
 if [ ! -f "$HAP" ]; then
     echo "❌ 构建产物不存在: $HAP"

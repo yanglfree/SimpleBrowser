@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zhuobrowser-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PATH: /Users/liang/Library/Huawei/CommandLineTools/current/bin:/Users/liang/.nvm/versions/node/v24.19.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
+  HVIGOR_BIN: /Users/liang/Library/Huawei/CommandLineTools/current/bin/hvigorw
+  HARMONY_SIGNING_PROFILE: /Users/liang/.config/zhuobrowser/build-profile.release.json5
+
+jobs:
+  verify:
+    name: Test and build HarmonyOS app
+    runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify trusted runner and capacity
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "arm64"
+          test -x "$HVIGOR_BIN"
+          command -v ohpm
+          command -v node
+          command -v actionlint
+          test -f "$HARMONY_SIGNING_PROFILE"
+          test "$(stat -f '%OLp' "$HARMONY_SIGNING_PROFILE")" = "600"
+          "$HVIGOR_BIN" --version
+          ohpm --version
+          df -Pk . | awk 'NR == 2 { if ($4 < 8388608) { print "At least 8 GiB free disk is required."; exit 1 } }'
+
+      - name: Validate CI/CD contracts
+        run: |
+          set -euo pipefail
+          actionlint -color
+          python3 scripts/mobile_cicd/check_ci_cost_contract.py
+          for script in scripts/mobile_cicd/*.sh; do bash -n "$script"; done
+          git log -1 --check --format=
+
+      - name: Validate mobile distribution Worker
+        working-directory: cloudflare/mobile-distribution
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run typecheck
+          npm test
+          npm run verify:worker
+
+      - name: Resolve HarmonyOS dependencies
+        run: ohpm install --all
+
+      - name: Run tests and build release HAP
+        env:
+          RUN_HARMONY_TESTS: "1"
+        run: |
+          scripts/mobile_cicd/build_harmony_artifacts.sh "$RUNNER_TEMP/zhuobrowser-harmony-ci"

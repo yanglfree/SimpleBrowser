@@ -35,3 +35,6 @@ Connect a HarmonyOS device or simulator before installing the HAP for manual UI 
 AI page assistance, sync, extension distribution, VPN/DNS filtering, and a full remote EasyList update service are intentionally outside this V1 implementation. The bundled rule file (`entry/src/main/resources/rawfile/ads/easylist.txt`) is a small, auditable starter set; production distribution should replace it with a verified subscription and an update signature policy.
 
 See [DESIGN.md](DESIGN.md) for the design system that governs the UI.
+
+Mobile build orchestration, signed artifact retention, and the manual store
+boundary are documented in [docs/mobile-ci-cd.md](docs/mobile-ci-cd.md).
