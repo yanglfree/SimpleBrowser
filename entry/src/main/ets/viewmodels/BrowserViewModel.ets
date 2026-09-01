@@ -57,7 +57,15 @@ import {
 } from '../services/ArticleExportService';
 import { createArticleHighlight } from '../services/ArticleHighlightFactory';
 import { DownloadService } from '../services/DownloadService';
-import { displayHost, isHomeUrl, looksLikeUrl, rawHost, searchUrl, siteBadge } from '../utils/UrlUtils';
+import {
+  displayHost,
+  isHomeUrl,
+  looksLikeUrl,
+  normalizeUrlInput,
+  rawHost,
+  searchUrl,
+  siteBadge
+} from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'BrowserViewModel';
@@ -777,9 +785,7 @@ export class BrowserViewModel {
 
   async addQuickSite(title: string, url: string): Promise<boolean> {
     const input: string = url.trim();
-    const normalizedUrl: string = input.includes('://')
-      ? input
-      : looksLikeUrl(input) ? `https://${input}` : '';
+    const normalizedUrl: string = normalizeUrlInput(input);
     const host: string = rawHost(normalizedUrl);
     if (host.length === 0) {
       return false;

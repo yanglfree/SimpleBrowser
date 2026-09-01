@@ -1,4 +1,5 @@
 import { HistoryEntry, SavedItem } from '../models/BrowserModels';
+import { normalizeUrlInput } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 import { QuickSiteSourceList } from './QuickSiteSourceList';
 import {
@@ -24,6 +25,18 @@ enum QuickSiteSource {
   History = 2
 }
 
+const QUICK_SITE_EDITOR_VERTICAL_MARGIN: number = 12;
+
+export function quickSiteEditorPanelHeight(
+  availableHeight: number,
+  keyboardInset: number,
+  topInset: number
+): number {
+  const usableHeight: number = availableHeight - Math.max(0, keyboardInset) - Math.max(0, topInset) -
+    QUICK_SITE_EDITOR_VERTICAL_MARGIN;
+  return Math.min(QUICK_SITE_EDITOR_COMPACT_HEIGHT, Math.max(0, usableHeight));
+}
+
 @Component
 export struct QuickSiteEditor {
   @Prop savedItems: SavedItem[] = [];
@@ -31,9 +44,12 @@ export struct QuickSiteEditor {
   @Prop isWide: boolean = false;
   /** Soft keyboard height in vp while shown; the compact sheet floats above it. */
   @Prop keyboardInset: number = 0;
+  @Prop availableHeight: number = QUICK_SITE_EDITOR_COMPACT_HEIGHT;
+  @Prop topInset: number = 0;
   @State private source: QuickSiteSource = QuickSiteSource.Custom;
   @State private name: string = '';
   @State private url: string = '';
+  @State private hasAttemptedSave: boolean = false;
   onSave: (title: string, url: string) => void = (_title: string, _url: string): void => {};
   onDismiss: () => void = (): void => {};
 
@@ -106,7 +122,9 @@ export struct QuickSiteEditor {
       .visibility(this.source === QuickSiteSource.Custom ? Visibility.Visible : Visibility.None)
     }
     .width(this.isWide ? QUICK_SITE_EDITOR_WIDE_WIDTH : '100%')
-    .height(this.isWide ? QUICK_SITE_EDITOR_WIDE_HEIGHT : QUICK_SITE_EDITOR_COMPACT_HEIGHT)
+    .height(this.isWide
+      ? QUICK_SITE_EDITOR_WIDE_HEIGHT
+      : quickSiteEditorPanelHeight(this.availableHeight, this.keyboardInset, this.topInset))
     .padding({
       top: QUICK_SITE_EDITOR_TOP_PADDING,
       right: this.isWide
@@ -152,48 +170,73 @@ export struct QuickSiteEditor {
 
   @Builder
   private CustomForm() {
-    Column({ space: QUICK_SITE_EDITOR_FORM_GAP }) {
-      Text($r('app.string.quick_site_name'))
-        .width('100%')
-        .fontSize(QUICK_SITE_EDITOR_LABEL_FONT_SIZE)
-        .fontColor($r('app.color.text_secondary'))
-      TextInput({ text: this.name, placeholder: $r('app.string.quick_site_name_placeholder') })
-        .id('quick-site-name-input')
-        .width('100%')
-        .height(QUICK_SITE_EDITOR_FIELD_HEIGHT)
-        .padding({ left: QUICK_SITE_EDITOR_INPUT_HORIZONTAL_PADDING, right: QUICK_SITE_EDITOR_INPUT_HORIZONTAL_PADDING })
-        .fontSize(QUICK_SITE_EDITOR_INPUT_FONT_SIZE)
-        .fontColor($r('app.color.text_primary'))
-        .placeholderColor($r('app.color.text_secondary'))
-        .backgroundColor($r('app.color.surface_subtle'))
-        .borderRadius(QUICK_SITE_EDITOR_INPUT_RADIUS)
-        .onChange((value: string): void => {
-          this.name = value;
-        })
+    Scroll() {
+      Column({ space: QUICK_SITE_EDITOR_FORM_GAP }) {
+        Text($r('app.string.quick_site_name'))
+          .width('100%')
+          .fontSize(QUICK_SITE_EDITOR_LABEL_FONT_SIZE)
+          .fontColor($r('app.color.text_secondary'))
+        TextInput({ text: this.name, placeholder: $r('app.string.quick_site_name_placeholder') })
+          .id('quick-site-name-input')
+          .width('100%')
+          .height(QUICK_SITE_EDITOR_FIELD_HEIGHT)
+          .padding({
+            left: QUICK_SITE_EDITOR_INPUT_HORIZONTAL_PADDING,
+            right: QUICK_SITE_EDITOR_INPUT_HORIZONTAL_PADDING
+          })
+          .fontSize(QUICK_SITE_EDITOR_INPUT_FONT_SIZE)
+          .fontColor($r('app.color.text_primary'))
+          .placeholderColor($r('app.color.text_secondary'))
+          .backgroundColor($r('app.color.surface_subtle'))
+          .borderRadius(QUICK_SITE_EDITOR_INPUT_RADIUS)
+          .enterKeyType(EnterKeyType.Next)
+          .accessibilityText($r('app.string.quick_site_name'))
+          .onSubmit((): void => {
+            focusControl.requestFocus('quick-site-url-input');
+          })
+          .onChange((value: string): void => {
+            this.name = value;
+          })
 
-      Text($r('app.string.quick_site_url'))
-        .width('100%')
-        .fontSize(QUICK_SITE_EDITOR_LABEL_FONT_SIZE)
-        .fontColor($r('app.color.text_secondary'))
-        .margin({ top: QUICK_SITE_EDITOR_LABEL_SECTION_GAP })
-      TextInput({ text: this.url, placeholder: $r('app.string.quick_site_url_placeholder') })
-        .id('quick-site-url-input')
-        .width('100%')
-        .height(QUICK_SITE_EDITOR_FIELD_HEIGHT)
-        .padding({ left: QUICK_SITE_EDITOR_INPUT_HORIZONTAL_PADDING, right: QUICK_SITE_EDITOR_INPUT_HORIZONTAL_PADDING })
-        .fontSize(QUICK_SITE_EDITOR_INPUT_FONT_SIZE)
-        .fontColor($r('app.color.text_primary'))
-        .placeholderColor($r('app.color.text_secondary'))
-        .backgroundColor($r('app.color.surface_subtle'))
-        .borderRadius(QUICK_SITE_EDITOR_INPUT_RADIUS)
-        .onChange((value: string): void => {
-          this.url = value;
-        })
+        Text($r('app.string.quick_site_url'))
+          .width('100%')
+          .fontSize(QUICK_SITE_EDITOR_LABEL_FONT_SIZE)
+          .fontColor($r('app.color.text_secondary'))
+          .margin({ top: QUICK_SITE_EDITOR_LABEL_SECTION_GAP })
+        TextInput({ text: this.url, placeholder: $r('app.string.quick_site_url_placeholder') })
+          .id('quick-site-url-input')
+          .width('100%')
+          .height(QUICK_SITE_EDITOR_FIELD_HEIGHT)
+          .padding({
+            left: QUICK_SITE_EDITOR_INPUT_HORIZONTAL_PADDING,
+            right: QUICK_SITE_EDITOR_INPUT_HORIZONTAL_PADDING
+          })
+          .fontSize(QUICK_SITE_EDITOR_INPUT_FONT_SIZE)
+          .fontColor($r('app.color.text_primary'))
+          .placeholderColor($r('app.color.text_secondary'))
+          .backgroundColor($r('app.color.surface_subtle'))
+          .borderRadius(QUICK_SITE_EDITOR_INPUT_RADIUS)
+          .type(InputType.URL)
+          .enterKeyType(EnterKeyType.Go)
+          .accessibilityText($r('app.string.quick_site_url'))
+          .onSubmit((): void => this.saveCustom())
+          .onChange((value: string): void => {
+            this.url = value;
+          })
 
-      Blank()
+        if (this.hasAttemptedSave && !this.canSaveCustom()) {
+          Text($r('app.string.quick_site_url_invalid'))
+            .width('100%')
+            .fontSize(QUICK_SITE_EDITOR_LABEL_FONT_SIZE)
+            .fontColor($r('app.color.danger'))
+        }
+      }
+      .width('100%')
     }
     .width('100%')
     .layoutWeight(1)
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
   }
 
   @Builder
@@ -210,19 +253,19 @@ export struct QuickSiteEditor {
     .borderRadius(QUICK_SITE_EDITOR_ACTION_RADIUS)
     .backgroundColor(primary ? $r('app.color.accent') : $r('app.color.surface_subtle'))
     .opacity(primary && !this.canSaveCustom() ? 0.45 : 1)
+    .focusable(true)
+    .accessibilityText(label)
     .onClick(() => {
-      if (!primary || this.canSaveCustom()) {
-        action();
-      }
+      action();
     })
   }
 
   private canSaveCustom(): boolean {
-    const value: string = this.url.trim();
-    return value.includes('://') || (value.includes('.') && !value.includes(' '));
+    return normalizeUrlInput(this.url).length > 0;
   }
 
   private saveCustom(): void {
+    this.hasAttemptedSave = true;
     if (this.canSaveCustom()) {
       this.onSave(this.name.trim(), this.url.trim());
     }

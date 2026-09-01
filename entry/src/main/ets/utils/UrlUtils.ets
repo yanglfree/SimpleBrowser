@@ -29,17 +29,106 @@ export function isHomeUrl(url: string): boolean {
   return url.length === 0 || url === HOME_URL;
 }
 
+function hasExplicitScheme(value: string): boolean {
+  return value.match(/^[a-z][a-z0-9+.-]*:\/\//i) !== null;
+}
+
+function validPort(value: string): boolean {
+  if (value.length === 0 || value.match(/^\d+$/) === null) {
+    return false;
+  }
+  const port: number = Number(value);
+  return port > 0 && port <= 65535;
+}
+
+function validIpv4(host: string): boolean {
+  const parts: string[] = host.split('.');
+  if (parts.length !== 4) {
+    return false;
+  }
+  return parts.every((part: string): boolean => {
+    if (part.length === 0 || part.match(/^\d{1,3}$/) === null) {
+      return false;
+    }
+    const octet: number = Number(part);
+    return octet >= 0 && octet <= 255;
+  });
+}
+
+function validDomain(host: string): boolean {
+  if (host.length > 253 || host.startsWith('.') || host.endsWith('.')) {
+    return false;
+  }
+  const labels: string[] = host.split('.');
+  if (labels.length < 2) {
+    return false;
+  }
+  return labels.every((label: string): boolean => {
+    return label.length > 0 && label.length <= 63 && !label.startsWith('-') && !label.endsWith('-') &&
+      label.match(/^[^\s\/:?#.]+$/) !== null;
+  });
+}
+
+function addressHost(value: string): string {
+  const boundary: number = value.search(/[/?#]/);
+  const authority: string = boundary < 0 ? value : value.substring(0, boundary);
+  if (authority.startsWith('[')) {
+    const bracket: number = authority.indexOf(']');
+    if (bracket <= 1) {
+      return '';
+    }
+    const suffix: string = authority.substring(bracket + 1);
+    return suffix.length === 0 || (suffix.startsWith(':') && validPort(suffix.substring(1)))
+      ? authority.substring(0, bracket + 1)
+      : '';
+  }
+  const firstColon: number = authority.indexOf(':');
+  const lastColon: number = authority.lastIndexOf(':');
+  if (firstColon >= 0) {
+    if (firstColon !== lastColon || !validPort(authority.substring(lastColon + 1))) {
+      return '';
+    }
+    return authority.substring(0, lastColon);
+  }
+  return authority;
+}
+
+function isAddressHost(host: string): boolean {
+  const lower: string = host.toLowerCase();
+  if (lower === 'localhost') {
+    return true;
+  }
+  if (host.startsWith('[') && host.endsWith(']')) {
+    return host.substring(1, host.length - 1).includes(':');
+  }
+  const numericDotted: boolean = host.match(/^\d+(\.\d+){3}$/) !== null;
+  return numericDotted ? validIpv4(host) : validDomain(host);
+}
+
 /** True when the input looks like an address rather than a search phrase. */
 export function looksLikeUrl(input: string): boolean {
   const value: string = input.trim();
-  if (value.length === 0 || value.includes(' ')) {
+  if (value.length === 0 || value.match(/\s/) !== null) {
     return false;
   }
-  if (value.includes('://') || value.startsWith('localhost')) {
+  if (hasExplicitScheme(value)) {
     return true;
   }
-  const dot: number = value.indexOf('.');
-  return dot > 0 && dot < value.length - 1;
+  return isAddressHost(addressHost(value));
+}
+
+/** Returns a navigable URL, or an empty string when the value is a search phrase. */
+export function normalizeUrlInput(input: string): string {
+  const value: string = input.trim();
+  if (!looksLikeUrl(value)) {
+    return '';
+  }
+  if (hasExplicitScheme(value)) {
+    return value;
+  }
+  const host: string = addressHost(value).toLowerCase();
+  const localOrIp: boolean = host === 'localhost' || host.startsWith('[') || validIpv4(host);
+  return `${localOrIp ? 'http' : 'https'}://${value}`;
 }
 
 export function normalizeAddress(input: string, engine: SearchEngine, customTemplate: string = ''): string {
@@ -47,11 +136,9 @@ export function normalizeAddress(input: string, engine: SearchEngine, customTemp
   if (value.length === 0) {
     return HOME_URL;
   }
-  if (value.includes('://')) {
-    return value;
-  }
-  if (looksLikeUrl(value)) {
-    return `https://${value}`;
+  const normalizedUrl: string = normalizeUrlInput(value);
+  if (normalizedUrl.length > 0) {
+    return normalizedUrl;
   }
   return searchUrl(value, engine, customTemplate);
 }

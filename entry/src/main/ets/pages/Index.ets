@@ -1533,6 +1533,8 @@ struct Index {
         history: this.history,
         isWide: this.usesWideChrome(),
         keyboardInset: this.keyboardInset,
+        availableHeight: this.windowMetrics.heightVp,
+        topInset: this.topInset,
         onSave: (title: string, url: string): void => { void this.addQuickSite(title, url); },
         onDismiss: (): void => { this.sheet = Overlay.None; }
       })
@@ -1540,6 +1542,7 @@ struct Index {
     } else if (this.sheet === Overlay.Address) {
       AddressSheet({
         topInset: this.topInset,
+        keyboardInset: this.keyboardInset,
         suggestions: this.suggestions,
         currentHost: displayHost(this.activeTab()?.url ?? ''),
         initialText: this.isActiveHome() ? '' : (this.activeTab()?.url ?? ''),

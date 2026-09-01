@@ -1,5 +1,11 @@
 import { Suggestion, SuggestionKind } from '../models/BrowserModels';
 import { looksLikeUrl } from '../utils/UrlUtils';
+import {
+  applyOmniboxShortcut,
+  OmniboxEditResult,
+  OmniboxShortcut,
+  omniboxShortcuts
+} from '../utils/OmniboxInput';
 import { AppIcon, IconName } from './AppIcon';
 
 const INPUT_ID: string = 'address-input';
@@ -21,6 +27,7 @@ function suggestionIcon(kind: SuggestionKind): IconName {
 @Component
 export struct AddressSheet {
   @Prop topInset: number = 0;
+  @Prop keyboardInset: number = 0;
   @Prop suggestions: Suggestion[] = [];
   @Prop currentHost: string = '';
   initialText: string = '';
@@ -29,6 +36,9 @@ export struct AddressSheet {
   onPick: (url: string) => void = (_url: string): void => {};
   onDismiss: () => void = (): void => {};
   @State private text: string = '';
+  @State private selectionStart: number = 0;
+  @State private selectionEnd: number = 0;
+  private inputController: TextInputController = new TextInputController();
 
   aboutToAppear(): void {
     this.text = this.initialText;
@@ -46,7 +56,7 @@ export struct AddressSheet {
     }
     .width('100%')
     .height('100%')
-    .padding({ top: Math.max(0, this.topInset) })
+    .padding({ top: Math.max(0, this.topInset), bottom: Math.max(0, this.keyboardInset) })
     .backgroundColor($r('app.color.page_background'))
   }
 
@@ -70,10 +80,21 @@ export struct AddressSheet {
       Row({ space: 10 }) {
         Row({ space: 10 }) {
           AppIcon({ name: IconName.Search, glyphSize: 17, color: $r('app.color.text_secondary') })
-          TextInput({ text: this.text, placeholder: $r('app.string.address_placeholder') })
+          TextInput({
+            text: this.text,
+            placeholder: $r('app.string.address_placeholder'),
+            controller: this.inputController
+          })
             .id(INPUT_ID)
             .defaultFocus(true)
-            .onAppear(() => focusControl.requestFocus(INPUT_ID))
+            .onAppear(() => {
+              focusControl.requestFocus(INPUT_ID);
+              setTimeout((): void => {
+                this.selectionStart = 0;
+                this.selectionEnd = this.text.length;
+                this.inputController.setTextSelection(0, this.text.length);
+              }, 0);
+            })
             .layoutWeight(1)
             .height(48)
             .padding(0)
@@ -88,16 +109,26 @@ export struct AddressSheet {
               this.text = value;
               this.onQueryChange(value);
             })
-            .onPaste((content: string, _event: PasteEvent) => {
-              this.text = content;
-              this.onSubmit(content);
+            .onTextSelectionChange((start: number, end: number): void => {
+              this.selectionStart = start;
+              this.selectionEnd = end;
             })
             .onSubmit(() => this.onSubmit(this.text))
 
           if (this.text.length > 0) {
-            AppIcon({ name: IconName.Close, glyphSize: 16, color: $r('app.color.text_secondary') })
+            Column() {
+              AppIcon({ name: IconName.Close, glyphSize: 16, color: $r('app.color.text_secondary') })
+            }
+              .width(48)
+              .height(48)
+              .justifyContent(FlexAlign.Center)
+              .focusable(true)
+              .accessibilityText($r('app.string.address_clear_input'))
               .onClick(() => {
                 this.text = '';
+                this.selectionStart = 0;
+                this.selectionEnd = 0;
+                this.inputController.caretPosition(0);
                 this.onQueryChange('');
               })
           }
@@ -108,9 +139,15 @@ export struct AddressSheet {
         .borderRadius(16)
         .backgroundColor($r('app.color.surface_subtle'))
 
-        Text($r('app.string.cancel'))
-          .fontSize(15)
-          .fontColor($r('app.color.text_secondary'))
+        Row() {
+          Text($r('app.string.cancel'))
+            .fontSize(15)
+            .fontColor($r('app.color.text_secondary'))
+        }
+          .height(48)
+          .justifyContent(FlexAlign.Center)
+          .focusable(true)
+          .accessibilityText($r('app.string.cancel'))
           .onClick(() => this.onDismiss())
       }
       .width('100%')
@@ -146,9 +183,19 @@ export struct AddressSheet {
       .layoutWeight(1)
 
       if (isLast) {
-        AppIcon({ name: IconName.ArrowUpLeft, glyphSize: 16, color: $r('app.color.text_secondary') })
+        Column() {
+          AppIcon({ name: IconName.ArrowUpLeft, glyphSize: 16, color: $r('app.color.text_secondary') })
+        }
+          .width(48)
+          .height(48)
+          .justifyContent(FlexAlign.Center)
+          .focusable(true)
+          .accessibilityText(item.url)
           .onClick(() => {
             this.text = item.url;
+            this.selectionStart = item.url.length;
+            this.selectionEnd = item.url.length;
+            this.inputController.caretPosition(item.url.length);
             this.onQueryChange(item.url);
           })
       }
@@ -156,6 +203,8 @@ export struct AddressSheet {
     .width('100%')
     .height(52)
     .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+    .focusable(true)
+    .accessibilityText(item.title)
     .onClick(() => this.onPick(item.url))
   }
 
@@ -163,10 +212,10 @@ export struct AddressSheet {
   @Builder
   private Shortcuts() {
     Row({ space: 6 }) {
-      ForEach(this.shortcutTokens(), (token: string) => {
-        Text(token)
+      ForEach(omniboxShortcuts(this.currentHost), (shortcut: OmniboxShortcut) => {
+        Text(shortcut.label)
           .layoutWeight(1)
-          .height(32)
+          .height(48)
           .borderRadius(8)
           .backgroundColor($r('app.color.surface_panel'))
           .border({ width: 1, color: $r('app.color.border') })
@@ -175,19 +224,26 @@ export struct AddressSheet {
           .textAlign(TextAlign.Center)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .focusable(true)
+          .accessibilityText(shortcut.label)
           .onClick(() => {
-            this.text = `${this.text}${token}`;
+            const result: OmniboxEditResult = applyOmniboxShortcut(
+              this.text,
+              this.selectionStart,
+              this.selectionEnd,
+              shortcut
+            );
+            this.text = result.text;
+            this.selectionStart = result.selection.start;
+            this.selectionEnd = result.selection.end;
+            this.inputController.setTextSelection(result.selection.start, result.selection.end);
             this.onQueryChange(this.text);
           })
-      }, (token: string, index: number) => `${index}-${token}`)
+      }, (shortcut: OmniboxShortcut, index: number) => `${index}-${shortcut.label}`)
     }
     .width('100%')
     .padding({ left: 8, right: 8, top: 8, bottom: 8 })
     .backgroundColor($r('app.color.page_background'))
   }
 
-  private shortcutTokens(): string[] {
-    const tokens: string[] = ['.com', '.cn', 'www.', '/'];
-    return this.currentHost.length > 0 ? [this.currentHost].concat(tokens) : tokens;
-  }
 }

@@ -37,6 +37,7 @@
     { "name": "greeting_night", "value": "夜深了" },
 
     { "name": "address_placeholder", "value": "搜索或输入网址" },
+    { "name": "address_clear_input", "value": "清除输入内容" },
     { "name": "weekly_blocked_prefix", "value": "本周已拦截" },
     { "name": "weekly_blocked_suffix", "value": "条广告" },
     { "name": "frequent_sites", "value": "常访问" },
@@ -48,6 +49,7 @@
     { "name": "quick_site_name", "value": "名称" },
     { "name": "quick_site_name_placeholder", "value": "选填，默认使用网站名称" },
     { "name": "quick_site_url", "value": "网址" },
+    { "name": "quick_site_url_invalid", "value": "请输入有效的网址，例如 example.com" },
     { "name": "quick_site_url_placeholder", "value": "https://example.com" },
     { "name": "page_settings", "value": "页面设置" },
     { "name": "page_shortcuts", "value": "快捷方式" },
