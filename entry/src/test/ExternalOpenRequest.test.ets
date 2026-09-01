@@ -10,6 +10,7 @@ import {
   restoreTrackingParameters,
   withExternalOpenAction
 } from '../main/ets/models/ExternalOpenRequest';
+import externalProtocolServiceTest from './ExternalProtocolService.test';
 
 export default function externalOpenRequestTest(): void {
   describe('External open request', (): void => {
@@ -69,4 +70,5 @@ export default function externalOpenRequestTest(): void {
       expect(save.shouldSave).assertTrue();
     });
   });
+  externalProtocolServiceTest();
 }

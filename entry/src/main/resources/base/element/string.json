@@ -483,6 +483,12 @@
     { "name": "pro_compare_no", "value": "—" },
     { "name": "set_as_default_browser", "value": "设为默认浏览器" },
     { "name": "set_as_default_browser_toast", "value": "请在系统【默认应用】->【浏览器】中选择卓阅浏览器" },
-    { "name": "set_as_default_browser_failed", "value": "无法打开系统设置，请前往系统【设置】->【应用】->【默认应用】手动设置" }
+    { "name": "set_as_default_browser_failed", "value": "无法打开系统设置，请前往系统【设置】->【应用】->【默认应用】手动设置" },
+    { "name": "external_protocol_open_title", "value": "打开外部应用？" },
+    { "name": "external_protocol_install_title", "value": "允许安装应用？" },
+    { "name": "external_protocol_payment_title", "value": "打开支付应用？" },
+    { "name": "external_protocol_open", "value": "继续" },
+    { "name": "external_protocol_unavailable", "value": "未找到可处理此链接的应用" },
+    { "name": "external_protocol_blocked", "value": "已阻止不安全的内部协议" }
   ]
 }

@@ -3,6 +3,7 @@ import { scrolledFromTopScript } from '../constants/AppConstants';
 import { BrowserTab, WebDarkModePreference } from '../models/BrowserModels';
 import { BlockCategory } from '../models/BlockEventModels';
 import { AdsBlockService } from '../services/AdsBlockService';
+import { createExternalProtocolRequest, isBlockedProtocol } from '../services/ExternalProtocolService';
 import { WebKernelCallbacks, WebKernelService } from '../services/WebKernelService';
 import { Logger } from '../utils/Logger';
 import { AppIcon, IconName } from './AppIcon';
@@ -55,6 +56,8 @@ export struct BrowserWebView {
   onGeolocationShow: (event: OnGeolocationShowEvent) => void =
     (_event: OnGeolocationShowEvent): void => {};
   onPasswordFieldFocus: () => void = (): void => {};
+  onExternalProtocol: (url: string, sourceUrl: string) => void =
+    (_url: string, _sourceUrl: string): void => {};
   private securityBridge: DolphinSecurityBridge = new DolphinSecurityBridge();
 
   build() {
@@ -88,6 +91,29 @@ export struct BrowserWebView {
       })
       .onProgressChange((event: OnProgressChangeEvent) =>
         this.kernelCallbacks.onProgressChange(event.newProgress))
+      .onLoadIntercept((event: OnLoadInterceptEvent): boolean => {
+        if (!event.data.isMainFrame()) {
+          return false;
+        }
+        const url: string = event.data.getRequestUrl();
+        if (isBlockedProtocol(url)) {
+          return true;
+        }
+        if (createExternalProtocolRequest(url) === undefined) {
+          return false;
+        }
+        let sourceUrl: string = this.tab.url;
+        try {
+          const currentUrl: string = this.controller.getUrl();
+          if (currentUrl.length > 0) {
+            sourceUrl = currentUrl;
+          }
+        } catch (_error) {
+          // The controller may not be attached during an early navigation.
+        }
+        this.onExternalProtocol(url, sourceUrl);
+        return true;
+      })
       .onInterceptRequest((event: OnInterceptRequestEvent): WebResourceResponse | null =>
         this.adsBlockService.interceptRequest(
           event.request,

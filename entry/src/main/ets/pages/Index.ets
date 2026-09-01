@@ -164,6 +164,13 @@ import {
   withExternalOpenAction
 } from '../models/ExternalOpenRequest';
 import { ExternalOpenRouter } from '../services/ExternalOpenRouter';
+import {
+  createExternalProtocolRequest,
+  ExternalProtocolCategory,
+  ExternalProtocolRequest,
+  ExternalProtocolService,
+  isBlockedProtocol
+} from '../services/ExternalProtocolService';
 import { ProFeature } from '../models/ProModels';
 import { ProBillingAdapter } from '../services/ProBillingAdapter';
 import { ProEntitlementService } from '../services/ProEntitlementService';
@@ -787,7 +794,10 @@ struct Index {
                 this.handlePermissionRequest(event),
               onGeolocationShow: (event: OnGeolocationShowEvent): void =>
                 this.handleGeolocationShow(event),
-              onPasswordFieldFocus: (): void => { void this.handlePasswordFocusOnInsecurePage(tab.id); }
+              onPasswordFieldFocus: (): void => { void this.handlePasswordFocusOnInsecurePage(tab.id); },
+              onExternalProtocol: (url: string, sourceUrl: string): void => {
+                this.promptExternalProtocol(url, sourceUrl);
+              }
             })
           } else {
             this.HibernatedTab(tab)
@@ -1987,6 +1997,13 @@ struct Index {
     if (tab === undefined) {
       return;
     }
+    if (isBlockedProtocol(url)) {
+      this.showToast($r('app.string.external_protocol_blocked'));
+      return;
+    }
+    if (this.promptExternalProtocol(url, tab.url)) {
+      return;
+    }
     this.sheet = Overlay.None;
     this.isCapsuleHidden = false;
     if (isHomeUrl(tab.url)) {
@@ -2003,6 +2020,50 @@ struct Index {
       return;
     }
     this.runOnActive((controller: webview.WebviewController) => controller.loadUrl(url));
+  }
+
+  private promptExternalProtocol(url: string, sourceUrl: string): boolean {
+    const request: ExternalProtocolRequest | undefined = createExternalProtocolRequest(url, displayHost(sourceUrl));
+    if (request === undefined) {
+      return false;
+    }
+    const source: string = request.sourceHost.length > 0
+      ? request.sourceHost
+      : `${request.scheme}://`;
+    try {
+      this.getUIContext().showAlertDialog({
+        title: this.externalProtocolTitle(request.category),
+        message: `${source}\n${request.scheme}://`,
+        primaryButton: {
+          value: $r('app.string.external_protocol_open'),
+          action: (): void => { void this.openExternalProtocol(request); }
+        },
+        secondaryButton: {
+          value: $r('app.string.cancel'),
+          action: (): void => {}
+        }
+      });
+    } catch (error) {
+      Logger.warn(TAG, `External protocol prompt unavailable for ${request.scheme}: ${String(error)}`);
+    }
+    return true;
+  }
+
+  private externalProtocolTitle(category: ExternalProtocolCategory): Resource {
+    if (category === ExternalProtocolCategory.AppInstall) {
+      return $r('app.string.external_protocol_install_title');
+    }
+    if (category === ExternalProtocolCategory.Payment) {
+      return $r('app.string.external_protocol_payment_title');
+    }
+    return $r('app.string.external_protocol_open_title');
+  }
+
+  private async openExternalProtocol(request: ExternalProtocolRequest): Promise<void> {
+    const opened: boolean = await ExternalProtocolService.open(this.appContext(), request);
+    if (!opened) {
+      this.showToast($r('app.string.external_protocol_unavailable'));
+    }
   }
 
   private promptExternalOpen(request: ExternalOpenRequest): void {
