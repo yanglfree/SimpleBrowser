@@ -63,9 +63,6 @@ jobs:
           [[ "$UPLOAD_URL" == https://*/api/artifacts ]]
           [[ "$DOWNLOAD_URL" == https://* ]]
 
-      - name: Resolve HarmonyOS dependencies
-        run: ohpm install --all
-
       - name: Build and validate signed HAP
         run: |
           scripts/mobile_cicd/build_harmony_artifacts.sh "$RUNNER_TEMP/zhuobrowser-harmony-release"

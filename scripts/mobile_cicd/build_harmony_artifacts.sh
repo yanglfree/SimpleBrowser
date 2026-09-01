@@ -17,6 +17,7 @@ die() { echo "Harmony artifact build error: $*" >&2; exit 1; }
 grep -Eq '"name"[[:space:]]*:[[:space:]]*"dis"' "${SIGNING_SOURCE}" || die "release signing config 'dis' is missing"
 grep -Eq '"signingConfig"[[:space:]]*:[[:space:]]*"dis"' "${SIGNING_SOURCE}" || die "default product must use release signing config 'dis'"
 command -v "${HVIGOR_BIN}" >/dev/null 2>&1 || [[ -x "${HVIGOR_BIN}" ]] || die "hvigorw is unavailable"
+command -v ohpm >/dev/null 2>&1 || die "ohpm is unavailable"
 
 restore_profile() {
   if [[ -f "${BACKUP_DIR}/build-profile.json5" ]]; then
@@ -32,6 +33,15 @@ if [[ -f "${SIGNING_TARGET}" ]]; then
   cp "${SIGNING_TARGET}" "${BACKUP_DIR}/build-profile.json5"
 fi
 cp "${SIGNING_SOURCE}" "${SIGNING_TARGET}"
+
+(
+  cd "${REPO_ROOT}"
+  ohpm install --all
+)
+(
+  cd "${REPO_ROOT}/entry"
+  ohpm install
+)
 
 (
   cd "${REPO_ROOT}"

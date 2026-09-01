@@ -62,9 +62,6 @@ jobs:
           npm test
           npm run verify:worker
 
-      - name: Resolve HarmonyOS dependencies
-        run: ohpm install --all
-
       - name: Run tests and build release HAP
         env:
           RUN_HARMONY_TESTS: "1"
