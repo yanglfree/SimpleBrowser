@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PATH: /Users/liang/Library/Huawei/CommandLineTools/current/bin:/Users/liang/.nvm/versions/node/v24.19.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
+  PATH: /Users/liang/Library/Huawei/CommandLineTools/current/bin:/Users/liang/.nvm/versions/node/v24.19.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
   HVIGOR_BIN: /Users/liang/Library/Huawei/CommandLineTools/current/bin/hvigorw
   HARMONY_SIGNING_PROFILE: /Users/liang/.config/zhuobrowser/build-profile.release.json5
   SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
