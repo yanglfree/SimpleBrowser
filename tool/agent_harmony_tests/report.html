@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZhuoBrowser HarmonyOS Real-device QA Report</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; }
+    body { margin: 0; padding: 32px; background: Canvas; color: CanvasText; }
+    main { max-width: 1120px; margin: 0 auto; }
+    h1, h2, h3 { line-height: 1.2; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 28px; }
+    th, td { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: color-mix(in srgb, CanvasText 8%, transparent); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.94em; }
+    .status-passed { color: #027a48; font-weight: 700; }
+    .status-failed { color: #b42318; font-weight: 700; }
+    .status-blocked, .status-partial { color: #b54708; font-weight: 700; }
+    .status-not-run, .status-pending { color: #667085; font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin: 20px 0 28px; }
+    .metric { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 8px; padding: 14px 16px; }
+    .metric strong { display: block; font-size: 1.6rem; }
+    .case-result { border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent); padding-top: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ZhuoBrowser HarmonyOS Real-device QA Report</h1>
+  <p>
+    Date: 2026-09-01<br>
+    Target: Huawei WEB-W00, HarmonyOS 6.1.0.135, <code>45P0225509000207</code><br>
+    App: ZhuoBrowser <code>1.0.0</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
+    HAP: <code>entry/build/default/outputs/default/entry-default-signed.hap</code><br>
+    Auth source: Existing local app state; no account credentials were changed
+  </p>
+
+  <section class="summary" aria-label="Run summary">
+    <div class="metric"><strong>8</strong>Total cases</div>
+    <div class="metric"><strong>6</strong>Executed</div>
+    <div class="metric"><strong>6</strong>Passed</div>
+    <div class="metric"><strong>0</strong>Failed</div>
+    <div class="metric"><strong>0</strong>Blocked</div>
+    <div class="metric"><strong>2</strong>Not run</div>
+  </section>
+
+  <h2>Executive Summary</h2>
+  <p>
+    The agent QA suite contains 8 Harmony scenarios. This run executed 6 cases with fresh evidence.
+    Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
+  </p>
+
+  <h2>Coverage Matrix</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>Cases</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Install and startup</td>
+        <td class="status-passed">passed</td>
+        <td><code>startup-001</code></td>
+        <td>The signed HAP installed and EntryAbility launched on the connected target.</td>
+      </tr>
+      <tr>
+        <td>Omnibox input</td>
+        <td class="status-partial">partial</td>
+        <td><code>omnibox-001</code><br><code>omnibox-002</code><br><code>omnibox-003</code><br><code>omnibox-004</code><br><code>omnibox-005</code></td>
+        <td>Focus, editing, shortcuts, URL normalization, and search submission passed. Clipboard paste remains not-run.</td>
+      </tr>
+      <tr>
+        <td>Quick-site editor</td>
+        <td class="status-partial">partial</td>
+        <td><code>quick-site-001</code><br><code>quick-site-002</code></td>
+        <td>Wide-layout keyboard avoidance and validation passed. Compact handset coverage remains not-run.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Case Catalog</h2>
+  <table>
+    <thead><tr><th>Case</th><th>Priority</th><th>Title</th><th>Latest Status</th><th>Tags</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>startup-001</code></td>
+        <td>p0</td>
+        <td>Install and launch the signed HAP</td>
+        <td class="status-passed">passed</td>
+        <td>startup, install</td>
+      </tr>
+      <tr>
+        <td><code>omnibox-001</code></td>
+        <td>p0</td>
+        <td>Select the current address and keep controls above the keyboard</td>
+        <td class="status-passed">passed</td>
+        <td>omnibox, keyboard, selection</td>
+      </tr>
+      <tr>
+        <td><code>omnibox-002</code></td>
+        <td>p0</td>
+        <td>Edit without navigation, then submit a localhost URL</td>
+        <td class="status-passed">passed</td>
+        <td>omnibox, navigation, localhost</td>
+      </tr>
+      <tr>
+        <td><code>omnibox-003</code></td>
+        <td>p1</td>
+        <td>Insert www after a selected URL scheme</td>
+        <td class="status-passed">passed</td>
+        <td>omnibox, shortcut, selection</td>
+      </tr>
+      <tr>
+        <td><code>omnibox-004</code></td>
+        <td>p1</td>
+        <td>Submit non-address input through the search engine</td>
+        <td class="status-passed">passed</td>
+        <td>omnibox, search</td>
+      </tr>
+      <tr>
+        <td><code>omnibox-005</code></td>
+        <td>p1</td>
+        <td>Paste text without automatic navigation</td>
+        <td class="status-not-run">not-run</td>
+        <td>omnibox, clipboard, paste</td>
+      </tr>
+      <tr>
+        <td><code>quick-site-001</code></td>
+        <td>p1</td>
+        <td>Keep the wide quick-site form actionable above the keyboard</td>
+        <td class="status-passed">passed</td>
+        <td>quick-site, keyboard, wide-layout</td>
+      </tr>
+      <tr>
+        <td><code>quick-site-002</code></td>
+        <td>p1</td>
+        <td>Adapt the compact quick-site form to a phone keyboard</td>
+        <td class="status-not-run">not-run</td>
+        <td>quick-site, keyboard, compact-layout</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Latest Run Evidence</h2>
+
+      <section class="case-result">
+        <h3><code>startup-001</code> <span class="status-passed">passed</span></h3>
+        <p>Fresh install and launch evidence recorded on the connected target.</p>
+        <ul><li><strong>command</strong><br>hdc install and aa start both completed successfully.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>omnibox-001</code> <span class="status-passed">passed</span></h3>
+        <p>The focused TextInput reported selected=true and all controls were visible above the landscape keyboard.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/evidence/address-selected-keyboard.png</code><br>The existing URL is selected while the keyboard, Cancel, and shortcut strip remain visible.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/evidence/address-selected-keyboard.json</code><br>Fresh UI dump for focused and selected omnibox state.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>omnibox-002</code> <span class="status-passed">passed</span></h3>
+        <p>Text injection changed only the field; the IME action then navigated to the HTTP localhost target.</p>
+        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/evidence/localhost-edit-no-navigation.json</code><br>The field contains localhost:8787 while the active Web node still has the previous URL.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/evidence/localhost-submit.json</code><br>After submission, the tab title is localhost:8787 and the displayed host is localhost.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>omnibox-003</code> <span class="status-passed">passed</span></h3>
+        <p>The initial real-device run exposed www.http:// ordering. The implementation was fixed, rebuilt, reinstalled, and rerun successfully.</p>
+        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/evidence/www-shortcut-fixed.json</code><br>The fixed field value is http://www.localhost:8787/.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>omnibox-004</code> <span class="status-passed">passed</span></h3>
+        <p>Non-address input was routed to the configured Bing endpoint.</p>
+        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/evidence/search-submit.json</code><br>The active Web node is https://www.bing.com/search?q=privacy-browser-qa.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>omnibox-005</code> <span class="status-not-run">not-run</span></h3>
+        <p>No controlled clipboard injection command was available through the connected hdc shell. Text editing was verified, but it is not claimed as paste evidence.</p>
+        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>quick-site-001</code> <span class="status-passed">passed</span></h3>
+        <p>The initial run exposed hidden actions in wide mode. After the fix, Next focused the URL field and both actions remained above the keyboard. Empty Save also produced recoverable inline validation.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/evidence/quick-site-keyboard.png</code><br>Wide quick-site editor constrained above the landscape keyboard with actions visible.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/evidence/quick-site-keyboard.json</code><br>The URL input is focused and Cancel/Save are within the visible window.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/evidence/quick-site-invalid.json</code><br>The invalid URL message is visible without dismissing the editor.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>quick-site-002</code> <span class="status-not-run">not-run</span></h3>
+        <p>The connected target is a 2880x1920 tablet in landscape. Compact handset and rotation evidence were not fabricated.</p>
+        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+      </section>
+
+  <h2>Validation</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>hvigorw test</code></td>
+        <td class="status-passed">passed</td>
+        <td>166 tests passed with 0 failures and 0 errors after both real-device fixes.</td>
+      </tr>
+      <tr>
+        <td><code>hvigorw assembleHap</code></td>
+        <td class="status-passed">passed</td>
+        <td>The signed HAP built successfully after both fixes.</td>
+      </tr>
+      <tr>
+        <td><code>hdc install -r entry/build/default/outputs/default/entry-default-signed.hap</code></td>
+        <td class="status-passed">passed</td>
+        <td>The corrected HAP installed successfully on target 45P0225509000207.</td>
+      </tr>
+      <tr>
+        <td><code>hdc shell aa start -a EntryAbility -b com.youdroid.zhuobrowser</code></td>
+        <td class="status-passed">passed</td>
+        <td>EntryAbility launched successfully after installation.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Known Exclusions</h2>
+  <p>Clipboard paste and compact handset/rotation scenarios remain not-run. No purchase, permission, destructive-data, or account flows were exercised.</p>
+</main>
+</body>
+</html>

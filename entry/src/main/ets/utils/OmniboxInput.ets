@@ -40,6 +40,15 @@ function replaceSelection(text: string, selection: OmniboxSelection, replacement
 function insertPrefix(text: string, selection: OmniboxSelection, prefix: string): OmniboxEditResult {
   if (selection.start !== selection.end) {
     const selected: string = text.substring(selection.start, selection.end);
+    const selectedScheme: RegExpMatchArray | null = selected.match(/^[a-z][a-z0-9+.-]*:\/\//i);
+    if (selectedScheme !== null) {
+      const insertionPoint: number = selection.start + selectedScheme[0].length;
+      if (text.substring(insertionPoint).startsWith(prefix)) {
+        const caret: number = insertionPoint + prefix.length;
+        return { text: text, selection: { start: caret, end: caret } };
+      }
+      return replaceSelection(text, { start: insertionPoint, end: insertionPoint }, prefix);
+    }
     return replaceSelection(text, selection, selected.startsWith(prefix) ? selected : `${prefix}${selected}`);
   }
   const schemeMatch: RegExpMatchArray | null = text.match(/^[a-z][a-z0-9+.-]*:\/\//i);
@@ -62,8 +71,11 @@ function insertSuffix(text: string, selection: OmniboxSelection, suffix: string)
 }
 
 function insertPathSeparator(text: string, selection: OmniboxSelection): OmniboxEditResult {
-  if (selection.start === selection.end &&
-    (text.substring(0, selection.start).endsWith('/') || text.substring(selection.start).startsWith('/'))) {
+  if (selection.start !== selection.end) {
+    const selected: string = text.substring(selection.start, selection.end);
+    return replaceSelection(text, selection, selected.endsWith('/') ? selected : `${selected}/`);
+  }
+  if (text.substring(0, selection.start).endsWith('/') || text.substring(selection.start).startsWith('/')) {
     return { text: text, selection: { start: selection.start, end: selection.end } };
   }
   return replaceSelection(text, selection, '/');

@@ -30,11 +30,12 @@ const QUICK_SITE_EDITOR_VERTICAL_MARGIN: number = 12;
 export function quickSiteEditorPanelHeight(
   availableHeight: number,
   keyboardInset: number,
-  topInset: number
+  topInset: number,
+  preferredHeight: number = QUICK_SITE_EDITOR_COMPACT_HEIGHT
 ): number {
   const usableHeight: number = availableHeight - Math.max(0, keyboardInset) - Math.max(0, topInset) -
     QUICK_SITE_EDITOR_VERTICAL_MARGIN;
-  return Math.min(QUICK_SITE_EDITOR_COMPACT_HEIGHT, Math.max(0, usableHeight));
+  return Math.min(preferredHeight, Math.max(0, usableHeight));
 }
 
 @Component
@@ -54,7 +55,9 @@ export struct QuickSiteEditor {
   onDismiss: () => void = (): void => {};
 
   build() {
-    Stack({ alignContent: this.isWide ? Alignment.Center : Alignment.Bottom }) {
+    Stack({
+      alignContent: this.isWide && this.keyboardInset <= 0 ? Alignment.Center : Alignment.Bottom
+    }) {
       Column()
         .width('100%')
         .height('100%')
@@ -122,9 +125,12 @@ export struct QuickSiteEditor {
       .visibility(this.source === QuickSiteSource.Custom ? Visibility.Visible : Visibility.None)
     }
     .width(this.isWide ? QUICK_SITE_EDITOR_WIDE_WIDTH : '100%')
-    .height(this.isWide
-      ? QUICK_SITE_EDITOR_WIDE_HEIGHT
-      : quickSiteEditorPanelHeight(this.availableHeight, this.keyboardInset, this.topInset))
+    .height(quickSiteEditorPanelHeight(
+      this.availableHeight,
+      this.keyboardInset,
+      this.topInset,
+      this.isWide ? QUICK_SITE_EDITOR_WIDE_HEIGHT : QUICK_SITE_EDITOR_COMPACT_HEIGHT
+    ))
     .padding({
       top: QUICK_SITE_EDITOR_TOP_PADDING,
       right: this.isWide
@@ -138,7 +144,7 @@ export struct QuickSiteEditor {
       : { topLeft: QUICK_SITE_EDITOR_COMPACT_RADIUS, topRight: QUICK_SITE_EDITOR_COMPACT_RADIUS })
     .backgroundColor($r('app.color.surface_panel'))
     .border({ width: this.isWide ? 1 : 0, color: $r('app.color.border') })
-    .margin({ bottom: this.isWide ? 0 : this.keyboardInset })
+    .margin({ bottom: this.keyboardInset })
     .animation({ duration: 180, curve: Curve.EaseOut })
     .shadow(this.isWide ? {
       radius: QUICK_SITE_EDITOR_SHADOW_RADIUS,

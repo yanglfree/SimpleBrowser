@@ -41,9 +41,12 @@ export default function browserInteractionTest(): void {
     it('inserts a domain prefix after an existing scheme', 0, (): void => {
       const prefix: OmniboxShortcut = { label: 'www.', value: 'www.', kind: OmniboxShortcutKind.Prefix };
       const result: OmniboxEditResult = applyOmniboxShortcut('https://example.com', 19, 19, prefix);
+      const selectedResult: OmniboxEditResult = applyOmniboxShortcut('https://example.com', 0, 19, prefix);
 
       expect(result.text).assertEqual('https://www.example.com');
       expect(result.selection.start).assertEqual(12);
+      expect(selectedResult.text).assertEqual('https://www.example.com');
+      expect(selectedResult.selection.start).assertEqual(12);
     });
 
     it('replaces the address with the current-host shortcut', 0, (): void => {
@@ -64,12 +67,14 @@ export default function browserInteractionTest(): void {
 
       expect(applyOmniboxShortcut('openai.com', 10, 10, suffix).text).assertEqual('openai.com');
       expect(applyOmniboxShortcut('openai.com/', 11, 11, path).text).assertEqual('openai.com/');
+      expect(applyOmniboxShortcut('https://openai.com', 0, 18, path).text).assertEqual('https://openai.com/');
     });
 
     it('keeps the shortcut editor inside the keyboard-safe window height', 0, (): void => {
       expect(quickSiteEditorPanelHeight(780, 300, 36)).assertEqual(432);
       expect(quickSiteEditorPanelHeight(930, 0, 36)).assertEqual(620);
       expect(quickSiteEditorPanelHeight(320, 240, 24)).assertEqual(44);
+      expect(quickSiteEditorPanelHeight(960, 400, 43, 760)).assertEqual(505);
     });
 
     it('recognizes common mobile address formats without treating phrases as URLs', 0, (): void => {

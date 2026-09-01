@@ -1,0 +1,258 @@
+{
+  "runner": {
+    "appName": "ZhuoBrowser",
+    "platformName": "HarmonyOS Real-device QA",
+    "bundleId": "com.youdroid.zhuobrowser"
+  },
+  "coverageAreas": [
+    {
+      "title": "Install and startup",
+      "status": "passed",
+      "caseIds": ["startup-001"],
+      "notes": "The signed HAP installed and EntryAbility launched on the connected target."
+    },
+    {
+      "title": "Omnibox input",
+      "status": "partial",
+      "caseIds": ["omnibox-001", "omnibox-002", "omnibox-003", "omnibox-004", "omnibox-005"],
+      "notes": "Focus, editing, shortcuts, URL normalization, and search submission passed. Clipboard paste remains not-run."
+    },
+    {
+      "title": "Quick-site editor",
+      "status": "partial",
+      "caseIds": ["quick-site-001", "quick-site-002"],
+      "notes": "Wide-layout keyboard avoidance and validation passed. Compact handset coverage remains not-run."
+    }
+  ],
+  "cases": [
+    {
+      "id": "startup-001",
+      "title": "Install and launch the signed HAP",
+      "priority": "p0",
+      "platforms": ["HarmonyOS"],
+      "tags": ["startup", "install"],
+      "preconditions": ["Target is connected through hdc"],
+      "steps": ["Install the signed HAP", "Start EntryAbility", "Dump the foreground UI tree"],
+      "assertions": ["Installation succeeds", "The ZhuoBrowser window is foreground and interactive"],
+      "failureSignals": ["Install error", "Ability launch error", "Missing application root"]
+    },
+    {
+      "id": "omnibox-001",
+      "title": "Select the current address and keep controls above the keyboard",
+      "priority": "p0",
+      "platforms": ["HarmonyOS"],
+      "tags": ["omnibox", "keyboard", "selection"],
+      "preconditions": ["An existing web page is active"],
+      "steps": ["Tap the browser address control", "Inspect the text field and keyboard-safe layout"],
+      "assertions": ["The current URL is fully selected", "Cancel and all shortcut controls remain visible"],
+      "failureSignals": ["Caret-only focus", "Controls hidden behind the keyboard"]
+    },
+    {
+      "id": "omnibox-002",
+      "title": "Edit without navigation, then submit a localhost URL",
+      "priority": "p0",
+      "platforms": ["HarmonyOS"],
+      "tags": ["omnibox", "navigation", "localhost"],
+      "preconditions": ["The current URL is selected"],
+      "steps": ["Enter localhost:8787", "Confirm the active Web URL has not changed", "Press the IME action key"],
+      "assertions": ["Editing alone does not navigate", "Submission resolves to http://localhost:8787"],
+      "failureSignals": ["Navigation during editing", "localhost is treated as a search query"]
+    },
+    {
+      "id": "omnibox-003",
+      "title": "Insert www after a selected URL scheme",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["omnibox", "shortcut", "selection"],
+      "preconditions": ["The full current URL is selected"],
+      "steps": ["Tap the www. shortcut"],
+      "assertions": ["The result is http://www.localhost:8787/", "The scheme remains at the beginning"],
+      "failureSignals": ["The result starts with www.http://"]
+    },
+    {
+      "id": "omnibox-004",
+      "title": "Submit non-address input through the search engine",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["omnibox", "search"],
+      "preconditions": ["The omnibox is focused"],
+      "steps": ["Enter privacy-browser-qa", "Press the IME action key"],
+      "assertions": ["The active Web URL is a Bing search URL containing the encoded query"],
+      "failureSignals": ["Input is prefixed with https://", "Search does not start"]
+    },
+    {
+      "id": "omnibox-005",
+      "title": "Paste text without automatic navigation",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["omnibox", "clipboard", "paste"],
+      "preconditions": ["A controlled clipboard fixture is available"],
+      "steps": ["Paste a URL into the omnibox", "Observe the active page before submission"],
+      "assertions": ["Paste changes text only", "The page changes only after explicit submission"],
+      "failureSignals": ["Paste immediately navigates"]
+    },
+    {
+      "id": "quick-site-001",
+      "title": "Keep the wide quick-site form actionable above the keyboard",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["quick-site", "keyboard", "wide-layout"],
+      "preconditions": ["The quick-site editor is open on the connected tablet"],
+      "steps": ["Focus the name field", "Press Next", "Inspect the URL field and actions"],
+      "assertions": ["Next focuses the URL field", "Cancel and Save remain visible above the keyboard"],
+      "failureSignals": ["URL field is not focused", "Actions are covered or absent from the visible UI tree"]
+    },
+    {
+      "id": "quick-site-002",
+      "title": "Adapt the compact quick-site form to a phone keyboard",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["quick-site", "keyboard", "compact-layout"],
+      "preconditions": ["A compact handset or compact-window fixture is available"],
+      "steps": ["Open the editor", "Focus the URL field", "Trigger invalid validation", "Rotate or resize the window"],
+      "assertions": ["The form scrolls", "Actions remain reachable", "Validation remains visible and recoverable"],
+      "failureSignals": ["Overflow", "Keyboard overlap", "Unrecoverable validation state"]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-09-01",
+    "target": {
+      "name": "Huawei WEB-W00",
+      "runtime": "HarmonyOS 6.1.0.135",
+      "id": "45P0225509000207"
+    },
+    "appBuild": {
+      "version": "1.0.0",
+      "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap"
+    },
+    "authSource": "Existing local app state; no account credentials were changed",
+    "results": [
+      {
+        "caseId": "startup-001",
+        "status": "passed",
+        "notes": "Fresh install and launch evidence recorded on the connected target.",
+        "evidence": [
+          {
+            "type": "command",
+            "summary": "hdc install and aa start both completed successfully."
+          }
+        ]
+      },
+      {
+        "caseId": "omnibox-001",
+        "status": "passed",
+        "notes": "The focused TextInput reported selected=true and all controls were visible above the landscape keyboard.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/evidence/address-selected-keyboard.png",
+            "summary": "The existing URL is selected while the keyboard, Cancel, and shortcut strip remain visible."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/evidence/address-selected-keyboard.json",
+            "summary": "Fresh UI dump for focused and selected omnibox state."
+          }
+        ]
+      },
+      {
+        "caseId": "omnibox-002",
+        "status": "passed",
+        "notes": "Text injection changed only the field; the IME action then navigated to the HTTP localhost target.",
+        "evidence": [
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/evidence/localhost-edit-no-navigation.json",
+            "summary": "The field contains localhost:8787 while the active Web node still has the previous URL."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/evidence/localhost-submit.json",
+            "summary": "After submission, the tab title is localhost:8787 and the displayed host is localhost."
+          }
+        ]
+      },
+      {
+        "caseId": "omnibox-003",
+        "status": "passed",
+        "notes": "The initial real-device run exposed www.http:// ordering. The implementation was fixed, rebuilt, reinstalled, and rerun successfully.",
+        "evidence": [
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/evidence/www-shortcut-fixed.json",
+            "summary": "The fixed field value is http://www.localhost:8787/."
+          }
+        ]
+      },
+      {
+        "caseId": "omnibox-004",
+        "status": "passed",
+        "notes": "Non-address input was routed to the configured Bing endpoint.",
+        "evidence": [
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/evidence/search-submit.json",
+            "summary": "The active Web node is https://www.bing.com/search?q=privacy-browser-qa."
+          }
+        ]
+      },
+      {
+        "caseId": "omnibox-005",
+        "status": "not-run",
+        "notes": "No controlled clipboard injection command was available through the connected hdc shell. Text editing was verified, but it is not claimed as paste evidence.",
+        "evidence": []
+      },
+      {
+        "caseId": "quick-site-001",
+        "status": "passed",
+        "notes": "The initial run exposed hidden actions in wide mode. After the fix, Next focused the URL field and both actions remained above the keyboard. Empty Save also produced recoverable inline validation.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/evidence/quick-site-keyboard.png",
+            "summary": "Wide quick-site editor constrained above the landscape keyboard with actions visible."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/evidence/quick-site-keyboard.json",
+            "summary": "The URL input is focused and Cancel/Save are within the visible window."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/evidence/quick-site-invalid.json",
+            "summary": "The invalid URL message is visible without dismissing the editor."
+          }
+        ]
+      },
+      {
+        "caseId": "quick-site-002",
+        "status": "not-run",
+        "notes": "The connected target is a 2880x1920 tablet in landscape. Compact handset and rotation evidence were not fabricated.",
+        "evidence": []
+      }
+    ],
+    "validation": [
+      {
+        "command": "hvigorw test",
+        "status": "passed",
+        "summary": "166 tests passed with 0 failures and 0 errors after both real-device fixes."
+      },
+      {
+        "command": "hvigorw assembleHap",
+        "status": "passed",
+        "summary": "The signed HAP built successfully after both fixes."
+      },
+      {
+        "command": "hdc install -r entry/build/default/outputs/default/entry-default-signed.hap",
+        "status": "passed",
+        "summary": "The corrected HAP installed successfully on target 45P0225509000207."
+      },
+      {
+        "command": "hdc shell aa start -a EntryAbility -b com.youdroid.zhuobrowser",
+        "status": "passed",
+        "summary": "EntryAbility launched successfully after installation."
+      }
+    ],
+    "notes": "Clipboard paste and compact handset/rotation scenarios remain not-run. No purchase, permission, destructive-data, or account flows were exercised."
+  }
+}
