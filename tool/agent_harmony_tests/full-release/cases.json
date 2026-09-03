@@ -56,7 +56,7 @@
         "tabs-09",
         "tabs-10"
       ],
-      "notes": "passed: 2, partial: 3, not-run: 5"
+      "notes": "passed: 3, partial: 2, not-run: 5"
     },
     {
       "title": "Content blocking and site controls",
@@ -1055,9 +1055,10 @@
         "Preserve existing user data; mutate only QA-created fixtures"
       ],
       "steps": [
-        "Open unique QA URL privately",
-        "Inspect history and saved library",
-        "Close and relaunch"
+        "Set a controlled Cookie in a normal tab",
+        "Open the same host privately and inspect Cookie/history/library behavior",
+        "Set a private Cookie, close the private tab, and reopen privately",
+        "Force-stop with a private tab open and relaunch"
       ],
       "assertions": [
         "Private visit absent from history/session/library",
@@ -4166,13 +4167,38 @@
       },
       {
         "caseId": "tabs-04",
-        "status": "partial",
-        "notes": "Normal/private tab creation and switching worked. Full cookie/history isolation inspection after private relaunch remains not-run.",
+        "status": "passed",
+        "notes": "Normal and private WebViews used isolated Cookie stores. The private Cookie disappeared after closing the private tab, while the normal Cookie remained until explicit QA cleanup. Private visits were absent from history, Save Article was disabled in private mode, and a private tab open at force-stop was excluded from the restored session.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
-            "summary": "Normal/private tab creation and switching worked."
+            "path": "tool/agent_harmony_tests/full-release/evidence/private-isolation-empty.jpeg",
+            "summary": "The first private visit showed EMPTY while the inactive normal tab retained its normal Cookie."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/private-isolation-private-cookie.jpeg",
+            "summary": "The private tab read only its own zhuoqa_private=private Cookie."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/private-isolation-cleared-after-close.jpeg",
+            "summary": "A new private tab returned EMPTY after the prior private tab was closed."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/private-isolation-history.jpeg",
+            "summary": "History contained the controlled normal visit and no private cookie URL."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/private-library-action-disabled.jpeg",
+            "summary": "Save Article was visibly disabled in the private-tab Actions panel."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/private-session-excluded-cold-relaunch.jpeg",
+            "summary": "Cold relaunch restored nine normal tabs and excluded the force-stopped private tab."
           }
         ]
       },

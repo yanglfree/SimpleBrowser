@@ -37,7 +37,7 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>61</strong>Executed</div>
-    <div class="metric"><strong>27</strong>Passed</div>
+    <div class="metric"><strong>28</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
     <div class="metric"><strong>20</strong>Not run</div>
@@ -69,7 +69,7 @@
         <td>Tabs, session and resource limits</td>
         <td class="status-partial">partial</td>
         <td><code>tabs-01</code><br><code>tabs-02</code><br><code>tabs-03</code><br><code>tabs-04</code><br><code>tabs-05</code><br><code>tabs-06</code><br><code>tabs-07</code><br><code>tabs-08</code><br><code>tabs-09</code><br><code>tabs-10</code></td>
-        <td>passed: 2, partial: 3, not-run: 5</td>
+        <td>passed: 3, partial: 2, not-run: 5</td>
       </tr>
       <tr>
         <td>Content blocking and site controls</td>
@@ -322,7 +322,7 @@
         <td><code>tabs-04</code></td>
         <td>p0</td>
         <td>Private session isolation</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>tabs</td>
       </tr>
       <tr>
@@ -1057,9 +1057,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-cold-persistence.jpeg</code><br>Normal tab order, URLs, and active selection survived force-stop cold relaunch without duplication.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>tabs-04</code> <span class="status-partial">partial</span></h3>
-        <p>Normal/private tab creation and switching worked. Full cookie/history isolation inspection after private relaunch remains not-run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg</code><br>Normal/private tab creation and switching worked.</li></ul>
+        <h3><code>tabs-04</code> <span class="status-passed">passed</span></h3>
+        <p>Normal and private WebViews used isolated Cookie stores. The private Cookie disappeared after closing the private tab, while the normal Cookie remained until explicit QA cleanup. Private visits were absent from history, Save Article was disabled in private mode, and a private tab open at force-stop was excluded from the restored session.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/private-isolation-empty.jpeg</code><br>The first private visit showed EMPTY while the inactive normal tab retained its normal Cookie.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/private-isolation-private-cookie.jpeg</code><br>The private tab read only its own zhuoqa_private=private Cookie.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/private-isolation-cleared-after-close.jpeg</code><br>A new private tab returned EMPTY after the prior private tab was closed.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/private-isolation-history.jpeg</code><br>History contained the controlled normal visit and no private cookie URL.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/private-library-action-disabled.jpeg</code><br>Save Article was visibly disabled in the private-tab Actions panel.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/private-session-excluded-cold-relaunch.jpeg</code><br>Cold relaunch restored nine normal tabs and excluded the force-stopped private tab.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>tabs-05</code> <span class="status-not-run">not-run</span></h3>
