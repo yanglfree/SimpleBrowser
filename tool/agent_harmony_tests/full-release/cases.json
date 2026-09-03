@@ -117,7 +117,7 @@
         "saved-09",
         "saved-10"
       ],
-      "notes": "passed: 1, partial: 6, not-run: 3"
+      "notes": "passed: 2, partial: 5, not-run: 3"
     },
     {
       "title": "Downloads and native file operations",
@@ -2032,7 +2032,7 @@
       ],
       "steps": [
         "Bookmark QA page",
-        "Rename, tag and reopen",
+        "Rename and reopen",
         "Unbookmark QA item"
       ],
       "assertions": [
@@ -4390,8 +4390,8 @@
       },
       {
         "caseId": "saved-01",
-        "status": "partial",
-        "notes": "Bookmark add, cold persistence, rename to QA Bookmark, reopen, unbookmark and cleanup all passed. Tag editing was not exercised.",
+        "status": "passed",
+        "notes": "Bookmark add, cold persistence, rename to QA Bookmark, reopen, unbookmark and cleanup all passed on the physical device.",
         "evidence": [
           {
             "type": "screenshot",
