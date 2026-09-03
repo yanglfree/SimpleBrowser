@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>App HarmonyOS real device Report</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; }
+    body { margin: 0; padding: 32px; background: Canvas; color: CanvasText; }
+    main { max-width: 1120px; margin: 0 auto; }
+    h1, h2, h3 { line-height: 1.2; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 28px; }
+    th, td { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: color-mix(in srgb, CanvasText 8%, transparent); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.94em; }
+    .status-passed { color: #027a48; font-weight: 700; }
+    .status-failed { color: #b42318; font-weight: 700; }
+    .status-blocked, .status-partial { color: #b54708; font-weight: 700; }
+    .status-not-run, .status-pending { color: #667085; font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin: 20px 0 28px; }
+    .metric { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 8px; padding: 14px 16px; }
+    .metric strong { display: block; font-size: 1.6rem; }
+    .case-result { border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent); padding-top: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>App HarmonyOS real device Report</h1>
+  <p>
+    Date: 2026-09-03T19:49:00+08:00<br>
+    Target: none, unknown runtime, <code>no-target</code><br>
+    App:  <code>unknown</code>, bundle <code></code><br>
+    HAP: <code>entry/build/default/outputs/default/entry-default-signed.hap</code><br>
+    Auth source: none
+  </p>
+
+  <section class="summary" aria-label="Run summary">
+    <div class="metric"><strong>7</strong>Total cases</div>
+    <div class="metric"><strong>6</strong>Executed</div>
+    <div class="metric"><strong>6</strong>Passed</div>
+    <div class="metric"><strong>0</strong>Failed</div>
+    <div class="metric"><strong>0</strong>Blocked</div>
+    <div class="metric"><strong>1</strong>Not run</div>
+  </section>
+
+  <h2>Executive Summary</h2>
+  <p>
+    The agent QA suite contains 7 Harmony scenarios. This run executed 6 cases with fresh evidence.
+    Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
+  </p>
+
+  <h2>Coverage Matrix</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>Cases</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Card and background click routing</td>
+        <td class="status-passed">passed</td>
+        <td><code>close-home</code><br><code>select-card</code><br><code>blank-dismiss</code><br><code>new-tab</code><br><code>close-active</code><br><code>gap-dismiss</code></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>Additional gestures and destructive actions</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>other-interactions</code></td>
+        <td>No bulk closing of the user's retained tabs.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Case Catalog</h2>
+  <table>
+    <thead><tr><th>Case</th><th>Priority</th><th>Title</th><th>Latest Status</th><th>Tags</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>close-home</code></td>
+        <td>p0</td>
+        <td>Close the extra start-page card</td>
+        <td class="status-passed">passed</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>select-card</code></td>
+        <td>p0</td>
+        <td>Select a different card</td>
+        <td class="status-passed">passed</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>blank-dismiss</code></td>
+        <td>p1</td>
+        <td>Dismiss from empty space below cards</td>
+        <td class="status-passed">passed</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>new-tab</code></td>
+        <td>p1</td>
+        <td>Create exactly one tab</td>
+        <td class="status-passed">passed</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>close-active</code></td>
+        <td>p0</td>
+        <td>Close the newly created active home tab</td>
+        <td class="status-passed">passed</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>gap-dismiss</code></td>
+        <td>p1</td>
+        <td>Dismiss from the gap between card columns</td>
+        <td class="status-passed">passed</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>other-interactions</code></td>
+        <td>p2</td>
+        <td>Bulk close, private long press, horizontal swipe, long-list scrolling and last-tab close</td>
+        <td class="status-not-run">not-run</td>
+        <td>extended</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Latest Run Evidence</h2>
+
+      <section class="case-result">
+        <h3><code>close-home</code> <span class="status-passed">passed</span></h3>
+        <p>Pre-fix close failed twice: four tabs remained and tab-4 was selected instead. After the fix the same close target was removed.</p>
+        <ul><li><strong>layout and screenshot</strong>: <code>output/tab-overview-gesture-fix/after-close.json</code><br>Three remaining close controls, no tab-view-tab-4; companion after-close.jpeg visually checked.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>select-card</code> <span class="status-passed">passed</span></h3>
+        <p></p>
+        <ul><li><strong>layout</strong>: <code>output/tab-overview-gesture-fix/select-home.json</code><br>Foreground tab-view-tab-1; overview absent; badge is 3.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>blank-dismiss</code> <span class="status-passed">passed</span></h3>
+        <p></p>
+        <ul><li><strong>layout</strong>: <code>output/tab-overview-gesture-fix/blank-dismiss.json</code><br>Foreground tab-view-tab-2 unchanged; overview absent; badge is 3.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>new-tab</code> <span class="status-passed">passed</span></h3>
+        <p></p>
+        <ul><li><strong>layout</strong>: <code>output/tab-overview-gesture-fix/new-tab.json</code><br>Exactly one new tab, tab-5, is foreground; badge is 4.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>close-active</code> <span class="status-passed">passed</span></h3>
+        <p></p>
+        <ul><li><strong>layout and screenshot</strong>: <code>output/tab-overview-gesture-fix/active-close/after-close.json</code><br>Only tab-5 removed; tab-1, tab-2 and tab-3 remain in the overview.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>gap-dismiss</code> <span class="status-passed">passed</span></h3>
+        <p></p>
+        <ul><li><strong>layout</strong>: <code>output/tab-overview-gesture-fix/grid-gap-dismiss.json</code><br>Foreground tab-view-tab-3 unchanged; overview absent; badge is 3.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>other-interactions</code> <span class="status-not-run">not-run</span></h3>
+        <p>Not covered by this focused device pass; no full regression claim.</p>
+        <p>No fresh HarmonyOS real device evidence recorded for this case.</p>
+      </section>
+
+  <h2>Validation</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>hvigorw assembleHap</code></td>
+        <td class="status-passed">passed</td>
+        <td>Signed build succeeded; overwrite installation and launch succeeded.</td>
+      </tr>
+      <tr>
+        <td><code>hvigorw test</code></td>
+        <td class="status-passed">passed</td>
+        <td>170 tests passed; zero failures, errors or ignored tests.</td>
+      </tr>
+      <tr>
+        <td><code>node scripts/tab-overview-device-smoke.mjs tab-4 output/tab-overview-gesture-fix</code></td>
+        <td class="status-passed">passed</td>
+        <td>Real touch input: 4 -&gt; 3 cards, exact target removed, overview remains open.</td>
+      </tr>
+      <tr>
+        <td><code>node scripts/tab-overview-device-smoke.mjs tab-5 output/tab-overview-gesture-fix/active-close</code></td>
+        <td class="status-passed">passed</td>
+        <td>Active home removal: 4 -&gt; 3 cards with all other identities preserved.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Known Exclusions</h2>
+  <p></p>
+</main>
+</body>
+</html>

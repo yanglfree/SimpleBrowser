@@ -1575,7 +1575,8 @@ struct Index {
         onClose: (id: string): void => this.closeTab(id),
         onCloseAll: (): void => this.closeAllTabs(),
         onNewTab: (): void => this.createTab(false),
-        onNewPrivateTab: (): void => this.createTab(true)
+        onNewPrivateTab: (): void => this.createTab(true),
+        onDismiss: (): void => { this.sheet = Overlay.None; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Block) {

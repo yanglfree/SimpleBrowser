@@ -126,6 +126,7 @@ export struct TabOverview {
   onCloseAll: () => void = (): void => {};
   onNewTab: () => void = (): void => {};
   onNewPrivateTab: () => void = (): void => {};
+  onDismiss: () => void = (): void => {};
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
@@ -177,6 +178,7 @@ export struct TabOverview {
             }
           }
           .width('100%')
+          .constraintSize({ minHeight: '100%' })
         }
         .layoutWeight(1)
         .scrollBar(BarState.Off)
@@ -190,6 +192,8 @@ export struct TabOverview {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.page_background'))
+    // Keep default child-first hit testing so card controls win over dismissal.
+    .onClick(() => this.onDismiss())
   }
 
   @Builder

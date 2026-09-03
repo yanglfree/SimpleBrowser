@@ -1,0 +1,37 @@
+{
+  "title": "Tab overview gesture regression",
+  "runner": { "platformName": "HarmonyOS real device" },
+  "coverageAreas": [
+    { "title": "Card and background click routing", "status": "passed", "caseIds": ["close-home", "select-card", "blank-dismiss", "new-tab", "close-active", "gap-dismiss"] },
+    { "title": "Additional gestures and destructive actions", "status": "not-run", "caseIds": ["other-interactions"], "notes": "No bulk closing of the user's retained tabs." }
+  ],
+  "cases": [
+    { "id": "close-home", "title": "Close the extra start-page card", "priority": "p0", "platforms": ["HarmonyOS"], "tags": ["tabs"], "preconditions": ["Four existing tabs including two home tabs"], "steps": ["Tap the bottom-right close button"], "assertions": ["Only tab-4 disappears", "Three cards remain and overview stays open"], "failureSignals": ["Overview exits without deleting the tab"] },
+    { "id": "select-card", "title": "Select a different card", "priority": "p0", "platforms": ["HarmonyOS"], "tags": ["tabs"], "steps": ["Tap the first home card from the news tab"], "assertions": ["Home becomes foreground", "Overview exits", "Count remains three"] },
+    { "id": "blank-dismiss", "title": "Dismiss from empty space below cards", "priority": "p1", "platforms": ["HarmonyOS"], "tags": ["tabs"], "steps": ["Tap empty space at 542,1850"], "assertions": ["Overview exits without changing active tab or tab count"] },
+    { "id": "new-tab", "title": "Create exactly one tab", "priority": "p1", "platforms": ["HarmonyOS"], "tags": ["tabs"], "steps": ["Tap the new-tab button"], "assertions": ["Count increases from three to four", "New home tab becomes foreground"] },
+    { "id": "close-active", "title": "Close the newly created active home tab", "priority": "p0", "platforms": ["HarmonyOS"], "tags": ["tabs"], "steps": ["Reopen overview", "Close tab-5"], "assertions": ["Only tab-5 disappears", "Count returns to three", "Overview stays open", "No replacement home is created"] },
+    { "id": "gap-dismiss", "title": "Dismiss from the gap between card columns", "priority": "p1", "platforms": ["HarmonyOS"], "tags": ["tabs"], "steps": ["Tap the column gap at 542,620"], "assertions": ["Overview exits with the same active tab and count"] },
+    { "id": "other-interactions", "title": "Bulk close, private long press, horizontal swipe, long-list scrolling and last-tab close", "priority": "p2", "platforms": ["HarmonyOS"], "tags": ["extended"], "assertions": ["Existing behavior is preserved"] }
+  ],
+  "lastRun": {
+    "date": "2026-09-03T19:49:00+08:00",
+    "target": { "device": "4UQ9K25530058677", "platform": "HarmonyOS", "resolution": "1084x2412" },
+    "appBuild": { "bundleId": "com.youdroid.zhuobrowser", "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap", "notes": "Local debug build with canonical signing-source validation. Current worktree includes preserved unrelated edits. No CI or store publication." },
+    "validation": [
+      { "command": "hvigorw assembleHap", "status": "passed", "summary": "Signed build succeeded; overwrite installation and launch succeeded." },
+      { "command": "hvigorw test", "status": "passed", "summary": "170 tests passed; zero failures, errors or ignored tests." },
+      { "command": "node scripts/tab-overview-device-smoke.mjs tab-4 output/tab-overview-gesture-fix", "status": "passed", "summary": "Real touch input: 4 -> 3 cards, exact target removed, overview remains open." },
+      { "command": "node scripts/tab-overview-device-smoke.mjs tab-5 output/tab-overview-gesture-fix/active-close", "status": "passed", "summary": "Active home removal: 4 -> 3 cards with all other identities preserved." }
+    ],
+    "results": [
+      { "caseId": "close-home", "status": "passed", "notes": "Pre-fix close failed twice: four tabs remained and tab-4 was selected instead. After the fix the same close target was removed.", "evidence": [{ "type": "layout and screenshot", "path": "output/tab-overview-gesture-fix/after-close.json", "summary": "Three remaining close controls, no tab-view-tab-4; companion after-close.jpeg visually checked." }] },
+      { "caseId": "select-card", "status": "passed", "evidence": [{ "type": "layout", "path": "output/tab-overview-gesture-fix/select-home.json", "summary": "Foreground tab-view-tab-1; overview absent; badge is 3." }] },
+      { "caseId": "blank-dismiss", "status": "passed", "evidence": [{ "type": "layout", "path": "output/tab-overview-gesture-fix/blank-dismiss.json", "summary": "Foreground tab-view-tab-2 unchanged; overview absent; badge is 3." }] },
+      { "caseId": "new-tab", "status": "passed", "evidence": [{ "type": "layout", "path": "output/tab-overview-gesture-fix/new-tab.json", "summary": "Exactly one new tab, tab-5, is foreground; badge is 4." }] },
+      { "caseId": "close-active", "status": "passed", "evidence": [{ "type": "layout and screenshot", "path": "output/tab-overview-gesture-fix/active-close/after-close.json", "summary": "Only tab-5 removed; tab-1, tab-2 and tab-3 remain in the overview." }] },
+      { "caseId": "gap-dismiss", "status": "passed", "evidence": [{ "type": "layout", "path": "output/tab-overview-gesture-fix/grid-gap-dismiss.json", "summary": "Foreground tab-view-tab-3 unchanged; overview absent; badge is 3." }] },
+      { "caseId": "other-interactions", "status": "not-run", "notes": "Not covered by this focused device pass; no full regression claim." }
+    ]
+  }
+}
