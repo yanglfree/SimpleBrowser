@@ -181,6 +181,10 @@ export struct TabOverview {
           .constraintSize({ minHeight: '100%' })
         }
         .layoutWeight(1)
+        // Reserve the floating action's full hit area. Without this inset the
+        // last card's close button can sit underneath New Tab and trigger the
+        // wrong action, especially when a private section follows the grid.
+        .margin({ bottom: TAB_NEW_BUTTON_HEIGHT + TAB_NEW_BUTTON_BOTTOM_MARGIN + TAB_CONTROL_GAP })
         .scrollBar(BarState.Off)
         .align(Alignment.Top)
       }
