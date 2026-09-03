@@ -39,7 +39,7 @@
         "navigation-14",
         "navigation-15"
       ],
-      "notes": "passed: 7, partial: 6, not-run: 2"
+      "notes": "passed: 7, partial: 8"
     },
     {
       "title": "Tabs, session and resource limits",
@@ -633,7 +633,7 @@
       ],
       "steps": [
         "Select URL",
-        "Use www, scheme and domain shortcuts",
+        "Use current-host, www, domain and path shortcuts",
         "Rotate with keyboard open",
         "Cancel"
       ],
@@ -862,10 +862,10 @@
         "Preserve existing user data; mutate only QA-created fixtures"
       ],
       "steps": [
-        "Scroll long fixture",
-        "Exercise edge navigation, address swipe and pull refresh",
-        "Disable gesture controls",
-        "Use buttons"
+        "Switch tabs by swiping the address bar",
+        "Swipe the toolbar up to open actions and down to collapse it",
+        "Disable gesture controls and repeat gesture input",
+        "Use toolbar buttons and restore gesture controls"
       ],
       "assertions": [
         "Toolbar can be recovered",
@@ -3980,9 +3980,20 @@
       },
       {
         "caseId": "navigation-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "The selected URL was replaced with controlled text; current-host, www., .com and path shortcuts edited at the caret as designed, and Cancel returned to the unchanged page. Rotation with the software keyboard open was not exercised on this locked-orientation phone run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-url-shortcuts.jpeg",
+            "summary": "The address editor composed www.example.com from the www. prefix and .com suffix shortcuts."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-current-host-shortcut.jpeg",
+            "summary": "The current-host shortcut replaced the draft with 127.0.0.1 before cancellation."
+          }
+        ]
       },
       {
         "caseId": "navigation-07",
@@ -4063,9 +4074,25 @@
       },
       {
         "caseId": "navigation-13",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Address-bar swipe switched to the adjacent tab and back; toolbar up-swipe opened Actions, down-swipe collapsed the toolbar, and tapping restored it. With the master gesture switch off, up-swipe was inert while the menu button still opened Actions; the switch was restored. Automated long-press injection did not establish the blocking-panel gesture.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-dock-swipe-actions.jpeg",
+            "summary": "An upward toolbar swipe opened the Actions panel."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-dock-collapsed.jpeg",
+            "summary": "A downward toolbar swipe collapsed the dock to its compact host pill."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-gestures-restored.jpeg",
+            "summary": "The gesture master switch was restored after the disabled-state and button-control checks."
+          }
+        ]
       },
       {
         "caseId": "navigation-14",
