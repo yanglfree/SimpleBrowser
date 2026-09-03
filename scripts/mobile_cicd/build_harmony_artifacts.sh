@@ -7,6 +7,7 @@ OUTPUT_DIR="${1:-}"
 SIGNING_SOURCE="${HARMONY_SIGNING_PROFILE:-${HOME}/.config/zhuobrowser/build-profile.release.json5}"
 SIGNING_TARGET="${REPO_ROOT}/build-profile.json5"
 HVIGOR_BIN="${HVIGOR_BIN:-hvigorw}"
+HAP_SIGN_TOOL="${HAP_SIGN_TOOL:-${HOME}/Library/Huawei/CommandLineTools/current/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar}"
 BACKUP_DIR="$(mktemp -d)"
 
 die() { echo "Harmony artifact build error: $*" >&2; exit 1; }
@@ -14,8 +15,8 @@ die() { echo "Harmony artifact build error: $*" >&2; exit 1; }
 [[ -n "${OUTPUT_DIR}" ]] || die "an output directory is required"
 [[ -f "${SIGNING_SOURCE}" ]] || die "runner-local signing profile is missing"
 [[ "$(stat -f '%OLp' "${SIGNING_SOURCE}")" == "600" ]] || die "signing profile mode must be 600"
-grep -Eq '"name"[[:space:]]*:[[:space:]]*"dis"' "${SIGNING_SOURCE}" || die "release signing config 'dis' is missing"
-grep -Eq '"signingConfig"[[:space:]]*:[[:space:]]*"dis"' "${SIGNING_SOURCE}" || die "default product must use release signing config 'dis'"
+node "${REPO_ROOT}/scripts/mobile_cicd/verify_harmony_signing.mjs" "${SIGNING_SOURCE}" app_gallery
+[[ -f "${HAP_SIGN_TOOL}" ]] || die "HAP signature verifier is missing"
 command -v "${HVIGOR_BIN}" >/dev/null 2>&1 || [[ -x "${HVIGOR_BIN}" ]] || die "hvigorw is unavailable"
 command -v ohpm >/dev/null 2>&1 || die "ohpm is unavailable"
 
@@ -54,6 +55,11 @@ cp "${SIGNING_SOURCE}" "${SIGNING_TARGET}"
 HAP_PATH="$(find "${REPO_ROOT}/entry/build" -type f -name '*-signed.hap' -print | sort | tail -1)"
 [[ -f "${HAP_PATH}" ]] || die "signed HAP was not produced"
 unzip -tq "${HAP_PATH}" >/dev/null
+java -jar "${HAP_SIGN_TOOL}" verify-app -inFile "${HAP_PATH}" \
+  -outCertChain "${BACKUP_DIR}/hap-chain.cer" -outProfile "${BACKUP_DIR}/hap-profile.p7b" \
+  > "${BACKUP_DIR}/signature-verification.log" 2>&1 || die "HAP signature verification failed"
+SIGNING_METADATA="$(node "${REPO_ROOT}/scripts/mobile_cicd/verify_harmony_signing.mjs" \
+  "${SIGNING_SOURCE}" app_gallery "${BACKUP_DIR}/hap-profile.p7b" "${BACKUP_DIR}/hap-chain.cer")" || die "HAP profile verification failed"
 
 PACKAGE_METADATA="$(HAP_PATH="${HAP_PATH}" node <<'NODE'
 const { execFileSync } = require("node:child_process");
@@ -80,7 +86,7 @@ cp "${HAP_PATH}" "${DESTINATION}/${ARTIFACT_NAME}"
   shasum -a 256 "${ARTIFACT_NAME}" > SHA256SUMS
   APP_NAME="zhuobrowser" BUNDLE_NAME="${BUNDLE_NAME}" VERSION_NAME="${VERSION_NAME}" \
     VERSION_CODE="${VERSION_CODE}" SOURCE_SHA="${SOURCE_SHA:-$(git -C "${REPO_ROOT}" rev-parse HEAD)}" \
-    ARTIFACT_NAME="${ARTIFACT_NAME}" node <<'NODE' > release-metadata.json
+    ARTIFACT_NAME="${ARTIFACT_NAME}" SIGNING_METADATA="${SIGNING_METADATA}" node <<'NODE' > release-metadata.json
 const payload = {
   app: process.env.APP_NAME,
   platform: "harmony",
@@ -89,6 +95,7 @@ const payload = {
   versionName: process.env.VERSION_NAME,
   versionCode: Number(process.env.VERSION_CODE),
   sourceSha: process.env.SOURCE_SHA,
+  signing: JSON.parse(process.env.SIGNING_METADATA),
 };
 process.stdout.write(`${JSON.stringify(payload)}\n`);
 NODE

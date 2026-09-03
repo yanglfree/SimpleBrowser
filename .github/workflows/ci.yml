@@ -50,6 +50,7 @@ jobs:
           set -euo pipefail
           actionlint -color
           python3 scripts/mobile_cicd/check_ci_cost_contract.py
+          node --test scripts/mobile_cicd/verify_harmony_signing.test.mjs
           for script in scripts/mobile_cicd/*.sh; do bash -n "$script"; done
           git log -1 --check --format=
 
