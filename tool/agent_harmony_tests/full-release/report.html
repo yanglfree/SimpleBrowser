@@ -36,16 +36,16 @@
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>49</strong>Executed</div>
-    <div class="metric"><strong>18</strong>Passed</div>
+    <div class="metric"><strong>54</strong>Executed</div>
+    <div class="metric"><strong>23</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
-    <div class="metric"><strong>43</strong>Not run</div>
+    <div class="metric"><strong>29</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 49 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 54 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -224,7 +224,7 @@
         <td><code>navigation-05</code></td>
         <td>p0</td>
         <td>Clipboard paste waits for submission</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>navigation</td>
       </tr>
       <tr>
@@ -245,14 +245,14 @@
         <td><code>navigation-08</code></td>
         <td>p1</td>
         <td>Reload and stop</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>navigation</td>
       </tr>
       <tr>
         <td><code>navigation-09</code></td>
         <td>p1</td>
         <td>Link actions</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>navigation</td>
       </tr>
       <tr>
@@ -287,14 +287,14 @@
         <td><code>navigation-14</code></td>
         <td>p0</td>
         <td>Error recovery</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>navigation</td>
       </tr>
       <tr>
         <td><code>navigation-15</code></td>
         <td>p1</td>
         <td>Connection security and password warning</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>navigation</td>
       </tr>
       <tr>
@@ -392,7 +392,7 @@
         <td><code>blocking-04</code></td>
         <td>p1</td>
         <td>Site allow-list</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>blocking</td>
       </tr>
       <tr>
@@ -574,14 +574,14 @@
         <td><code>saved-07</code></td>
         <td>p1</td>
         <td>Quick-site add and edit</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>saved</td>
       </tr>
       <tr>
         <td><code>saved-08</code></td>
         <td>p1</td>
         <td>Quick-site reorder and remove</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>saved</td>
       </tr>
       <tr>
@@ -609,14 +609,14 @@
         <td><code>downloads-02</code></td>
         <td>p1</td>
         <td>Pause, resume and concurrency</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>downloads</td>
       </tr>
       <tr>
         <td><code>downloads-03</code></td>
         <td>p1</td>
         <td>Cancel and retry</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>downloads</td>
       </tr>
       <tr>
@@ -630,7 +630,7 @@
         <td><code>downloads-05</code></td>
         <td>p1</td>
         <td>Open and share completed file</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>downloads</td>
       </tr>
       <tr>
@@ -693,28 +693,28 @@
         <td><code>integration-01</code></td>
         <td>p0</td>
         <td>External URL and shared-text entry</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>integration</td>
       </tr>
       <tr>
         <td><code>integration-02</code></td>
         <td>p1</td>
         <td>Disposable and private external tasks</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>integration</td>
       </tr>
       <tr>
         <td><code>integration-03</code></td>
         <td>p1</td>
         <td>External protocol confirmation</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>integration</td>
       </tr>
       <tr>
         <td><code>integration-04</code></td>
         <td>p0</td>
         <td>Blocked and internal protocols</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>integration</td>
       </tr>
       <tr>
@@ -987,9 +987,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>navigation-05</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>navigation-05</code> <span class="status-passed">passed</span></h3>
+        <p>Copied the controlled URL, pasted it through the native edit surface without navigation, then submitted explicitly and reached the target page.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg</code><br>Clipboard paste changed the address text only; explicit submission opened the controlled target.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-06</code> <span class="status-not-run">not-run</span></h3>
@@ -1002,19 +1002,19 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg</code><br>Back navigation and the full history surface worked.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-08</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>navigation-08</code> <span class="status-passed">passed</span></h3>
+        <p>Stopped the controlled slow page before completion; it remained unloaded after the server delay. Reload then retried the same URL and rendered the completion marker.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/load-stop-reload.jpeg</code><br>The same controlled slow URL completed only after Reload following a successful Stop.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-09</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>navigation-09</code> <span class="status-partial">partial</span></h3>
+        <p>Background-tab opening, link copy and share cancellation were exercised without an unsolicited external send. Foreground opening was not repeated on the final candidate.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg</code><br>The native share surface opened only after an explicit link action and was cancelled.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-10</code> <span class="status-passed">passed</span></h3>
-        <p>Find-in-page matched the controlled long-article marker, navigated matches, reported zero matches, and closed back to the page.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg</code><br>Find-in-page matched the controlled long-article marker, navigated matches, reported zero matches, and closed back to the page.</li></ul>
+        <p>Find-in-page reported 1/1 for the controlled QA marker, next/previous remained usable, an absent marker reported zero matches, and Close restored the page.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/find-in-page.jpeg</code><br>Find-in-page displayed the controlled 1/1 match state before successful navigation and close.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-11</code> <span class="status-not-run">not-run</span></h3>
@@ -1032,14 +1032,14 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>navigation-14</code> <span class="status-partial">partial</span></h3>
-        <p>An unreachable local URL produced actionable offline feedback and retained Retry. Recovery after restoring the same endpoint remains not-run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg</code><br>An unreachable local URL produced actionable offline feedback and retained Retry.</li></ul>
+        <h3><code>navigation-14</code> <span class="status-passed">passed</span></h3>
+        <p>An unreachable local endpoint produced actionable offline feedback with Retry. After the endpoint was restored, Retry recovered the same tab into the controlled QA page.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/load-stop-reload.jpeg</code><br>The recovered controlled page remained in the same tab after endpoint restoration and Retry.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-15</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>navigation-15</code> <span class="status-passed">passed</span></h3>
+        <p>A valid HTTPS page exposed a secure connection panel, controlled HTTP exposed an insecure panel, no certificate bypass was offered, and focusing an HTTP password field produced the sensitive-data warning.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/security-panel-https.jpeg</code><br>Valid HTTPS displayed the secure connection details panel.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/security-panel-http.jpeg</code><br>Controlled HTTP displayed the insecure connection details panel.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/insecure-password-warning.jpeg</code><br>Focusing the dummy password field on HTTP displayed the insecure-password warning.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>tabs-01</code> <span class="status-passed">passed</span></h3>
@@ -1107,9 +1107,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg</code><br>Standard to strict to standard selection updated immediately and persisted.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>blocking-04</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>blocking-04</code> <span class="status-partial">partial</span></h3>
+        <p>The per-site switch reloaded the controlled host, changed its exception state, and removal restored blocking. Isolation against a second host was not executed.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/reader-mode-generic.jpeg</code><br>The controlled host remained usable while the site exception was toggled and restored.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>blocking-05</code> <span class="status-partial">partial</span></h3>
@@ -1133,8 +1133,8 @@
       </section>
       <section class="case-result">
         <h3><code>reader-01</code> <span class="status-passed">passed</span></h3>
-        <p>The controlled long-form article entered reader mode with its beginning and continuation content intact after the viewport fix.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg</code><br>The controlled long-form article entered reader mode with its beginning and continuation content intact after the viewport fix.</li></ul>
+        <p>Both generic semantic and controlled long-form fixtures entered reader mode with the article beginning and continuation intact after the viewport fix. The frozen long fixture covered its ending and stable paragraph structure.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/reader-mode-generic.jpeg</code><br>Generic semantic article extraction retained FIRST_ANCHOR and body structure.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg</code><br>The controlled long-form fixture retained beginning, continuation and ending content.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>reader-02</code> <span class="status-passed">passed</span></h3>
@@ -1208,8 +1208,8 @@
       </section>
       <section class="case-result">
         <h3><code>saved-01</code> <span class="status-partial">partial</span></h3>
-        <p>Bookmark add/remove and cold persistence passed. Rename and tag editing were not fully repeated.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-cold-persistence.jpeg</code><br>Bookmark add/remove and cold persistence passed.</li></ul>
+        <p>Bookmark add, cold persistence, rename to QA Bookmark, reopen, unbookmark and cleanup all passed. Tag editing was not exercised.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-edit-delete.jpeg</code><br>The QA bookmark was reopened in the editor and renamed.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-cleanup-confirmed.jpeg</code><br>After removal, the current page returned to the Add Bookmark state.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>saved-02</code> <span class="status-not-run">not-run</span></h3>
@@ -1228,8 +1228,8 @@
       </section>
       <section class="case-result">
         <h3><code>saved-05</code> <span class="status-partial">partial</span></h3>
-        <p>History recorded the QA providers and unreachable URL. A stale-title defect was fixed so failed navigation uses the new host; targeted deletion remains not-run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg</code><br>History recorded the QA providers and unreachable URL.</li></ul>
+        <p>History recorded the controlled visits; private browsing remained absent. Targeted entry deletion now disappears immediately after the fixed render-key update. Search and whole-host deletion were not both repeated.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg</code><br>The targeted QA Fast history entry disappeared immediately after deletion.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>saved-06</code> <span class="status-not-run">not-run</span></h3>
@@ -1237,14 +1237,14 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>saved-07</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>saved-07</code> <span class="status-partial">partial</span></h3>
+        <p>A controlled QA Site shortcut was added, opened the correct URL, entered edit mode through long press, and was removed. Invalid-URL recovery and editing an existing shortcut URL were not exercised.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/quick-site-add-remove.jpeg</code><br>The controlled QA Site shortcut was visible before cleanup and opened the expected local URL.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>saved-08</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>saved-08</code> <span class="status-partial">partial</span></h3>
+        <p>Long press exposed shortcut removal and the QA shortcut was hidden without deleting its independent history state. Automated drag attempts did not establish a persisted reorder, so ordering remains unverified.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/quick-site-add-remove.jpeg</code><br>Long press exposed shortcut edit/remove controls; the QA shortcut was removed after validation.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>saved-09</code> <span class="status-partial">partial</span></h3>
@@ -1258,18 +1258,18 @@
       </section>
       <section class="case-result">
         <h3><code>downloads-01</code> <span class="status-partial">partial</span></h3>
-        <p>A real QQ Music DMG completed with a visible completion notice and persisted completed task metadata. Separate controlled text/image downloads remain not-run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-complete-notice.jpeg</code><br>A real QQ Music DMG completed with a visible completion notice and persisted completed task metadata.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-complete-tasks.json</code><br>A real QQ Music DMG completed with a visible completion notice and persisted completed task metadata.</li></ul>
+        <p>A controlled zhuo-qa.bin task completed with the expected name and native open chooser, then was removed. A second controlled image and direct filesystem-size inspection were not completed.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg</code><br>The controlled zhuo-qa.bin download reached the completed state with Open and Share actions.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>downloads-02</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>downloads-02</code> <span class="status-partial">partial</span></h3>
+        <p>A 12 MB ranged download progressed, paused at 19 percent, resumed through 34 percent, and was later cancelled. Byte-integrity comparison, a queued second task and concurrency-limit behavior remain unverified.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg</code><br>The controlled download UI remained actionable across observed pause and resume progress.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>downloads-03</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>downloads-03</code> <span class="status-partial">partial</span></h3>
+        <p>Cancelling the disposable slow task stopped it and removed the task. Download-specific failure, recovery retry and duplicate-task assertions remain unverified.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg</code><br>The disposable slow download was cancelled after pause/resume validation and cleaned up.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>downloads-04</code> <span class="status-not-run">not-run</span></h3>
@@ -1277,9 +1277,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>downloads-05</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>downloads-05</code> <span class="status-partial">partial</span></h3>
+        <p>Opening the controlled completed file launched the native chooser. File handoff to a receiving app and Share cancellation were not completed.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg</code><br>The completed QA download exposed working Open and Share actions before cleanup.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>downloads-06</code> <span class="status-partial">partial</span></h3>
@@ -1322,24 +1322,24 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>integration-01</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>integration-01</code> <span class="status-partial">partial</span></h3>
+        <p>External HTTP entry was exercised cold and warm with the expected open prompt and no duplicate tab. Shared-text entry was not exercised.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg</code><br>External URL handling reached the controlled app entry flow without unsolicited dispatch.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>integration-02</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>integration-02</code> <span class="status-partial">partial</span></h3>
+        <p>Private external entry was exercised and its visit remained absent from history after close. Disposable external task persistence was not exercised.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg</code><br>History inspection retained no private visit while normal controlled visits remained available.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>integration-03</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>integration-03</code> <span class="status-passed">passed</span></h3>
+        <p>The controlled tel link required explicit confirmation and cancellation caused no dispatch. The missing-handler fixture returned an actionable recovery message.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg</code><br>External protocol handling remained behind explicit user confirmation and cancellation.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>integration-04</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>integration-04</code> <span class="status-partial">partial</span></h3>
+        <p>Controlled javascript and devtools-style executable links were blocked after the navigation guard fix and never executed. Internal home/data handling was not fully repeated.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocked-protocol-fixed.jpeg</code><br>The controlled executable protocol remained on the fixture instead of replacing or escaping the page.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>integration-05</code> <span class="status-passed">passed</span></h3>

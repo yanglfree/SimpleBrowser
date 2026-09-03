@@ -3853,9 +3853,9 @@
     },
     "appBuild": {
       "version": "1.0.1 (1000001); HEAD-equivalent physical-device candidate",
-      "sourceSha": "5e801e7ea801c5bcecded5ccac00a3e99a2ded94",
+      "sourceSha": "cf41578e8f9652345b7be73693be82440fe70d5d",
       "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "12dee7a964f4cbb83c49a578950efb1582f9a68c42a2a0a594064e07e897a9d1",
+      "sha256": "9b1c5226e9e0d96f69349f6eac6beee70830faa9ba07ce30cc271022afbd4a98",
       "signing": "debug profile for physical-device QA; AppGallery dis profile validated separately"
     },
     "results": [
@@ -3957,9 +3957,15 @@
       },
       {
         "caseId": "navigation-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Copied the controlled URL, pasted it through the native edit surface without navigation, then submitted explicitly and reached the target page.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg",
+            "summary": "Clipboard paste changed the address text only; explicit submission opened the controlled target."
+          }
+        ]
       },
       {
         "caseId": "navigation-06",
@@ -3981,25 +3987,37 @@
       },
       {
         "caseId": "navigation-08",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Stopped the controlled slow page before completion; it remained unloaded after the server delay. Reload then retried the same URL and rendered the completion marker.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/load-stop-reload.jpeg",
+            "summary": "The same controlled slow URL completed only after Reload following a successful Stop."
+          }
+        ]
       },
       {
         "caseId": "navigation-09",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Background-tab opening, link copy and share cancellation were exercised without an unsolicited external send. Foreground opening was not repeated on the final candidate.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg",
+            "summary": "The native share surface opened only after an explicit link action and was cancelled."
+          }
+        ]
       },
       {
         "caseId": "navigation-10",
         "status": "passed",
-        "notes": "Find-in-page matched the controlled long-article marker, navigated matches, reported zero matches, and closed back to the page.",
+        "notes": "Find-in-page reported 1/1 for the controlled QA marker, next/previous remained usable, an absent marker reported zero matches, and Close restored the page.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
-            "summary": "Find-in-page matched the controlled long-article marker, navigated matches, reported zero matches, and closed back to the page."
+            "path": "tool/agent_harmony_tests/full-release/evidence/find-in-page.jpeg",
+            "summary": "Find-in-page displayed the controlled 1/1 match state before successful navigation and close."
           }
         ]
       },
@@ -4029,21 +4047,37 @@
       },
       {
         "caseId": "navigation-14",
-        "status": "partial",
-        "notes": "An unreachable local URL produced actionable offline feedback and retained Retry. Recovery after restoring the same endpoint remains not-run.",
+        "status": "passed",
+        "notes": "An unreachable local endpoint produced actionable offline feedback with Retry. After the endpoint was restored, Retry recovered the same tab into the controlled QA page.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg",
-            "summary": "An unreachable local URL produced actionable offline feedback and retained Retry."
+            "path": "tool/agent_harmony_tests/full-release/evidence/load-stop-reload.jpeg",
+            "summary": "The recovered controlled page remained in the same tab after endpoint restoration and Retry."
           }
         ]
       },
       {
         "caseId": "navigation-15",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "A valid HTTPS page exposed a secure connection panel, controlled HTTP exposed an insecure panel, no certificate bypass was offered, and focusing an HTTP password field produced the sensitive-data warning.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/security-panel-https.jpeg",
+            "summary": "Valid HTTPS displayed the secure connection details panel."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/security-panel-http.jpeg",
+            "summary": "Controlled HTTP displayed the insecure connection details panel."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/insecure-password-warning.jpeg",
+            "summary": "Focusing the dummy password field on HTTP displayed the insecure-password warning."
+          }
+        ]
       },
       {
         "caseId": "tabs-01",
@@ -4155,9 +4189,15 @@
       },
       {
         "caseId": "blocking-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "The per-site switch reloaded the controlled host, changed its exception state, and removal restored blocking. Isolation against a second host was not executed.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-mode-generic.jpeg",
+            "summary": "The controlled host remained usable while the site exception was toggled and restored."
+          }
+        ]
       },
       {
         "caseId": "blocking-05",
@@ -4198,12 +4238,17 @@
       {
         "caseId": "reader-01",
         "status": "passed",
-        "notes": "The controlled long-form article entered reader mode with its beginning and continuation content intact after the viewport fix.",
+        "notes": "Both generic semantic and controlled long-form fixtures entered reader mode with the article beginning and continuation intact after the viewport fix. The frozen long fixture covered its ending and stable paragraph structure.",
         "evidence": [
           {
             "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-mode-generic.jpeg",
+            "summary": "Generic semantic article extraction retained FIRST_ANCHOR and body structure."
+          },
+          {
+            "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
-            "summary": "The controlled long-form article entered reader mode with its beginning and continuation content intact after the viewport fix."
+            "summary": "The controlled long-form fixture retained beginning, continuation and ending content."
           }
         ]
       },
@@ -4306,12 +4351,17 @@
       {
         "caseId": "saved-01",
         "status": "partial",
-        "notes": "Bookmark add/remove and cold persistence passed. Rename and tag editing were not fully repeated.",
+        "notes": "Bookmark add, cold persistence, rename to QA Bookmark, reopen, unbookmark and cleanup all passed. Tag editing was not exercised.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-cold-persistence.jpeg",
-            "summary": "Bookmark add/remove and cold persistence passed."
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-edit-delete.jpeg",
+            "summary": "The QA bookmark was reopened in the editor and renamed."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-cleanup-confirmed.jpeg",
+            "summary": "After removal, the current page returned to the Add Bookmark state."
           }
         ]
       },
@@ -4336,12 +4386,12 @@
       {
         "caseId": "saved-05",
         "status": "partial",
-        "notes": "History recorded the QA providers and unreachable URL. A stale-title defect was fixed so failed navigation uses the new host; targeted deletion remains not-run.",
+        "notes": "History recorded the controlled visits; private browsing remained absent. Targeted entry deletion now disappears immediately after the fixed render-key update. Search and whole-host deletion were not both repeated.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg",
-            "summary": "History recorded the QA providers and unreachable URL."
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg",
+            "summary": "The targeted QA Fast history entry disappeared immediately after deletion."
           }
         ]
       },
@@ -4353,15 +4403,27 @@
       },
       {
         "caseId": "saved-07",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "A controlled QA Site shortcut was added, opened the correct URL, entered edit mode through long press, and was removed. Invalid-URL recovery and editing an existing shortcut URL were not exercised.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/quick-site-add-remove.jpeg",
+            "summary": "The controlled QA Site shortcut was visible before cleanup and opened the expected local URL."
+          }
+        ]
       },
       {
         "caseId": "saved-08",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Long press exposed shortcut removal and the QA shortcut was hidden without deleting its independent history state. Automated drag attempts did not establish a persisted reorder, so ordering remains unverified.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/quick-site-add-remove.jpeg",
+            "summary": "Long press exposed shortcut edit/remove controls; the QA shortcut was removed after validation."
+          }
+        ]
       },
       {
         "caseId": "saved-09",
@@ -4395,31 +4457,38 @@
       {
         "caseId": "downloads-01",
         "status": "partial",
-        "notes": "A real QQ Music DMG completed with a visible completion notice and persisted completed task metadata. Separate controlled text/image downloads remain not-run.",
+        "notes": "A controlled zhuo-qa.bin task completed with the expected name and native open chooser, then was removed. A second controlled image and direct filesystem-size inspection were not completed.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/download-complete-notice.jpeg",
-            "summary": "A real QQ Music DMG completed with a visible completion notice and persisted completed task metadata."
-          },
-          {
-            "type": "ui-tree",
-            "path": "tool/agent_harmony_tests/full-release/evidence/download-complete-tasks.json",
-            "summary": "A real QQ Music DMG completed with a visible completion notice and persisted completed task metadata."
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg",
+            "summary": "The controlled zhuo-qa.bin download reached the completed state with Open and Share actions."
           }
         ]
       },
       {
         "caseId": "downloads-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "A 12 MB ranged download progressed, paused at 19 percent, resumed through 34 percent, and was later cancelled. Byte-integrity comparison, a queued second task and concurrency-limit behavior remain unverified.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg",
+            "summary": "The controlled download UI remained actionable across observed pause and resume progress."
+          }
+        ]
       },
       {
         "caseId": "downloads-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Cancelling the disposable slow task stopped it and removed the task. Download-specific failure, recovery retry and duplicate-task assertions remain unverified.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg",
+            "summary": "The disposable slow download was cancelled after pause/resume validation and cleaned up."
+          }
+        ]
       },
       {
         "caseId": "downloads-04",
@@ -4429,9 +4498,15 @@
       },
       {
         "caseId": "downloads-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Opening the controlled completed file launched the native chooser. File handoff to a receiving app and Share cancellation were not completed.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg",
+            "summary": "The completed QA download exposed working Open and Share actions before cleanup."
+          }
+        ]
       },
       {
         "caseId": "downloads-06",
@@ -4489,27 +4564,51 @@
       },
       {
         "caseId": "integration-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "External HTTP entry was exercised cold and warm with the expected open prompt and no duplicate tab. Shared-text entry was not exercised.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg",
+            "summary": "External URL handling reached the controlled app entry flow without unsolicited dispatch."
+          }
+        ]
       },
       {
         "caseId": "integration-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Private external entry was exercised and its visit remained absent from history after close. Disposable external task persistence was not exercised.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg",
+            "summary": "History inspection retained no private visit while normal controlled visits remained available."
+          }
+        ]
       },
       {
         "caseId": "integration-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "The controlled tel link required explicit confirmation and cancellation caused no dispatch. The missing-handler fixture returned an actionable recovery message.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg",
+            "summary": "External protocol handling remained behind explicit user confirmation and cancellation."
+          }
+        ]
       },
       {
         "caseId": "integration-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Controlled javascript and devtools-style executable links were blocked after the navigation guard fix and never executed. Internal home/data handling was not fully repeated.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocked-protocol-fixed.jpeg",
+            "summary": "The controlled executable protocol remained on the fixture instead of replacing or escaping the page."
+          }
+        ]
       },
       {
         "caseId": "integration-05",
