@@ -8,7 +8,7 @@ App: Zhuoyue Browser, com.youdroid.zhuobrowser. AGC app ID: 6917614109541548410.
 
 - App information: website and support email.
 - Version information: full description (786 characters), tagline (11 characters), review notes (144 characters), membership charging, no generative AI, and custom privacy policy URL.
-- Three phone screenshots at 1080 x 1920, in the order Home / Opening choices / Reader controls. All were loaded from the reopened remote draft and visually matched the prepared assets.
+- Five V2 phone screenshots at 1080 x 1920, in the order Home / Opening choices / Reader controls / Site blocking / Reader mode. These replace the original three images. All were loaded after a fresh navigation and visually matched the prepared assets. Existing values and checked states in 71 inputs were preserved; generated DOM IDs changed on reload and were excluded from comparison.
 - AGC displayed separate successful-save dialogs for version and app information. Verification followed a full page reload and navigation back into the version draft.
 
 The support email is visibly correct after reload; the browser DOM accessor returned an empty value, so its verification uses the screenshot rather than treating that accessor as authoritative.
@@ -21,7 +21,15 @@ The support email is visibly correct after reload; the browser DOM accessor retu
 - ASC was not selected because no iOS project or verified ASC record was available.
 - Cyclar issue tracking is blocked by missing connector authentication and a signed-out web session. Restore Cyclar access to attach this delivery result to an issue.
 
-## Evidence
+## Screenshot revision V2
+
+The user selected AGC in the native store picker after reviewing all five images. The refreshed images use neutral local placeholder pages, with actual app controls and actual blocking counters. AGC displayed “保存成功。”; the save button was disabled after reload. No submission or publication was performed.
+
+- [V2 review](screenshot-revision-v2/review.md)
+- [V2 readback](screenshot-revision-v2/readback.json)
+- [V2 remote image ordering](screenshot-revision-v2/agc-readback.png)
+
+## Initial delivery evidence (historical)
 
 - [Selection record](selection.json)
 - [App field readback](evidence/agc-app-readback.json)

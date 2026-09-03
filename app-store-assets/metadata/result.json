@@ -4,7 +4,7 @@
   "draft_id": "v2020673007369873856",
   "locale": "zh-Hans",
   "status": "saved-and-verified",
-  "scope": "Reviewed metadata fields and three phone promotional screenshots",
+  "scope": "Reviewed metadata fields and five revised phone promotional screenshots",
   "app_information": [
     "官网",
     "客服邮箱"
@@ -20,15 +20,18 @@
   "screenshots": {
     "device": "手机",
     "orientation": "竖向",
-    "count": 3,
+    "count": 5,
     "width": 1080,
     "height": 1920,
     "order": [
       "安静浏览",
       "按需打开",
-      "自在阅读"
+      "阅读随心",
+      "拦截可见",
+      "专注阅读"
     ],
-    "verification": "Reopened version draft; all three remote previews loaded; screenshot confirms the intended order"
+    "verification": "V2: successful save, full navigation, five loaded 1080x1920 images, visual order verified; 71 existing input values and checked states preserved",
+    "revision": "screenshot-revision-v2"
   },
   "user_agreement": {
     "status": "included-in-description",
@@ -62,6 +65,9 @@
     "evidence/agc-version-readback.json",
     "evidence/agc-app-readback.json",
     "evidence/agc-support-email.png",
-    "evidence/agc-phone-images.png"
+    "evidence/agc-phone-images.png",
+    "screenshot-revision-v2/selection.json",
+    "screenshot-revision-v2/readback.json",
+    "screenshot-revision-v2/agc-readback.png"
   ]
 }

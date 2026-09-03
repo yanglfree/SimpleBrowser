@@ -1,0 +1,54 @@
+{
+  "status": "saved-and-verified",
+  "app_id": "6917614109541548410",
+  "draft_id": "v2020673007369873856",
+  "locale": "zh-Hans",
+  "device": "phone",
+  "images": [
+    {
+      "height": 1920,
+      "id": "zh-CNscreenShotsImg410",
+      "loaded": true,
+      "width": 1080
+    },
+    {
+      "height": 1920,
+      "id": "zh-CNscreenShotsImg411",
+      "loaded": true,
+      "width": 1080
+    },
+    {
+      "height": 1920,
+      "id": "zh-CNscreenShotsImg412",
+      "loaded": true,
+      "width": 1080
+    },
+    {
+      "height": 1920,
+      "id": "zh-CNscreenShotsImg413",
+      "loaded": true,
+      "width": 1080
+    },
+    {
+      "height": 1920,
+      "id": "zh-CNscreenShotsImg414",
+      "loaded": true,
+      "width": 1080
+    }
+  ],
+  "save_success_dialog_observed": true,
+  "full_navigation_readback": true,
+  "save_button_disabled": true,
+  "existing_field_count": 71,
+  "existing_field_values_preserved": true,
+  "comparison_note": "Ignored regenerated DOM element IDs; compared ordered type, value and checked state.",
+  "visual_order": [
+    "安静浏览",
+    "按需打开",
+    "阅读随心",
+    "拦截可见",
+    "专注阅读"
+  ],
+  "submitted": false,
+  "published": false
+}
