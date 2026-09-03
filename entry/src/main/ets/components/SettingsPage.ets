@@ -256,12 +256,7 @@ export struct SettingsPage {
               false,
               () => this.picker = PickerKind.RuleStrength
             )
-            this.ValueRowText(
-              $r('app.string.rules_update'),
-              this.rulesLastUpdatedLabel(),
-              false,
-              () => this.onUpdateRules()
-            )
+            this.RulesUpdateRow()
           }
           .groupCard()
 
@@ -545,19 +540,27 @@ export struct SettingsPage {
         .fontSize(13)
         .fontColor($r('app.color.text_secondary'))
       ForEach(this.filteredSearchEntries(), (entry: SettingsSearchEntry) => {
-        Row() {
-          Text(entry.label)
-            .fontSize(15)
-            .fontColor($r('app.color.text_primary'))
-            .layoutWeight(1)
-          AppIcon({ name: IconName.ChevronRight, glyphSize: 16, color: $r('app.color.text_secondary') })
+        if (entry.key === 'rules_update') {
+          Column() {
+            this.RulesUpdateRow()
+          }
+          .padding({ left: 16, right: 16 })
+          .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+        } else {
+          Row() {
+            Text(entry.label)
+              .fontSize(15)
+              .fontColor($r('app.color.text_primary'))
+              .layoutWeight(1)
+            AppIcon({ name: IconName.ChevronRight, glyphSize: 16, color: $r('app.color.text_secondary') })
+          }
+          .width('100%')
+          .height(56)
+          .padding({ left: 16, right: 16 })
+          .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+          .accessibilityText(entry.label)
+          .onClick(() => entry.action())
         }
-        .width('100%')
-        .height(56)
-        .padding({ left: 16, right: 16 })
-        .border({ width: { bottom: 1 }, color: $r('app.color.border') })
-        .accessibilityText(entry.label)
-        .onClick(() => entry.action())
       }, (entry: SettingsSearchEntry) => entry.key)
       if (this.filteredSearchEntries().length === 0) {
         Text($r('app.string.settings_search_empty'))
@@ -920,6 +923,32 @@ export struct SettingsPage {
       ? { width: { bottom: 1 }, color: $r('app.color.border') }
       : { width: 0 })
     .onClick(onTap)
+  }
+
+  @Builder
+  private RulesUpdateRow() {
+    Row({ space: 8 }) {
+      Text(this.isRulesUpdating ? $r('app.string.rules_update_in_progress') : $r('app.string.rules_update'))
+        .fontSize(15)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+      if (this.isRulesUpdating) {
+        LoadingProgress()
+          .width(20)
+          .height(20)
+          .color($r('app.color.text_secondary'))
+      } else {
+        Text(this.rulesLastUpdatedLabel())
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+          .fontFeature('"tnum" 1')
+      }
+    }
+    .id('settings-rules-update')
+    .width('100%')
+    .height(56)
+    .enabled(!this.isRulesUpdating)
+    .onClick(() => this.onUpdateRules())
   }
 
   @Builder
@@ -1390,9 +1419,6 @@ export struct SettingsPage {
   }
 
   private rulesLastUpdatedLabel(): ResourceStr {
-    if (this.isRulesUpdating) {
-      return $r('app.string.rules_update_in_progress');
-    }
     if (this.rulesLastUpdatedAt <= 0) {
       return $r('app.string.rules_update_never');
     }
