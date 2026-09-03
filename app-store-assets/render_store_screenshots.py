@@ -1,20 +1,22 @@
-"""Render the store-screenshot-composer focus-callout template from real captures."""
+"""Compose real device captures with the store-screenshot-composer spotlight card."""
 
 from pathlib import Path
 import hashlib
 import json
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 
 ROOT = Path(__file__).resolve().parent
-SOURCE = ROOT / 'source/harmony-phone/zh-Hans'
+SOURCE = ROOT / 'source/harmony-phone-v2/zh-Hans'
 OUTPUT = ROOT / 'generated/harmony-agc-phone/zh-Hans'
 FONT = '/System/Library/Fonts/STHeiti Medium.ttc'
 SLIDES = [
-    ('01-home.jpeg', '安静浏览', '常用网站，一触即达', (40, 820, 1040, 1470)),
-    ('02-open-options.jpeg', '按需打开', '清洁、私密，随心选择', (70, 970, 1010, 1450)),
-    ('03-reader.jpeg', '自在阅读', '字号、行距，随你调整', (40, 110, 900, 245)),
+    ('01-home.jpeg', '安静浏览', '常用网站，一触即达'),
+    ('02-open-options.png', '按需打开', '清洁、私密，随心选择'),
+    ('03-reader-controls.png', '阅读随心', '字号、行距、纸色可调'),
+    ('04-site-blocking.png', '拦截可见', '本站请求，一目了然'),
+    ('05-reader-mode.png', '专注阅读', '开启阅读模式，少些干扰'),
 ]
 
 
@@ -37,37 +39,35 @@ def render():
     OUTPUT.mkdir(parents=True, exist_ok=True)
     manifest = []
     previews = []
-    for index, (filename, title, subtitle, focus) in enumerate(SLIDES, 1):
+    for index, (filename, title, subtitle) in enumerate(SLIDES, 1):
         source = Image.open(SOURCE / filename).convert('RGB')
-        canvas = Image.new('RGBA', (1080, 1920), '#F5F8F4')
+        canvas = Image.new('RGBA', (1080, 1920), '#FEFFFB')
         draw = ImageDraw.Draw(canvas)
-        centered(draw, '卓阅浏览器', 90, 30, '#397365')
-        centered(draw, title, 175, 80, '#142D27')
-        centered(draw, subtitle, 287, 37, '#53665D')
+        draw.ellipse((-360, -360, 420, 390), fill='#FBF3CE')
+        draw.ellipse((610, 1320, 1330, 2080), fill='#E9F3F0')
+        centered(draw, '卓阅浏览器', 63, 28, '#397365')
+        draw.rounded_rectangle((444, 215, 636, 230), 7, fill='#F4DA6A')
+        centered(draw, title, 127, 78, '#142D27')
+        centered(draw, subtitle, 261, 35, '#6A746F')
         # Remove OS status and gesture bars, retaining in-app controls.
-        content = source.crop((0, 105, source.width, 2360))
-        phone_width, phone_height = 640, 1330
-        phone_x, phone_y = 220, 460
-        draw.rounded_rectangle((phone_x-12, phone_y-12, phone_x+phone_width+12,
-                                phone_y+phone_height+12), 68, fill='#0E1713')
-        phone = ImageOps.fit(content, (phone_width, phone_height), method=Image.Resampling.LANCZOS)
-        canvas.alpha_composite(rounded_image(phone, 54), (phone_x, phone_y))
-        detail = source.crop(focus)
-        detail.thumbnail((820, 400), Image.Resampling.LANCZOS)
-        if detail.width < 820:
-            detail = detail.resize((820, round(detail.height*820/detail.width)), Image.Resampling.LANCZOS)
-        callout = Image.new('RGBA', (detail.width+24, detail.height+24), 'white')
-        callout.paste(detail, (12, 12))
-        callout = rounded_image(callout, 30)
-        x, y = (1080-callout.width)//2, 945
+        crop = (0, 111, source.width, 2350)
+        content = source.crop(crop)
+        phone_width = 704
+        phone_height = round(content.height * phone_width / content.width)
+        phone_x, phone_y = (1080-phone_width)//2, 389
         shadow = Image.new('RGBA', canvas.size)
-        shadow_draw = ImageDraw.Draw(shadow)
-        shadow_draw.rounded_rectangle((x, y+10, x+callout.width, y+callout.height+10),
-                                      30, fill=(20, 45, 39, 48))
+        ImageDraw.Draw(shadow).rounded_rectangle(
+            (phone_x-16, phone_y+6, phone_x+phone_width+16, phone_y+phone_height+40),
+            70, fill=(20, 45, 39, 35))
         canvas = Image.alpha_composite(canvas, shadow.filter(ImageFilter.GaussianBlur(20)))
-        canvas.alpha_composite(callout, (x, y))
         draw = ImageDraw.Draw(canvas)
-        centered(draw, 'HarmonyOS 原生浏览体验', 1840, 25, '#6D7B72')
+        draw.rounded_rectangle((phone_x-16, phone_y-16, phone_x+phone_width+16,
+                                phone_y+phone_height+16), 68, fill='#19241E')
+        phone = content.resize((phone_width, phone_height), Image.Resampling.LANCZOS)
+        canvas.alpha_composite(rounded_image(phone, 52), (phone_x, phone_y))
+        draw = ImageDraw.Draw(canvas)
+        footer = 'HarmonyOS 原生体验' if index == 1 else '示例页面 · 真实 App 界面'
+        centered(draw, footer, 1875, 20, '#748078')
         path = OUTPUT / f'{index:02d}.png'
         canvas.convert('RGB').save(path, optimize=True)
         assert path.stat().st_size < 5_000_000
@@ -77,10 +77,11 @@ def render():
             'width': 1080, 'height': 1920, 'bytes': path.stat().st_size,
             'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
             'source_sha256': hashlib.sha256((SOURCE / filename).read_bytes()).hexdigest(),
-            'focus': focus, 'crop': [0, 105, source.width, 2360],
+            'template': 'spotlight-card', 'crop': crop,
+            'page_content': 'native-home' if index == 1 else 'local-placeholder-fixture',
         })
         previews.append(canvas.convert('RGB').resize((324, 576), Image.Resampling.LANCZOS))
-    sheet = Image.new('RGB', (1012, 636), '#E7ECE6')
+    sheet = Image.new('RGB', (10+len(previews)*334, 636), '#E7ECE6')
     for index, preview in enumerate(previews):
         sheet.paste(preview, (10+index*334, 10))
     ImageDraw.Draw(sheet).text((18, 600), 'PREVIEW ONLY - NOT FOR STORE UPLOAD',

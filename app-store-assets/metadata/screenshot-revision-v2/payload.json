@@ -1,0 +1,119 @@
+{
+  "store": "AGC",
+  "app_id": "6917614109541548410",
+  "bundle_name": "com.youdroid.zhuobrowser",
+  "draft_id": "v2020673007369873856",
+  "locale": "zh-Hans",
+  "store_locale": "zh-CN",
+  "device": "手机",
+  "orientation": "竖向截图",
+  "operation": "replace phone screenshot set (3 -> 5)",
+  "text_fields": "unchanged",
+  "assets": [
+    {
+      "file": "generated/harmony-agc-phone/zh-Hans/01.png",
+      "source": "source/harmony-phone-v2/zh-Hans/01-home.jpeg",
+      "title": "安静浏览",
+      "subtitle": "常用网站，一触即达",
+      "locale": "zh-Hans",
+      "device": "phone",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 1905041,
+      "sha256": "d71bbdedcc4058f696140fcbaf6e6e1a38235d7716df412f006acd4da45c896d",
+      "source_sha256": "c422570c841003c60518af8f2a95bebfb9ff2150d7f824e05e1c1ff7139f7dff",
+      "template": "spotlight-card",
+      "crop": [
+        0,
+        111,
+        1084,
+        2350
+      ],
+      "page_content": "native-home"
+    },
+    {
+      "file": "generated/harmony-agc-phone/zh-Hans/02.png",
+      "source": "source/harmony-phone-v2/zh-Hans/02-open-options.png",
+      "title": "按需打开",
+      "subtitle": "清洁、私密，随心选择",
+      "locale": "zh-Hans",
+      "device": "phone",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 272237,
+      "sha256": "d488e329c46061e9a0656154bba2e714e4dbf456b3ab53b4ef4f0b8e84334587",
+      "source_sha256": "f1c6e179e3237a8e03a50de26ec3731db1ea0298bce3f4fd2f692d2d99688492",
+      "template": "spotlight-card",
+      "crop": [
+        0,
+        111,
+        1084,
+        2350
+      ],
+      "page_content": "local-placeholder-fixture"
+    },
+    {
+      "file": "generated/harmony-agc-phone/zh-Hans/03.png",
+      "source": "source/harmony-phone-v2/zh-Hans/03-reader-controls.png",
+      "title": "阅读随心",
+      "subtitle": "字号、行距、纸色可调",
+      "locale": "zh-Hans",
+      "device": "phone",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 137432,
+      "sha256": "a02940e778cd62a41d08ef188126f08ae5042ce0acd150e9f9ea7fb3b8aada46",
+      "source_sha256": "34596368c61a31688c225d7e5afa4836f4783f9811bfb54008ba31faeffee44c",
+      "template": "spotlight-card",
+      "crop": [
+        0,
+        111,
+        1084,
+        2350
+      ],
+      "page_content": "local-placeholder-fixture"
+    },
+    {
+      "file": "generated/harmony-agc-phone/zh-Hans/04.png",
+      "source": "source/harmony-phone-v2/zh-Hans/04-site-blocking.png",
+      "title": "拦截可见",
+      "subtitle": "本站请求，一目了然",
+      "locale": "zh-Hans",
+      "device": "phone",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 150082,
+      "sha256": "b71292a0cf22a6c16e54fdeee20d90aaa7316de7595111d066412a5bd7c4c261",
+      "source_sha256": "e3b5e4d575a92816c47267e142e6d5d4732af364eefb5afaa354d03d31fcca21",
+      "template": "spotlight-card",
+      "crop": [
+        0,
+        111,
+        1084,
+        2350
+      ],
+      "page_content": "local-placeholder-fixture"
+    },
+    {
+      "file": "generated/harmony-agc-phone/zh-Hans/05.png",
+      "source": "source/harmony-phone-v2/zh-Hans/05-reader-mode.png",
+      "title": "专注阅读",
+      "subtitle": "开启阅读模式，少些干扰",
+      "locale": "zh-Hans",
+      "device": "phone",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 133762,
+      "sha256": "19f6dddf56de77c81e03a812f63ee2054d74ffb414f5eaba0e3290efe690240d",
+      "source_sha256": "ce01e9e178b338782b47dc2f0a7872fb57c6b6255eb61c0e1ba25748fc2f9d35",
+      "template": "spotlight-card",
+      "crop": [
+        0,
+        111,
+        1084,
+        2350
+      ],
+      "page_content": "local-placeholder-fixture"
+    }
+  ]
+}
