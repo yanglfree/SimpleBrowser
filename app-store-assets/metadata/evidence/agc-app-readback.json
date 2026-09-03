@@ -1,0 +1,20 @@
+{
+  "verifiedAt": "2026-09-03T09:33:36.671Z",
+  "appId": "6917614109541548410",
+  "website": {
+    "value": "https://browser.youdroid.top/",
+    "matches": true,
+    "method": "DOM value after reload"
+  },
+  "supportEmail": {
+    "value": "youdroid2048@gmail.com",
+    "matches": true,
+    "method": "Visible input after reload; DOM value accessor returned empty despite rendered text and 22/50 count",
+    "screenshot": "agc-support-email.png"
+  },
+  "namePreserved": true,
+  "tagsObserved": [
+    "浏览器 (primary)",
+    "工具"
+  ]
+}

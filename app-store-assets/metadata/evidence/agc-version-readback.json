@@ -1,0 +1,36 @@
+{
+  "verifiedAt": "2026-09-03T09:32:40.195Z",
+  "appId": "6917614109541548410",
+  "draftId": "v2020673007369873856",
+  "checks": {
+    "description": true,
+    "tagline": true,
+    "reviewNotes": true,
+    "privacyUrl": true,
+    "membership": true,
+    "noGenerativeAI": true
+  },
+  "images": [
+    {
+      "filename": null,
+      "height": 1920,
+      "id": "zh-CNscreenShotsImg410",
+      "loaded": true,
+      "width": 1080
+    },
+    {
+      "filename": null,
+      "height": 1920,
+      "id": "zh-CNscreenShotsImg411",
+      "loaded": true,
+      "width": 1080
+    },
+    {
+      "filename": null,
+      "height": 1920,
+      "id": "zh-CNscreenShotsImg412",
+      "loaded": true,
+      "width": 1080
+    }
+  ]
+}

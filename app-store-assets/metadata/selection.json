@@ -1,0 +1,9 @@
+{
+  "status": "selected",
+  "stores": [
+    "AGC"
+  ],
+  "review_sha256": "5274449fefbfa60fc1166f4dea1a8af8e01df8d328c80c2391990bfc2eafb366",
+  "payload_sha256": "41ee9875a0cfc697e6b00510305b890e5cc7889cbe4077f643182ed1c0037cae",
+  "interaction": "macOS native multi-select dialog"
+}

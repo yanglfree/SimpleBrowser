@@ -1,0 +1,67 @@
+{
+  "store": "AGC",
+  "app_id": "6917614109541548410",
+  "draft_id": "v2020673007369873856",
+  "locale": "zh-Hans",
+  "status": "saved-and-verified",
+  "scope": "Reviewed metadata fields and three phone promotional screenshots",
+  "app_information": [
+    "官网",
+    "客服邮箱"
+  ],
+  "version_information": [
+    "应用介绍",
+    "应用一句话简介（小编推荐）",
+    "备注",
+    "会员收费",
+    "AI生成合成服务: 不涉及",
+    "自定义隐私政策网址"
+  ],
+  "screenshots": {
+    "device": "手机",
+    "orientation": "竖向",
+    "count": 3,
+    "width": 1080,
+    "height": 1920,
+    "order": [
+      "安静浏览",
+      "按需打开",
+      "自在阅读"
+    ],
+    "verification": "Reopened version draft; all three remote previews loaded; screenshot confirms the intended order"
+  },
+  "user_agreement": {
+    "status": "included-in-description",
+    "reason": "Custom privacy mode has no separate user-agreement URL field; no hosted agreement was created"
+  },
+  "source_version": "1.0.1",
+  "associated_binary": null,
+  "submitted_for_review": false,
+  "published": false,
+  "asc": {
+    "status": "not-applicable",
+    "reason": "No iOS project or verified ASC record"
+  },
+  "cyclar": {
+    "status": "blocked",
+    "reason": "Configured credential unavailable and web session requires login"
+  },
+  "remaining_release_requirements": [
+    "Current-version tablet and PC/2in1 screenshots",
+    "Release binary upload and association",
+    "Age-rating questionnaire",
+    "Privacy data labels",
+    "Filing and copyright materials",
+    "Verified review contact details"
+  ],
+  "notes": [
+    "Existing app tags Browser (primary) and Tools appeared after full load and were preserved; the earlier review marked them unresolved.",
+    "Generic DOM value access returned empty for the support email although the loaded input visibly showed the correct address; screenshot evidence is authoritative."
+  ],
+  "evidence": [
+    "evidence/agc-version-readback.json",
+    "evidence/agc-app-readback.json",
+    "evidence/agc-support-email.png",
+    "evidence/agc-phone-images.png"
+  ]
+}
