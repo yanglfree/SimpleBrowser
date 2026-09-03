@@ -621,6 +621,16 @@ ${READER_EXTRACTION_CORE_SCRIPT}
     S.scroll = window.scrollY;
     S.metrics = extraction;
 
+    var viewport = document.querySelector('meta[name="viewport"]');
+    S.viewportExisted = !!viewport;
+    S.viewportContent = viewport ? viewport.getAttribute('content') : null;
+    if (!viewport) {
+      viewport = document.createElement('meta');
+      viewport.setAttribute('name', 'viewport');
+      document.head.appendChild(viewport);
+    }
+    viewport.setAttribute('content', 'width=device-width, initial-scale=1, user-scalable=yes, maximum-scale=5');
+
     document.body.innerHTML = '';
     var article = document.createElement('article');
     article.id = '__mb-reader';
@@ -660,7 +670,7 @@ ${READER_EXTRACTION_CORE_SCRIPT}
     'html,body{background:' + paper + ' !important;margin:0 !important;padding:0 !important;' +
       '-webkit-user-select:text !important;user-select:text !important;-webkit-touch-callout:default !important}' +
     '#__mb-reader, #__mb-reader *{-webkit-user-select:text !important;user-select:text !important;-webkit-touch-callout:default !important}' +
-    '#__mb-reader{max-width:680px;margin:0 auto;padding:26px 22px 64px;' +
+    '#__mb-reader{box-sizing:border-box;width:100%;max-width:680px;margin:0 auto;padding:26px 22px 64px;' +
       'font-family:"Noto Serif SC","Songti SC",Georgia,serif;color:' + body + '}' +
     '#__mb-reader h1{font-size:' + (fontSize + 8) + 'px;line-height:1.55;font-weight:600;' +
       'color:' + title + ';margin:0 0 22px;text-wrap:pretty}' +
@@ -692,6 +702,12 @@ export const READER_EXIT_SCRIPT: string = `
   if (!S || !S.active) return 'not-reader';
   var sheet = document.getElementById('__mb-reader-css');
   if (sheet) sheet.remove();
+  var viewport = document.querySelector('meta[name="viewport"]');
+  if (viewport) {
+    if (!S.viewportExisted) viewport.remove();
+    else if (S.viewportContent === null) viewport.removeAttribute('content');
+    else viewport.setAttribute('content', S.viewportContent);
+  }
   document.body.innerHTML = S.body;
   document.body.setAttribute('style', S.bodyStyle);
   window.scrollTo(0, S.scroll || 0);

@@ -75,6 +75,7 @@ test('enters, restyles, and exits reader mode through the production scripts', a
     const page = await browser.newPage();
     const html = await readFile(path.join(toolDirectory, 'fixtures/wechat-long/source.html'), 'utf8');
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    assert.equal(await page.locator('meta[name="viewport"]').count(), 0);
 
     const entered = JSON.parse(await page.evaluate(await productionReaderApplyScript()));
     const firstText = await page.locator('#__mb-reader').innerText();
@@ -83,6 +84,11 @@ test('enters, restyles, and exits reader mode through the production scripts', a
     assert.ok(firstText.includes('FIRST_ANCHOR'));
     assert.ok(firstText.includes('MIDDLE_ANCHOR'));
     assert.ok(firstText.includes('LAST_ANCHOR'));
+    assert.match(
+      await page.locator('meta[name="viewport"]').getAttribute('content'),
+      /width=device-width/
+    );
+    assert.equal(await page.locator('#__mb-reader').evaluate(node => getComputedStyle(node).boxSizing), 'border-box');
 
     const restyled = JSON.parse(await page.evaluate(await productionReaderApplyScript(21, 230)));
     assert.equal(restyled.status, 'reader');
@@ -91,6 +97,7 @@ test('enters, restyles, and exits reader mode through the production scripts', a
     assert.equal(await page.evaluate(await productionReaderExitScript()), 'restored');
     assert.equal(await page.locator('#__mb-reader').count(), 0);
     assert.equal(await page.locator('#js_content').count(), 1);
+    assert.equal(await page.locator('meta[name="viewport"]').count(), 0);
   } finally {
     await browser.close();
   }
