@@ -130,7 +130,7 @@
         "downloads-05",
         "downloads-06"
       ],
-      "notes": "partial: 5, not-run: 1"
+      "notes": "passed: 1, partial: 5"
     },
     {
       "title": "Privacy data and site permissions",
@@ -4532,9 +4532,20 @@
       },
       {
         "caseId": "downloads-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "A controlled 60 MB attachment exceeded the configured 50 MB threshold on cellular data. The app displayed a readable confirmation without object placeholders. Cancel left the task canceled with no retained file; a separate approval completed the intended task. Both QA records and files were removed afterward.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/large-download-policy-warning.jpeg",
+            "summary": "The 60 MB cellular download waited at an explicit filename-specific confirmation dialog."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/large-download-policy-approved.jpeg",
+            "summary": "The separately approved 60 MB QA task completed before its file and record were removed."
+          }
+        ]
       },
       {
         "caseId": "downloads-05",

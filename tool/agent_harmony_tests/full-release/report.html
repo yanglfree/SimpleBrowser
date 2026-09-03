@@ -36,16 +36,16 @@
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>57</strong>Executed</div>
-    <div class="metric"><strong>24</strong>Passed</div>
+    <div class="metric"><strong>58</strong>Executed</div>
+    <div class="metric"><strong>25</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
-    <div class="metric"><strong>24</strong>Not run</div>
+    <div class="metric"><strong>23</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 57 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 58 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -99,7 +99,7 @@
         <td>Downloads and native file operations</td>
         <td class="status-partial">partial</td>
         <td><code>downloads-01</code><br><code>downloads-02</code><br><code>downloads-03</code><br><code>downloads-04</code><br><code>downloads-05</code><br><code>downloads-06</code></td>
-        <td>partial: 5, not-run: 1</td>
+        <td>passed: 1, partial: 5</td>
       </tr>
       <tr>
         <td>Privacy data and site permissions</td>
@@ -623,7 +623,7 @@
         <td><code>downloads-04</code></td>
         <td>p0</td>
         <td>Mobile and large-download policy</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>downloads</td>
       </tr>
       <tr>
@@ -1272,9 +1272,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg</code><br>The disposable slow download was cancelled after pause/resume validation and cleaned up.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>downloads-04</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>downloads-04</code> <span class="status-passed">passed</span></h3>
+        <p>A controlled 60 MB attachment exceeded the configured 50 MB threshold on cellular data. The app displayed a readable confirmation without object placeholders. Cancel left the task canceled with no retained file; a separate approval completed the intended task. Both QA records and files were removed afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/large-download-policy-warning.jpeg</code><br>The 60 MB cellular download waited at an explicit filename-specific confirmation dialog.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/large-download-policy-approved.jpeg</code><br>The separately approved 60 MB QA task completed before its file and record were removed.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>downloads-05</code> <span class="status-partial">partial</span></h3>
