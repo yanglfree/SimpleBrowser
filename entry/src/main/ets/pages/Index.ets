@@ -376,6 +376,7 @@ struct Index {
   @State private isActiveSavedForLater: boolean = false;
   @State private downloadTasks: DownloadTask[] = [];
   @State private rulesLastUpdatedAt: number = 0;
+  @State private isRulesUpdating: boolean = false;
   @State private findQuery: string = '';
   @State private findCurrent: number = 0;
   @State private findTotal: number = 0;
@@ -1618,6 +1619,7 @@ struct Index {
         currentHost: displayHost(this.activeTab()?.url ?? ''),
         currentHostDarkModeEnabled: !this.isDarkModeExcluded(this.activeTab()?.url ?? ''),
         rulesLastUpdatedAt: this.rulesLastUpdatedAt,
+        isRulesUpdating: this.isRulesUpdating,
         appVersion: this.appVersionName,
         isPro: this.isPro,
         onChange: (settings: BrowserSettings): void => { this.applySettings(settings); },
@@ -3869,8 +3871,12 @@ struct Index {
   }
 
   private async updateRules(): Promise<void> {
-    const updated: boolean = await this.viewModel.adsBlockService.updateRules(true);
+    if (this.isRulesUpdating) {
+      return;
+    }
+    this.isRulesUpdating = true;
     try {
+      const updated: boolean = await this.viewModel.adsBlockService.updateRules(true);
       if (updated) {
         this.rulesLastUpdatedAt = this.viewModel.adsBlockService.lastUpdatedAt;
         this.getUIContext().getPromptAction().showToast({ message: $r('app.string.rules_update_success') });
@@ -3879,6 +3885,8 @@ struct Index {
       }
     } catch (error) {
       Logger.warn(TAG, `Rules update toast unavailable: ${String(error)}`);
+    } finally {
+      this.isRulesUpdating = false;
     }
   }
 

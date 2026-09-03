@@ -184,6 +184,7 @@ export struct SettingsPage {
   @Prop currentHost: string = '';
   @Prop currentHostDarkModeEnabled: boolean = false;
   @Prop rulesLastUpdatedAt: number = 0;
+  @Prop isRulesUpdating: boolean = false;
   @Prop appVersion: string = '';
   @Prop isPro: boolean = false;
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
@@ -1389,6 +1390,9 @@ export struct SettingsPage {
   }
 
   private rulesLastUpdatedLabel(): ResourceStr {
+    if (this.isRulesUpdating) {
+      return $r('app.string.rules_update_in_progress');
+    }
     if (this.rulesLastUpdatedAt <= 0) {
       return $r('app.string.rules_update_never');
     }

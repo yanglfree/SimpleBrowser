@@ -272,6 +272,7 @@
     { "name": "rule_strength_standard", "value": "标准" },
     { "name": "rule_strength_strict", "value": "严格" },
     { "name": "rules_update", "value": "更新拦截规则" },
+    { "name": "rules_update_in_progress", "value": "更新中…" },
     { "name": "rules_update_never", "value": "未更新" },
     { "name": "rules_update_success", "value": "拦截规则已更新" },
     { "name": "rules_update_failed", "value": "更新失败，已保留旧规则" },

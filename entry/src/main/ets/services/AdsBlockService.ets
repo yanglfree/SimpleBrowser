@@ -108,7 +108,7 @@ export class AdsBlockService {
   private supplementPath: string = '';
   private ruleEngine: RuleEngine | undefined;
   private isInitialized: boolean = false;
-  private updating: boolean = false;
+  private pendingUpdate: Promise<boolean> | undefined;
   private updatedAt: number = 0;
 
   /**
@@ -304,13 +304,25 @@ export class AdsBlockService {
   }
 
   async updateRules(force: boolean = false): Promise<boolean> {
-    if (!this.isInitialized || this.updating) {
+    // A manual refresh must await an automatic refresh already in progress.
+    if (this.pendingUpdate !== undefined) {
+      return await this.pendingUpdate;
+    }
+    if (!this.isInitialized) {
       return false;
     }
     if (!force && this.updatedAt > 0 && Date.now() - this.updatedAt < RULE_UPDATE_INTERVAL_MS) {
       return false;
     }
-    this.updating = true;
+    this.pendingUpdate = this.performRulesUpdate();
+    try {
+      return await this.pendingUpdate;
+    } finally {
+      this.pendingUpdate = undefined;
+    }
+  }
+
+  private async performRulesUpdate(): Promise<boolean> {
     try {
       await this.updateSupplement();
       const rulesText: string = AdsBlockService.withSupplement(
@@ -330,8 +342,6 @@ export class AdsBlockService {
     } catch (error) {
       Logger.warn(TAG, `Failed to update ad rules; keeping the current list: ${String(error)}`);
       return false;
-    } finally {
-      this.updating = false;
     }
   }
 
