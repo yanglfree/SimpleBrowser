@@ -45,6 +45,7 @@ export struct HistorySheet {
   @Prop initialScrollOffset: number = 0;
   @State private query: string = '';
   @State private searchResults: HistoryEntry[] = [];
+  @State private displayedEntries: HistoryEntry[] = [];
   private scroller: Scroller = new Scroller();
   private scrollOffset: number = 0;
   private hasRestoredOffset: boolean = false;
@@ -52,10 +53,12 @@ export struct HistorySheet {
   aboutToAppear(): void {
     this.query = this.initialQuery;
     this.scrollOffset = this.initialScrollOffset;
+    this.displayedEntries = this.entries.slice();
     this.searchResults = this.computeSearchResults(this.query);
   }
 
   private onDatasetChange(): void {
+    this.displayedEntries = this.entries.slice();
     if (this.query.trim().length > 0) {
       this.searchResults = this.computeSearchResults(this.query);
     }
@@ -125,7 +128,7 @@ export struct HistorySheet {
           Column() {
             ForEach(this.groups(), (group: HistoryGroup) => {
               this.Group(group)
-            }, (group: HistoryGroup) => group.key)
+            }, (group: HistoryGroup) => this.groupRenderKey(group))
           }
           .width('100%')
           .padding({ left: 24, right: 24, bottom: 32 })
@@ -237,6 +240,9 @@ export struct HistorySheet {
   private deleteEntry(entry: HistoryEntry): void {
     const targetId: string = resolveHistoryEntryDeleteTarget(entry, this.favoritesOnly, this.savedItems);
     this.onDelete(targetId);
+    this.displayedEntries = this.displayedEntries.filter(
+      (item: HistoryEntry): boolean => item.id !== entry.id
+    );
     if (this.query.trim().length > 0) {
       this.searchResults = this.searchResults.filter((item: HistoryEntry): boolean => item.id !== entry.id);
     }
@@ -276,10 +282,18 @@ export struct HistorySheet {
     return grouped;
   }
 
+  private groupRenderKey(group: HistoryGroup): string {
+    let key: string = group.key;
+    for (const entry of group.entries) {
+      key += `:${entry.id}:${entry.title}:${entry.url}`;
+    }
+    return key;
+  }
+
   private visibleEntries(): HistoryEntry[] {
     const query: string = this.query.trim().toLowerCase();
     if (query.length === 0) {
-      return this.favoritesOnly ? this.favoriteEntries() : this.entries;
+      return this.favoritesOnly ? this.favoriteEntries() : this.displayedEntries;
     }
     return this.searchResults;
   }
