@@ -54,7 +54,8 @@ export class ArticleExportService {
         return undefined;
       }
       const text: string = format === ArticleExportFormat.Markdown
-        ? ArticleExportService.markdownDocument(article, markdown, extras)
+        ? ArticleExportService.markdownDocument(article,
+          await ArticleExportService.inlineLocalImages(markdown, imageDirectoryPath), extras)
         : ArticleExportService.standaloneHtmlDocument(article,
           await ArticleExportService.inlineLocalImages(html, imageDirectoryPath), extras);
       const file: fs.File = fs.openSync(uris[0], fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
@@ -65,8 +66,8 @@ export class ArticleExportService {
       }
       return { format: format, uri: uris[0], fileName: fileName };
     } catch (error) {
-      Logger.warn(TAG, `Article export unavailable: ${String(error)}`);
-      return undefined;
+      Logger.warn(TAG, 'Article export failed');
+      throw new Error('Article export failed');
     }
   }
 
@@ -104,17 +105,24 @@ export class ArticleExportService {
     );
     const title: string = ArticleExportService.escapeHtml(article.title);
     const annotations: string = ArticleExportService.htmlAnnotations(extras);
-    const cleanedHtml: string = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
-    if (/<!doctype\s+html/i.test(cleanedHtml)) {
-      return ArticleExportService.appendToBody(
-        ArticleExportService.addDocumentMetadata(cleanedHtml, baseUrl, title), annotations
-      );
-    }
-    if (/<html\b/i.test(cleanedHtml)) {
-      const document: string = ArticleExportService.addDocumentMetadata(cleanedHtml, baseUrl, title);
-      return `<!doctype html>\n${ArticleExportService.appendToBody(document, annotations)}`;
-    }
-    return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><base href="${baseUrl}"><title>${title}</title></head><body>${cleanedHtml}${annotations}</body></html>`;
+    const cleanedHtml: string = html.replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, '')
+      .replace(/<(script|style|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+      .replace(/<\/?(?:html|body|head|meta|base|link|script|iframe|object|embed)\b[^>]*>/gi, '')
+      .replace(/<!doctype[^>]*>/gi, '')
+      .replace(/\s+on[\w-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    const policy: string = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; " +
+      "script-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri https: http:; sandbox allow-same-origin";
+    const style: string = 'html{color-scheme:light dark}body{margin:0;padding:22px;font:17px/1.8 system-ui;' +
+      'overflow-wrap:anywhere}main{max-width:720px;margin:auto}img{max-width:100%;height:auto}' +
+      'h1{font-size:26px;line-height:1.4}pre{overflow:auto;white-space:pre-wrap}table{max-width:100%;border-collapse:collapse}' +
+      'td,th{border:1px solid #888;padding:6px}blockquote{margin-left:0;border-left:3px solid #2e6b5c;padding-left:16px}' +
+      'a{color:#438c79}mark{background:#f2d479;color:#222}';
+    return `<!doctype html>\n<html><head><meta charset="utf-8">` +
+      `<meta http-equiv="Content-Security-Policy" content="${policy}">` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1"><base href="${baseUrl}">` +
+      `<title>${title}</title><style>${style}</style></head><body><main>` +
+      `<h1>${title}</h1><p><a href="${baseUrl}">${baseUrl}</a></p>` +
+      `<div id="article-content">${cleanedHtml}</div>${annotations}</main></body></html>`;
   }
 
   private static markdownAnnotations(extras: ArticleExportExtras): string {
@@ -150,15 +158,8 @@ export class ArticleExportService {
     return sections.length > 0 ? `<aside data-zhuoyue-annotations>${sections.join('')}</aside>` : '';
   }
 
-  private static appendToBody(html: string, content: string): string {
-    if (content.length === 0) {
-      return html;
-    }
-    return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${content}</body>`) : `${html}${content}`;
-  }
-
   /** Replaces captured relative image paths with data URLs so the HTML is portable as one file. */
-  private static async inlineLocalImages(html: string, imageDirectoryPath: string): Promise<string> {
+  static async inlineLocalImages(html: string, imageDirectoryPath: string): Promise<string> {
     const names: string[] = [];
     const pattern: RegExp = /images\/(image-\d+\.(?:jpg|jpeg|png|gif|webp|avif|svg))/gi;
     let match: RegExpExecArray | null = pattern.exec(html);
@@ -172,7 +173,9 @@ export class ArticleExportService {
     for (const name of names) {
       const dataUrl: string | undefined = await ArticleExportService.readImageDataUrl(`${imageDirectoryPath}/${name}`, name);
       if (dataUrl !== undefined) {
-        output = output.replace(new RegExp(`images/${name}`, 'gi'), dataUrl);
+        output = output.split(`images/${name}`).join(dataUrl);
+      } else {
+        output = output.split(`images/${name}`).join('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==');
       }
     }
     return output;
@@ -219,14 +222,6 @@ export class ArticleExportService {
     const baseName: string = article.title.replace(/[^\w\u4e00-\u9fff-]+/g, '-').replace(/^-+|-+$/g, '');
     const safeBaseName: string = baseName.length > 0 ? baseName.substring(0, 80) : article.id;
     return `${safeBaseName}.${format === ArticleExportFormat.Markdown ? 'md' : 'html'}`;
-  }
-
-  private static addDocumentMetadata(html: string, baseUrl: string, title: string): string {
-    const metadata: string = `<meta charset="utf-8"><base href="${baseUrl}"><title>${title}</title>`;
-    if (/<head\b[^>]*>/i.test(html)) {
-      return html.replace(/<head\b[^>]*>/i, (head: string): string => `${head}${metadata}`);
-    }
-    return html.replace(/<html\b[^>]*>/i, (root: string): string => `${root}<head>${metadata}</head>`);
   }
 
   private static escapeAttribute(value: string): string {

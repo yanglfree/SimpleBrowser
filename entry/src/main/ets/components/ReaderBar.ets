@@ -24,6 +24,8 @@ export struct ReaderBar {
   @Prop paper: ReaderPaper = ReaderPaper.Sepia;
   @Prop canShrink: boolean = true;
   @Prop canGrow: boolean = true;
+  @Prop isSaving: boolean = false;
+  onSave: () => void = (): void => {};
   onShrink: () => void = (): void => {};
   onGrow: () => void = (): void => {};
   onCycleLineHeight: () => void = (): void => {};
@@ -92,6 +94,13 @@ export struct ReaderBar {
             .onClick(() => this.onPickPaper(swatch.paper))
           }, (swatch: PaperSwatch) => `${swatch.paper}`)
         }
+
+        Text($r('app.string.article_save'))
+          .fontSize(12)
+          .height(44)
+          .fontColor(this.theme().textPrimary)
+          .enabled(!this.isSaving)
+          .onClick(() => this.onSave())
 
         Text($r('app.string.done'))
           .height(44)

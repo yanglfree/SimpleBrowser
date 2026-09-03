@@ -1,0 +1,42 @@
+{
+  "runner": { "appName": "ZhuoBrowser Article Library", "platformName": "HarmonyOS Real-device QA", "bundleId": "com.youdroid.zhuobrowser" },
+  "coverageAreas": [
+    { "title": "Capture and recovery", "status": "blocked", "caseIds": ["article-start", "article-entry", "article-wechat", "article-retry"], "notes": "Build and automated checks passed; foreground device access was not exclusive." },
+    { "title": "Offline value and data ownership", "status": "not-run", "caseIds": ["article-offline", "article-organize", "article-export", "article-entitlement"], "notes": "No device interaction pass inferred from headless browser or adapter tests." }
+  ],
+  "cases": [
+    { "id": "article-start", "priority": "p0", "title": "Install and establish the article library foreground", "steps": ["Install the final signed candidate", "Launch EntryAbility on an unlocked device", "Inspect the app UI tree"], "assertions": ["ZhuoBrowser, not another app, is foreground and interactive"] },
+    { "id": "article-entry", "priority": "p0", "title": "Save from browser menu, reader mode and pasted URL", "steps": ["Save the same article through each entry", "Paste a URL in the library and explicitly submit", "Repeat in compact portrait and landscape with keyboard"], "assertions": ["Controls stay visible", "Only explicit submission navigates", "One canonical article exists", "Private tabs cannot be saved"] },
+    { "id": "article-wechat", "priority": "p0", "title": "Reproduce the reported live WeChat article", "steps": ["Open the original reported URL", "Complete any legitimate site challenge", "Save and compare beginning, middle, ending and images against source"], "assertions": ["Complete versus partial status is accurate", "No silent failure", "Failure includes actionable retry"] },
+    { "id": "article-retry", "priority": "p0", "title": "Failure feedback, retry and legacy content preservation", "steps": ["Use an unreachable URL", "Retry an existing saved article with network unavailable", "Restore network and retry", "Open a library created by the prior version"], "assertions": ["Pending capture terminates with feedback", "Old readable content and notes survive failed updates", "Retry does not duplicate records", "Legacy records remain accessible"] },
+    { "id": "article-offline", "priority": "p0", "title": "Offline relaunch, rendering and reading offset", "steps": ["Save a page with images and scroll halfway", "Leave using hardware back", "Disable network", "Relaunch and reopen the article"], "assertions": ["Text and saved images render without requests", "Reading offset is restored", "Missing images are not represented as a complete save"] },
+    { "id": "article-organize", "priority": "p1", "title": "Selection, annotations and filters", "steps": ["Select text across inline formatting and highlight", "Locate and remove highlight", "Add/edit/remove note and topic", "Filter tags/topics/archive and search notes", "Cancel then confirm article deletion"], "assertions": ["Annotation failures retain input", "Filters and search reflect stored state", "Deletion is scoped and confirmed"] },
+    { "id": "article-export", "priority": "p0", "title": "System-picker HTML and Markdown export", "steps": ["Export both formats", "Cancel one picker", "Open exported HTML with network off", "Inspect embedded Markdown images"], "assertions": ["No private file paths needed", "Saved images are portable", "Cancellation is neutral", "Write failure is visible"] },
+    { "id": "article-entitlement", "priority": "p0", "title": "Expired Pro preserves access to existing data", "steps": ["Use a legitimate expired/non-Pro entitlement fixture with existing articles", "Read and export", "Try adding and updating an article"], "assertions": ["Existing content remains accessible", "New saves and retries require Pro", "No entitlement bypass used"] }
+  ],
+  "lastRun": {
+    "date": "2026-09-03",
+    "target": { "name": "Connected HarmonyOS phone", "id": "4UQ9K25530058677", "runtime": "HarmonyOS; exclusive foreground unavailable" },
+    "appBuild": { "version": "local working-checkout candidate", "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap" },
+    "authSource": "No test entitlement or authentication state modified",
+    "summary": "Automated verification passed. Article feature device acceptance remains blocked/not-run.",
+    "validation": [
+      { "command": "hvigorw test", "status": "passed", "summary": "170 passed, zero failures/errors/ignored; result file inspected." },
+      { "command": "hvigorw assembleHap", "status": "passed", "summary": "Signed build with canonical signing guard; not a release publication." },
+      { "command": "production reader scripts in headless Chrome", "status": "passed", "summary": "7/7 passed including frozen WeChat long-article fixture." },
+      { "command": "ARTICLE_TEST_BROWSER=chrome npm run test:articles", "status": "passed", "summary": "12/12 passed in both the working checkout and the task-only staged snapshot." },
+      { "command": "hvigorw assembleHap (task-only staged snapshot)", "status": "passed", "summary": "Independent signed build passed, excluding concurrent UI/IAP edits." },
+      { "command": "hvigorw test (task-only staged snapshot)", "status": "blocked", "summary": "Compilation completed; GenerateUnitTestResult stalled without a result file. Interrupted, not counted as passed." }
+    ],
+    "results": [
+      { "caseId": "article-start", "status": "blocked", "notes": "An earlier candidate installed. Initial launch returned 10106102 (screen locked). Later launch returned success, but foreground inspection showed another app. No claim of feature interaction or final-candidate installation." },
+      { "caseId": "article-entry", "status": "not-run", "notes": "Requires exclusive unlocked device session." },
+      { "caseId": "article-wechat", "status": "not-run", "notes": "Original live URL not supplied; screenshot and frozen fixture do not replace live-page testing." },
+      { "caseId": "article-retry", "status": "not-run", "notes": "Adapter tests passed; device network and legacy migration still required." },
+      { "caseId": "article-offline", "status": "not-run", "notes": "Browser CSP/DOM tests passed, but device offline relaunch not observed." },
+      { "caseId": "article-organize", "status": "not-run", "notes": "Production-module annotation tests passed; native selection/filter UI not observed." },
+      { "caseId": "article-export", "status": "not-run", "notes": "Embedding tests passed; native picker and external file opening not observed." },
+      { "caseId": "article-entitlement", "status": "not-run", "notes": "Code gates reviewed; real entitlement transition not exercised." }
+    ]
+  }
+}

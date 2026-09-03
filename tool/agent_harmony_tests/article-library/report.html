@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZhuoBrowser Article Library HarmonyOS Real-device QA Report</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; }
+    body { margin: 0; padding: 32px; background: Canvas; color: CanvasText; }
+    main { max-width: 1120px; margin: 0 auto; }
+    h1, h2, h3 { line-height: 1.2; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 28px; }
+    th, td { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: color-mix(in srgb, CanvasText 8%, transparent); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.94em; }
+    .status-passed { color: #027a48; font-weight: 700; }
+    .status-failed { color: #b42318; font-weight: 700; }
+    .status-blocked, .status-partial { color: #b54708; font-weight: 700; }
+    .status-not-run, .status-pending { color: #667085; font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin: 20px 0 28px; }
+    .metric { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 8px; padding: 14px 16px; }
+    .metric strong { display: block; font-size: 1.6rem; }
+    .case-result { border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent); padding-top: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ZhuoBrowser Article Library HarmonyOS Real-device QA Report</h1>
+  <p>
+    Date: 2026-09-03<br>
+    Target: Connected HarmonyOS phone, HarmonyOS; exclusive foreground unavailable, <code>4UQ9K25530058677</code><br>
+    App: ZhuoBrowser Article Library <code>local working-checkout candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
+    HAP: <code>entry/build/default/outputs/default/entry-default-signed.hap</code><br>
+    Auth source: No test entitlement or authentication state modified
+  </p>
+
+  <section class="summary" aria-label="Run summary">
+    <div class="metric"><strong>8</strong>Total cases</div>
+    <div class="metric"><strong>1</strong>Executed</div>
+    <div class="metric"><strong>0</strong>Passed</div>
+    <div class="metric"><strong>0</strong>Failed</div>
+    <div class="metric"><strong>1</strong>Blocked</div>
+    <div class="metric"><strong>7</strong>Not run</div>
+  </section>
+
+  <h2>Executive Summary</h2>
+  <p>
+    The agent QA suite contains 8 Harmony scenarios. This run executed 1 cases with fresh evidence.
+    Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
+  </p>
+
+  <h2>Coverage Matrix</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>Cases</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Capture and recovery</td>
+        <td class="status-blocked">blocked</td>
+        <td><code>article-start</code><br><code>article-entry</code><br><code>article-wechat</code><br><code>article-retry</code></td>
+        <td>Build and automated checks passed; foreground device access was not exclusive.</td>
+      </tr>
+      <tr>
+        <td>Offline value and data ownership</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>article-offline</code><br><code>article-organize</code><br><code>article-export</code><br><code>article-entitlement</code></td>
+        <td>No device interaction pass inferred from headless browser or adapter tests.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Case Catalog</h2>
+  <table>
+    <thead><tr><th>Case</th><th>Priority</th><th>Title</th><th>Latest Status</th><th>Tags</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>article-start</code></td>
+        <td>p0</td>
+        <td>Install and establish the article library foreground</td>
+        <td class="status-blocked">blocked</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code>article-entry</code></td>
+        <td>p0</td>
+        <td>Save from browser menu, reader mode and pasted URL</td>
+        <td class="status-not-run">not-run</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code>article-wechat</code></td>
+        <td>p0</td>
+        <td>Reproduce the reported live WeChat article</td>
+        <td class="status-not-run">not-run</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code>article-retry</code></td>
+        <td>p0</td>
+        <td>Failure feedback, retry and legacy content preservation</td>
+        <td class="status-not-run">not-run</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code>article-offline</code></td>
+        <td>p0</td>
+        <td>Offline relaunch, rendering and reading offset</td>
+        <td class="status-not-run">not-run</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code>article-organize</code></td>
+        <td>p1</td>
+        <td>Selection, annotations and filters</td>
+        <td class="status-not-run">not-run</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code>article-export</code></td>
+        <td>p0</td>
+        <td>System-picker HTML and Markdown export</td>
+        <td class="status-not-run">not-run</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code>article-entitlement</code></td>
+        <td>p0</td>
+        <td>Expired Pro preserves access to existing data</td>
+        <td class="status-not-run">not-run</td>
+        <td></td>
+      </tr></tbody>
+  </table>
+
+  <h2>Latest Run Evidence</h2>
+
+      <section class="case-result">
+        <h3><code>article-start</code> <span class="status-blocked">blocked</span></h3>
+        <p>An earlier candidate installed. Initial launch returned 10106102 (screen locked). Later launch returned success, but foreground inspection showed another app. No claim of feature interaction or final-candidate installation.</p>
+        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>article-entry</code> <span class="status-not-run">not-run</span></h3>
+        <p>Requires exclusive unlocked device session.</p>
+        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>article-wechat</code> <span class="status-not-run">not-run</span></h3>
+        <p>Original live URL not supplied; screenshot and frozen fixture do not replace live-page testing.</p>
+        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>article-retry</code> <span class="status-not-run">not-run</span></h3>
+        <p>Adapter tests passed; device network and legacy migration still required.</p>
+        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>article-offline</code> <span class="status-not-run">not-run</span></h3>
+        <p>Browser CSP/DOM tests passed, but device offline relaunch not observed.</p>
+        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>article-organize</code> <span class="status-not-run">not-run</span></h3>
+        <p>Production-module annotation tests passed; native selection/filter UI not observed.</p>
+        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>article-export</code> <span class="status-not-run">not-run</span></h3>
+        <p>Embedding tests passed; native picker and external file opening not observed.</p>
+        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>article-entitlement</code> <span class="status-not-run">not-run</span></h3>
+        <p>Code gates reviewed; real entitlement transition not exercised.</p>
+        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+      </section>
+
+  <h2>Validation</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>hvigorw test</code></td>
+        <td class="status-passed">passed</td>
+        <td>170 passed, zero failures/errors/ignored; result file inspected.</td>
+      </tr>
+      <tr>
+        <td><code>hvigorw assembleHap</code></td>
+        <td class="status-passed">passed</td>
+        <td>Signed build with canonical signing guard; not a release publication.</td>
+      </tr>
+      <tr>
+        <td><code>production reader scripts in headless Chrome</code></td>
+        <td class="status-passed">passed</td>
+        <td>7/7 passed including frozen WeChat long-article fixture.</td>
+      </tr>
+      <tr>
+        <td><code>ARTICLE_TEST_BROWSER=chrome npm run test:articles</code></td>
+        <td class="status-passed">passed</td>
+        <td>12/12 passed in both the working checkout and the task-only staged snapshot.</td>
+      </tr>
+      <tr>
+        <td><code>hvigorw assembleHap (task-only staged snapshot)</code></td>
+        <td class="status-passed">passed</td>
+        <td>Independent signed build passed, excluding concurrent UI/IAP edits.</td>
+      </tr>
+      <tr>
+        <td><code>hvigorw test (task-only staged snapshot)</code></td>
+        <td class="status-blocked">blocked</td>
+        <td>Compilation completed; GenerateUnitTestResult stalled without a result file. Interrupted, not counted as passed.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Known Exclusions</h2>
+  <p></p>
+</main>
+</body>
+</html>

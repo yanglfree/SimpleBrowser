@@ -6,6 +6,8 @@ import { Logger } from '../utils/Logger';
 const TAG: string = 'ArticleImageStore';
 const MAX_IMAGE_COUNT: number = 30;
 const MAX_IMAGE_BYTES: number = 5 * 1024 * 1024;
+const MAX_TOTAL_IMAGE_BYTES: number = 20 * 1024 * 1024;
+const IMAGE_TIME_BUDGET_MS: number = 15000;
 
 export interface ArticleImageStoreResult {
   savedCount: number;
@@ -20,19 +22,22 @@ export function isPersistableArticleImage(asset: ArticleImageAsset): boolean {
 export class ArticleImageStore {
   static async persist(images: ArticleImageAsset[], directory: string): Promise<ArticleImageStoreResult> {
     let savedCount: number = 0;
-    let failedCount: number = 0;
+    let failedCount: number = Math.max(0, images.length - MAX_IMAGE_COUNT);
+    const deadline: number = Date.now() + IMAGE_TIME_BUDGET_MS;
+    let totalBytes: number = 0;
     for (const image of images.slice(0, MAX_IMAGE_COUNT)) {
-      if (!isPersistableArticleImage(image)) {
+      if (!isPersistableArticleImage(image) || Date.now() >= deadline || totalBytes >= MAX_TOTAL_IMAGE_BYTES) {
         failedCount += 1;
         continue;
       }
-      const bytes: Uint8Array | undefined = await ArticleImageStore.fetch(image.url);
-      if (bytes === undefined) {
+      const bytes: Uint8Array | undefined = await ArticleImageStore.fetch(image.url, deadline - Date.now());
+      if (bytes === undefined || totalBytes + bytes.length > MAX_TOTAL_IMAGE_BYTES) {
         failedCount += 1;
         continue;
       }
       if (await ArticleImageStore.write(`${directory}/${image.fileName}`, bytes)) {
         savedCount += 1;
+        totalBytes += bytes.length;
       } else {
         failedCount += 1;
       }
@@ -40,14 +45,15 @@ export class ArticleImageStore {
     return { savedCount: savedCount, failedCount: failedCount };
   }
 
-  private static async fetch(url: string): Promise<Uint8Array | undefined> {
+  private static async fetch(url: string, remainingMs: number): Promise<Uint8Array | undefined> {
     const request: http.HttpRequest = http.createHttp();
     try {
       const response: http.HttpResponse = await request.request(url, {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.ARRAY_BUFFER,
-        connectTimeout: 10000,
-        readTimeout: 30000,
+        connectTimeout: Math.max(1, Math.min(5000, remainingMs)),
+        readTimeout: Math.max(1, Math.min(5000, remainingMs)),
+        maxLimit: MAX_IMAGE_BYTES,
         header: { 'accept': 'image/*' }
       });
       const status: number = Number(response.responseCode);

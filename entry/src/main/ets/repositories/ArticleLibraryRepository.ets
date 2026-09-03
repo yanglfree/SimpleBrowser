@@ -30,6 +30,14 @@ const CONTENT_TABLE: string = 'article_content';
 export class ArticleLibraryRepository {
   private store: relationalStore.RdbStore | undefined;
   private filesDirectory: string = '';
+  private mutationTail: Promise<void> = Promise.resolve();
+
+  async withMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const pending: Promise<T> = this.mutationTail.then(operation);
+    // Only the queue tail absorbs rejection; the caller still receives the original failure.
+    this.mutationTail = pending.then((): void => {}, (): void => {});
+    return await pending;
+  }
 
   async initialize(context: common.UIAbilityContext): Promise<void> {
     if (this.store !== undefined) {
@@ -53,7 +61,9 @@ export class ArticleLibraryRepository {
     images: ArticleImageAsset[] = []
   ): Promise<ArticleContent> {
     const store: relationalStore.RdbStore = this.requireStore();
+    const previousContent: ArticleContent | undefined = await this.getArticleContent(article.id);
     const content: ArticleContent = await this.writeContent(article.id, html, markdown, images);
+    const latest: SavedArticle | undefined = await this.getArticle(article.id);
     const values: relationalStore.ValuesBucket = {
       id: article.id,
       source_url: article.sourceUrl,
@@ -63,9 +73,9 @@ export class ArticleLibraryRepository {
       excerpt: article.excerpt,
       created_at: article.createdAt,
       updated_at: article.updatedAt,
-      reading_position: article.readingPosition,
-      tags_json: JSON.stringify(article.tags),
-      is_archived: article.isArchived ? 1 : 0,
+      reading_position: latest?.readingPosition ?? article.readingPosition,
+      tags_json: JSON.stringify(latest?.tags ?? article.tags),
+      is_archived: (latest?.isArchived ?? article.isArchived) ? 1 : 0,
       failure: article.failure,
       failure_message: article.failureMessage
     };
@@ -78,8 +88,26 @@ export class ArticleLibraryRepository {
       image_saved_count: content.imageSavedCount,
       image_failed_count: content.imageFailedCount
     };
-    await store.insert(ARTICLE_TABLE, values, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
-    await store.insert(CONTENT_TABLE, contentValues, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
+    values.quality = article.quality ?? 'partial';
+    values.image_saved_count = content.imageSavedCount;
+    values.image_failed_count = content.imageFailedCount;
+    store.beginTransaction();
+    try {
+      store.insertSync(ARTICLE_TABLE, values, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
+      store.insertSync(CONTENT_TABLE, contentValues, relationalStore.ConflictResolution.ON_CONFLICT_REPLACE);
+      store.commit();
+    } catch (error) {
+      store.rollBack();
+      await this.removeContentDirectory(content.htmlPath.substring(0, content.htmlPath.lastIndexOf('/')));
+      throw new Error('Article storage transaction failed');
+    }
+    if (previousContent !== undefined) {
+      const previousDirectory: string = previousContent.htmlPath.substring(0, previousContent.htmlPath.lastIndexOf('/'));
+      const versionPrefix: string = `${this.filesDirectory}/${article.id}/content-`;
+      if (previousDirectory.startsWith(versionPrefix)) {
+        await this.removeContentDirectory(previousDirectory);
+      }
+    }
     return content;
   }
 
@@ -206,10 +234,13 @@ export class ArticleLibraryRepository {
       while (result.goToNextRow()) {
         articles.push(this.readSavedArticle(result));
       }
-      return articles;
     } finally {
       result.close();
     }
+    for (const article of articles) {
+      article.topicNames = (await this.listTopicsForArticle(article.id)).map((topic: Topic): string => topic.name);
+    }
+    return articles;
   }
 
   async searchArticles(query: string): Promise<SavedArticle[]> {
@@ -217,8 +248,17 @@ export class ArticleLibraryRepository {
     const articles: SavedArticle[] = await this.listArticles();
     const matches: SavedArticle[] = [];
     for (const article of articles) {
-      const markdown: string | undefined = await this.readArticleMarkdown(article.id);
-      if (articleMatchesSearch(article, markdown ?? '', terms)) {
+      let markdown: string = '';
+      try {
+        markdown = await this.readArticleMarkdown(article.id) ?? '';
+      } catch (error) {
+        Logger.warn(TAG, 'Search skipped unavailable article content');
+      }
+      const topics: Topic[] = await this.listTopicsForArticle(article.id);
+      const notes: ArticleNote[] = await this.listNotes(article.id);
+      const searchable: string = [markdown, ...topics.map((topic: Topic): string => topic.name),
+        ...notes.map((note: ArticleNote): string => note.body)].join('\n');
+      if (articleMatchesSearch(article, searchable, terms)) {
         matches.push(article);
       }
     }
@@ -443,6 +483,9 @@ export class ArticleLibraryRepository {
   }
 
   private async migrateSchema(store: relationalStore.RdbStore): Promise<void> {
+    await this.addColumnIfMissing(store, ARTICLE_TABLE, 'quality', "TEXT NOT NULL DEFAULT 'partial'");
+    await this.addColumnIfMissing(store, ARTICLE_TABLE, 'image_saved_count', 'INTEGER NOT NULL DEFAULT 0');
+    await this.addColumnIfMissing(store, ARTICLE_TABLE, 'image_failed_count', 'INTEGER NOT NULL DEFAULT 0');
     await this.addColumnIfMissing(store, ARTICLE_TABLE, 'author', "TEXT NOT NULL DEFAULT ''");
     await this.addColumnIfMissing(store, ARTICLE_TABLE, 'reading_position', 'INTEGER NOT NULL DEFAULT 0');
     await this.addColumnIfMissing(store, ARTICLE_TABLE, 'tags_json', "TEXT NOT NULL DEFAULT '[]'");
@@ -489,7 +532,10 @@ export class ArticleLibraryRepository {
       tags: this.decodeTags(result.getString(result.getColumnIndex('tags_json'))),
       isArchived: result.getLong(result.getColumnIndex('is_archived')) === 1,
       failure: result.getLong(result.getColumnIndex('failure')) as ArticleSaveFailure,
-      failureMessage: result.getString(result.getColumnIndex('failure_message'))
+      failureMessage: result.getString(result.getColumnIndex('failure_message')),
+      quality: result.getString(result.getColumnIndex('quality')),
+      imageSavedCount: result.getLong(result.getColumnIndex('image_saved_count')),
+      imageFailedCount: result.getLong(result.getColumnIndex('image_failed_count'))
     });
   }
 
@@ -519,13 +565,18 @@ export class ArticleLibraryRepository {
     markdown: string,
     images: ArticleImageAsset[]
   ): Promise<ArticleContent> {
-    const articleDirectory: string = `${this.filesDirectory}/${articleId}`;
+    const articleDirectory: string = `${this.filesDirectory}/${articleId}/${createArticleRecordId('content')}`;
     const imageDirectoryPath: string = `${articleDirectory}/images`;
     await this.ensureDirectory(imageDirectoryPath);
     const htmlPath: string = `${articleDirectory}/article.html`;
     const markdownPath: string = `${articleDirectory}/article.md`;
-    await this.writeText(htmlPath, html);
-    await this.writeText(markdownPath, markdown);
+    try {
+      await this.writeText(htmlPath, html);
+      await this.writeText(markdownPath, markdown);
+    } catch (error) {
+      await this.removeContentDirectory(articleDirectory);
+      throw new Error('Article content could not be written');
+    }
     const imageResult: ArticleImageStoreResult = await ArticleImageStore.persist(images, imageDirectoryPath);
     return {
       articleId: articleId,
@@ -545,6 +596,58 @@ export class ArticleLibraryRepository {
       await fileIo.write(file.fd, content);
     } finally {
       await fileIo.close(file.fd);
+    }
+  }
+
+  async deleteArticle(articleId: string): Promise<void> {
+    await this.withMutation(async (): Promise<void> => {
+      const store: relationalStore.RdbStore = this.requireStore();
+      store.beginTransaction();
+      try {
+        for (const table of [CONTENT_TABLE, 'article_note', 'article_highlight', 'article_topic']) {
+          store.deleteSync(new relationalStore.RdbPredicates(table).equalTo('article_id', articleId));
+        }
+        store.deleteSync(new relationalStore.RdbPredicates(ARTICLE_TABLE).equalTo('id', articleId));
+        store.commit();
+      } catch (error) {
+        store.rollBack();
+        throw new Error('Article deletion failed');
+      }
+      if (/^article-\d+-\d+$/.test(articleId)) {
+        await this.removeContentDirectory(`${this.filesDirectory}/${articleId}`);
+      }
+    });
+  }
+
+  async updateNote(articleId: string, noteId: string, body: string): Promise<void> {
+    await this.withMutation(async (): Promise<void> => {
+      const predicates: relationalStore.RdbPredicates = new relationalStore.RdbPredicates('article_note')
+        .equalTo('id', noteId).equalTo('article_id', articleId);
+      await this.requireStore().update({ body: body.trim(), updated_at: Date.now() }, predicates);
+    });
+  }
+
+  async deleteAnnotation(articleId: string, id: string, isHighlight: boolean): Promise<void> {
+    await this.withMutation(async (): Promise<void> => {
+      await this.requireStore().delete(new relationalStore.RdbPredicates(
+        isHighlight ? 'article_highlight' : 'article_note').equalTo('id', id).equalTo('article_id', articleId));
+    });
+  }
+
+  async removeTopic(articleId: string, topicId: string): Promise<void> {
+    await this.withMutation(async (): Promise<void> => {
+      await this.requireStore().delete(new relationalStore.RdbPredicates('article_topic')
+        .equalTo('article_id', articleId).equalTo('topic_id', topicId));
+    });
+  }
+
+  private async removeContentDirectory(path: string): Promise<void> {
+    try {
+      if (await fileIo.access(path)) {
+        await fileIo.rmdir(path);
+      }
+    } catch (error) {
+      Logger.warn(TAG, 'Obsolete article files could not be removed');
     }
   }
 

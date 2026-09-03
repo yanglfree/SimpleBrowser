@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test reader-mode.test.mjs",
+    "test:articles": "node --test article-library.test.mjs article-storage.test.mjs",
     "test:live": "node live-canary.mjs",
     "serve": "node fixture-server.mjs"
   },

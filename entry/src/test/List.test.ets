@@ -15,6 +15,7 @@ import externalOpenRequestTest from './ExternalOpenRequest.test';
 import articleWorkbenchModelsTest from './ArticleWorkbenchModels.test';
 import articleExportServiceTest from './ArticleExportService.test';
 import articleLibraryModelsTest from './ArticleLibraryModels.test';
+import articleCaptureModelsTest from './ArticleCaptureModels.test';
 import articleHighlightLocatorTest from './ArticleHighlightLocator.test';
 import articleHighlightFactoryTest from './ArticleHighlightFactory.test';
 import articleSearchServiceTest from './ArticleSearchService.test';
@@ -50,6 +51,7 @@ export default function testsuite(): void {
   pageIssueDiagnosticServiceTest();
   articleExportServiceTest();
   articleLibraryModelsTest();
+  articleCaptureModelsTest();
   articleHighlightLocatorTest();
   articleHighlightFactoryTest();
   articleSearchServiceTest();

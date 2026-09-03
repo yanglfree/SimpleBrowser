@@ -36,6 +36,8 @@ export struct ActionSheet {
   @Prop isHome: boolean = false;
   @Prop isBookmarked: boolean = false;
   @Prop isReader: boolean = false;
+  @Prop isPrivate: boolean = false;
+  @Prop isSavingArticle: boolean = false;
   @Prop isDesktop: boolean = false;
   @State private page: number = 0;
   @State private dragOffset: number = 0;
@@ -259,6 +261,10 @@ export struct ActionSheet {
 
   private quickActions(): QuickAction[] {
     return [
+      {
+        key: 'save_article', label: this.isSavingArticle ? $r('app.string.article_saving') : $r('app.string.article_save'),
+        icon: IconName.Reader, enabled: !this.isHome && !this.isPrivate && !this.isSavingArticle, active: false
+      },
       {
         key: 'bookmark',
         label: this.isBookmarked ? $r('app.string.action_bookmark_remove') : $r('app.string.action_bookmark_add'),

@@ -1,7 +1,9 @@
 export enum ArticleSaveFailure {
   None = 0,
   ExtractionUnavailable = 1,
-  StorageUnavailable = 2
+  StorageUnavailable = 2,
+  PageChanged = 3,
+  CaptureInvalid = 4
 }
 
 export enum ArticleHighlightState {
@@ -23,6 +25,10 @@ export interface SavedArticle {
   isArchived: boolean;
   failure: ArticleSaveFailure;
   failureMessage: string;
+  quality?: string;
+  imageSavedCount?: number;
+  imageFailedCount?: number;
+  topicNames?: string[];
 }
 
 export interface ArticleContent {
@@ -88,7 +94,11 @@ export function cloneSavedArticle(article: SavedArticle): SavedArticle {
     tags: article.tags.slice(0),
     isArchived: article.isArchived,
     failure: article.failure,
-    failureMessage: article.failureMessage
+    failureMessage: article.failureMessage,
+    quality: article.quality ?? 'partial',
+    imageSavedCount: article.imageSavedCount ?? 0,
+    imageFailedCount: article.imageFailedCount ?? 0,
+    topicNames: article.topicNames?.slice() ?? []
   };
 }
 
