@@ -13,7 +13,22 @@ export class DefaultBrowserService {
   static async requestSetDefaultBrowser(context: common.UIAbilityContext): Promise<boolean> {
     const bundleName: string = context.abilityInfo?.bundleName ?? 'com.youdroid.zhuobrowser';
 
-    // 1. Try navigating to "Apps & Services" settings page (application_and_service_settings)
+    // 1. Try navigating directly to "Default Browser" settings page (default_browser_settings)
+    // where the user can directly choose ZhuoBrowser from the browser list.
+    try {
+      const defaultBrowserWant: Want = {
+        bundleName: SETTINGS_BUNDLE_NAME,
+        abilityName: SETTINGS_MAIN_ABILITY,
+        uri: 'default_browser_settings'
+      };
+      await context.startAbility(defaultBrowserWant);
+      Logger.info(TAG, 'Launched default_browser_settings');
+      return true;
+    } catch (defaultBrowserError) {
+      Logger.warn(TAG, `Failed to open default_browser_settings: ${String(defaultBrowserError)}`);
+    }
+
+    // 2. Try navigating to "Apps & Services" settings page (application_and_service_settings)
     // where "Default apps" (默认应用) is directly located.
     try {
       const appAndServiceWant: Want = {
@@ -28,7 +43,7 @@ export class DefaultBrowserService {
       Logger.warn(TAG, `Failed to open application_and_service_settings: ${String(appAndServiceError)}`);
     }
 
-    // 2. Try navigating to Application Info setting
+    // 3. Try navigating to Application Info setting
     try {
       const appInfoWant: Want = {
         bundleName: SETTINGS_BUNDLE_NAME,
@@ -45,7 +60,7 @@ export class DefaultBrowserService {
       Logger.warn(TAG, `Failed to open application_info_entry: ${String(appInfoError)}`);
     }
 
-    // 3. Fallback to main Settings
+    // 4. Fallback to main Settings
     try {
       const generalWant: Want = {
         bundleName: SETTINGS_BUNDLE_NAME,

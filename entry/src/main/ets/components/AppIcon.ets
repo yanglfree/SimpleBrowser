@@ -34,7 +34,8 @@ export enum IconName {
   Star = 28,
   WifiOff = 29,
   CloudOff = 30,
-  Globe = 31
+  Globe = 31,
+  Moon = 32
 }
 
 const COMMANDS: string[] = [
@@ -75,7 +76,8 @@ const COMMANDS: string[] = [
   'M1.42 9a16 16 0 0 1 21.16 0M5 12.55a11 11 0 0 1 14.08 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01M3 3l18 18',
   'M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10zM3 3l18 18',
   'M4 12a8 8 0 1 0 16 0a8 8 0 1 0-16 0'
-    + 'M12 4a11.6 11.6 0 0 0 0 16a11.6 11.6 0 0 0 0-16M4 12h16'
+    + 'M12 4a11.6 11.6 0 0 0 0 16a11.6 11.6 0 0 0 0-16M4 12h16',
+  'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'
 ];
 
 /** The grid every command string above is authored on. */

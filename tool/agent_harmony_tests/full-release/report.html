@@ -1,0 +1,1505 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZhuoBrowser Full Release Acceptance HarmonyOS physical-device QA Report</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; }
+    body { margin: 0; padding: 32px; background: Canvas; color: CanvasText; }
+    main { max-width: 1120px; margin: 0 auto; }
+    h1, h2, h3 { line-height: 1.2; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 28px; }
+    th, td { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: color-mix(in srgb, CanvasText 8%, transparent); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.94em; }
+    .status-passed { color: #027a48; font-weight: 700; }
+    .status-failed { color: #b42318; font-weight: 700; }
+    .status-blocked, .status-partial { color: #b54708; font-weight: 700; }
+    .status-not-run, .status-pending { color: #667085; font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin: 20px 0 28px; }
+    .metric { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 8px; padding: 14px 16px; }
+    .metric strong { display: block; font-size: 1.6rem; }
+    .case-result { border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent); padding-top: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ZhuoBrowser Full Release Acceptance HarmonyOS physical-device QA Report</h1>
+  <p>
+    Date: 2026-09-04<br>
+    Target: Huawei TLR-AL00, OpenHarmony-6.1.1.120, <code>4UQ9K25530058677</code><br>
+    App: ZhuoBrowser Full Release Acceptance <code>1.0.1 (1000001); exploratory working-tree candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
+    HAP: <code>output/full-device-qa-20260904/candidate-d4176fd72e7b.hap</code><br>
+    Auth source: none
+  </p>
+
+  <section class="summary" aria-label="Run summary">
+    <div class="metric"><strong>112</strong>Total cases</div>
+    <div class="metric"><strong>0</strong>Executed</div>
+    <div class="metric"><strong>0</strong>Passed</div>
+    <div class="metric"><strong>0</strong>Failed</div>
+    <div class="metric"><strong>0</strong>Blocked</div>
+    <div class="metric"><strong>112</strong>Not run</div>
+  </section>
+
+  <h2>Executive Summary</h2>
+  <p>
+    The agent QA suite contains 112 Harmony scenarios. This run executed 0 cases with fresh evidence.
+    Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
+  </p>
+
+  <h2>Coverage Matrix</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>Cases</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Startup, consent and onboarding</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>startup-01</code><br><code>startup-02</code><br><code>startup-03</code><br><code>startup-04</code><br><code>startup-05</code><br><code>startup-06</code><br><code>startup-07</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Address, navigation and page tools</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>navigation-01</code><br><code>navigation-02</code><br><code>navigation-03</code><br><code>navigation-04</code><br><code>navigation-05</code><br><code>navigation-06</code><br><code>navigation-07</code><br><code>navigation-08</code><br><code>navigation-09</code><br><code>navigation-10</code><br><code>navigation-11</code><br><code>navigation-12</code><br><code>navigation-13</code><br><code>navigation-14</code><br><code>navigation-15</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Tabs, session and resource limits</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>tabs-01</code><br><code>tabs-02</code><br><code>tabs-03</code><br><code>tabs-04</code><br><code>tabs-05</code><br><code>tabs-06</code><br><code>tabs-07</code><br><code>tabs-08</code><br><code>tabs-09</code><br><code>tabs-10</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Content blocking and site controls</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>blocking-01</code><br><code>blocking-02</code><br><code>blocking-03</code><br><code>blocking-04</code><br><code>blocking-05</code><br><code>blocking-06</code><br><code>blocking-07</code><br><code>blocking-08</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Online reader mode</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>reader-01</code><br><code>reader-02</code><br><code>reader-03</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Offline library, annotations and export</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>articles-01</code><br><code>articles-02</code><br><code>articles-03</code><br><code>articles-04</code><br><code>articles-05</code><br><code>articles-06</code><br><code>articles-07</code><br><code>articles-08</code><br><code>articles-09</code><br><code>articles-10</code><br><code>articles-11</code><br><code>articles-12</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Bookmarks, history and start page</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>saved-01</code><br><code>saved-02</code><br><code>saved-03</code><br><code>saved-04</code><br><code>saved-05</code><br><code>saved-06</code><br><code>saved-07</code><br><code>saved-08</code><br><code>saved-09</code><br><code>saved-10</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Downloads and native file operations</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>downloads-01</code><br><code>downloads-02</code><br><code>downloads-03</code><br><code>downloads-04</code><br><code>downloads-05</code><br><code>downloads-06</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Privacy data and site permissions</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>permissions-01</code><br><code>permissions-02</code><br><code>permissions-03</code><br><code>permissions-04</code><br><code>permissions-05</code><br><code>permissions-06</code><br><code>permissions-07</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>External entry, sharing and defaults</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>integration-01</code><br><code>integration-02</code><br><code>integration-03</code><br><code>integration-04</code><br><code>integration-05</code><br><code>integration-06</code><br><code>integration-07</code><br><code>integration-08</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Settings and appearance</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>appearance-01</code><br><code>appearance-02</code><br><code>appearance-03</code><br><code>appearance-04</code><br><code>appearance-05</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Membership and entitlement lifecycle</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>commerce-01</code><br><code>commerce-02</code><br><code>commerce-03</code><br><code>commerce-04</code><br><code>commerce-05</code><br><code>commerce-06</code><br><code>commerce-07</code><br><code>commerce-08</code><br><code>commerce-09</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Phone, tablet, windows and accessibility</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>responsive-01</code><br><code>responsive-02</code><br><code>responsive-03</code><br><code>responsive-04</code><br><code>responsive-05</code><br><code>responsive-06</code><br><code>responsive-07</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr>
+      <tr>
+        <td>Release and AGC gates</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>release-01</code><br><code>release-02</code><br><code>release-03</code><br><code>release-04</code><br><code>release-05</code></td>
+        <td>Fresh physical-device evidence required for every assertion.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Case Catalog</h2>
+  <table>
+    <thead><tr><th>Case</th><th>Priority</th><th>Title</th><th>Latest Status</th><th>Tags</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>startup-01</code></td>
+        <td>p0</td>
+        <td>Install and foreground the candidate</td>
+        <td class="status-not-run">not-run</td>
+        <td>startup</td>
+      </tr>
+      <tr>
+        <td><code>startup-02</code></td>
+        <td>p0</td>
+        <td>Cold, warm and background relaunch</td>
+        <td class="status-not-run">not-run</td>
+        <td>startup</td>
+      </tr>
+      <tr>
+        <td><code>startup-03</code></td>
+        <td>p0</td>
+        <td>First-use consent blocks browsing</td>
+        <td class="status-not-run">not-run</td>
+        <td>startup</td>
+      </tr>
+      <tr>
+        <td><code>startup-04</code></td>
+        <td>p0</td>
+        <td>Read both legal documents before consent</td>
+        <td class="status-not-run">not-run</td>
+        <td>startup</td>
+      </tr>
+      <tr>
+        <td><code>startup-05</code></td>
+        <td>p0</td>
+        <td>Accept consent and persist it</td>
+        <td class="status-not-run">not-run</td>
+        <td>startup</td>
+      </tr>
+      <tr>
+        <td><code>startup-06</code></td>
+        <td>p0</td>
+        <td>No nonessential processing before consent</td>
+        <td class="status-not-run">not-run</td>
+        <td>startup</td>
+      </tr>
+      <tr>
+        <td><code>startup-07</code></td>
+        <td>p1</td>
+        <td>Complete and skip onboarding</td>
+        <td class="status-not-run">not-run</td>
+        <td>startup</td>
+      </tr>
+      <tr>
+        <td><code>navigation-01</code></td>
+        <td>p0</td>
+        <td>Type and submit a URL</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-02</code></td>
+        <td>p1</td>
+        <td>Search through all preset engines</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-03</code></td>
+        <td>p1</td>
+        <td>Custom search template</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-04</code></td>
+        <td>p1</td>
+        <td>Suggestions and toggle</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-05</code></td>
+        <td>p0</td>
+        <td>Clipboard paste waits for submission</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-06</code></td>
+        <td>p1</td>
+        <td>Keyboard and URL shortcuts</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-07</code></td>
+        <td>p0</td>
+        <td>Back, forward and history list</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-08</code></td>
+        <td>p1</td>
+        <td>Reload and stop</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-09</code></td>
+        <td>p1</td>
+        <td>Link actions</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-10</code></td>
+        <td>p1</td>
+        <td>Find in page</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-11</code></td>
+        <td>p1</td>
+        <td>Zoom and minimum font size</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-12</code></td>
+        <td>p1</td>
+        <td>Mobile and desktop user agent</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-13</code></td>
+        <td>p1</td>
+        <td>Toolbar scrolling and navigation gestures</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-14</code></td>
+        <td>p0</td>
+        <td>Error recovery</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>navigation-15</code></td>
+        <td>p1</td>
+        <td>Connection security and password warning</td>
+        <td class="status-not-run">not-run</td>
+        <td>navigation</td>
+      </tr>
+      <tr>
+        <td><code>tabs-01</code></td>
+        <td>p0</td>
+        <td>New, switch and close tabs</td>
+        <td class="status-not-run">not-run</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>tabs-02</code></td>
+        <td>p1</td>
+        <td>Overview dismissal and recent tabs</td>
+        <td class="status-not-run">not-run</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>tabs-03</code></td>
+        <td>p0</td>
+        <td>Normal session restore</td>
+        <td class="status-not-run">not-run</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>tabs-04</code></td>
+        <td>p0</td>
+        <td>Private session isolation</td>
+        <td class="status-not-run">not-run</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>tabs-05</code></td>
+        <td>p1</td>
+        <td>Reopen closed and close-all</td>
+        <td class="status-not-run">not-run</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>tabs-06</code></td>
+        <td>p1</td>
+        <td>Tab soft limit and cleanup</td>
+        <td class="status-not-run">not-run</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>tabs-07</code></td>
+        <td>p1</td>
+        <td>Expired tab archival and restore</td>
+        <td class="status-not-run">not-run</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>tabs-08</code></td>
+        <td>p1</td>
+        <td>Hibernation and reading position</td>
+        <td class="status-not-run">not-run</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>tabs-09</code></td>
+        <td>p1</td>
+        <td>Form drafts and scroll resume</td>
+        <td class="status-not-run">not-run</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>tabs-10</code></td>
+        <td>p1</td>
+        <td>External keyboard shortcuts</td>
+        <td class="status-not-run">not-run</td>
+        <td>tabs</td>
+      </tr>
+      <tr>
+        <td><code>blocking-01</code></td>
+        <td>p0</td>
+        <td>Native request blocking</td>
+        <td class="status-not-run">not-run</td>
+        <td>blocking</td>
+      </tr>
+      <tr>
+        <td><code>blocking-02</code></td>
+        <td>p1</td>
+        <td>Trackers and cosmetic cleanup</td>
+        <td class="status-not-run">not-run</td>
+        <td>blocking</td>
+      </tr>
+      <tr>
+        <td><code>blocking-03</code></td>
+        <td>p1</td>
+        <td>Standard and strict modes</td>
+        <td class="status-not-run">not-run</td>
+        <td>blocking</td>
+      </tr>
+      <tr>
+        <td><code>blocking-04</code></td>
+        <td>p1</td>
+        <td>Site allow-list</td>
+        <td class="status-not-run">not-run</td>
+        <td>blocking</td>
+      </tr>
+      <tr>
+        <td><code>blocking-05</code></td>
+        <td>p1</td>
+        <td>Rule update progress and retry</td>
+        <td class="status-not-run">not-run</td>
+        <td>blocking</td>
+      </tr>
+      <tr>
+        <td><code>blocking-06</code></td>
+        <td>p1</td>
+        <td>Block events and statistics</td>
+        <td class="status-not-run">not-run</td>
+        <td>blocking</td>
+      </tr>
+      <tr>
+        <td><code>blocking-07</code></td>
+        <td>p1</td>
+        <td>Per-site override modes</td>
+        <td class="status-not-run">not-run</td>
+        <td>blocking</td>
+      </tr>
+      <tr>
+        <td><code>blocking-08</code></td>
+        <td>p1</td>
+        <td>Broken-page diagnostics</td>
+        <td class="status-not-run">not-run</td>
+        <td>blocking</td>
+      </tr>
+      <tr>
+        <td><code>reader-01</code></td>
+        <td>p0</td>
+        <td>Extract generic and long WeChat article</td>
+        <td class="status-not-run">not-run</td>
+        <td>reader</td>
+      </tr>
+      <tr>
+        <td><code>reader-02</code></td>
+        <td>p1</td>
+        <td>Reader appearance</td>
+        <td class="status-not-run">not-run</td>
+        <td>reader</td>
+      </tr>
+      <tr>
+        <td><code>reader-03</code></td>
+        <td>p1</td>
+        <td>Exit and unsupported page</td>
+        <td class="status-not-run">not-run</td>
+        <td>reader</td>
+      </tr>
+      <tr>
+        <td><code>articles-01</code></td>
+        <td>p0</td>
+        <td>Save from every entry</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-02</code></td>
+        <td>p0</td>
+        <td>Capture failures and retry</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-03</code></td>
+        <td>p0</td>
+        <td>Offline cold relaunch</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-04</code></td>
+        <td>p1</td>
+        <td>Library search and filtering</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-05</code></td>
+        <td>p1</td>
+        <td>Tags, topics and archive</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-06</code></td>
+        <td>p1</td>
+        <td>Highlights and locating text</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-07</code></td>
+        <td>p1</td>
+        <td>Notes</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-08</code></td>
+        <td>p0</td>
+        <td>HTML export</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-09</code></td>
+        <td>p1</td>
+        <td>Markdown export</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-10</code></td>
+        <td>p1</td>
+        <td>Delete an article</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-11</code></td>
+        <td>p0</td>
+        <td>Non-Pro access to owned data</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>articles-12</code></td>
+        <td>p0</td>
+        <td>Legacy article compatibility</td>
+        <td class="status-not-run">not-run</td>
+        <td>articles</td>
+      </tr>
+      <tr>
+        <td><code>saved-01</code></td>
+        <td>p1</td>
+        <td>Bookmark lifecycle</td>
+        <td class="status-not-run">not-run</td>
+        <td>saved</td>
+      </tr>
+      <tr>
+        <td><code>saved-02</code></td>
+        <td>p1</td>
+        <td>Read-later lifecycle</td>
+        <td class="status-not-run">not-run</td>
+        <td>saved</td>
+      </tr>
+      <tr>
+        <td><code>saved-03</code></td>
+        <td>p1</td>
+        <td>Bookmark HTML import</td>
+        <td class="status-not-run">not-run</td>
+        <td>saved</td>
+      </tr>
+      <tr>
+        <td><code>saved-04</code></td>
+        <td>p1</td>
+        <td>Bookmark HTML export</td>
+        <td class="status-not-run">not-run</td>
+        <td>saved</td>
+      </tr>
+      <tr>
+        <td><code>saved-05</code></td>
+        <td>p1</td>
+        <td>History entry and site deletion</td>
+        <td class="status-not-run">not-run</td>
+        <td>saved</td>
+      </tr>
+      <tr>
+        <td><code>saved-06</code></td>
+        <td>p1</td>
+        <td>History retention</td>
+        <td class="status-not-run">not-run</td>
+        <td>saved</td>
+      </tr>
+      <tr>
+        <td><code>saved-07</code></td>
+        <td>p1</td>
+        <td>Quick-site add and edit</td>
+        <td class="status-not-run">not-run</td>
+        <td>saved</td>
+      </tr>
+      <tr>
+        <td><code>saved-08</code></td>
+        <td>p1</td>
+        <td>Quick-site reorder and remove</td>
+        <td class="status-not-run">not-run</td>
+        <td>saved</td>
+      </tr>
+      <tr>
+        <td><code>saved-09</code></td>
+        <td>p1</td>
+        <td>Quick-site visibility, limit and icons</td>
+        <td class="status-not-run">not-run</td>
+        <td>saved</td>
+      </tr>
+      <tr>
+        <td><code>saved-10</code></td>
+        <td>p1</td>
+        <td>Start-page background</td>
+        <td class="status-not-run">not-run</td>
+        <td>saved</td>
+      </tr>
+      <tr>
+        <td><code>downloads-01</code></td>
+        <td>p0</td>
+        <td>Download to public directory</td>
+        <td class="status-not-run">not-run</td>
+        <td>downloads</td>
+      </tr>
+      <tr>
+        <td><code>downloads-02</code></td>
+        <td>p1</td>
+        <td>Pause, resume and concurrency</td>
+        <td class="status-not-run">not-run</td>
+        <td>downloads</td>
+      </tr>
+      <tr>
+        <td><code>downloads-03</code></td>
+        <td>p1</td>
+        <td>Cancel and retry</td>
+        <td class="status-not-run">not-run</td>
+        <td>downloads</td>
+      </tr>
+      <tr>
+        <td><code>downloads-04</code></td>
+        <td>p0</td>
+        <td>Mobile and large-download policy</td>
+        <td class="status-not-run">not-run</td>
+        <td>downloads</td>
+      </tr>
+      <tr>
+        <td><code>downloads-05</code></td>
+        <td>p1</td>
+        <td>Open and share completed file</td>
+        <td class="status-not-run">not-run</td>
+        <td>downloads</td>
+      </tr>
+      <tr>
+        <td><code>downloads-06</code></td>
+        <td>p1</td>
+        <td>Downloads persist and missing files recover</td>
+        <td class="status-not-run">not-run</td>
+        <td>downloads</td>
+      </tr>
+      <tr>
+        <td><code>permissions-01</code></td>
+        <td>p1</td>
+        <td>Camera permission</td>
+        <td class="status-not-run">not-run</td>
+        <td>permissions</td>
+      </tr>
+      <tr>
+        <td><code>permissions-02</code></td>
+        <td>p1</td>
+        <td>Microphone permission</td>
+        <td class="status-not-run">not-run</td>
+        <td>permissions</td>
+      </tr>
+      <tr>
+        <td><code>permissions-03</code></td>
+        <td>p1</td>
+        <td>Location permission</td>
+        <td class="status-not-run">not-run</td>
+        <td>permissions</td>
+      </tr>
+      <tr>
+        <td><code>permissions-04</code></td>
+        <td>p1</td>
+        <td>Persist and remove permission decisions</td>
+        <td class="status-not-run">not-run</td>
+        <td>permissions</td>
+      </tr>
+      <tr>
+        <td><code>permissions-05</code></td>
+        <td>p1</td>
+        <td>Cookie persistence and clear-on-close</td>
+        <td class="status-not-run">not-run</td>
+        <td>permissions</td>
+      </tr>
+      <tr>
+        <td><code>permissions-06</code></td>
+        <td>p0</td>
+        <td>Clear browsing data selection</td>
+        <td class="status-not-run">not-run</td>
+        <td>permissions</td>
+      </tr>
+      <tr>
+        <td><code>permissions-07</code></td>
+        <td>p0</td>
+        <td>Telemetry opt-in and opt-out</td>
+        <td class="status-not-run">not-run</td>
+        <td>permissions</td>
+      </tr>
+      <tr>
+        <td><code>integration-01</code></td>
+        <td>p0</td>
+        <td>External URL and shared-text entry</td>
+        <td class="status-not-run">not-run</td>
+        <td>integration</td>
+      </tr>
+      <tr>
+        <td><code>integration-02</code></td>
+        <td>p1</td>
+        <td>Disposable and private external tasks</td>
+        <td class="status-not-run">not-run</td>
+        <td>integration</td>
+      </tr>
+      <tr>
+        <td><code>integration-03</code></td>
+        <td>p1</td>
+        <td>External protocol confirmation</td>
+        <td class="status-not-run">not-run</td>
+        <td>integration</td>
+      </tr>
+      <tr>
+        <td><code>integration-04</code></td>
+        <td>p0</td>
+        <td>Blocked and internal protocols</td>
+        <td class="status-not-run">not-run</td>
+        <td>integration</td>
+      </tr>
+      <tr>
+        <td><code>integration-05</code></td>
+        <td>p1</td>
+        <td>Default-browser flow</td>
+        <td class="status-not-run">not-run</td>
+        <td>integration</td>
+      </tr>
+      <tr>
+        <td><code>integration-06</code></td>
+        <td>p1</td>
+        <td>Copy and system link sharing</td>
+        <td class="status-not-run">not-run</td>
+        <td>integration</td>
+      </tr>
+      <tr>
+        <td><code>integration-07</code></td>
+        <td>p1</td>
+        <td>Page and long screenshot sharing</td>
+        <td class="status-not-run">not-run</td>
+        <td>integration</td>
+      </tr>
+      <tr>
+        <td><code>integration-08</code></td>
+        <td>p2</td>
+        <td>Drag-and-drop content</td>
+        <td class="status-not-run">not-run</td>
+        <td>integration</td>
+      </tr>
+      <tr>
+        <td><code>appearance-01</code></td>
+        <td>p1</td>
+        <td>System, light and dark appearance</td>
+        <td class="status-not-run">not-run</td>
+        <td>appearance</td>
+      </tr>
+      <tr>
+        <td><code>appearance-02</code></td>
+        <td>p1</td>
+        <td>Web dark mode and exclusion</td>
+        <td class="status-not-run">not-run</td>
+        <td>appearance</td>
+      </tr>
+      <tr>
+        <td><code>appearance-03</code></td>
+        <td>p1</td>
+        <td>Search settings and persistence</td>
+        <td class="status-not-run">not-run</td>
+        <td>appearance</td>
+      </tr>
+      <tr>
+        <td><code>appearance-04</code></td>
+        <td>p0</td>
+        <td>About, terms and privacy</td>
+        <td class="status-not-run">not-run</td>
+        <td>appearance</td>
+      </tr>
+      <tr>
+        <td><code>appearance-05</code></td>
+        <td>p1</td>
+        <td>Modal dismissal and rapid actions</td>
+        <td class="status-not-run">not-run</td>
+        <td>appearance</td>
+      </tr>
+      <tr>
+        <td><code>commerce-01</code></td>
+        <td>p0</td>
+        <td>Product catalog and plan selection</td>
+        <td class="status-not-run">not-run</td>
+        <td>commerce</td>
+      </tr>
+      <tr>
+        <td><code>commerce-02</code></td>
+        <td>p0</td>
+        <td>Purchase terms and cancellation</td>
+        <td class="status-not-run">not-run</td>
+        <td>commerce</td>
+      </tr>
+      <tr>
+        <td><code>commerce-03</code></td>
+        <td>p0</td>
+        <td>Monthly sandbox purchase</td>
+        <td class="status-not-run">not-run</td>
+        <td>commerce</td>
+      </tr>
+      <tr>
+        <td><code>commerce-04</code></td>
+        <td>p0</td>
+        <td>Yearly sandbox purchase</td>
+        <td class="status-not-run">not-run</td>
+        <td>commerce</td>
+      </tr>
+      <tr>
+        <td><code>commerce-05</code></td>
+        <td>p0</td>
+        <td>Lifetime sandbox purchase</td>
+        <td class="status-not-run">not-run</td>
+        <td>commerce</td>
+      </tr>
+      <tr>
+        <td><code>commerce-06</code></td>
+        <td>p0</td>
+        <td>Restore and interrupted recovery</td>
+        <td class="status-not-run">not-run</td>
+        <td>commerce</td>
+      </tr>
+      <tr>
+        <td><code>commerce-07</code></td>
+        <td>p0</td>
+        <td>Offline and server error</td>
+        <td class="status-not-run">not-run</td>
+        <td>commerce</td>
+      </tr>
+      <tr>
+        <td><code>commerce-08</code></td>
+        <td>p0</td>
+        <td>Renewal, expiry and refund</td>
+        <td class="status-not-run">not-run</td>
+        <td>commerce</td>
+      </tr>
+      <tr>
+        <td><code>commerce-09</code></td>
+        <td>p0</td>
+        <td>Account switch and reinstall</td>
+        <td class="status-not-run">not-run</td>
+        <td>commerce</td>
+      </tr>
+      <tr>
+        <td><code>responsive-01</code></td>
+        <td>p0</td>
+        <td>Phone portrait and landscape</td>
+        <td class="status-not-run">not-run</td>
+        <td>responsive</td>
+      </tr>
+      <tr>
+        <td><code>responsive-02</code></td>
+        <td>p1</td>
+        <td>Tablet and constrained window</td>
+        <td class="status-not-run">not-run</td>
+        <td>responsive</td>
+      </tr>
+      <tr>
+        <td><code>responsive-03</code></td>
+        <td>p1</td>
+        <td>Split reading workspace</td>
+        <td class="status-not-run">not-run</td>
+        <td>responsive</td>
+      </tr>
+      <tr>
+        <td><code>responsive-04</code></td>
+        <td>p1</td>
+        <td>Desktop tab pinning and reordering</td>
+        <td class="status-not-run">not-run</td>
+        <td>responsive</td>
+      </tr>
+      <tr>
+        <td><code>responsive-05</code></td>
+        <td>p1</td>
+        <td>Multiple windows</td>
+        <td class="status-not-run">not-run</td>
+        <td>responsive</td>
+      </tr>
+      <tr>
+        <td><code>responsive-06</code></td>
+        <td>p2</td>
+        <td>Foldable hinge transition</td>
+        <td class="status-not-run">not-run</td>
+        <td>responsive</td>
+      </tr>
+      <tr>
+        <td><code>responsive-07</code></td>
+        <td>p1</td>
+        <td>Large text and accessibility</td>
+        <td class="status-not-run">not-run</td>
+        <td>responsive</td>
+      </tr>
+      <tr>
+        <td><code>release-01</code></td>
+        <td>p0</td>
+        <td>Candidate source and verification</td>
+        <td class="status-not-run">not-run</td>
+        <td>release</td>
+      </tr>
+      <tr>
+        <td><code>release-02</code></td>
+        <td>p0</td>
+        <td>Specified-device portal delivery</td>
+        <td class="status-not-run">not-run</td>
+        <td>release</td>
+      </tr>
+      <tr>
+        <td><code>release-03</code></td>
+        <td>p0</td>
+        <td>AGC metadata and products</td>
+        <td class="status-not-run">not-run</td>
+        <td>release</td>
+      </tr>
+      <tr>
+        <td><code>release-04</code></td>
+        <td>p0</td>
+        <td>AGC artifact upload and association</td>
+        <td class="status-not-run">not-run</td>
+        <td>release</td>
+      </tr>
+      <tr>
+        <td><code>release-05</code></td>
+        <td>p0</td>
+        <td>Submit review</td>
+        <td class="status-not-run">not-run</td>
+        <td>release</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Latest Run Evidence</h2>
+
+      <section class="case-result">
+        <h3><code>startup-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>startup-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>startup-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>startup-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>startup-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>startup-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>startup-07</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-07</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-08</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-09</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-10</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-11</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-12</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-13</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-14</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>navigation-15</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>tabs-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>tabs-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>tabs-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>tabs-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>tabs-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>tabs-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>tabs-07</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>tabs-08</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>tabs-09</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>tabs-10</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>blocking-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>blocking-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>blocking-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>blocking-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>blocking-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>blocking-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>blocking-07</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>blocking-08</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>reader-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>reader-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>reader-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-07</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-08</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-09</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-10</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-11</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>articles-12</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>saved-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>saved-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>saved-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>saved-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>saved-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>saved-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>saved-07</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>saved-08</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>saved-09</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>saved-10</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>downloads-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>downloads-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>downloads-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>downloads-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>downloads-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>downloads-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>permissions-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>permissions-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>permissions-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>permissions-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>permissions-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>permissions-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>permissions-07</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>integration-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>integration-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>integration-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>integration-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>integration-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>integration-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>integration-07</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>integration-08</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>appearance-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>appearance-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>appearance-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>appearance-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>appearance-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>commerce-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>commerce-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>commerce-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>commerce-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>commerce-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>commerce-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>commerce-07</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>commerce-08</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>commerce-09</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>responsive-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>responsive-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>responsive-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>responsive-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>responsive-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>responsive-06</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>responsive-07</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>release-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>release-02</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>release-03</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>release-04</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>release-05</code> <span class="status-not-run">not-run</span></h3>
+        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+
+  <h2>Validation</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Known Exclusions</h2>
+  <p>Historical reports are references only. Existing edits were explicitly accepted into the candidate by the user; concurrent edits must finish before final source freeze. Never claim all-pass from unit tests or exploratory builds.</p>
+</main>
+</body>
+</html>

@@ -547,6 +547,7 @@ export class BrowserRepository {
               preference: entry.preference
             }))
           : fallback.siteUserAgentPreferences,
+        privacyConsentAccepted: parsed.privacyConsentAccepted ?? fallback.privacyConsentAccepted,
         onboardingCompleted: parsed.onboardingCompleted ?? fallback.onboardingCompleted,
         appearance: parsed.appearance ?? fallback.appearance,
         webDarkMode: parsed.webDarkMode ?? fallback.webDarkMode,

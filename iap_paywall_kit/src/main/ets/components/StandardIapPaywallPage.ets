@@ -15,6 +15,7 @@ import {
   IapPaywallTheme,
   NoopPaywallPurchaseAdapter
 } from '../models/IapPaywallModels'
+import { getPaywallItemKey } from '../models/IapPaywallSelection'
 import { PendingPurchaseRecovery, PurchaseRecoveryResult } from '../models/PendingPurchaseRecovery'
 
 const TAG = 'StandardIapPaywallPage'
@@ -806,7 +807,7 @@ export struct StandardIapPaywallPage {
           }
           ForEach(this.products, (product: IapPaywallProduct) => {
             this.PlanRow(product)
-          }, (product: IapPaywallProduct) => product.productId)
+          }, (product: IapPaywallProduct) => getPaywallItemKey(product, this.selectedPlan, this.isTrialSelected))
         }
         .width('100%')
       } else {
@@ -817,7 +818,7 @@ export struct StandardIapPaywallPage {
           }
           ForEach(this.products, (product: IapPaywallProduct) => {
             this.PlanColumn(product)
-          }, (product: IapPaywallProduct) => product.productId)
+          }, (product: IapPaywallProduct) => getPaywallItemKey(product, this.selectedPlan, this.isTrialSelected))
         }
         .width('100%')
         .alignItems(VerticalAlign.Top)
@@ -1126,13 +1127,14 @@ export struct StandardIapPaywallPage {
   }
 
   private canPurchaseSelectedPlan(): boolean {
-    const isWorking = this.isPurchasing || this.isStartingTrial;
+    const isWorking = this.isPurchasing || this.isStartingTrial
     const selectedProduct = this.products.find((product: IapPaywallProduct) => product.plan === this.selectedPlan)
     const hasRequiredDisclosure = this.isTrialSelected || this.agreedPurchaseTerms
     const available = this.isTrialSelected || (this.isEnvironmentReady && !this.isPurchaseCoolingDown())
     return hasRequiredDisclosure && !isWorking && available &&
-      (this.isTrialSelected || (this.productSource === IapPaywallProductSource.LIVE_STORE && selectedProduct !== undefined &&
-      selectedProduct.source === IapPaywallProductSource.LIVE_STORE && this.hasValidCtaFormat(selectedProduct)))
+      (this.isTrialSelected || (this.productSource === IapPaywallProductSource.LIVE_STORE &&
+      selectedProduct !== undefined && selectedProduct.source === IapPaywallProductSource.LIVE_STORE &&
+      this.hasValidCtaFormat(selectedProduct)))
   }
 
   @Builder
@@ -1403,7 +1405,8 @@ export struct StandardIapPaywallPage {
 
     try {
       const selectedProduct = this.products.find((product: IapPaywallProduct) => product.plan === this.selectedPlan)
-      if (!selectedProduct) {
+      if (!selectedProduct || this.productSource !== IapPaywallProductSource.LIVE_STORE ||
+        selectedProduct.source !== IapPaywallProductSource.LIVE_STORE || !this.hasValidCtaFormat(selectedProduct)) {
         hilog.error(0x0000, TAG, 'Selected paywall product is unavailable')
         return
       }
@@ -1561,9 +1564,6 @@ export struct StandardIapPaywallPage {
   private getPurchaseButtonLabel(): ResourceStr {
     if (this.isPurchaseCoolingDown()) {
       return this.config.copy.purchaseRetryLater
-    }
-    if (!this.agreedPurchaseTerms) {
-      return this.config.copy.agreeTermsToContinue
     }
     if (this.isTrialSelected) {
       return this.trialCtaLabel

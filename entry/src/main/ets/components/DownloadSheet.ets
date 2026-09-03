@@ -1,5 +1,7 @@
 import { AppIcon, IconName } from './AppIcon';
-import { DownloadTask, DownloadTaskStatus } from '../services/DownloadService';
+import { DownloadTask } from '../services/DownloadService';
+import { DownloadTaskRow } from './DownloadTaskRow';
+import { emptyDownloadTask } from '../services/DownloadPresentation';
 
 @Component
 export struct DownloadSheet {
@@ -52,7 +54,16 @@ export struct DownloadSheet {
         Scroll() {
           Column({ space: 10 }) {
             ForEach(this.tasks, (task: DownloadTask) => {
-              this.TaskRow(task)
+              DownloadTaskRow({
+                task: this.taskFor(task.id),
+                onPause: this.onPause,
+                onResume: this.onResume,
+                onRetry: this.onRetry,
+                onOpen: this.onOpen,
+                onShare: this.onShare,
+                onDeleteFile: this.onDeleteFile,
+                onDeleteRecord: this.onDeleteRecord
+              })
             }, (task: DownloadTask) => task.id)
           }
           .width('100%')
@@ -70,121 +81,8 @@ export struct DownloadSheet {
     .backgroundColor($r('app.color.page_background'))
   }
 
-  @Builder
-  private TaskRow(task: DownloadTask) {
-    Column({ space: 8 }) {
-      Row({ space: 8 }) {
-        Text(task.fileName)
-          .fontSize(14)
-          .fontColor($r('app.color.text_primary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .layoutWeight(1)
-        Text(this.statusText(task.status))
-          .fontSize(12)
-          .fontColor(task.status === DownloadTaskStatus.Failed
-            ? $r('app.color.text_secondary')
-            : $r('app.color.accent'))
-      }
-      Stack({ alignContent: Alignment.Start }) {
-        Row()
-          .width('100%')
-          .height(5)
-          .borderRadius(3)
-          .backgroundColor($r('app.color.bar_track'))
-        Row()
-          .width(`${this.progress(task)}%`)
-          .height(5)
-          .borderRadius(3)
-          .backgroundColor($r('app.color.bar_fill'))
-      }
-      .width('100%')
-      .height(5)
-      Row({ space: 8 }) {
-        Text(this.progressLabel(task))
-          .fontSize(11)
-          .fontColor($r('app.color.text_secondary'))
-          .layoutWeight(1)
-        if (task.status === DownloadTaskStatus.Downloading) {
-          Text($r('app.string.download_pause'))
-            .fontSize(12)
-            .fontColor($r('app.color.accent'))
-            .onClick(() => this.onPause(task.id))
-        } else if (task.status === DownloadTaskStatus.Paused) {
-          Text($r('app.string.download_resume'))
-            .fontSize(12)
-            .fontColor($r('app.color.accent'))
-            .onClick(() => this.onResume(task.id))
-        } else if (task.status === DownloadTaskStatus.Failed || task.status === DownloadTaskStatus.Canceled) {
-          Text($r('app.string.download_retry'))
-            .fontSize(12)
-            .fontColor($r('app.color.accent'))
-            .onClick(() => this.onRetry(task.id))
-        }
-        if (task.status === DownloadTaskStatus.Completed) {
-          Text($r('app.string.download_open'))
-            .fontSize(12)
-            .fontColor($r('app.color.accent'))
-            .accessibilityText($r('app.string.download_open'))
-            .onClick(() => this.onOpen(task))
-          Text($r('app.string.download_share'))
-            .fontSize(12)
-            .fontColor($r('app.color.accent'))
-            .accessibilityText($r('app.string.download_share'))
-            .onClick(() => this.onShare(task))
-        }
-        Text($r('app.string.download_delete_record'))
-          .fontSize(12)
-          .fontColor($r('app.color.text_secondary'))
-          .accessibilityText($r('app.string.download_delete_record'))
-          .onClick(() => this.onDeleteRecord(task.id))
-        if (task.status === DownloadTaskStatus.Completed) {
-          Text($r('app.string.download_delete_file'))
-            .fontSize(12)
-            .fontColor($r('app.color.text_secondary'))
-            .accessibilityText($r('app.string.download_delete_file'))
-            .onClick(() => this.onDeleteFile(task.id))
-        }
-      }
-      .width('100%')
-    }
-    .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .borderRadius(16)
-    .backgroundColor($r('app.color.surface_panel'))
-    .border({ width: 1, color: $r('app.color.border') })
+  private taskFor(id: string): DownloadTask {
+    return this.tasks.find((task: DownloadTask): boolean => task.id === id) ?? emptyDownloadTask();
   }
 
-  private progress(task: DownloadTask): number {
-    return task.progress < 0 ? 0 : Math.min(100, Math.max(0, task.progress));
-  }
-
-  private progressLabel(task: DownloadTask): ResourceStr {
-    if (task.status === DownloadTaskStatus.Completed) {
-      return $r('app.string.download_completed');
-    }
-    if (task.status === DownloadTaskStatus.Failed) {
-      return $r('app.string.download_failed');
-    }
-    if (task.progress < 0) {
-      return $r('app.string.download_progress_unknown');
-    }
-    return `${Math.floor(task.progress)}%`;
-  }
-
-  private statusText(status: DownloadTaskStatus): Resource {
-    if (status === DownloadTaskStatus.Downloading) {
-      return $r('app.string.download_status_downloading');
-    }
-    if (status === DownloadTaskStatus.Paused) {
-      return $r('app.string.download_status_paused');
-    }
-    if (status === DownloadTaskStatus.Pending) {
-      return $r('app.string.download_status_pending');
-    }
-    if (status === DownloadTaskStatus.Completed) {
-      return $r('app.string.download_status_completed');
-    }
-    return $r('app.string.download_status_failed');
-  }
 }

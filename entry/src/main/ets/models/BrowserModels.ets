@@ -271,6 +271,7 @@ export interface BrowserSettings {
   siteZoomRatios: SiteZoomRatio[];
   defaultUserAgentPreference: UserAgentPreference;
   siteUserAgentPreferences: SiteUserAgentPreference[];
+  privacyConsentAccepted: boolean;
   onboardingCompleted: boolean;
   appearance: AppearanceMode;
   webDarkMode: WebDarkModePreference;
@@ -375,6 +376,7 @@ export function defaultBrowserSettings(): BrowserSettings {
     siteZoomRatios: [],
     defaultUserAgentPreference: UserAgentPreference.Default,
     siteUserAgentPreferences: [],
+    privacyConsentAccepted: false,
     onboardingCompleted: false,
     appearance: AppearanceMode.System,
     webDarkMode: WebDarkModePreference.System,
@@ -473,6 +475,7 @@ export function normalizeBrowserSettings(settings: BrowserSettings): BrowserSett
         host: entry.host,
         preference: entry.preference
       })),
+    privacyConsentAccepted: settings.privacyConsentAccepted === true,
     onboardingCompleted: settings.onboardingCompleted,
     appearance: settings.appearance,
     webDarkMode: settings.webDarkMode,

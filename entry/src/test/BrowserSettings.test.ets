@@ -101,5 +101,18 @@ export default function browserSettingsTest(): void {
 
       expect(normalized.quickSiteLimit).assertEqual(8);
     });
+
+    it('defaults privacy consent to false and preserves accepted status through normalization', 0, (): void => {
+      const initial: BrowserSettings = defaultBrowserSettings();
+      expect(initial.privacyConsentAccepted).assertFalse();
+
+      initial.privacyConsentAccepted = true;
+      const cloned: BrowserSettings = cloneSettings(initial);
+      expect(cloned.privacyConsentAccepted).assertTrue();
+
+      initial.privacyConsentAccepted = false;
+      const clonedFalse: BrowserSettings = cloneSettings(initial);
+      expect(clonedFalse.privacyConsentAccepted).assertFalse();
+    });
   });
 }

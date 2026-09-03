@@ -399,23 +399,41 @@ export struct ArticleLibrarySheet {
 
   @Builder
   private ArticleActions(article: SavedArticle) {
-    Flex({ wrap: FlexWrap.Wrap }) {
-      Button($r('app.string.article_open_source')).fontSize(12).height(36).margin(4)
-        .onClick(() => this.onOpenSource(article))
-      Button($r('app.string.article_retry')).fontSize(12).height(36).margin(4)
-        .onClick(() => this.onRetry(article))
-      Button($r('app.string.article_delete')).fontSize(12).height(36).margin(4)
-        .onClick(() => this.onDelete(article))
-      if (isReadableSavedArticle(article)) {
-        Button(article.isArchived ? $r('app.string.article_unarchive') : $r('app.string.article_archive'))
-          .fontSize(12).height(36).margin(4).onClick(() => this.onArchive(!article.isArchived))
-        Button($r('app.string.article_export_markdown')).fontSize(12).height(36).margin(4)
-          .onClick(() => this.onExport(ArticleExportFormat.Markdown))
-        Button($r('app.string.article_export_html')).fontSize(12).height(36).margin(4)
-          .onClick(() => this.onExport(ArticleExportFormat.StandaloneHtml))
+    Scroll() {
+      Row({ space: 8 }) {
+        Button($r('app.string.article_open_source'))
+          .fontSize(12)
+          .height(36)
+          .onClick(() => this.onOpenSource(article))
+        Button($r('app.string.article_retry'))
+          .fontSize(12)
+          .height(36)
+          .onClick(() => this.onRetry(article))
+        if (isReadableSavedArticle(article)) {
+          Button(article.isArchived ? $r('app.string.article_unarchive') : $r('app.string.article_archive'))
+            .fontSize(12)
+            .height(36)
+            .onClick(() => this.onArchive(!article.isArchived))
+          Button($r('app.string.article_export_markdown'))
+            .fontSize(12)
+            .height(36)
+            .onClick(() => this.onExport(ArticleExportFormat.Markdown))
+          Button($r('app.string.article_export_html'))
+            .fontSize(12)
+            .height(36)
+            .onClick(() => this.onExport(ArticleExportFormat.StandaloneHtml))
+        }
+        Button($r('app.string.article_delete'))
+          .fontSize(12)
+          .height(36)
+          .onClick(() => this.onDelete(article))
       }
+      .padding({ left: 16, right: 16, top: 4, bottom: 4 })
     }
-    .padding({ left: 16, right: 16 })
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring)
+    .width('100%')
   }
 
   @Builder

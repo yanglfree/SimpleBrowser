@@ -64,6 +64,17 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
   one tappable target with a stable `tab-launcher` id for UI automation.
 - **Motion**: no decorative motion; the tab overview owns its 200ms opacity entry.
 
+### First-launch privacy consent dialog
+
+- **Structure**: centered modal card on dark scrim (`maxWidth: 560vp`, `maxHeight: 680vp`,
+  `24vp` corner radius) with `ShieldCheck` icon, title, subtitle, sunken dual-tab
+  document container (`用户协议` / `隐私协议`) with independent scrollable sections and
+  external web link, agreement checkbox row, and primary `同意并继续` button.
+- **Escape prevention**: dialog cannot be dismissed by tapping outside scrim or pressing
+  the system back key until user explicitly accepts.
+- **State**: agreement button is disabled until checkbox is explicitly toggled; accepting
+  persists `privacyConsentAccepted: true` and proceeds to onboarding if uncompleted.
+
 ### First-run onboarding
 
 - **Compact layout**: the illustration and copy form one content group centered in

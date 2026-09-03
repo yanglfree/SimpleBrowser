@@ -15,6 +15,11 @@ export {
   NoopPaywallPurchaseAdapter
 } from './src/main/ets/models/IapPaywallModels'
 
-export { IapPaywallSelection, selectPaywallProduct, defaultPaywallSelection } from './src/main/ets/models/IapPaywallSelection'
+export {
+  IapPaywallSelection,
+  selectPaywallProduct,
+  defaultPaywallSelection,
+  getPaywallItemKey
+} from './src/main/ets/models/IapPaywallSelection'
 
 export { StandardIapPaywallPage } from './src/main/ets/components/StandardIapPaywallPage'

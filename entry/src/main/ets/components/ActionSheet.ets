@@ -39,6 +39,7 @@ export struct ActionSheet {
   @Prop isPrivate: boolean = false;
   @Prop isSavingArticle: boolean = false;
   @Prop isDesktop: boolean = false;
+  @Prop isWebDarkMode: boolean = false;
   @State private page: number = 0;
   @State private dragOffset: number = 0;
   onDismiss: () => void = (): void => {};
@@ -253,9 +254,14 @@ export struct ActionSheet {
     return [
       this.action('home', $r('app.string.home'), IconName.Home, !this.isHome, this.isHome, false),
       this.action('private', $r('app.string.new_private_tab'), IconName.Incognito, true, false, false),
-      this.action('favorites', $r('app.string.favorites'), IconName.Bookmark, true, false, true),
+      this.action('favorites', $r('app.string.edit_favorites'), IconName.Bookmark, true, false, true),
+      this.action('recent_tabs', $r('app.string.recent_tabs_title'), IconName.Tabs, true, false, false),
       this.action('desktop', $r('app.string.action_desktop'), IconName.Desktop,
-        !this.isHome, this.isDesktop, false)
+        !this.isHome, this.isDesktop, false),
+      this.action('web_dark_mode', $r('app.string.web_dark_mode'), IconName.Moon,
+        true, this.isWebDarkMode, false),
+      this.action('search_engine', $r('app.string.default_search_engine'), IconName.Search,
+        true, false, false)
     ];
   }
 
@@ -274,7 +280,6 @@ export struct ActionSheet {
       },
       { key: 'history', label: $r('app.string.history_title'), icon: IconName.Clock, enabled: true, active: false },
       { key: 'downloads', label: $r('app.string.download_title'), icon: IconName.Download, enabled: true, active: false },
-      { key: 'recent_tabs', label: $r('app.string.recent_tabs_title'), icon: IconName.Tabs, enabled: true, active: false },
       {
         key: 'article_library', label: $r('app.string.article_library'), icon: IconName.Reader,
         enabled: true, active: false

@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium';
-import { historyHeaderTopPadding } from '../main/ets/components/HistorySheet';
+import { historyHeaderTopPadding, resolveHistoryEntryDeleteTarget } from '../main/ets/components/HistorySheet';
 import { readerApplyScript } from '../main/ets/constants/AppConstants';
-import { ReaderPaper, getReaderTheme } from '../main/ets/models/BrowserModels';
+import { HistoryEntry, ReaderPaper, SavedItem, getReaderTheme } from '../main/ets/models/BrowserModels';
 import {
   SCREENSHOT_CACHE_RETENTION_MS,
   buildLinkShareRecord,
@@ -67,6 +67,39 @@ export default function browserReportedBugsTest(): void {
       expect(script.includes('-webkit-touch-callout:default !important')).assertTrue();
       expect(script.includes('document.onselectstart = null')).assertTrue();
       expect(script.includes('document.oncopy = null')).assertTrue();
+    });
+
+    it('resolves history entry deletion target id for history and saved items', 0, (): void => {
+      const historyEntry: HistoryEntry = {
+        id: 'hist-123',
+        title: 'Example',
+        url: 'https://example.com',
+        visitedAt: 1000,
+        visitCount: 1
+      };
+      const savedItems: SavedItem[] = [
+        {
+          id: 'fav-456',
+          title: 'Saved Example',
+          url: 'https://example.com',
+          createdAt: 500,
+          updatedAt: 500,
+          isRead: false,
+          tags: []
+        }
+      ];
+
+      expect(resolveHistoryEntryDeleteTarget(historyEntry, false, savedItems)).assertEqual('hist-123');
+      expect(resolveHistoryEntryDeleteTarget(historyEntry, true, savedItems)).assertEqual('fav-456');
+
+      const savedSearchEntry: HistoryEntry = {
+        id: 'saved-search-fav-456',
+        title: 'Saved Example',
+        url: 'https://example.com',
+        visitedAt: 500,
+        visitCount: 0
+      };
+      expect(resolveHistoryEntryDeleteTarget(savedSearchEntry, false, savedItems)).assertEqual('fav-456');
     });
   });
 }

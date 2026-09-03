@@ -20,6 +20,11 @@ iap_paywall_kit/.test/
 node_modules/
 .playwright-cli/
 
+# Device unlock credentials and editor recovery files must remain local.
+/.env
+/.env.*
+!/.env.example
+
 # Mobile distribution production bindings and local dependencies.
 /cloudflare/mobile-distribution/wrangler.production.jsonc
 /cloudflare/mobile-distribution/node_modules/

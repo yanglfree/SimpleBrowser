@@ -48,3 +48,12 @@ export function selectPaywallProduct(
 export function defaultPaywallSelection(products: IapPaywallProduct[]): IapPaywallSelection | undefined {
   return selectPaywallProduct(products, IapPaywallPlan.YEARLY, false)
 }
+
+export function getPaywallItemKey(
+  product: IapPaywallProduct,
+  selectedPlan: IapPaywallPlan,
+  isTrialSelected: boolean = false
+): string {
+  const isSelected = !isTrialSelected && product.plan === selectedPlan
+  return `${product.productId}_${isSelected ? '1' : '0'}_${product.priceLabel}_${product.discountLabel}`
+}

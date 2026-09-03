@@ -1,0 +1,4536 @@
+{
+  "runner": {
+    "appName": "ZhuoBrowser Full Release Acceptance",
+    "platformName": "HarmonyOS physical-device QA",
+    "bundleId": "com.youdroid.zhuobrowser"
+  },
+  "coverageAreas": [
+    {
+      "title": "Startup, consent and onboarding",
+      "status": "not-run",
+      "caseIds": [
+        "startup-01",
+        "startup-02",
+        "startup-03",
+        "startup-04",
+        "startup-05",
+        "startup-06",
+        "startup-07"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Address, navigation and page tools",
+      "status": "not-run",
+      "caseIds": [
+        "navigation-01",
+        "navigation-02",
+        "navigation-03",
+        "navigation-04",
+        "navigation-05",
+        "navigation-06",
+        "navigation-07",
+        "navigation-08",
+        "navigation-09",
+        "navigation-10",
+        "navigation-11",
+        "navigation-12",
+        "navigation-13",
+        "navigation-14",
+        "navigation-15"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Tabs, session and resource limits",
+      "status": "not-run",
+      "caseIds": [
+        "tabs-01",
+        "tabs-02",
+        "tabs-03",
+        "tabs-04",
+        "tabs-05",
+        "tabs-06",
+        "tabs-07",
+        "tabs-08",
+        "tabs-09",
+        "tabs-10"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Content blocking and site controls",
+      "status": "not-run",
+      "caseIds": [
+        "blocking-01",
+        "blocking-02",
+        "blocking-03",
+        "blocking-04",
+        "blocking-05",
+        "blocking-06",
+        "blocking-07",
+        "blocking-08"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Online reader mode",
+      "status": "not-run",
+      "caseIds": [
+        "reader-01",
+        "reader-02",
+        "reader-03"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Offline library, annotations and export",
+      "status": "not-run",
+      "caseIds": [
+        "articles-01",
+        "articles-02",
+        "articles-03",
+        "articles-04",
+        "articles-05",
+        "articles-06",
+        "articles-07",
+        "articles-08",
+        "articles-09",
+        "articles-10",
+        "articles-11",
+        "articles-12"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Bookmarks, history and start page",
+      "status": "not-run",
+      "caseIds": [
+        "saved-01",
+        "saved-02",
+        "saved-03",
+        "saved-04",
+        "saved-05",
+        "saved-06",
+        "saved-07",
+        "saved-08",
+        "saved-09",
+        "saved-10"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Downloads and native file operations",
+      "status": "not-run",
+      "caseIds": [
+        "downloads-01",
+        "downloads-02",
+        "downloads-03",
+        "downloads-04",
+        "downloads-05",
+        "downloads-06"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Privacy data and site permissions",
+      "status": "not-run",
+      "caseIds": [
+        "permissions-01",
+        "permissions-02",
+        "permissions-03",
+        "permissions-04",
+        "permissions-05",
+        "permissions-06",
+        "permissions-07"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "External entry, sharing and defaults",
+      "status": "not-run",
+      "caseIds": [
+        "integration-01",
+        "integration-02",
+        "integration-03",
+        "integration-04",
+        "integration-05",
+        "integration-06",
+        "integration-07",
+        "integration-08"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Settings and appearance",
+      "status": "not-run",
+      "caseIds": [
+        "appearance-01",
+        "appearance-02",
+        "appearance-03",
+        "appearance-04",
+        "appearance-05"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Membership and entitlement lifecycle",
+      "status": "not-run",
+      "caseIds": [
+        "commerce-01",
+        "commerce-02",
+        "commerce-03",
+        "commerce-04",
+        "commerce-05",
+        "commerce-06",
+        "commerce-07",
+        "commerce-08",
+        "commerce-09"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Phone, tablet, windows and accessibility",
+      "status": "not-run",
+      "caseIds": [
+        "responsive-01",
+        "responsive-02",
+        "responsive-03",
+        "responsive-04",
+        "responsive-05",
+        "responsive-06",
+        "responsive-07"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    },
+    {
+      "title": "Release and AGC gates",
+      "status": "not-run",
+      "caseIds": [
+        "release-01",
+        "release-02",
+        "release-03",
+        "release-04",
+        "release-05"
+      ],
+      "notes": "Fresh physical-device evidence required for every assertion."
+    }
+  ],
+  "cases": [
+    {
+      "id": "startup-01",
+      "title": "Install and foreground the candidate",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "startup"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/pages/Index.ets",
+        "entry/src/main/ets/components/PrivacyConsentDialog.ets",
+        "entry/src/main/ets/components/OnboardingSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Fresh-data cases require a disposable device/profile or explicit data-reset authorization"
+      ],
+      "steps": [
+        "Record package metadata and digest",
+        "Install with data-preserving replacement",
+        "Launch EntryAbility and inspect UI"
+      ],
+      "assertions": [
+        "Correct bundle/version and digest",
+        "App is foreground and interactive"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "startup-02",
+      "title": "Cold, warm and background relaunch",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "startup"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/pages/Index.ets",
+        "entry/src/main/ets/components/PrivacyConsentDialog.ets",
+        "entry/src/main/ets/components/OnboardingSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Fresh-data cases require a disposable device/profile or explicit data-reset authorization"
+      ],
+      "steps": [
+        "Open a QA page",
+        "Background and foreground",
+        "Stop the app process and relaunch twice"
+      ],
+      "assertions": [
+        "No blank screen or initialization error",
+        "Normal session persists"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "startup-03",
+      "title": "First-use consent blocks browsing",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "startup"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/pages/Index.ets",
+        "entry/src/main/ets/components/PrivacyConsentDialog.ets",
+        "entry/src/main/ets/components/OnboardingSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Fresh-data cases require a disposable device/profile or explicit data-reset authorization"
+      ],
+      "steps": [
+        "Use an authorized fresh app-data fixture",
+        "Launch",
+        "Tap backdrop and system Back",
+        "Inspect unchecked acceptance"
+      ],
+      "assertions": [
+        "Consent remains visible",
+        "Continue stays disabled until checked",
+        "No page interaction through overlay"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "startup-04",
+      "title": "Read both legal documents before consent",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "startup"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/pages/Index.ets",
+        "entry/src/main/ets/components/PrivacyConsentDialog.ets",
+        "entry/src/main/ets/components/OnboardingSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Fresh-data cases require a disposable device/profile or explicit data-reset authorization"
+      ],
+      "steps": [
+        "Open Terms and Privacy tabs",
+        "Scroll each document to the end",
+        "Return to consent"
+      ],
+      "assertions": [
+        "Both documents readable independently",
+        "Choice remains unchecked"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "startup-05",
+      "title": "Accept consent and persist it",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "startup"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/pages/Index.ets",
+        "entry/src/main/ets/components/PrivacyConsentDialog.ets",
+        "entry/src/main/ets/components/OnboardingSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Fresh-data cases require a disposable device/profile or explicit data-reset authorization"
+      ],
+      "steps": [
+        "Check consent through the UI",
+        "Accept",
+        "Relaunch"
+      ],
+      "assertions": [
+        "Dialog closes immediately",
+        "Consent persists",
+        "Next launch does not prompt again"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "startup-06",
+      "title": "No nonessential processing before consent",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "startup"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/pages/Index.ets",
+        "entry/src/main/ets/components/PrivacyConsentDialog.ets",
+        "entry/src/main/ets/components/OnboardingSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Fresh-data cases require a disposable device/profile or explicit data-reset authorization"
+      ],
+      "steps": [
+        "Monitor fresh-launch requests and app events before consent",
+        "Accept and compare"
+      ],
+      "assertions": [
+        "No entitlement/account/clipboard/telemetry processing before consent",
+        "Required services start after consent"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "startup-07",
+      "title": "Complete and skip onboarding",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "startup"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/pages/Index.ets",
+        "entry/src/main/ets/components/PrivacyConsentDialog.ets",
+        "entry/src/main/ets/components/OnboardingSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Fresh-data cases require a disposable device/profile or explicit data-reset authorization"
+      ],
+      "steps": [
+        "Run complete and skip flows on separate fresh fixtures",
+        "Choose search engine",
+        "Relaunch"
+      ],
+      "assertions": [
+        "Choices persist",
+        "Onboarding does not repeat",
+        "Browsing is reachable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-01",
+      "title": "Type and submit a URL",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open address field",
+        "Replace selected URL with controlled HTTP then HTTPS URL",
+        "Submit"
+      ],
+      "assertions": [
+        "Editing alone does not navigate",
+        "Correct destination loads"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-02",
+      "title": "Search through all preset engines",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Select Bing, Baidu, Google and DuckDuckGo in turn",
+        "Submit QA query",
+        "Restore original engine"
+      ],
+      "assertions": [
+        "Encoded query uses selected provider",
+        "Provider network failures distinguished from routing defects"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-03",
+      "title": "Custom search template",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Enter invalid custom template",
+        "Correct it using a controlled query endpoint",
+        "Search",
+        "Restore setting"
+      ],
+      "assertions": [
+        "Invalid template rejected",
+        "Valid template substitutes encoded query"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-04",
+      "title": "Suggestions and toggle",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Create QA history and bookmark",
+        "Type matching prefix",
+        "Disable suggestions and repeat"
+      ],
+      "assertions": [
+        "Relevant suggestions appear",
+        "Disabled suggestions stop external query completion"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-05",
+      "title": "Clipboard paste waits for submission",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Copy controlled URL using app Copy Link",
+        "Paste via native edit menu",
+        "Inspect page before and after submit"
+      ],
+      "assertions": [
+        "Paste edits text only",
+        "Explicit submit navigates"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-06",
+      "title": "Keyboard and URL shortcuts",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Select URL",
+        "Use www, scheme and domain shortcuts",
+        "Rotate with keyboard open",
+        "Cancel"
+      ],
+      "assertions": [
+        "No malformed scheme",
+        "Actions visible",
+        "Cancel preserves page"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-07",
+      "title": "Back, forward and history list",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Navigate fixture A to B to C",
+        "Use Back and Forward",
+        "Long-press navigation control and select earlier item"
+      ],
+      "assertions": [
+        "Correct page and enabled state",
+        "History entry route is reachable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-08",
+      "title": "Reload and stop",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Load slow controlled page",
+        "Stop",
+        "Reload"
+      ],
+      "assertions": [
+        "Stop clears loading state",
+        "Reload retries the same page"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-09",
+      "title": "Link actions",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Long-press fixture link",
+        "Open in foreground and background tab",
+        "Copy and inspect link",
+        "Cancel share"
+      ],
+      "assertions": [
+        "Correct URL and tab behavior",
+        "No unsolicited external send"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-10",
+      "title": "Find in page",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Find repeated QA marker",
+        "Next and previous",
+        "Search absent marker",
+        "Close"
+      ],
+      "assertions": [
+        "Accurate match count and selection",
+        "Zero-match state",
+        "Close restores page"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-11",
+      "title": "Zoom and minimum font size",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Set site zoom and minimum font",
+        "Open another host",
+        "Relaunch",
+        "Restore settings"
+      ],
+      "assertions": [
+        "Per-host zoom persists without leaking to other host",
+        "Font floor takes effect"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-12",
+      "title": "Mobile and desktop user agent",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Use controlled UA echo page",
+        "Set once, always and global default",
+        "Reset exceptions"
+      ],
+      "assertions": [
+        "Server receives expected UA",
+        "Persistence matches selected scope"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-13",
+      "title": "Toolbar scrolling and navigation gestures",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Scroll long fixture",
+        "Exercise edge navigation, address swipe and pull refresh",
+        "Disable gesture controls",
+        "Use buttons"
+      ],
+      "assertions": [
+        "Toolbar can be recovered",
+        "Disabled gestures do not trigger actions",
+        "Buttons remain usable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-14",
+      "title": "Error recovery",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open unreachable and controlled slow URLs",
+        "Inspect error",
+        "Restore connectivity and Retry"
+      ],
+      "assertions": [
+        "Actionable DNS/offline/timeout feedback",
+        "Retry recovers without losing tab"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "navigation-15",
+      "title": "Connection security and password warning",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "navigation"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/AddressSheet.ets",
+        "entry/src/main/ets/components/BrowserDock.ets",
+        "entry/src/main/ets/pages/Index.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open valid HTTPS and controlled HTTP login fixture",
+        "Inspect security details",
+        "Focus dummy password field"
+      ],
+      "assertions": [
+        "Correct security state",
+        "No certificate error bypass",
+        "Insecure-password warning"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "tabs-01",
+      "title": "New, switch and close tabs",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "tabs"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/TabOverview.ets",
+        "entry/src/main/ets/viewmodels/BrowserViewModel.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Create three QA tabs",
+        "Switch via overview",
+        "Close middle tab by button and another by swipe"
+      ],
+      "assertions": [
+        "Exactly selected tab closes",
+        "Remaining controls work",
+        "Overview state consistent"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "tabs-02",
+      "title": "Overview dismissal and recent tabs",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "tabs"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/TabOverview.ets",
+        "entry/src/main/ets/viewmodels/BrowserViewModel.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Dismiss overview via background",
+        "Reopen",
+        "Long-press counter",
+        "Select recent QA tab"
+      ],
+      "assertions": [
+        "Close controls survive dismissal",
+        "Recent list matches privacy mode"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "tabs-03",
+      "title": "Normal session restore",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "tabs"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/TabOverview.ets",
+        "entry/src/main/ets/viewmodels/BrowserViewModel.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Create QA pages",
+        "Cold relaunch",
+        "Inspect active tab and order"
+      ],
+      "assertions": [
+        "Normal URLs and active selection persist",
+        "No duplicate tabs"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "tabs-04",
+      "title": "Private session isolation",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "tabs"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/TabOverview.ets",
+        "entry/src/main/ets/viewmodels/BrowserViewModel.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open unique QA URL privately",
+        "Inspect history and saved library",
+        "Close and relaunch"
+      ],
+      "assertions": [
+        "Private visit absent from history/session/library",
+        "Private cookies isolated"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "tabs-05",
+      "title": "Reopen closed and close-all",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "tabs"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/TabOverview.ets",
+        "entry/src/main/ets/viewmodels/BrowserViewModel.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "On disposable session close a normal tab",
+        "Reopen using shortcut",
+        "Close all",
+        "Repeat private closure"
+      ],
+      "assertions": [
+        "Normal tab restores",
+        "Private tab not resurrected",
+        "Usable home remains"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "tabs-06",
+      "title": "Tab soft limit and cleanup",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "tabs"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/TabOverview.ets",
+        "entry/src/main/ets/viewmodels/BrowserViewModel.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "On disposable session lower limit",
+        "Create tabs above limit",
+        "Cancel then choose cleanup"
+      ],
+      "assertions": [
+        "Prompt allows recovery",
+        "Pinned and current tabs protected according to policy"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "tabs-07",
+      "title": "Expired tab archival and restore",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "tabs"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/TabOverview.ets",
+        "entry/src/main/ets/viewmodels/BrowserViewModel.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Use legitimate aged-session fixture",
+        "Launch",
+        "Inspect archive prompt",
+        "Restore"
+      ],
+      "assertions": [
+        "Expired normal tabs restore with correct identity",
+        "Private data never archived"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "tabs-08",
+      "title": "Hibernation and reading position",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "tabs"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/TabOverview.ets",
+        "entry/src/main/ets/viewmodels/BrowserViewModel.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Lower live-webview budget",
+        "Visit multiple long QA pages",
+        "Return to hibernated page",
+        "Restore budget"
+      ],
+      "assertions": [
+        "Page reattaches",
+        "Reading position recovers",
+        "No blank view or duplicate navigation"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "tabs-09",
+      "title": "Form drafts and scroll resume",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "tabs"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/TabOverview.ets",
+        "entry/src/main/ets/viewmodels/BrowserViewModel.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Enter dummy non-sensitive form and scroll",
+        "Switch/relaunch",
+        "Choose resume and start-over variants"
+      ],
+      "assertions": [
+        "Resume prompt behavior correct",
+        "No sensitive password persistence"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "tabs-10",
+      "title": "External keyboard shortcuts",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "tabs"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/TabOverview.ets",
+        "entry/src/main/ets/viewmodels/BrowserViewModel.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Attach keyboard",
+        "Focus address/new/close/reopen/switch/reload/find shortcuts"
+      ],
+      "assertions": [
+        "Each command affects expected tab",
+        "Shortcuts respect modal consent"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "blocking-01",
+      "title": "Native request blocking",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "blocking"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/AdsBlockService.ets",
+        "entry/src/main/ets/components/BlockPanel.ets",
+        "entry/src/main/ets/components/SiteControlSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Load controlled allowed content and matching ad URLs",
+        "Inspect server requests and panel"
+      ],
+      "assertions": [
+        "Ad request blocked",
+        "Normal content works",
+        "Counters have corresponding events"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "blocking-02",
+      "title": "Trackers and cosmetic cleanup",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "blocking"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/AdsBlockService.ets",
+        "entry/src/main/ets/components/BlockPanel.ets",
+        "entry/src/main/ets/components/SiteControlSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Load tracker and cosmetic fixtures",
+        "Toggle relevant controls",
+        "Reload"
+      ],
+      "assertions": [
+        "Script blocking and cosmetic hiding follow settings",
+        "Repeated cleanup is idempotent"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "blocking-03",
+      "title": "Standard and strict modes",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "blocking"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/AdsBlockService.ets",
+        "entry/src/main/ets/components/BlockPanel.ets",
+        "entry/src/main/ets/components/SiteControlSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Switch rule strength on controlled fixture",
+        "Reload",
+        "Restore"
+      ],
+      "assertions": [
+        "Mode changes intended categories",
+        "Core page remains navigable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "blocking-04",
+      "title": "Site allow-list",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "blocking"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/AdsBlockService.ets",
+        "entry/src/main/ets/components/BlockPanel.ets",
+        "entry/src/main/ets/components/SiteControlSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Allow a QA host",
+        "Reload",
+        "Inspect another host",
+        "Remove exception"
+      ],
+      "assertions": [
+        "Only target host bypasses blocking",
+        "Removal restores blocking"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "blocking-05",
+      "title": "Rule update progress and retry",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "blocking"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/AdsBlockService.ets",
+        "entry/src/main/ets/components/BlockPanel.ets",
+        "entry/src/main/ets/components/SiteControlSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Update rules",
+        "Tap again while busy",
+        "Observe completion",
+        "Repeat offline"
+      ],
+      "assertions": [
+        "Busy label and spinner update",
+        "No duplicate task/toast",
+        "Failure preserves previous usable rules"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "blocking-06",
+      "title": "Block events and statistics",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "blocking"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/AdsBlockService.ets",
+        "entry/src/main/ets/components/BlockPanel.ets",
+        "entry/src/main/ets/components/SiteControlSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Trigger known QA categories",
+        "Inspect event list, site and weekly totals",
+        "Repeat in private tab"
+      ],
+      "assertions": [
+        "Events and totals consistent",
+        "Private activity not persisted"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "blocking-07",
+      "title": "Per-site override modes",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "blocking"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/AdsBlockService.ets",
+        "entry/src/main/ets/components/BlockPanel.ets",
+        "entry/src/main/ets/components/SiteControlSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Cycle inherit/on/off for network, trackers, cosmetic, reader, dark mode and desktop UA",
+        "Reload another host",
+        "Reset"
+      ],
+      "assertions": [
+        "Each field governs corresponding behavior",
+        "Overrides remain scoped to host"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "blocking-08",
+      "title": "Broken-page diagnostics",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "blocking"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/AdsBlockService.ets",
+        "entry/src/main/ets/components/BlockPanel.ets",
+        "entry/src/main/ets/components/SiteControlSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open QA failing page",
+        "Generate diagnosis",
+        "Inspect/copy report",
+        "Cancel external share"
+      ],
+      "assertions": [
+        "Report is readable and actionable",
+        "No sensitive form data or unsolicited transmission"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "reader-01",
+      "title": "Extract generic and long WeChat article",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "reader"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ReaderBar.ets",
+        "entry/src/main/ets/constants/AppConstants.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Load frozen article fixtures and original live article",
+        "Enter reader",
+        "Compare beginning, middle, ending and images"
+      ],
+      "assertions": [
+        "No omitted ending or duplicated paragraphs",
+        "Quality status reflects completeness"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "reader-02",
+      "title": "Reader appearance",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "reader"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ReaderBar.ets",
+        "entry/src/main/ets/constants/AppConstants.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Cycle font sizes, line heights and white/sepia/night themes",
+        "Relaunch",
+        "Restore"
+      ],
+      "assertions": [
+        "All settings apply and persist",
+        "Text remains readable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "reader-03",
+      "title": "Exit and unsupported page",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "reader"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ReaderBar.ets",
+        "entry/src/main/ets/constants/AppConstants.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Exit reader after scrolling",
+        "Try reader on non-article fixture"
+      ],
+      "assertions": [
+        "Original page restored",
+        "Unsupported extraction has actionable feedback"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-01",
+      "title": "Save from every entry",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Save one QA article from menu, reader, external share and library URL input"
+      ],
+      "assertions": [
+        "Every entry produces readable record",
+        "Canonical duplicate handling correct"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-02",
+      "title": "Capture failures and retry",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Save unreachable URL",
+        "Retry after recovery",
+        "Refresh existing article offline"
+      ],
+      "assertions": [
+        "Pending state terminates",
+        "Feedback and retry work",
+        "Prior content/notes survive failed refresh"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-03",
+      "title": "Offline cold relaunch",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Save text and images",
+        "Record network settings and disable connectivity",
+        "Cold launch and reopen",
+        "Restore network"
+      ],
+      "assertions": [
+        "Text and saved images readable offline",
+        "Offset persists",
+        "Original network settings restored"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-04",
+      "title": "Library search and filtering",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Create QA titles, bodies, tags, notes and topics",
+        "Search each",
+        "Combine filters and clear query"
+      ],
+      "assertions": [
+        "Relevant results and empty states",
+        "No stale results when query changes"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-05",
+      "title": "Tags, topics and archive",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Add/remove tags and topic",
+        "Archive/unarchive",
+        "Relaunch"
+      ],
+      "assertions": [
+        "Organization persists",
+        "Counts and filters update"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-06",
+      "title": "Highlights and locating text",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Select across formatted text",
+        "Highlight",
+        "Locate from annotation panel",
+        "Delete QA highlight"
+      ],
+      "assertions": [
+        "Correct text range",
+        "Jump succeeds",
+        "Deletion scoped to selected annotation"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-07",
+      "title": "Notes",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Add, edit and delete QA note",
+        "Cancel edit once",
+        "Relaunch"
+      ],
+      "assertions": [
+        "Content persists",
+        "Cancel preserves prior content",
+        "Failures retain input"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-08",
+      "title": "HTML export",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Export QA article via system picker",
+        "Cancel once",
+        "Export and open in another app offline"
+      ],
+      "assertions": [
+        "Cancellation neutral",
+        "Portable text/images/annotations",
+        "No app-private paths required"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-09",
+      "title": "Markdown export",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Export QA article as Markdown",
+        "Open output and inspect image references"
+      ],
+      "assertions": [
+        "Complete content",
+        "Images portable",
+        "Write errors surfaced"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-10",
+      "title": "Delete an article",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Create disposable article",
+        "Cancel deletion",
+        "Confirm deletion"
+      ],
+      "assertions": [
+        "Cancel preserves article",
+        "Only selected article and owned assets removed"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-11",
+      "title": "Non-Pro access to owned data",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Use legitimate expired/non-Pro fixture with existing articles",
+        "Read/export",
+        "Attempt save/update"
+      ],
+      "assertions": [
+        "Existing content remains accessible",
+        "New paid operations gated",
+        "No fabricated entitlement"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "articles-12",
+      "title": "Legacy article compatibility",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "articles"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/ArticleLibrarySheet.ets",
+        "entry/src/main/ets/repositories/ArticleLibraryRepository.ets",
+        "entry/src/main/ets/services/ArticleExportService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Use legitimate Pro sandbox access for paid operations"
+      ],
+      "steps": [
+        "Use prior-version library fixture",
+        "Upgrade without clearing data",
+        "Read/edit/export"
+      ],
+      "assertions": [
+        "Old records remain readable",
+        "No initialization/migration data loss"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "saved-01",
+      "title": "Bookmark lifecycle",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "saved"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/HistorySheet.ets",
+        "entry/src/main/ets/components/QuickSiteEditor.ets",
+        "entry/src/main/ets/services/BookmarkTransferService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Bookmark QA page",
+        "Rename, tag and reopen",
+        "Unbookmark QA item"
+      ],
+      "assertions": [
+        "State and saved marker consistent",
+        "Page opens correctly"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "saved-02",
+      "title": "Read-later lifecycle",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "saved"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/HistorySheet.ets",
+        "entry/src/main/ets/components/QuickSiteEditor.ets",
+        "entry/src/main/ets/services/BookmarkTransferService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Save QA page for later",
+        "Mark read/unread",
+        "Search and delete QA item"
+      ],
+      "assertions": [
+        "Read status persists",
+        "Bookmarks and read-later remain distinct"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "saved-03",
+      "title": "Bookmark HTML import",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "saved"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/HistorySheet.ets",
+        "entry/src/main/ets/components/QuickSiteEditor.ets",
+        "entry/src/main/ets/services/BookmarkTransferService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Import controlled Netscape HTML with duplicates and invalid links",
+        "Cancel picker once"
+      ],
+      "assertions": [
+        "Valid records retained",
+        "Duplicates handled",
+        "No injection or destructive overwrite"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "saved-04",
+      "title": "Bookmark HTML export",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "saved"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/HistorySheet.ets",
+        "entry/src/main/ets/components/QuickSiteEditor.ets",
+        "entry/src/main/ets/services/BookmarkTransferService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Export controlled bookmarks",
+        "Reimport output in isolated fixture"
+      ],
+      "assertions": [
+        "Names, URLs and tags represented correctly",
+        "User-owned items preserved"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "saved-05",
+      "title": "History entry and site deletion",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "saved"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/HistorySheet.ets",
+        "entry/src/main/ets/components/QuickSiteEditor.ets",
+        "entry/src/main/ets/services/BookmarkTransferService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Visit two QA hosts",
+        "Search history",
+        "Delete one QA visit and one QA host"
+      ],
+      "assertions": [
+        "Only target entries removed",
+        "Private visits absent"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "saved-06",
+      "title": "History retention",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "saved"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/HistorySheet.ets",
+        "entry/src/main/ets/components/QuickSiteEditor.ets",
+        "entry/src/main/ets/services/BookmarkTransferService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Use dated disposable history fixture",
+        "Change retention",
+        "Relaunch"
+      ],
+      "assertions": [
+        "Only out-of-range data pruned",
+        "Current setting persists"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "saved-07",
+      "title": "Quick-site add and edit",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "saved"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/HistorySheet.ets",
+        "entry/src/main/ets/components/QuickSiteEditor.ets",
+        "entry/src/main/ets/services/BookmarkTransferService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Add QA shortcut",
+        "Try invalid URL",
+        "Edit title/URL with keyboard open"
+      ],
+      "assertions": [
+        "Validation recoverable",
+        "Actions reachable",
+        "Correct URL opens"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "saved-08",
+      "title": "Quick-site reorder and remove",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "saved"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/HistorySheet.ets",
+        "entry/src/main/ets/components/QuickSiteEditor.ets",
+        "entry/src/main/ets/services/BookmarkTransferService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Long-press QA shortcut",
+        "Drag reorder",
+        "Hide it",
+        "Inspect bookmark and history"
+      ],
+      "assertions": [
+        "Ordering persists",
+        "Hiding does not delete bookmark/history"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "saved-09",
+      "title": "Quick-site visibility, limit and icons",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "saved"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/HistorySheet.ets",
+        "entry/src/main/ets/components/QuickSiteEditor.ets",
+        "entry/src/main/ets/services/BookmarkTransferService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Toggle quick sites",
+        "Set tile limits",
+        "Open sites with custom icons"
+      ],
+      "assertions": [
+        "Limit honored",
+        "Visibility persists",
+        "Icon failure has fallback"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "saved-10",
+      "title": "Start-page background",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "saved"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/HistorySheet.ets",
+        "entry/src/main/ets/components/QuickSiteEditor.ets",
+        "entry/src/main/ets/services/BookmarkTransferService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Choose built-in/none/custom image",
+        "Cancel picker",
+        "Relaunch",
+        "Restore"
+      ],
+      "assertions": [
+        "Correct image state persists",
+        "Cancellation neutral",
+        "Layout and text readable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "downloads-01",
+      "title": "Download to public directory",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "downloads"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/DownloadService.ets",
+        "entry/src/main/ets/components/DownloadSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Download small controlled text and image files",
+        "Open Downloads"
+      ],
+      "assertions": [
+        "Task completes with correct size/name",
+        "File exists in public Downloads"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "downloads-02",
+      "title": "Pause, resume and concurrency",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "downloads"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/DownloadService.ets",
+        "entry/src/main/ets/components/DownloadSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Start slow controlled download and queued second task",
+        "Pause/resume",
+        "Change limit"
+      ],
+      "assertions": [
+        "Progress resumes without corrupting bytes",
+        "Queue obeys limit"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "downloads-03",
+      "title": "Cancel and retry",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "downloads"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/DownloadService.ets",
+        "entry/src/main/ets/components/DownloadSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Cancel disposable task",
+        "Trigger network failure",
+        "Retry after recovery"
+      ],
+      "assertions": [
+        "Cancelled task stops",
+        "Retry succeeds",
+        "No duplicate task or partial success"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "downloads-04",
+      "title": "Mobile and large-download policy",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "downloads"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/DownloadService.ets",
+        "entry/src/main/ets/components/DownloadSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Use controlled cellular/size threshold fixtures",
+        "Cancel then permit QA download"
+      ],
+      "assertions": [
+        "Readable message without object placeholders",
+        "No download before decision",
+        "Decision affects correct task"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "downloads-05",
+      "title": "Open and share completed file",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "downloads"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/DownloadService.ets",
+        "entry/src/main/ets/components/DownloadSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open QA completed download",
+        "Share through native sheet to a local receiving app",
+        "Cancel once"
+      ],
+      "assertions": [
+        "Usable file reaches intended local app",
+        "Cancellation does not claim success"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "downloads-06",
+      "title": "Downloads persist and missing files recover",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "downloads"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/DownloadService.ets",
+        "entry/src/main/ets/components/DownloadSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Cold launch with completed/incomplete QA tasks",
+        "Remove disposable completed file externally",
+        "Open entry"
+      ],
+      "assertions": [
+        "History reflects reality",
+        "Missing file has feedback",
+        "No stale completed state"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "permissions-01",
+      "title": "Camera permission",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "permissions"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/PrivacyService.ets",
+        "entry/src/main/ets/components/PermissionSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Permission tests use a controlled origin and avoid capturing personal media"
+      ],
+      "steps": [
+        "Use controlled HTTPS camera fixture",
+        "Deny",
+        "Retry and allow with authorized fixture",
+        "Revoke"
+      ],
+      "assertions": [
+        "Site and system decisions respected",
+        "No access before grant"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "permissions-02",
+      "title": "Microphone permission",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "permissions"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/PrivacyService.ets",
+        "entry/src/main/ets/components/PermissionSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Permission tests use a controlled origin and avoid capturing personal media"
+      ],
+      "steps": [
+        "Use controlled HTTPS audio fixture",
+        "Deny then allow authorized test",
+        "Revoke"
+      ],
+      "assertions": [
+        "Correct origin shown",
+        "Recording starts only after grant"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "permissions-03",
+      "title": "Location permission",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "permissions"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/PrivacyService.ets",
+        "entry/src/main/ets/components/PermissionSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Permission tests use a controlled origin and avoid capturing personal media"
+      ],
+      "steps": [
+        "Use controlled HTTPS location fixture",
+        "Deny and inspect recovery",
+        "Allow only explicitly authorized test"
+      ],
+      "assertions": [
+        "No location disclosed without permission",
+        "Denial recoverable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "permissions-04",
+      "title": "Persist and remove permission decisions",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "permissions"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/PrivacyService.ets",
+        "entry/src/main/ets/components/PermissionSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Permission tests use a controlled origin and avoid capturing personal media"
+      ],
+      "steps": [
+        "Set site allow/deny",
+        "Relaunch",
+        "Remove QA origin exception",
+        "Request again"
+      ],
+      "assertions": [
+        "Decision persists",
+        "Removal returns to prompting",
+        "Other origins unaffected"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "permissions-05",
+      "title": "Cookie persistence and clear-on-close",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "permissions"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/PrivacyService.ets",
+        "entry/src/main/ets/components/PermissionSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Permission tests use a controlled origin and avoid capturing personal media"
+      ],
+      "steps": [
+        "Set dummy QA cookie",
+        "Close/relaunch normally",
+        "Enable clear-on-close and repeat",
+        "Restore"
+      ],
+      "assertions": [
+        "Normal cookies flushed and retained",
+        "Configured cleanup takes effect"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "permissions-06",
+      "title": "Clear browsing data selection",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "permissions"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/PrivacyService.ets",
+        "entry/src/main/ets/components/PermissionSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Permission tests use a controlled origin and avoid capturing personal media"
+      ],
+      "steps": [
+        "Use isolated data fixture",
+        "Cancel once",
+        "Clear each selected category and time range"
+      ],
+      "assertions": [
+        "Only selected categories/range removed",
+        "Library/bookmarks not unintentionally erased"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "permissions-07",
+      "title": "Telemetry opt-in and opt-out",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "permissions"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/PrivacyService.ets",
+        "entry/src/main/ets/components/PermissionSheet.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Permission tests use a controlled origin and avoid capturing personal media"
+      ],
+      "steps": [
+        "Inspect default off",
+        "Enable with QA page",
+        "Disable",
+        "Exercise private tab"
+      ],
+      "assertions": [
+        "Off stops writes",
+        "No private-page events",
+        "Payload matches disclosed privacy policy"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "integration-01",
+      "title": "External URL and shared-text entry",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "integration"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/entryability/EntryAbility.ets",
+        "entry/src/main/ets/services/ExternalProtocolService.ets",
+        "entry/src/main/ets/services/ShareService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open controlled link from another app",
+        "Share text containing URL to ZhuoBrowser",
+        "Repeat when cold and warm"
+      ],
+      "assertions": [
+        "Correct prompt and URL",
+        "No duplicate/unintended tab"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "integration-02",
+      "title": "Disposable and private external tasks",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "integration"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/entryability/EntryAbility.ets",
+        "entry/src/main/ets/services/ExternalProtocolService.ets",
+        "entry/src/main/ets/services/ShareService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Choose disposable/private open from external-entry menu",
+        "Close/relaunch"
+      ],
+      "assertions": [
+        "Privacy and persistence match chosen mode",
+        "No saved private content"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "integration-03",
+      "title": "External protocol confirmation",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "integration"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/entryability/EntryAbility.ets",
+        "entry/src/main/ets/services/ExternalProtocolService.ets",
+        "entry/src/main/ets/services/ShareService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open supported app/store protocol fixture",
+        "Cancel",
+        "Use missing-handler fixture"
+      ],
+      "assertions": [
+        "No dispatch without confirmation",
+        "Missing handler has recovery message"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "integration-04",
+      "title": "Blocked and internal protocols",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "integration"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/entryability/EntryAbility.ets",
+        "entry/src/main/ets/services/ExternalProtocolService.ets",
+        "entry/src/main/ets/services/ShareService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Try controlled blocked script/devtools links and internal home/data cases"
+      ],
+      "assertions": [
+        "Blocked protocols never execute",
+        "Internal page handling stays usable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "integration-05",
+      "title": "Default-browser flow",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "integration"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/entryability/EntryAbility.ets",
+        "entry/src/main/ets/services/ExternalProtocolService.ets",
+        "entry/src/main/ets/services/ShareService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open Set Default Browser",
+        "Cancel once",
+        "Select ZhuoBrowser when authorized",
+        "Open an external HTTP link"
+      ],
+      "assertions": [
+        "System route opens correctly",
+        "Default status reflects actual system setting"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "integration-06",
+      "title": "Copy and system link sharing",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "integration"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/entryability/EntryAbility.ets",
+        "entry/src/main/ets/services/ExternalProtocolService.ets",
+        "entry/src/main/ets/services/ShareService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Copy QA page URL and paste in controlled field",
+        "Open native share sheet",
+        "Cancel"
+      ],
+      "assertions": [
+        "Exact URL copied",
+        "Share payload correct",
+        "No unsolicited message"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "integration-07",
+      "title": "Page and long screenshot sharing",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "integration"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/entryability/EntryAbility.ets",
+        "entry/src/main/ets/services/ExternalProtocolService.ets",
+        "entry/src/main/ets/services/ShareService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Capture short then long QA page",
+        "Inspect top/middle/end in receiving local app",
+        "Cancel once"
+      ],
+      "assertions": [
+        "Screenshot actually contains expected content",
+        "No truncated success claim",
+        "Cancel recovers"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "integration-08",
+      "title": "Drag-and-drop content",
+      "priority": "p2",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "integration"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/entryability/EntryAbility.ets",
+        "entry/src/main/ets/services/ExternalProtocolService.ets",
+        "entry/src/main/ets/services/ShareService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "On supported window drag controlled URL/text/file into browser"
+      ],
+      "assertions": [
+        "Supported content opens correctly",
+        "Unsupported content ignored safely"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "appearance-01",
+      "title": "System, light and dark appearance",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "appearance"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/SettingsPage.ets",
+        "entry/src/main/ets/services/ThemeService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Cycle appearances",
+        "Open panels and keyboard",
+        "Cold relaunch",
+        "Restore"
+      ],
+      "assertions": [
+        "Chrome/system bars readable",
+        "Selection persists",
+        "No flash/overlap"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "appearance-02",
+      "title": "Web dark mode and exclusion",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "appearance"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/SettingsPage.ets",
+        "entry/src/main/ets/services/ThemeService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Enable web dark mode",
+        "Exclude one QA host",
+        "Open another host",
+        "Restore"
+      ],
+      "assertions": [
+        "Host exclusion and global mode honored"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "appearance-03",
+      "title": "Search settings and persistence",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "appearance"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/SettingsPage.ets",
+        "entry/src/main/ets/services/ThemeService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Search settings by visible labels",
+        "Change a setting while page callbacks run",
+        "Relaunch"
+      ],
+      "assertions": [
+        "Matching rows reachable",
+        "Concurrent writes do not clobber user choice"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "appearance-04",
+      "title": "About, terms and privacy",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "appearance"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/SettingsPage.ets",
+        "entry/src/main/ets/services/ThemeService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open About and legal links from Settings"
+      ],
+      "assertions": [
+        "Version equals installed package",
+        "Both legal documents remain readable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "appearance-05",
+      "title": "Modal dismissal and rapid actions",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "appearance"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/components/SettingsPage.ets",
+        "entry/src/main/ets/services/ThemeService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Open every menu/panel",
+        "Use Back/backdrop",
+        "Rapidly repeat benign taps"
+      ],
+      "assertions": [
+        "No stuck overlay",
+        "No double action",
+        "Underlying page remains usable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "commerce-01",
+      "title": "Product catalog and plan selection",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "commerce"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/ProEntitlementService.ets",
+        "iap_paywall_kit/src/main/ets/components/StandardIapPaywallPage.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Confirmed sandbox identities and provider lifecycle fixtures; no real charge or account change without authorization"
+      ],
+      "steps": [
+        "Open paywall",
+        "Compare monthly/yearly/lifetime with AGC catalog",
+        "Switch plan repeatedly"
+      ],
+      "assertions": [
+        "Exact product IDs/prices/types",
+        "Selected state and button update"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "commerce-02",
+      "title": "Purchase terms and cancellation",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "commerce"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/ProEntitlementService.ets",
+        "iap_paywall_kit/src/main/ets/components/StandardIapPaywallPage.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Confirmed sandbox identities and provider lifecycle fixtures; no real charge or account change without authorization"
+      ],
+      "steps": [
+        "Read legal/renewal text",
+        "Open provider checkout and cancel before charge"
+      ],
+      "assertions": [
+        "Prices/periods consistent",
+        "Cancellation neutral",
+        "No entitlement granted"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "commerce-03",
+      "title": "Monthly sandbox purchase",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "commerce"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/ProEntitlementService.ets",
+        "iap_paywall_kit/src/main/ets/components/StandardIapPaywallPage.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Confirmed sandbox identities and provider lifecycle fixtures; no real charge or account change without authorization"
+      ],
+      "steps": [
+        "Use confirmed sandbox account",
+        "Buy monthly product",
+        "Wait for server verification",
+        "Relaunch"
+      ],
+      "assertions": [
+        "Only verified purchase unlocks Pro",
+        "Order acknowledged after delivery"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "commerce-04",
+      "title": "Yearly sandbox purchase",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "commerce"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/ProEntitlementService.ets",
+        "iap_paywall_kit/src/main/ets/components/StandardIapPaywallPage.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Confirmed sandbox identities and provider lifecycle fixtures; no real charge or account change without authorization"
+      ],
+      "steps": [
+        "Use isolated confirmed sandbox account",
+        "Buy yearly product",
+        "Relaunch"
+      ],
+      "assertions": [
+        "Correct plan/expiry",
+        "No cross-product grant"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "commerce-05",
+      "title": "Lifetime sandbox purchase",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "commerce"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/ProEntitlementService.ets",
+        "iap_paywall_kit/src/main/ets/components/StandardIapPaywallPage.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Confirmed sandbox identities and provider lifecycle fixtures; no real charge or account change without authorization"
+      ],
+      "steps": [
+        "Use isolated confirmed sandbox account",
+        "Buy lifetime product",
+        "Relaunch"
+      ],
+      "assertions": [
+        "Non-consumable active entitlement",
+        "No fabricated expiry"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "commerce-06",
+      "title": "Restore and interrupted recovery",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "commerce"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/ProEntitlementService.ets",
+        "iap_paywall_kit/src/main/ets/components/StandardIapPaywallPage.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Confirmed sandbox identities and provider lifecycle fixtures; no real charge or account change without authorization"
+      ],
+      "steps": [
+        "Use legitimate owned sandbox purchase",
+        "Restore",
+        "Interrupt app during recovery",
+        "Relaunch"
+      ],
+      "assertions": [
+        "Ownership restored only after verification",
+        "No duplicate delivery or late callbacks"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "commerce-07",
+      "title": "Offline and server error",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "commerce"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/ProEntitlementService.ets",
+        "iap_paywall_kit/src/main/ets/components/StandardIapPaywallPage.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Confirmed sandbox identities and provider lifecycle fixtures; no real charge or account change without authorization"
+      ],
+      "steps": [
+        "Use valid cached entitlement",
+        "Make backend temporarily unreachable via test network",
+        "Open paywall/restore",
+        "Recover"
+      ],
+      "assertions": [
+        "Bounded error feedback",
+        "No unverified grant",
+        "Fresh cache policy honored"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "commerce-08",
+      "title": "Renewal, expiry and refund",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "commerce"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/ProEntitlementService.ets",
+        "iap_paywall_kit/src/main/ets/components/StandardIapPaywallPage.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Confirmed sandbox identities and provider lifecycle fixtures; no real charge or account change without authorization"
+      ],
+      "steps": [
+        "Use provider sandbox lifecycle controls",
+        "Observe renewal/expiry/refund in app"
+      ],
+      "assertions": [
+        "Provider status controls access",
+        "Existing owned data preserved"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "commerce-09",
+      "title": "Account switch and reinstall",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "commerce"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/services/ProEntitlementService.ets",
+        "iap_paywall_kit/src/main/ets/components/StandardIapPaywallPage.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Confirmed sandbox identities and provider lifecycle fixtures; no real charge or account change without authorization"
+      ],
+      "steps": [
+        "Use isolated device/account fixture",
+        "Switch provider account",
+        "Restore",
+        "Reinstall only disposable data"
+      ],
+      "assertions": [
+        "No entitlement leaks between accounts",
+        "Restore works for legitimate owner"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "responsive-01",
+      "title": "Phone portrait and landscape",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "responsive"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/models/WindowMetrics.ets",
+        "entry/src/main/ets/components/DesktopTabStrip.ets",
+        "entry/src/main/ets/services/MultiWindowService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Hardware-specific cases require the actual supported form factor; phone evidence does not substitute"
+      ],
+      "steps": [
+        "Rotate through all key sheets with keyboard and long content",
+        "Return portrait"
+      ],
+      "assertions": [
+        "No clipped actions/unsafe-area overlap",
+        "State retained"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "responsive-02",
+      "title": "Tablet and constrained window",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "responsive"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/models/WindowMetrics.ets",
+        "entry/src/main/ets/components/DesktopTabStrip.ets",
+        "entry/src/main/ets/services/MultiWindowService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Hardware-specific cases require the actual supported form factor; phone evidence does not substitute"
+      ],
+      "steps": [
+        "Use physical tablet",
+        "Resize/split system window",
+        "Open every key sheet"
+      ],
+      "assertions": [
+        "Correct compact/sidebar transition",
+        "Keyboard actions reachable"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "responsive-03",
+      "title": "Split reading workspace",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "responsive"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/models/WindowMetrics.ets",
+        "entry/src/main/ets/components/DesktopTabStrip.ets",
+        "entry/src/main/ets/services/MultiWindowService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Hardware-specific cases require the actual supported form factor; phone evidence does not substitute"
+      ],
+      "steps": [
+        "On wide Pro device open two articles/pages",
+        "Adjust split",
+        "Switch focus",
+        "Close pane"
+      ],
+      "assertions": [
+        "Correct pane receives actions",
+        "Data and reading state preserved"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "responsive-04",
+      "title": "Desktop tab pinning and reordering",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "responsive"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/models/WindowMetrics.ets",
+        "entry/src/main/ets/components/DesktopTabStrip.ets",
+        "entry/src/main/ets/services/MultiWindowService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Hardware-specific cases require the actual supported form factor; phone evidence does not substitute"
+      ],
+      "steps": [
+        "On supported wide window pin QA tab",
+        "Drag within and across groups",
+        "Close other QA tabs"
+      ],
+      "assertions": [
+        "Pinned/privacy group constraints",
+        "Current/pinned tabs retained per action"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "responsive-05",
+      "title": "Multiple windows",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "responsive"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/models/WindowMetrics.ets",
+        "entry/src/main/ets/components/DesktopTabStrip.ets",
+        "entry/src/main/ets/services/MultiWindowService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Hardware-specific cases require the actual supported form factor; phone evidence does not substitute"
+      ],
+      "steps": [
+        "Move QA normal/private tab into new window",
+        "Relaunch windows independently"
+      ],
+      "assertions": [
+        "Sessions scoped per window",
+        "Private session not persisted",
+        "No duplicate adoption"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "responsive-06",
+      "title": "Foldable hinge transition",
+      "priority": "p2",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "responsive"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/models/WindowMetrics.ets",
+        "entry/src/main/ets/components/DesktopTabStrip.ets",
+        "entry/src/main/ets/services/MultiWindowService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Hardware-specific cases require the actual supported form factor; phone evidence does not substitute"
+      ],
+      "steps": [
+        "On physical foldable change posture with page and dialog open"
+      ],
+      "assertions": [
+        "No controls behind hinge",
+        "State survives posture change"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "responsive-07",
+      "title": "Large text and accessibility",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "responsive"
+      ],
+      "sourceFiles": [
+        "entry/src/main/ets/models/WindowMetrics.ets",
+        "entry/src/main/ets/components/DesktopTabStrip.ets",
+        "entry/src/main/ets/services/MultiWindowService.ets"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures",
+        "Hardware-specific cases require the actual supported form factor; phone evidence does not substitute"
+      ],
+      "steps": [
+        "Increase system text size in controlled test",
+        "Inspect key controls with screen reader",
+        "Restore"
+      ],
+      "assertions": [
+        "Labels and focus order usable",
+        "Actions not clipped"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "release-01",
+      "title": "Candidate source and verification",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "release"
+      ],
+      "sourceFiles": [
+        "docs/harmony-signing-pipeline.md",
+        "scripts/mobile_cicd/signing-source.mjs"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Stop concurrent edits",
+        "Review and commit accepted scope",
+        "Run tests/build",
+        "Verify signature and embedded profile"
+      ],
+      "assertions": [
+        "Clean traceable source",
+        "All validation gates pass",
+        "Canonical signing inputs unchanged"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "release-02",
+      "title": "Specified-device portal delivery",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "release"
+      ],
+      "sourceFiles": [
+        "docs/harmony-signing-pipeline.md",
+        "scripts/mobile_cicd/signing-source.mjs"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Use accepted CI SHA and allocated build number",
+        "Verify official manifest/hash/HEAD/Range",
+        "Install through portal on device"
+      ],
+      "assertions": [
+        "Exact immutable candidate delivered",
+        "Previous pointer retained on failure",
+        "Installed behavior accepted"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "release-03",
+      "title": "AGC metadata and products",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "release"
+      ],
+      "sourceFiles": [
+        "docs/harmony-signing-pipeline.md",
+        "scripts/mobile_cicd/signing-source.mjs"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Verify correct app/draft",
+        "Complete accurate mandatory fields and product association",
+        "Review notes"
+      ],
+      "assertions": [
+        "Metadata matches actual behavior",
+        "Review contact and necessary identity fields verified"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "release-04",
+      "title": "AGC artifact upload and association",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "release"
+      ],
+      "sourceFiles": [
+        "docs/harmony-signing-pipeline.md",
+        "scripts/mobile_cicd/signing-source.mjs"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Build verified distribution APP from accepted source",
+        "Upload",
+        "Wait for processing",
+        "Associate matching version"
+      ],
+      "assertions": [
+        "Exact version/build/bundle processed and associated",
+        "No stale package selected"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    },
+    {
+      "id": "release-05",
+      "title": "Submit review",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "release"
+      ],
+      "sourceFiles": [
+        "docs/harmony-signing-pipeline.md",
+        "scripts/mobile_cicd/signing-source.mjs"
+      ],
+      "preconditions": [
+        "Pinned candidate installed on the recorded physical device",
+        "Preserve existing user data; mutate only QA-created fixtures"
+      ],
+      "steps": [
+        "Confirm all feature gates and mandatory information complete",
+        "Review release timing",
+        "Submit",
+        "Observe state"
+      ],
+      "assertions": [
+        "Submitted/reviewing observed",
+        "No automatic publication beyond authorization"
+      ],
+      "failureSignals": [
+        "An assertion fails, the app crashes, or the expected control cannot be reached"
+      ]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-09-04",
+    "target": {
+      "name": "Huawei TLR-AL00",
+      "id": "4UQ9K25530058677",
+      "runtime": "OpenHarmony-6.1.1.120"
+    },
+    "appBuild": {
+      "version": "1.0.1 (1000001); exploratory working-tree candidate",
+      "hapPath": "output/full-device-qa-20260904/candidate-d4176fd72e7b.hap",
+      "sha256": "d4176fd72e7be986563094f429c3ed5687a14a4ed5e2cdde489ed9170319042e"
+    },
+    "results": [
+      {
+        "caseId": "startup-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "startup-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "startup-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "startup-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "startup-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "startup-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "startup-07",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-07",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-08",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-09",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-10",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-11",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-12",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-13",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-14",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "navigation-15",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "tabs-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "tabs-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "tabs-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "tabs-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "tabs-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "tabs-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "tabs-07",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "tabs-08",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "tabs-09",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "tabs-10",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "blocking-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "blocking-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "blocking-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "blocking-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "blocking-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "blocking-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "blocking-07",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "blocking-08",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "reader-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "reader-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "reader-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-07",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-08",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-09",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-10",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-11",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "articles-12",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "saved-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "saved-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "saved-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "saved-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "saved-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "saved-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "saved-07",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "saved-08",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "saved-09",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "saved-10",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "downloads-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "downloads-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "downloads-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "downloads-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "downloads-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "downloads-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "permissions-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "permissions-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "permissions-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "permissions-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "permissions-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "permissions-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "permissions-07",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "integration-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "integration-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "integration-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "integration-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "integration-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "integration-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "integration-07",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "integration-08",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "appearance-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "appearance-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "appearance-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "appearance-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "appearance-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "commerce-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "commerce-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "commerce-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "commerce-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "commerce-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "commerce-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "commerce-07",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "commerce-08",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "commerce-09",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "responsive-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "responsive-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "responsive-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "responsive-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "responsive-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "responsive-06",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "responsive-07",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "release-01",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "release-02",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "release-03",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "release-04",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      },
+      {
+        "caseId": "release-05",
+        "status": "not-run",
+        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "evidence": []
+      }
+    ],
+    "validation": [],
+    "notes": "Historical reports are references only. Existing edits were explicitly accepted into the candidate by the user; concurrent edits must finish before final source freeze. Never claim all-pass from unit tests or exploratory builds."
+  }
+}

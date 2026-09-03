@@ -11,14 +11,18 @@ const COMPACT_CONTENT_MAX_WIDTH: number = 520;
 export struct OnboardingSheet {
   @Link settings: BrowserSettings;
   @State private page: number = 0;
+  @Prop topInset: number = 0;
+  @Prop bottomInset: number = 0;
   @Prop isWide: boolean = false;
   @Prop isHeightConstrained: boolean = false;
   onSearchEngineChange: (engine: SearchEngine) => void = (_engine: SearchEngine): void => {};
   onFinish: () => void = (): void => {};
   onSkip: () => void = (): void => {};
 
+  private swiperController: SwiperController = new SwiperController();
+
   build() {
-    Column({ space: this.isWide ? 24 : 14 }) {
+    Column({ space: this.isWide ? 24 : 16 }) {
       this.Header()
 
       if (this.isWide) {
@@ -30,10 +34,10 @@ export struct OnboardingSheet {
     .width('100%')
     .height('100%')
     .padding({
-      top: this.isWide ? 32 : 24,
+      top: Math.max(0, this.topInset) + (this.isWide ? 24 : 16),
       left: this.isWide ? 48 : 24,
       right: this.isWide ? 48 : 24,
-      bottom: this.isWide ? 32 : 28
+      bottom: Math.max(0, this.bottomInset) + (this.isWide ? 28 : 20)
     })
     .backgroundColor($r('app.color.page_background'))
   }
@@ -43,27 +47,41 @@ export struct OnboardingSheet {
     Row() {
       Row({ space: 10 }) {
         Row() {
-          AppIcon({ name: IconName.Search, glyphSize: 18, color: $r('app.color.accent_foreground') })
+          Image($r('app.media.start_window_icon'))
+            .width(30)
+            .height(30)
+            .objectFit(ImageFit.Contain)
         }
         .width(36)
         .height(36)
         .justifyContent(FlexAlign.Center)
-        .borderRadius(12)
-        .backgroundColor($r('app.color.accent'))
+        .alignItems(VerticalAlign.Center)
+        .borderRadius(10)
+        .backgroundColor($r('app.color.surface_subtle'))
 
-        Text($r('app.string.onboarding_title'))
-          .fontSize(this.isWide ? 20 : 18)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
+        Column({ space: 2 }) {
+          Text($r('app.string.onboarding_title'))
+            .fontSize(this.isWide ? 18 : 16)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.text_primary'))
+
+          Text($r('app.string.module_desc'))
+            .fontSize(11)
+            .fontColor($r('app.color.text_secondary'))
+        }
+        .alignItems(HorizontalAlign.Start)
       }
       .layoutWeight(1)
 
       Text($r('app.string.onboarding_skip'))
         .id('onboarding-skip')
-        .height(40)
-        .padding({ left: 16, right: 16 })
-        .fontSize(14)
+        .height(32)
+        .padding({ left: 14, right: 14 })
+        .fontSize(13)
+        .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.text_secondary'))
+        .backgroundColor($r('app.color.surface_subtle'))
+        .borderRadius(16)
         .onClick(() => this.onSkip())
     }
     .width('100%')
@@ -73,34 +91,21 @@ export struct OnboardingSheet {
   @Builder
   private WideContent() {
     Column({ space: 24 }) {
-      Row({ space: 56 }) {
-        Column({ space: 18 }) {
-          this.StepLabel()
-          Text(this.pageTitle())
-            .width('100%')
-            .fontSize(this.isHeightConstrained ? 30 : 38)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.text_primary'))
-          Text(this.pageMessage())
-            .width('100%')
-            .fontSize(17)
-            .fontColor($r('app.color.text_secondary'))
-            .lineHeight(28)
-
-          if (this.page === 2) {
-            this.SearchEnginePicker()
-          }
-        }
-        .width(WIDE_COPY_WIDTH)
-        .justifyContent(FlexAlign.Center)
-
-        OnboardingIllustration({ page: this.page, compact: this.isHeightConstrained })
-          .layoutWeight(1)
+      Swiper(this.swiperController) {
+        ForEach([0, 1, 2], (index: number) => {
+          this.WidePage(index)
+        }, (index: number) => `onboarding-wide-slide-${index}`)
       }
-      .width('100%')
       .layoutWeight(1)
-      .alignItems(VerticalAlign.Center)
-      .translate({ y: -40 })
+      .width('100%')
+      .index(this.page)
+      .indicator(false)
+      .loop(false)
+      .duration(280)
+      .curve(Curve.EaseOut)
+      .onChange((index: number): void => {
+        this.page = index;
+      })
 
       Row() {
         this.PageDots()
@@ -116,26 +121,71 @@ export struct OnboardingSheet {
   }
 
   @Builder
+  private WidePage(index: number) {
+    Row({ space: 56 }) {
+      Column({ space: 18 }) {
+        this.StepLabel(index)
+        Text(this.pageTitle(index))
+          .width('100%')
+          .fontSize(this.isHeightConstrained ? 30 : 38)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+        Text(this.pageMessage(index))
+          .width('100%')
+          .fontSize(17)
+          .fontColor($r('app.color.text_secondary'))
+          .lineHeight(28)
+
+        if (index === 2) {
+          this.SearchEnginePicker()
+        }
+      }
+      .width(WIDE_COPY_WIDTH)
+      .justifyContent(FlexAlign.Center)
+
+      OnboardingIllustration({ page: index, compact: this.isHeightConstrained })
+        .layoutWeight(1)
+    }
+    .width('100%')
+    .height('100%')
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
   private CompactContent() {
     Column({ space: 16 }) {
-      if (this.isHeightConstrained) {
-        Scroll() {
-          this.CompactMainContent()
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
-      } else {
-        Column() {
-          this.CompactMainContent()
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
+      Swiper(this.swiperController) {
+        ForEach([0, 1, 2], (index: number) => {
+          if (this.isHeightConstrained) {
+            Scroll() {
+              this.CompactPage(index)
+            }
+            .width('100%')
+            .height('100%')
+            .scrollBar(BarState.Off)
+          } else {
+            Column() {
+              this.CompactPage(index)
+            }
+            .width('100%')
+            .height('100%')
+            .justifyContent(FlexAlign.Center)
+          }
+        }, (index: number) => `onboarding-compact-slide-${index}`)
       }
+      .layoutWeight(1)
+      .width('100%')
+      .index(this.page)
+      .indicator(false)
+      .loop(false)
+      .duration(280)
+      .curve(Curve.EaseOut)
+      .onChange((index: number): void => {
+        this.page = index;
+      })
 
-      this.NavigationButtons()
       this.PageDots()
+      this.NavigationButtons()
     }
     .width('100%')
     .layoutWeight(1)
@@ -143,18 +193,18 @@ export struct OnboardingSheet {
   }
 
   @Builder
-  private CompactMainContent() {
+  private CompactPage(index: number) {
     Column({ space: 14 }) {
-      OnboardingIllustration({ page: this.page, compact: true })
+      OnboardingIllustration({ page: index, compact: true })
 
       Column({ space: 10 }) {
-        this.StepLabel()
-        Text(this.pageTitle())
+        this.StepLabel(index)
+        Text(this.pageTitle(index))
           .width('100%')
           .fontSize(26)
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.text_primary'))
-        Text(this.pageMessage())
+        Text(this.pageMessage(index))
           .width('100%')
           .fontSize(15)
           .fontColor($r('app.color.text_secondary'))
@@ -162,7 +212,7 @@ export struct OnboardingSheet {
       }
       .width('100%')
 
-      if (this.page === 2) {
+      if (index === 2) {
         this.SearchEnginePicker()
       }
     }
@@ -171,15 +221,20 @@ export struct OnboardingSheet {
   }
 
   @Builder
-  private StepLabel() {
-    Text(this.page === 0
-      ? $r('app.string.onboarding_step_gestures')
-      : this.page === 1
-        ? $r('app.string.onboarding_step_privacy')
-        : $r('app.string.onboarding_step_reading'))
-      .fontSize(13)
-      .fontWeight(FontWeight.Medium)
-      .fontColor($r('app.color.accent_strong'))
+  private StepLabel(index: number = this.page) {
+    Row() {
+      Text(index === 0
+        ? $r('app.string.onboarding_step_gestures')
+        : index === 1
+          ? $r('app.string.onboarding_step_privacy')
+          : $r('app.string.onboarding_step_reading'))
+        .fontSize(12)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.accent_strong'))
+    }
+    .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+    .backgroundColor($r('app.color.surface_subtle'))
+    .borderRadius(12)
   }
 
   @Builder
@@ -193,7 +248,7 @@ export struct OnboardingSheet {
         .width(48)
         .height(48)
         .justifyContent(FlexAlign.Center)
-        .onClick(() => this.page = Math.max(0, this.page - 1))
+        .onClick(() => this.prev())
         .borderRadius(24)
         .backgroundColor($r('app.color.surface_subtle'))
       }
@@ -218,13 +273,18 @@ export struct OnboardingSheet {
 
   @Builder
   private PageDots() {
-    Row({ space: 7 }) {
+    Row({ space: 8 }) {
       ForEach(this.pageDots(), (active: boolean, index: number) => {
         Row()
-          .width(active ? 26 : 8)
+          .width(active ? 24 : 8)
           .height(8)
           .borderRadius(4)
           .backgroundColor(active ? $r('app.color.accent') : $r('app.color.border'))
+          .animation({ duration: 250, curve: Curve.EaseOut })
+          .onClick(() => {
+            this.page = index;
+            this.swiperController.changeIndex(index, true);
+          })
       }, (active: boolean, index: number) => `onboarding-dot-${index}-${active}`)
     }
     .id('onboarding-page-indicator')
@@ -270,23 +330,31 @@ export struct OnboardingSheet {
       return;
     }
     this.page += 1;
+    this.swiperController.changeIndex(this.page, true);
   }
 
-  private pageTitle(): Resource {
-    if (this.page === 0) {
+  private prev(): void {
+    if (this.page > 0) {
+      this.page -= 1;
+      this.swiperController.changeIndex(this.page, true);
+    }
+  }
+
+  private pageTitle(pageIndex: number = this.page): Resource {
+    if (pageIndex === 0) {
       return $r('app.string.onboarding_gesture_title');
     }
-    if (this.page === 1) {
+    if (pageIndex === 1) {
       return $r('app.string.onboarding_privacy_title');
     }
     return $r('app.string.onboarding_reader_title');
   }
 
-  private pageMessage(): Resource {
-    if (this.page === 0) {
+  private pageMessage(pageIndex: number = this.page): Resource {
+    if (pageIndex === 0) {
       return $r('app.string.onboarding_gesture_message');
     }
-    if (this.page === 1) {
+    if (pageIndex === 1) {
       return $r('app.string.onboarding_privacy_message');
     }
     return $r('app.string.onboarding_reader_message');

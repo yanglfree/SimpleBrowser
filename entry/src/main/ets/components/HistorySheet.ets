@@ -1,6 +1,6 @@
 import { HistoryEntry, SavedItem } from '../models/BrowserModels';
 import { dayKey } from '../utils/Formatting';
-import { displayHost, rawHost } from '../utils/UrlUtils';
+import { displayHost } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 
 const HISTORY_SWIPE_DISTANCE: number = 26;
@@ -9,6 +9,18 @@ const HISTORY_HEADER_SAFE_AREA_GAP: number = 12;
 
 export function historyHeaderTopPadding(topInset: number): number {
   return Math.max(HISTORY_HEADER_MIN_TOP_PADDING, Math.max(0, topInset) + HISTORY_HEADER_SAFE_AREA_GAP);
+}
+
+export function resolveHistoryEntryDeleteTarget(
+  entry: HistoryEntry,
+  favoritesOnly: boolean,
+  savedItems: SavedItem[]
+): string {
+  if (favoritesOnly || entry.id.startsWith('saved-search-')) {
+    const saved: SavedItem | undefined = savedItems.find((item: SavedItem) => item.url === entry.url);
+    return saved !== undefined ? saved.id : entry.id;
+  }
+  return entry.id;
 }
 
 interface HistoryGroup {
@@ -20,8 +32,8 @@ interface HistoryGroup {
 /** Full browsing history with calendar grouping and destructive swipe actions. */
 @Component
 export struct HistorySheet {
-  @Prop entries: HistoryEntry[] = [];
-  @Prop savedItems: SavedItem[] = [];
+  @Prop @Watch('onDatasetChange') entries: HistoryEntry[] = [];
+  @Prop @Watch('onDatasetChange') savedItems: SavedItem[] = [];
   @Prop favoritesOnly: boolean = false;
   @Prop topInset: number = 0;
   /**
@@ -41,6 +53,12 @@ export struct HistorySheet {
     this.query = this.initialQuery;
     this.scrollOffset = this.initialScrollOffset;
     this.searchResults = this.computeSearchResults(this.query);
+  }
+
+  private onDatasetChange(): void {
+    if (this.query.trim().length > 0) {
+      this.searchResults = this.computeSearchResults(this.query);
+    }
   }
   onDismiss: () => void = (): void => {};
   /** Reported on every change so the owner can hand it back on the next open. */
@@ -175,8 +193,20 @@ export struct HistorySheet {
         .fontColor($r('app.color.text_secondary'))
         .fontFeature('"tnum" 1')
       if (!this.favoritesOnly) {
-        AppIcon({ name: IconName.Close, glyphSize: 15, color: $r('app.color.text_secondary') })
-          .onClick(() => this.onDeleteSite(rawHost(entry.url)))
+        Row() {
+          AppIcon({ name: IconName.Trash, glyphSize: 15, color: $r('app.color.text_secondary') })
+        }
+        .id(`history-delete-${entry.id}`)
+        .width(36)
+        .height(36)
+        .justifyContent(FlexAlign.Center)
+        .borderRadius(8)
+        .hoverEffect(HoverEffect.Auto)
+        .accessibilityText($r('app.string.history_delete'))
+        .hitTestBehavior(HitTestMode.Block)
+        .onClick(() => {
+          this.deleteEntry(entry);
+        })
       }
     }
     .width('100%')
@@ -197,18 +227,19 @@ export struct HistorySheet {
         PanGesture({ direction: PanDirection.Horizontal, distance: HISTORY_SWIPE_DISTANCE })
           .onActionEnd((event: GestureEvent) => {
             if (event.offsetX <= -HISTORY_SWIPE_DISTANCE) {
-              if (this.favoritesOnly) {
-                const saved: SavedItem | undefined = this.savedItemFor(entry);
-                if (saved !== undefined) {
-                  this.onDelete(saved.id);
-                }
-              } else {
-                this.onDelete(entry.id);
-              }
+              this.deleteEntry(entry);
             }
           })
       )
     )
+  }
+
+  private deleteEntry(entry: HistoryEntry): void {
+    const targetId: string = resolveHistoryEntryDeleteTarget(entry, this.favoritesOnly, this.savedItems);
+    this.onDelete(targetId);
+    if (this.query.trim().length > 0) {
+      this.searchResults = this.searchResults.filter((item: HistoryEntry): boolean => item.id !== entry.id);
+    }
   }
 
   private restoreScrollOffset(): void {

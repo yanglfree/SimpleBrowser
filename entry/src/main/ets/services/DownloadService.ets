@@ -1,9 +1,8 @@
 import { webview } from '@kit.ArkWeb';
-import { common, Want } from '@kit.AbilityKit';
+import { common, Want, wantConstant } from '@kit.AbilityKit';
 import { connection } from '@kit.NetworkKit';
 import { notificationManager } from '@kit.NotificationKit';
-import { fileUri } from '@kit.CoreFileKit';
-import environment from '@ohos.file.environment';
+import { fileUri, picker } from '@kit.CoreFileKit';
 import fs from '@ohos.file.fs';
 import { Logger } from '../utils/Logger';
 import { ShareService, ShareOutcome } from './ShareService';
@@ -68,13 +67,19 @@ export class DownloadService {
   private static listeners: DownloadListener[] = [];
   private static notifiedProgress: Map<string, number> = new Map();
   private static downloadDirectory: string = '';
+  private static directoryRequest: Promise<string> | undefined;
+  private static context: common.UIAbilityContext | undefined;
+  private static paths: Map<string, string> = new Map();
+  private static startVersions: Map<string, number> = new Map();
+  private static pausedIds: Set<string> = new Set();
   private static largeDownloadThresholdBytes: number = 50 * 1024 * 1024;
   private static wifiOnly: boolean = false;
   private static policyPrompt: DownloadPolicyPrompt | undefined = undefined;
   private static promptingIds: string[] = [];
   private static approvedIds: string[] = [];
 
-  static configure(): void {
+  static configure(context: common.UIAbilityContext): void {
+    DownloadService.context = context;
     if (DownloadService.isConfigured) {
       return;
     }
@@ -160,12 +165,16 @@ export class DownloadService {
       return;
     }
     try {
-      item.pause();
       task.status = DownloadTaskStatus.Paused;
+      DownloadService.startVersions.set(id, (DownloadService.startVersions.get(id) ?? 0) + 1);
+      item.pause();
+      DownloadService.pausedIds.add(id);
       DownloadService.publishTasks();
       DownloadService.pump();
     } catch (error) {
+      task.status = DownloadTaskStatus.Downloading;
       Logger.warn(TAG, `Failed to pause download ${id}: ${String(error)}`);
+      DownloadService.publishTasks();
     }
   }
 
@@ -196,7 +205,8 @@ export class DownloadService {
       const want: Want = {
         action: 'ohos.want.action.viewData',
         uri: fileUri.getUriFromPath(DownloadService.pathFor(task)),
-        type: DownloadService.mimeType(task.fileName)
+        type: DownloadService.mimeType(task.fileName),
+        flags: wantConstant.Flags.FLAG_AUTH_READ_URI_PERMISSION
       };
       await context.startAbility(want);
       return true;
@@ -215,6 +225,14 @@ export class DownloadService {
     if (task === undefined) {
       return;
     }
+    if (task.status !== DownloadTaskStatus.Completed && task.status !== DownloadTaskStatus.Canceled) {
+      task.status = DownloadTaskStatus.Canceled;
+      try {
+        DownloadService.items.get(id)?.cancel();
+      } catch (error) {
+        Logger.warn(TAG, `Unable to cancel removed download: ${String(error)}`);
+      }
+    }
     if (deleteFile) {
       try {
         fs.unlinkSync(DownloadService.pathFor(task));
@@ -224,11 +242,15 @@ export class DownloadService {
     }
     DownloadService.tasks = DownloadService.tasks.filter((item: DownloadTask) => item.id !== id);
     DownloadService.items.delete(id);
+    DownloadService.paths.delete(id);
+    DownloadService.startVersions.delete(id);
+    DownloadService.pausedIds.delete(id);
     DownloadService.startedIds = DownloadService.startedIds.filter((item: string) => item !== id);
     DownloadService.notifiedProgress.delete(id);
     DownloadService.promptingIds = DownloadService.promptingIds.filter((item: string) => item !== id);
     DownloadService.approvedIds = DownloadService.approvedIds.filter((item: string) => item !== id);
     DownloadService.publishTasks();
+    DownloadService.pump();
   }
 
   private static enqueue(item: webview.WebDownloadItem): void {
@@ -236,8 +258,19 @@ export class DownloadService {
       const id: string = item.getGuid();
       const existing: DownloadTask | undefined = DownloadService.task(id);
       DownloadService.items.set(id, item);
-      if (existing === undefined) {
-        DownloadService.tasks.push({
+      if (existing !== undefined) {
+        // Restored tasks receive a new before-download callback with the same GUID.
+        if (existing.status === DownloadTaskStatus.Downloading) {
+          item.start(DownloadService.pathFor(existing));
+          if (!DownloadService.startedIds.includes(id)) {
+            DownloadService.startedIds.push(id);
+          }
+        } else {
+          item.cancel();
+        }
+        return;
+      }
+      DownloadService.tasks.push({
           id: id,
           fileName: DownloadService.safeFileName(item.getSuggestedFileName()),
           url: item.getUrl(),
@@ -248,8 +281,11 @@ export class DownloadService {
           speed: 0,
           attempts: 0,
           error: ''
-        });
-      }
+      });
+      // ArkWeb starts receiving temporary bytes before start(path). Pause while
+      // resolving the destination, waiting for policy approval or a queue slot.
+      item.pause();
+      DownloadService.pausedIds.add(id);
       DownloadService.publishTasks();
       DownloadService.pump();
     } catch (error) {
@@ -280,36 +316,110 @@ export class DownloadService {
       if (item === undefined) {
         continue;
       }
-      if (DownloadService.start(task, item)) {
-        active += 1;
-      }
+      task.status = DownloadTaskStatus.Downloading;
+      const version: number = (DownloadService.startVersions.get(task.id) ?? 0) + 1;
+      DownloadService.startVersions.set(task.id, version);
+      active += 1;
+      void DownloadService.start(task, version);
     }
   }
 
-  private static start(task: DownloadTask, item: webview.WebDownloadItem): boolean {
+  private static async start(task: DownloadTask, version: number): Promise<void> {
     try {
-      if (DownloadService.startedIds.includes(task.id)) {
-        webview.WebDownloadManager.resumeDownload(item);
-      } else {
-        DownloadService.downloadDirectory = environment.getUserDownloadDir();
-        const targetPath: string = `${DownloadService.downloadDirectory}/${task.fileName}`;
-        item.start(targetPath);
-        DownloadService.startedIds.push(task.id);
+      if (!DownloadService.paths.has(task.id)) {
+        const directory: string = await DownloadService.resolveDownloadDirectory();
+        if (DownloadService.task(task.id) !== task || task.status !== DownloadTaskStatus.Downloading ||
+          DownloadService.startVersions.get(task.id) !== version) {
+          return;
+        }
+        DownloadService.reservePath(task, directory);
       }
-      task.status = DownloadTaskStatus.Downloading;
+      const item: webview.WebDownloadItem | undefined = DownloadService.items.get(task.id);
+      if (item === undefined || task.status !== DownloadTaskStatus.Downloading ||
+        DownloadService.startVersions.get(task.id) !== version) {
+        return;
+      }
       task.attempts += 1;
       task.error = '';
+      if (item.getState() === webview.WebDownloadState.INTERRUPTED ||
+        item.getState() === webview.WebDownloadState.CANCELED) {
+        webview.WebDownloadManager.resumeDownload(webview.WebDownloadItem.deserialize(item.serialize()));
+      } else {
+        if (!DownloadService.startedIds.includes(task.id)) {
+          item.start(DownloadService.pathFor(task));
+          DownloadService.startedIds.push(task.id);
+        }
+        if (DownloadService.pausedIds.has(task.id) || item.getState() === webview.WebDownloadState.PAUSED) {
+          item.resume();
+          DownloadService.pausedIds.delete(task.id);
+        }
+      }
       Logger.info(TAG, `Download started: ${task.fileName}`);
       DownloadService.publishTasks();
-      return true;
     } catch (error) {
+      if (DownloadService.task(task.id) !== task || task.status === DownloadTaskStatus.Canceled ||
+        DownloadService.startVersions.get(task.id) !== version) {
+        return;
+      }
       task.status = DownloadTaskStatus.Failed;
-      task.error = String(error);
+      task.error = DownloadService.paths.has(task.id) ? 'start' : 'storage';
+      try {
+        DownloadService.items.get(task.id)?.cancel();
+      } catch (cancelError) {
+        Logger.warn(TAG, `Unable to stop failed download: ${String(cancelError)}`);
+      }
       Logger.error(TAG, `Failed to start download: ${String(error)}`);
       DownloadService.publishTasks();
-      DownloadService.notify(task, 'Download failed');
-      return false;
+      DownloadService.notify(task, DownloadService.localized('download_failed'));
+      DownloadService.pump();
     }
+  }
+
+  private static async resolveDownloadDirectory(): Promise<string> {
+    if (DownloadService.downloadDirectory.length > 0) {
+      return DownloadService.downloadDirectory;
+    }
+    if (DownloadService.directoryRequest !== undefined) {
+      return await DownloadService.directoryRequest;
+    }
+    DownloadService.directoryRequest = DownloadService.selectDownloadDirectory();
+    try {
+      return await DownloadService.directoryRequest;
+    } finally {
+      DownloadService.directoryRequest = undefined;
+    }
+  }
+
+  private static async selectDownloadDirectory(): Promise<string> {
+    if (DownloadService.context === undefined) {
+      throw new Error('Download context is unavailable');
+    }
+    const options: picker.DocumentSaveOptions = { pickerMode: picker.DocumentPickerMode.DOWNLOAD };
+    const uris: string[] = await new picker.DocumentViewPicker(DownloadService.context).save(options);
+    if (uris.length === 0 || uris[0].length === 0) {
+      throw new Error('Download directory was not selected');
+    }
+    const directory: string = new fileUri.FileUri(uris[0]).path.replace(/\/+$/, '');
+    if (directory.length === 0) {
+      throw new Error('Download directory is unavailable');
+    }
+    DownloadService.downloadDirectory = directory;
+    return directory;
+  }
+
+  private static reservePath(task: DownloadTask, directory: string): void {
+    const original: string = task.fileName;
+    const extensionIndex: number = original.lastIndexOf('.');
+    const stem: string = extensionIndex > 0 ? original.slice(0, extensionIndex) : original;
+    const extension: string = extensionIndex > 0 ? original.slice(extensionIndex) : '';
+    let name: string = original;
+    let index: number = 1;
+    while (fs.accessSync(`${directory}/${name}`) ||
+      Array.from(DownloadService.paths.values()).includes(`${directory}/${name}`)) {
+      name = `${stem} (${index++})${extension}`;
+    }
+    task.fileName = name;
+    DownloadService.paths.set(task.id, `${directory}/${name}`);
   }
 
   private static update(item: webview.WebDownloadItem): void {
@@ -317,7 +427,11 @@ export class DownloadService {
     if (task === undefined) {
       return;
     }
-    task.status = DownloadTaskStatus.Downloading;
+    DownloadService.items.set(task.id, item);
+    if (task.status === DownloadTaskStatus.Completed || task.status === DownloadTaskStatus.Canceled ||
+      task.status === DownloadTaskStatus.Failed) {
+      return;
+    }
     task.progress = item.getPercentComplete();
     task.receivedBytes = item.getReceivedBytes();
     task.totalBytes = item.getTotalBytes();
@@ -326,7 +440,7 @@ export class DownloadService {
     const previousBucket: number = DownloadService.notifiedProgress.get(task.id) ?? -2;
     if (progressBucket >= 0 && progressBucket > previousBucket) {
       DownloadService.notifiedProgress.set(task.id, progressBucket);
-      DownloadService.notify(task, `${progressBucket}%`);
+      DownloadService.notify(task, `${DownloadService.localized('download_status_downloading')} ${progressBucket}%`);
     }
     DownloadService.publishTasks();
   }
@@ -336,12 +450,19 @@ export class DownloadService {
     if (task === undefined) {
       return;
     }
+    if (task.status === DownloadTaskStatus.Completed || task.status === DownloadTaskStatus.Canceled) {
+      return;
+    }
+    DownloadService.items.set(task.id, item);
+    if (item.getFullPath().length > 0) {
+      DownloadService.paths.set(task.id, item.getFullPath());
+    }
     task.status = DownloadTaskStatus.Completed;
     task.progress = 100;
     task.receivedBytes = item.getReceivedBytes();
     task.totalBytes = item.getTotalBytes();
-    Logger.info(TAG, `Download finished: ${task.fileName}`);
-    DownloadService.notify(task, 'Download completed');
+    Logger.info(TAG, `Download finished: ${task.receivedBytes}/${task.totalBytes} bytes`);
+    DownloadService.notify(task, DownloadService.localized('download_notice_completed'));
     DownloadService.publishTasks();
     DownloadService.pump();
   }
@@ -351,12 +472,24 @@ export class DownloadService {
     if (task === undefined) {
       return;
     }
+    DownloadService.items.set(task.id, item);
+    // ArkWeb can discard an unstarted native item while a policy dialog is
+    // awaiting input. Keep the queued task so approval can restore its snapshot.
+    if (!DownloadService.startedIds.includes(task.id) &&
+      item.getState() === webview.WebDownloadState.CANCELED &&
+      (task.status === DownloadTaskStatus.Pending || task.status === DownloadTaskStatus.Downloading)) {
+      return;
+    }
+    if (task.status === DownloadTaskStatus.Completed || task.status === DownloadTaskStatus.Canceled ||
+      (task.status === DownloadTaskStatus.Failed && (task.error === 'storage' || task.error === 'start'))) {
+      return;
+    }
     task.status = item.getState() === webview.WebDownloadState.CANCELED
       ? DownloadTaskStatus.Canceled
       : DownloadTaskStatus.Failed;
     task.error = `${item.getLastErrorCode()}`;
-    Logger.warn(TAG, `Download failed: ${task.fileName}`);
-    DownloadService.notify(task, 'Download failed');
+    Logger.warn(TAG, `Download failed with native error ${task.error}`);
+    DownloadService.notify(task, DownloadService.localized('download_failed'));
     DownloadService.publishTasks();
     DownloadService.pump();
   }
@@ -415,6 +548,15 @@ export class DownloadService {
     });
   }
 
+  private static localized(name: string): string {
+    try {
+      return DownloadService.context?.resourceManager.getStringByNameSync(name) ?? '';
+    } catch (error) {
+      Logger.warn(TAG, `Download notification text unavailable: ${String(error)}`);
+      return '';
+    }
+  }
+
   private static cloneTask(task: DownloadTask): DownloadTask {
     return {
       id: task.id,
@@ -431,14 +573,12 @@ export class DownloadService {
   }
 
   private static safeFileName(value: string): string {
-    const normalized: string = value.replace(/[\\/:*?"<>|]/g, '_').trim();
-    return normalized.length > 0 ? normalized : `download-${Date.now()}`;
+    const normalized: string = value.replace(/[\\/:*?"<>|\x00-\x1f\x7f]/g, '_').trim();
+    return normalized.length > 0 && !/^\.+$/.test(normalized) ? normalized : `download-${Date.now()}`;
   }
 
   private static pathFor(task: DownloadTask): string {
-    return DownloadService.downloadDirectory.length > 0
-      ? `${DownloadService.downloadDirectory}/${task.fileName}`
-      : '';
+    return DownloadService.paths.get(task.id) ?? '';
   }
 
   private static mimeType(fileName: string): string {

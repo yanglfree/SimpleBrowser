@@ -134,7 +134,6 @@ export class AdsBlockService {
       this.isInitialized = true;
       Logger.info(TAG, 'Ads block rules loaded');
       this.compileAuxiliaryRules();
-      void this.updateRulesIfNeeded();
       return true;
     } catch (error) {
       Logger.error(TAG, `Failed to load ad rules: ${String(error)}`);

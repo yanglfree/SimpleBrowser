@@ -2,7 +2,8 @@ import { describe, expect, it } from '@ohos/hypium'
 import {
   defaultPaywallSelection,
   selectPaywallProduct,
-  sanitizePaywallProducts
+  sanitizePaywallProducts,
+  getPaywallItemKey
 } from '../main/ets/models/IapPaywallSelection'
 import { IapPaywallPlan, IapPaywallProductSource, IapPaywallProduct } from '../main/ets/models/IapPaywallModels'
 
@@ -58,6 +59,33 @@ export default function paywallSelectionTest() {
         source: IapPaywallProductSource.LIVE_STORE
       }
       expect(defaultPaywallSelection([empty])).assertUndefined()
+    })
+    it('generates selection-aware keys so ForEach re-renders checkmark on plan change', 0, () => {
+      const monthlyProduct = products[0]
+      const yearlyProduct = products[1]
+      const lifetimeProduct = products[2]
+
+      // Initially yearly is selected
+      const yearlyKeyInitial = getPaywallItemKey(yearlyProduct, IapPaywallPlan.YEARLY, false)
+      const monthlyKeyInitial = getPaywallItemKey(monthlyProduct, IapPaywallPlan.YEARLY, false)
+      expect(yearlyKeyInitial).assertEqual('example.pro.yearly_1_¥198_')
+      expect(monthlyKeyInitial).assertEqual('example.pro.monthly_0_¥30_')
+
+      // Switch selection to monthly
+      const yearlyKeyAfterSwitch = getPaywallItemKey(yearlyProduct, IapPaywallPlan.MONTHLY, false)
+      const monthlyKeyAfterSwitch = getPaywallItemKey(monthlyProduct, IapPaywallPlan.MONTHLY, false)
+      expect(yearlyKeyAfterSwitch).assertEqual('example.pro.yearly_0_¥198_')
+      expect(monthlyKeyAfterSwitch).assertEqual('example.pro.monthly_1_¥30_')
+      expect(yearlyKeyInitial !== yearlyKeyAfterSwitch).assertTrue()
+      expect(monthlyKeyInitial !== monthlyKeyAfterSwitch).assertTrue()
+
+      // Switch selection to lifetime
+      const lifetimeKeySelected = getPaywallItemKey(lifetimeProduct, IapPaywallPlan.LIFETIME, false)
+      expect(lifetimeKeySelected).assertEqual('example.pro.lifetime_1_¥588_')
+
+      // When trial is selected, paid plans are marked unselected
+      const yearlyKeyTrial = getPaywallItemKey(yearlyProduct, IapPaywallPlan.YEARLY, true)
+      expect(yearlyKeyTrial).assertEqual('example.pro.yearly_0_¥198_')
     })
   })
 }

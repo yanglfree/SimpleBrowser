@@ -12,8 +12,10 @@ import {
 import { AppIcon, IconName } from './AppIcon';
 import { AppSwitch } from './AppSwitch';
 import { SearchTemplateSheet } from './SearchTemplateSheet';
+import { pasteboard } from '@kit.BasicServicesKit';
+import { Logger } from '../utils/Logger';
 
-enum PickerKind {
+export enum PickerKind {
   None = 0,
   RuleStrength = 1,
   SearchEngine = 2,
@@ -187,6 +189,7 @@ export struct SettingsPage {
   @Prop isRulesUpdating: boolean = false;
   @Prop appVersion: string = '';
   @Prop isPro: boolean = false;
+  @Prop initialPicker: PickerKind = PickerKind.None;
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
   onResetGestures: () => void = (): void => {};
   onClearData: (selection: ClearDataSelection) => void = (_selection: ClearDataSelection): void => {};
@@ -211,6 +214,12 @@ export struct SettingsPage {
   @State private clearDataRange: ClearDataRange = ClearDataRange.All;
   @State private searchQuery: string = '';
   @State private isAboutDialogVisible: boolean = false;
+
+  aboutToAppear(): void {
+    if (this.initialPicker !== PickerKind.None) {
+      this.picker = this.initialPicker;
+    }
+  }
 
   build() {
     Stack({ alignContent: this.isWide ? Alignment.Top : Alignment.Bottom }) {
@@ -483,7 +492,10 @@ export struct SettingsPage {
               true,
               () => this.onOpenPro()
             )
-            this.ValueRowText($r('app.string.about_app'), this.appVersionLabel(), false, () => this.showAbout())
+            this.ValueRowText($r('app.string.about_app'), this.appVersionLabel(), true, () => this.showAbout())
+            this.ValueRowText($r('app.string.about_icp_label'), $r('app.string.about_icp_value'), false, () => {
+              void this.copyIcpNumber();
+            })
           }
           .groupCard()
           }
@@ -768,8 +780,16 @@ export struct SettingsPage {
       {
         key: 'about',
         label: $r('app.string.about_app'),
-        keywords: '关于 版本 应用',
+        keywords: '关于 版本 应用 备案号 ICP',
         action: () => this.showAbout()
+      },
+      {
+        key: 'icp',
+        label: $r('app.string.about_icp_label'),
+        keywords: '备案号 ICP 鄂ICP备2024064800号-14A',
+        action: () => {
+          void this.copyIcpNumber();
+        }
       }
     ];
   }
@@ -903,29 +923,6 @@ export struct SettingsPage {
   }
 
   @Builder
-  private ValueRowText(label: Resource, value: ResourceStr, divided: boolean, onTap: () => void) {
-    Row() {
-      Text(label)
-        .fontSize(15)
-        .fontColor($r('app.color.text_primary'))
-        .layoutWeight(1)
-      Row({ space: 8 }) {
-        Text(value)
-          .fontSize(14)
-          .fontColor($r('app.color.text_secondary'))
-          .fontFeature('"tnum" 1')
-        AppIcon({ name: IconName.ChevronRight, glyphSize: 16, color: $r('app.color.text_secondary') })
-      }
-    }
-    .width('100%')
-    .height(56)
-    .border(divided
-      ? { width: { bottom: 1 }, color: $r('app.color.border') }
-      : { width: 0 })
-    .onClick(onTap)
-  }
-
-  @Builder
   private RulesUpdateRow() {
     Row({ space: 8 }) {
       Text(this.isRulesUpdating ? $r('app.string.rules_update_in_progress') : $r('app.string.rules_update'))
@@ -949,6 +946,29 @@ export struct SettingsPage {
     .height(56)
     .enabled(!this.isRulesUpdating)
     .onClick(() => this.onUpdateRules())
+  }
+
+  @Builder
+  private ValueRowText(label: Resource, value: ResourceStr, divided: boolean, onTap: () => void) {
+    Row() {
+      Text(label)
+        .fontSize(15)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+      Row({ space: 8 }) {
+        Text(value)
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+          .fontFeature('"tnum" 1')
+        AppIcon({ name: IconName.ChevronRight, glyphSize: 16, color: $r('app.color.text_secondary') })
+      }
+    }
+    .width('100%')
+    .height(56)
+    .border(divided
+      ? { width: { bottom: 1 }, color: $r('app.color.border') }
+      : { width: 0 })
+    .onClick(onTap)
   }
 
   @Builder
@@ -1664,6 +1684,15 @@ export struct SettingsPage {
           .textAlign(TextAlign.Center)
           .width('100%')
           .margin({ top: 10 })
+        Text($r('app.string.about_icp_display'))
+          .fontSize(12)
+          .fontColor($r('app.color.text_secondary'))
+          .textAlign(TextAlign.Center)
+          .width('100%')
+          .margin({ top: 8 })
+          .onClick(() => {
+            void this.copyIcpNumber();
+          })
         Text($r('app.string.done'))
           .fontSize(16)
           .fontColor($r('app.color.accent'))
@@ -1682,6 +1711,22 @@ export struct SettingsPage {
     }
     .width('100%')
     .height('100%')
+  }
+
+  private async copyIcpNumber(): Promise<void> {
+    try {
+      const data: pasteboard.PasteData = pasteboard.createData(
+        pasteboard.MIMETYPE_TEXT_PLAIN,
+        '鄂ICP备2024064800号-14A'
+      );
+      await pasteboard.getSystemPasteboard().setData(data);
+      this.getUIContext().getPromptAction().showToast({
+        message: $r('app.string.about_icp_copied')
+      });
+    } catch (error) {
+      Logger.warn('SettingsPage', `Unable to copy ICP registration: ${String(error)}`);
+      this.getUIContext().getPromptAction().showToast({ message: $r('app.string.about_icp_copy_failed') });
+    }
   }
 
   private showAbout(): void {

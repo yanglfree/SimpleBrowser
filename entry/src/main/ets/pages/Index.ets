@@ -59,7 +59,8 @@ import {
   moveQuickSite,
   siteIconPath,
   withSiteIcon,
-  totalBlocked
+  totalBlocked,
+  WebDarkModePreference
 } from '../models/BrowserModels';
 import { ActionSheet } from '../components/ActionSheet';
 import { AddressSheet } from '../components/AddressSheet';
@@ -80,7 +81,7 @@ import { PageSettingsPanel } from '../components/PageSettingsPanel';
 import { HomeBackgroundPicker } from '../components/HomeBackgroundPicker';
 import { ReaderBar, nextLineHeight } from '../components/ReaderBar';
 import { RecentTabsDock } from '../components/RecentTabsDock';
-import { ClearDataRange, ClearDataSelection, SettingsPage } from '../components/SettingsPage';
+import { ClearDataRange, ClearDataSelection, PickerKind, SettingsPage } from '../components/SettingsPage';
 import { SecurityPanel } from '../components/SecurityPanel';
 import { SiteControlSheet } from '../components/SiteControlSheet';
 import { SharePanel } from '../components/SharePanel';
@@ -90,6 +91,7 @@ import { articleFailureLabel } from '../components/ArticleStatus';
 import { ArticleCaptureService } from '../services/ArticleCaptureService';
 import { ArticleCaptureSnapshot, ArticleSaveResult } from '../models/ArticleCaptureModels';
 import { ZhuoProPaywall } from '../components/ZhuoProPaywall';
+import { PrivacyConsentDialog } from '../components/PrivacyConsentDialog';
 import { QuickSiteEditor } from '../components/QuickSiteEditor';
 import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
@@ -111,7 +113,9 @@ import { AppMetadataService } from '../services/AppMetadataService';
 import { FaviconService } from '../services/FaviconService';
 import { SiteIconRequest, siteIconSignature, siteIconTargets } from '../services/FaviconPolicy';
 import { MemoryPressureService } from '../services/MemoryPressureService';
-import { DownloadPolicyReason, DownloadService, DownloadTask } from '../services/DownloadService';
+import { DownloadPolicyReason, DownloadService, DownloadTask, DownloadTaskStatus } from '../services/DownloadService';
+import { nextDownloadNotice } from '../services/DownloadPresentation';
+import { DownloadNotice } from '../components/DownloadNotice';
 import { BookmarkTransferService } from '../services/BookmarkTransferService';
 import { ShareService, ShareOutcome } from '../services/ShareService';
 import { LongScreenshotService } from '../services/LongScreenshotService';
@@ -213,7 +217,8 @@ export enum Overlay {
   ArticleLibrary = 22,
   BlockEvents = 23,
   SiteControls = 24,
-  ProPaywall = 25
+  ProPaywall = 25,
+  PrivacyConsent = 26
 }
 
 export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boolean {
@@ -222,14 +227,15 @@ export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boole
   }
   return sheet !== Overlay.Tabs && sheet !== Overlay.Onboarding &&
     sheet !== Overlay.Permission && sheet !== Overlay.Find &&
-    sheet !== Overlay.Address && sheet !== Overlay.Actions;
+    sheet !== Overlay.Address && sheet !== Overlay.Actions &&
+    sheet !== Overlay.PrivacyConsent;
 }
 
 export function resolveOverlayRowJustifyContent(
   layoutClass: BrowserLayoutClass,
   sheet: Overlay
 ): FlexAlign {
-  if (sheet === Overlay.QuickSiteEditor ||
+  if (sheet === Overlay.QuickSiteEditor || sheet === Overlay.PrivacyConsent ||
     shouldUseResponsivePanel(layoutClass >= BrowserLayoutClass.Medium, sheet)) {
     return FlexAlign.Center;
   }
@@ -313,6 +319,12 @@ interface ResumeRequest {
   isReader: boolean;
 }
 
+interface ArticleSavedToastState {
+  articleId: string;
+  message: Resource;
+  token: number;
+}
+
 interface PendingSitePermission {
   origin: string;
   resources: string[];
@@ -346,6 +358,8 @@ struct Index {
   private pageLoadStartedAt: Map<string, number> = new Map();
   @State private isReady: boolean = false;
   @State private hasError: boolean = false;
+  @State private isAcceptingPrivacyConsent: boolean = false;
+  private consentServicesStarted: boolean = false;
   @State private tabs: BrowserTab[] = [];
   @State private recentTabs: BrowserTab[] = [];
   @State private activeTabId: string = '';
@@ -375,6 +389,7 @@ struct Index {
   @State private isActiveBookmarked: boolean = false;
   @State private isActiveSavedForLater: boolean = false;
   @State private downloadTasks: DownloadTask[] = [];
+  @State private downloadNotice: DownloadTask | undefined = undefined;
   @State private rulesLastUpdatedAt: number = 0;
   @State private isRulesUpdating: boolean = false;
   @State private findQuery: string = '';
@@ -420,6 +435,7 @@ struct Index {
   @State private multiWindowSupported: boolean = false;
   @State private isPro: boolean = false;
   @State private isGeneratingScreenshot: boolean = false;
+  @State private settingsInitialPicker: PickerKind = PickerKind.None;
   private proBillingAdapter: ProBillingAdapter = new ProBillingAdapter();
   private isTabSoftLimitPromptVisible: boolean = false;
   /**
@@ -436,6 +452,8 @@ struct Index {
   private pageScrollOffsets: Map<string, number> = new Map();
   private persistedPageScrollOffsets: Map<string, number> = new Map();
   @State private resumeRequest: ResumeRequest | undefined = undefined;
+  @State private articleSavedToast: ArticleSavedToastState | undefined = undefined;
+  private articleSavedToastTimer: number = -1;
   private appVersionName: string = '';
   private resumeToken: number = 0;
   /** Read & Close owns a private tab and closes it only when the reader exits. */
@@ -444,7 +462,14 @@ struct Index {
   private capturingArticleTabs: Set<string> = new Set<string>();
   private blockEventStore: BlockEventStore = new BlockEventStore();
   private downloadListener: (tasks: DownloadTask[]) => void = (tasks: DownloadTask[]): void => {
+    const notice: DownloadTask | undefined = nextDownloadNotice(this.downloadTasks, tasks);
     this.downloadTasks = tasks;
+    this.downloadNotice = notice ?? tasks.find((task: DownloadTask): boolean => task.id === this.downloadNotice?.id);
+    if (notice?.status === DownloadTaskStatus.Completed) {
+      this.showToast($r('app.string.download_completed_file', notice.fileName));
+    } else if (notice?.status === DownloadTaskStatus.Failed) {
+      this.showToast($r('app.string.download_failed_file', notice.fileName));
+    }
   };
 
   async aboutToAppear(): Promise<void> {
@@ -482,7 +507,8 @@ struct Index {
       this.multiWindowSupported = await MultiWindowService.isSupported();
       this.appVersionName = AppMetadataService.getVersionName();
       ThemeService.apply(this.appContext(), this.viewModel.settings.appearance);
-      TelemetryService.setEnabled(this.viewModel.settings.telemetryEnabled);
+      TelemetryService.setEnabled(
+        this.viewModel.settings.privacyConsentAccepted && this.viewModel.settings.telemetryEnabled);
       await FaviconService.initialize(this.appContext());
       this.syncState();
       this.rulesLastUpdatedAt = this.viewModel.adsBlockService.lastUpdatedAt;
@@ -499,14 +525,7 @@ struct Index {
       );
       DownloadService.subscribe(this.downloadListener);
       this.isReady = true;
-      void this.syncProEntitlement('app_start');
-      ExternalOpenRouter.subscribe(this.windowToken, (request: ExternalOpenRequest): void => {
-        void this.promptExternalOpen(request);
-      });
-      this.promptExpiredTabs();
-      if (!this.settings.onboardingCompleted) {
-        this.sheet = Overlay.Onboarding;
-      }
+      this.resumeConsentedStartup();
     } catch (error) {
       Logger.error(TAG, `Failed to initialize browser: ${String(error)}`);
       this.hasError = true;
@@ -515,6 +534,29 @@ struct Index {
 
   private appContext(): common.UIAbilityContext {
     return AppContext.getContext(this.windowToken);
+  }
+
+  private resumeConsentedStartup(): void {
+    if (!this.settings.privacyConsentAccepted) {
+      this.sheet = Overlay.PrivacyConsent;
+      return;
+    }
+    if (!this.settings.onboardingCompleted) {
+      this.sheet = Overlay.Onboarding;
+      return;
+    }
+    if (this.consentServicesStarted) {
+      return;
+    }
+    this.consentServicesStarted = true;
+    TelemetryService.setEnabled(this.settings.telemetryEnabled);
+    this.refreshSiteIcons();
+    void this.viewModel.adsBlockService.updateRulesIfNeeded();
+    void this.syncProEntitlement('app_start');
+    this.promptExpiredTabs();
+    ExternalOpenRouter.subscribe(this.windowToken, (request: ExternalOpenRequest): void => {
+      void this.promptExternalOpen(request);
+    });
   }
 
   private decodeTransferredTab(): BrowserTab | undefined {
@@ -568,6 +610,10 @@ struct Index {
     MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
     PrivacyService.flushCookies();
+    if (this.articleSavedToastTimer !== -1) {
+      clearTimeout(this.articleSavedToastTimer);
+      this.articleSavedToastTimer = -1;
+    }
   }
 
   private promptExpiredTabs(): void {
@@ -597,6 +643,9 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    if (this.sheet === Overlay.PrivacyConsent) {
+      return true;
+    }
     if (this.sidebarPanel !== SidebarPanel.None) {
       this.sidebarPanel = SidebarPanel.None;
       return true;
@@ -610,6 +659,7 @@ struct Index {
       return true;
     }
     if (this.sheet !== Overlay.None) {
+      this.settingsInitialPicker = PickerKind.None;
       this.sheet = Overlay.None;
       return true;
     }
@@ -641,7 +691,7 @@ struct Index {
         .layoutWeight(1)
         .height('100%')
 
-        if (this.sidebarPanel !== SidebarPanel.None && this.usesSidebar()) {
+        if (this.settings.privacyConsentAccepted && this.sidebarPanel !== SidebarPanel.None && this.usesSidebar()) {
           this.SidebarLayer()
         }
       }
@@ -649,12 +699,16 @@ struct Index {
       .height('100%')
 
       if (this.isReady && !this.hasError) {
-        this.ErrorLayer()
-        this.ResumeLayer()
-        if (this.isAddressMenuVisible) {
-          this.AddressMenuDismissLayer()
+        if (this.settings.privacyConsentAccepted) {
+          this.ErrorLayer()
+          this.ResumeLayer()
+          if (this.isAddressMenuVisible) {
+            this.AddressMenuDismissLayer()
+          }
+          this.CapsuleLayer()
+          this.DownloadNoticeLayer()
+          this.ArticleSavedToastLayer()
         }
-        this.CapsuleLayer()
         if (shouldMountOverlayLayer(this.sheet)) {
           this.OverlayLayer()
         }
@@ -691,7 +745,7 @@ struct Index {
         this.ErrorView()
       } else if (!this.isReady) {
         this.LoadingView()
-      } else {
+      } else if (this.settings.privacyConsentAccepted) {
         if (this.isActiveReader()) {
           ReaderBar({
             topInset: resolveReaderBarTopInset(
@@ -995,6 +1049,28 @@ struct Index {
   }
 
   @Builder
+  private DownloadNoticeLayer() {
+    if (this.downloadNotice !== undefined && this.sheet === Overlay.None &&
+      this.sidebarPanel !== SidebarPanel.Downloads) {
+      Row() {
+        DownloadNotice({
+          task: this.downloadNotice,
+          onOpen: (): void => {
+            this.downloadNotice = undefined;
+            this.openSidebarOrOverlay(SidebarPanel.Downloads, Overlay.Downloads);
+          },
+          onDismiss: (): void => { this.downloadNotice = undefined; }
+        })
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.Center)
+      .padding({ left: 14, right: 14 })
+      .margin({ bottom: this.dockHeight() + Math.max(0, this.bottomInset) + 56 })
+      .hitTestBehavior(HitTestMode.Transparent)
+    }
+  }
+
+  @Builder
   private ResumePrompt(request: ResumeRequest) {
     Row({ space: 10 }) {
       Text($r('app.string.resume_reading_title'))
@@ -1022,6 +1098,63 @@ struct Index {
     .backdropBlur(24)
     .border({ width: 1, color: $r('app.color.border') })
     .shadow({ radius: 16, color: $r('app.color.shadow_soft'), offsetY: 3 })
+    .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
+      .combine(TransitionEffect.translate({ y: 16 })))
+  }
+
+  @Builder
+  private ArticleSavedToastLayer() {
+    if (this.articleSavedToast !== undefined && this.sheet === Overlay.None) {
+      Row() {
+        this.ArticleSavedToastPrompt(this.articleSavedToast)
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.Center)
+      .hitTestBehavior(HitTestMode.Transparent)
+      .margin({
+        bottom: this.dockHeight() + (this.isActiveHome() ? Math.max(0, this.bottomInset - 5) : -5) + 8
+      })
+    }
+  }
+
+  @Builder
+  private ArticleSavedToastPrompt(toast: ArticleSavedToastState) {
+    Row({ space: 10 }) {
+      AppIcon({ name: IconName.Check, glyphSize: 16, color: $r('app.color.accent') })
+      Text(toast.message)
+        .fontSize(13.5)
+        .fontColor($r('app.color.text_primary'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .onClick(() => {
+          void this.navigateToSavedArticleDetail(toast.articleId);
+        })
+      Text($r('app.string.article_toast_view'))
+        .fontSize(13.5)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.accent'))
+        .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+        .borderRadius(12)
+        .backgroundColor($r('app.color.surface_subtle'))
+        .hoverEffect(HoverEffect.Auto)
+        .onClick(() => {
+          void this.navigateToSavedArticleDetail(toast.articleId);
+        })
+      AppIcon({ name: IconName.Close, glyphSize: 14, color: $r('app.color.text_secondary') })
+        .width(24)
+        .height(24)
+        .onClick(() => {
+          this.dismissArticleSavedToast();
+        })
+    }
+    .height(44)
+    .padding({ left: 16, right: 12 })
+    .borderRadius(22)
+    .backgroundColor($r('app.color.surface_panel'))
+    .backdropBlur(24)
+    .border({ width: 1, color: $r('app.color.border') })
+    .shadow({ radius: 16, color: $r('app.color.shadow_soft'), offsetY: 3 })
+    .hitTestBehavior(HitTestMode.Default)
     .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
       .combine(TransitionEffect.translate({ y: 16 })))
   }
@@ -1492,6 +1625,7 @@ struct Index {
         isPrivate: this.activeTab()?.isPrivate === true,
         isSavingArticle: this.articleSaving,
         isDesktop: this.activeTab()?.isDesktop === true,
+        isWebDarkMode: this.settings.webDarkMode === WebDarkModePreference.Dark,
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onAction: (key: string): void => { this.performAction(key); }
       })
@@ -1612,6 +1746,7 @@ struct Index {
     } else if (this.sheet === Overlay.Settings) {
       SettingsPage({
         settings: this.settings,
+        initialPicker: this.settingsInitialPicker,
         topInset: this.topInset,
         isWide: this.usesWideChrome(),
         allowedHosts: this.viewModel.getAllowedHosts(),
@@ -1636,7 +1771,10 @@ struct Index {
         onUpdateRules: (): void => { void this.updateRules(); },
         onSetDefaultBrowser: (): void => { void this.setDefaultBrowser(); },
         onOpenPro: (): void => { this.sheet = Overlay.ProPaywall; },
-        onBack: (): void => { this.sheet = Overlay.None; }
+        onBack: (): void => {
+          this.settingsInitialPicker = PickerKind.None;
+          this.sheet = Overlay.None;
+        }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.ProPaywall) {
@@ -1787,9 +1925,17 @@ struct Index {
         onDismiss: (): void => this.closeLongPressActions(),
         onAction: (key: string): void => { void this.performLongPressAction(key); }
       })
+    } else if (this.sheet === Overlay.PrivacyConsent) {
+      PrivacyConsentDialog({
+        isSaving: this.isAcceptingPrivacyConsent,
+        onAccept: (): void => { void this.acceptPrivacyConsent(); },
+        onOpenUrl: (url: string): void => { void this.openExternalWebUrl(url); }
+      })
     } else if (this.sheet === Overlay.Onboarding) {
       OnboardingSheet({
         settings: this.settings,
+        topInset: this.topInset,
+        bottomInset: this.bottomInset,
         isWide: this.usesWideChrome(),
         isHeightConstrained: this.windowMetrics.isHeightConstrained,
         onSearchEngineChange: (engine: SearchEngine): void => this.setOnboardingSearchEngine(engine),
@@ -1827,7 +1973,8 @@ struct Index {
   }
 
   private canDismissOverlay(): boolean {
-    return this.sheet !== Overlay.Onboarding && this.sheet !== Overlay.Permission;
+    return this.sheet !== Overlay.Onboarding && this.sheet !== Overlay.Permission &&
+      this.sheet !== Overlay.PrivacyConsent;
   }
 
   private overlayWidth(): number | string {
@@ -2114,6 +2261,9 @@ struct Index {
   }
 
   private handleDroppedContent(event: DragEvent): void {
+    if (!this.settings.privacyConsentAccepted) {
+      return;
+    }
     try {
       const candidates: string[] = [];
       const records: unifiedDataChannel.UnifiedRecord[] = event.getData().getRecords();
@@ -2613,7 +2763,8 @@ struct Index {
       keyDown: event.type === KeyType.Down
     });
     if (shortcut === BrowserShortcut.None || this.sheet === Overlay.Address ||
-      this.sheet === Overlay.Onboarding || this.sheet === Overlay.Permission) {
+      this.sheet === Overlay.Onboarding || this.sheet === Overlay.Permission ||
+      this.sheet === Overlay.PrivacyConsent) {
       return false;
     }
     if (this.sheet !== Overlay.None && shortcut !== BrowserShortcut.FocusAddress) {
@@ -2774,6 +2925,19 @@ struct Index {
       return;
     }
     if (key === 'settings') {
+      this.settingsInitialPicker = PickerKind.None;
+      this.sheet = Overlay.Settings;
+      this.recordActionUsage('settings');
+      return;
+    }
+    if (key === 'web_dark_mode') {
+      this.settingsInitialPicker = PickerKind.WebDarkMode;
+      this.sheet = Overlay.Settings;
+      this.recordActionUsage('settings');
+      return;
+    }
+    if (key === 'search_engine') {
+      this.settingsInitialPicker = PickerKind.SearchEngine;
       this.sheet = Overlay.Settings;
       this.recordActionUsage('settings');
       return;
@@ -2843,12 +3007,21 @@ struct Index {
     }
   }
 
-  private async openArticleLibrary(): Promise<void> {
+  private async openArticleLibrary(targetArticleId?: string): Promise<void> {
     this.articleSearchRevision++;
     try {
       this.articles = await this.viewModel.listSavedArticles();
       this.closeSavedArticle();
       this.articleInspectorVisible = false;
+      if (targetArticleId !== undefined && targetArticleId.length > 0) {
+        const article: SavedArticle | undefined = await this.viewModel.getSavedArticle(targetArticleId);
+        if (article !== undefined) {
+          this.selectedArticle = article;
+          this.sheet = Overlay.ArticleLibrary;
+          void this.openSavedArticle(targetArticleId);
+          return;
+        }
+      }
       this.sheet = Overlay.ArticleLibrary;
     } catch (error) {
       Logger.warn(TAG, `Article library unavailable: ${String(error)}`);
@@ -3383,7 +3556,9 @@ struct Index {
   }
 
   private async openDownload(task: DownloadTask): Promise<void> {
-    await DownloadService.open(this.appContext(), task);
+    if (!await DownloadService.open(this.appContext(), task)) {
+      this.showToast($r('app.string.download_open_unavailable'));
+    }
   }
 
   private async shareDownload(task: DownloadTask): Promise<void> {
@@ -3395,7 +3570,7 @@ struct Index {
       if (reason === DownloadPolicyReason.WifiRequired) {
         this.getUIContext().showAlertDialog({
           title: $r('app.string.download_wifi_required_title'),
-          message: `${task.fileName}${$r('app.string.download_wifi_required_message')}`,
+          message: $r('app.string.download_wifi_required_message', task.fileName),
           autoCancel: false,
           primaryButton: {
             value: $r('app.string.cancel'),
@@ -3406,7 +3581,7 @@ struct Index {
       }
       this.getUIContext().showAlertDialog({
         title: $r('app.string.download_policy_title'),
-        message: `${task.fileName}${$r('app.string.download_policy_message')}`,
+        message: $r('app.string.download_policy_message', task.fileName),
         primaryButton: {
           value: $r('app.string.download_policy_continue'),
           action: (): void => DownloadService.approve(task.id)
@@ -3436,6 +3611,38 @@ struct Index {
     } catch (error) {
       Logger.warn(TAG, `Toast unavailable: ${String(error)}`);
     }
+  }
+
+  private showArticleSavedToast(articleId: string, message: Resource): void {
+    if (this.articleSavedToastTimer !== -1) {
+      clearTimeout(this.articleSavedToastTimer);
+      this.articleSavedToastTimer = -1;
+    }
+    const token: number = Date.now();
+    this.articleSavedToast = {
+      articleId: articleId,
+      message: message,
+      token: token
+    };
+    this.articleSavedToastTimer = setTimeout((): void => {
+      if (this.articleSavedToast?.token === token) {
+        this.articleSavedToast = undefined;
+      }
+      this.articleSavedToastTimer = -1;
+    }, 4000);
+  }
+
+  private dismissArticleSavedToast(): void {
+    if (this.articleSavedToastTimer !== -1) {
+      clearTimeout(this.articleSavedToastTimer);
+      this.articleSavedToastTimer = -1;
+    }
+    this.articleSavedToast = undefined;
+  }
+
+  private async navigateToSavedArticleDetail(articleId: string): Promise<void> {
+    this.dismissArticleSavedToast();
+    await this.openArticleLibrary(articleId);
   }
 
   private recordActionUsage(key: string): void {
@@ -3590,7 +3797,7 @@ struct Index {
     // gate the visible change (a slow or contended flush used to leave the
     // settings page showing the previous value).
     this.settings = cloneSettings(normalized);
-    TelemetryService.setEnabled(normalized.telemetryEnabled);
+    TelemetryService.setEnabled(normalized.privacyConsentAccepted && normalized.telemetryEnabled);
     await this.viewModel.updateSettings(normalized);
     DownloadService.configurePolicy(
       normalized.largeDownloadThresholdMb,
@@ -3970,12 +4177,46 @@ struct Index {
     this.settings = next;
   }
 
+  private async acceptPrivacyConsent(): Promise<void> {
+    if (this.isAcceptingPrivacyConsent) {
+      return;
+    }
+    this.isAcceptingPrivacyConsent = true;
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.privacyConsentAccepted = true;
+    try {
+      await this.viewModel.updateSettings(next);
+      this.settings = cloneSettings(next);
+      this.sheet = Overlay.None;
+      this.resumeConsentedStartup();
+    } catch (error) {
+      Logger.warn(TAG, `Privacy consent could not be saved: ${String(error)}`);
+      this.showToast($r('app.string.privacy_consent_save_failed'));
+    } finally {
+      this.isAcceptingPrivacyConsent = false;
+    }
+  }
+
+  private async openExternalWebUrl(url: string): Promise<void> {
+    try {
+      const context: common.UIAbilityContext = this.appContext();
+      await context.startAbility({
+        action: 'ohos.want.action.viewData',
+        entities: ['entity.system.browsable'],
+        uri: url
+      });
+    } catch (error) {
+      Logger.warn(TAG, `Failed to open external url: ${url}, error: ${String(error)}`);
+    }
+  }
+
   private async finishOnboarding(): Promise<void> {
     const next: BrowserSettings = cloneSettings(this.settings);
     next.onboardingCompleted = true;
     await this.viewModel.updateSettings(next);
     this.settings = cloneSettings(next);
     this.sheet = Overlay.None;
+    this.resumeConsentedStartup();
   }
 
   private async exportBookmarks(): Promise<void> {
@@ -4222,7 +4463,8 @@ struct Index {
       if (result.failure !== ArticleSaveFailure.None) {
         this.showToast(result.preserved ? $r('app.string.article_previous_preserved') : articleFailureLabel(result.failure));
       } else {
-        this.showToast(result.partial ? $r('app.string.article_saved_partial') : $r('app.string.article_saved'));
+        const message: Resource = result.partial ? $r('app.string.article_saved_partial') : $r('app.string.article_saved');
+        this.showArticleSavedToast(result.articleId, message);
       }
       TelemetryService.reportActionUsage(result.failure !== ArticleSaveFailure.None ? 'article_save_failed' :
         (result.partial ? 'article_save_partial' : 'article_save_success'));
@@ -4255,6 +4497,9 @@ struct Index {
   }
 
   private async syncProEntitlement(reason: string): Promise<void> {
+    if (!this.settings.privacyConsentAccepted) {
+      return;
+    }
     try {
       this.isPro = await ProEntitlementService.getInstance().initialize(this.appContext());
       this.isPro = await this.proBillingAdapter.syncEntitlements(this.appContext(), reason);
@@ -4967,6 +5212,9 @@ struct Index {
    * which is what keeps a second launch off the network entirely.
    */
   private refreshSiteIcons(): void {
+    if (!this.settings.privacyConsentAccepted) {
+      return;
+    }
     const targets: SiteIconRequest[] = siteIconTargets(this.siteIconRequests());
     const signature: string = siteIconSignature(targets);
     if (signature === this.siteIconSignature) {
