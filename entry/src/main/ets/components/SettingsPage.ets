@@ -7,7 +7,8 @@ import {
   SitePermissionDecision,
   TabExpiry,
   WebDarkModePreference,
-  cloneSettings
+  cloneSettings,
+  defaultBrowserSettings
 } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 import { AppSwitch } from './AppSwitch';
@@ -178,7 +179,8 @@ function groupCard() {
  */
 @Component
 export struct SettingsPage {
-  @Link settings: BrowserSettings;
+  @Prop @Watch('syncViewSettings') settings: BrowserSettings;
+  @State private viewSettings: BrowserSettings = defaultBrowserSettings();
   @Prop topInset: number = 0;
   @Prop isWide: boolean = false;
   @Prop allowedHosts: string[] = [];
@@ -216,9 +218,14 @@ export struct SettingsPage {
   @State private isAboutDialogVisible: boolean = false;
 
   aboutToAppear(): void {
+    this.syncViewSettings();
     if (this.initialPicker !== PickerKind.None) {
       this.picker = this.initialPicker;
     }
+  }
+
+  private syncViewSettings(): void {
+    this.viewSettings = cloneSettings(this.settings);
   }
 
   build() {
@@ -261,7 +268,7 @@ export struct SettingsPage {
             })
             this.ValueRow(
               $r('app.string.rule_strength'),
-              RULE_STRENGTH_LABELS[this.settings.ruleStrength as number],
+              () => RULE_STRENGTH_LABELS[this.viewSettings.ruleStrength as number],
               false,
               () => this.picker = PickerKind.RuleStrength
             )
@@ -274,94 +281,94 @@ export struct SettingsPage {
             this.ActionRow($r('app.string.set_as_default_browser'), true, () => this.onSetDefaultBrowser())
             this.ValueRow(
               $r('app.string.default_search_engine'),
-              SEARCH_ENGINE_LABELS[this.settings.searchEngine as number],
+              () => SEARCH_ENGINE_LABELS[this.viewSettings.searchEngine as number],
               true,
               () => this.picker = PickerKind.SearchEngine
             )
             this.ValueRowText(
               $r('app.string.custom_search_template'),
-              this.settings.customSearchTemplate.length > 0
-                ? this.settings.customSearchTemplate
+              () => this.viewSettings.customSearchTemplate.length > 0
+                ? this.viewSettings.customSearchTemplate
                 : $r('app.string.custom_search_template_off'),
               true,
               () => this.isEditingSearchTemplate = true
             )
             this.SwitchRow({
               label: $r('app.string.search_suggestions'),
-              checked: this.settings.searchSuggestionsEnabled,
+              checked: this.viewSettings.searchSuggestionsEnabled,
               divided: true,
               onToggle: () => this.toggleSearchSuggestions()
             })
             this.SwitchRow({
               label: $r('app.string.gestures_enabled'),
-              checked: this.settings.gesturesEnabled,
+              checked: this.viewSettings.gesturesEnabled,
               divided: true,
               onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
+                const next: BrowserSettings = cloneSettings(this.viewSettings);
                 next.gesturesEnabled = !next.gesturesEnabled;
-                this.onChange(next);
+                this.commitSettings(next);
               }
             })
             this.SwitchRow({
               label: $r('app.string.gesture_actions'),
-              checked: this.settings.gestureActionsEnabled,
+              checked: this.viewSettings.gestureActionsEnabled,
               divided: true,
               onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
+                const next: BrowserSettings = cloneSettings(this.viewSettings);
                 next.gestureActionsEnabled = !next.gestureActionsEnabled;
-                this.onChange(next);
+                this.commitSettings(next);
               }
             })
             this.SwitchRow({
               label: $r('app.string.gesture_tab_switch'),
-              checked: this.settings.gestureTabSwitchEnabled,
+              checked: this.viewSettings.gestureTabSwitchEnabled,
               divided: true,
               onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
+                const next: BrowserSettings = cloneSettings(this.viewSettings);
                 next.gestureTabSwitchEnabled = !next.gestureTabSwitchEnabled;
-                this.onChange(next);
+                this.commitSettings(next);
               }
             })
             this.SwitchRow({
               label: $r('app.string.gesture_blocking'),
-              checked: this.settings.gestureBlockingEnabled,
+              checked: this.viewSettings.gestureBlockingEnabled,
               divided: true,
               onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
+                const next: BrowserSettings = cloneSettings(this.viewSettings);
                 next.gestureBlockingEnabled = !next.gestureBlockingEnabled;
-                this.onChange(next);
+                this.commitSettings(next);
               }
             })
             this.ActionRow($r('app.string.restore_gesture_defaults'), false, () => this.onResetGestures())
             this.SwitchRow({
               label: $r('app.string.auto_hide_toolbar'),
-              checked: this.settings.autoHideToolbarEnabled,
+              checked: this.viewSettings.autoHideToolbarEnabled,
               divided: true,
               onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
+                const next: BrowserSettings = cloneSettings(this.viewSettings);
                 next.autoHideToolbarEnabled = !next.autoHideToolbarEnabled;
-                this.onChange(next);
+                this.commitSettings(next);
               }
             })
             this.SwitchRow({
               label: $r('app.string.show_quick_sites'),
-              checked: this.settings.quickSitesEnabled,
+              checked: this.viewSettings.quickSitesEnabled,
               divided: true,
               onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
+                const next: BrowserSettings = cloneSettings(this.viewSettings);
                 next.quickSitesEnabled = !next.quickSitesEnabled;
-                this.onChange(next);
+                this.commitSettings(next);
               }
             })
             this.ValueRow(
               $r('app.string.appearance'),
-              APPEARANCE_LABELS[this.settings.appearance as number],
+              () => APPEARANCE_LABELS[this.viewSettings.appearance as number],
               true,
               () => this.picker = PickerKind.Appearance
             )
             this.ValueRow(
               $r('app.string.web_dark_mode'),
-              WEB_DARK_MODE_LABELS[this.settings.webDarkMode as number],
+              () => WEB_DARK_MODE_LABELS[this.viewSettings.webDarkMode as number],
               this.shouldShowCurrentSiteDarkMode(),
               () => this.picker = PickerKind.WebDarkMode
             )
@@ -375,49 +382,49 @@ export struct SettingsPage {
             }
             this.ValueRow(
               $r('app.string.tab_expiry'),
-              this.tabExpiryLabel(),
+              () => this.tabExpiryLabel(),
               false,
               () => this.picker = PickerKind.TabExpiry
             )
             this.ValueRow(
               $r('app.string.live_webview_limit'),
-              this.liveWebViewLimitLabel(),
+              () => this.liveWebViewLimitLabel(),
               false,
               () => this.picker = PickerKind.LiveWebViewLimit
             )
             this.ValueRow(
               $r('app.string.download_concurrency'),
-              this.downloadConcurrencyLabel(),
+              () => this.downloadConcurrencyLabel(),
               false,
               () => this.picker = PickerKind.DownloadConcurrency
             )
             this.ValueRow(
               $r('app.string.large_download_threshold'),
-              this.largeDownloadThresholdLabel(),
+              () => this.largeDownloadThresholdLabel(),
               true,
               () => this.picker = PickerKind.LargeDownloadThreshold
             )
             this.SwitchRow({
               label: $r('app.string.wifi_only_downloads'),
-              checked: this.settings.wifiOnlyDownloads,
+              checked: this.viewSettings.wifiOnlyDownloads,
               divided: true,
               onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
+                const next: BrowserSettings = cloneSettings(this.viewSettings);
                 next.wifiOnlyDownloads = !next.wifiOnlyDownloads;
-                this.onChange(next);
+                this.commitSettings(next);
               }
             })
             this.ActionRow($r('app.string.bookmark_import_html'), false, () => this.onImportBookmarks())
             this.ActionRow($r('app.string.bookmark_export_html'), false, () => this.onExportBookmarks())
             this.ValueRow(
               $r('app.string.tab_soft_limit'),
-              this.tabSoftLimitLabel(),
+              () => this.tabSoftLimitLabel(),
               false,
               () => this.picker = PickerKind.TabSoftLimit
             )
             this.ValueRow(
               $r('app.string.minimum_font_size'),
-              this.minimumFontSizeLabel(),
+              () => this.minimumFontSizeLabel(),
               false,
               () => this.picker = PickerKind.MinimumFontSize
             )
@@ -428,27 +435,27 @@ export struct SettingsPage {
           Column() {
             this.SwitchRow({
               label: $r('app.string.clear_cookies_on_tab_close'),
-              checked: this.settings.clearCookiesOnTabClose,
+              checked: this.viewSettings.clearCookiesOnTabClose,
               divided: true,
               onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
+                const next: BrowserSettings = cloneSettings(this.viewSettings);
                 next.clearCookiesOnTabClose = !next.clearCookiesOnTabClose;
-                this.onChange(next);
+                this.commitSettings(next);
               }
             })
             this.SwitchRow({
               label: $r('app.string.telemetry_switch'),
-              checked: this.settings.telemetryEnabled,
+              checked: this.viewSettings.telemetryEnabled,
               divided: true,
               onToggle: () => {
-                const next: BrowserSettings = cloneSettings(this.settings);
+                const next: BrowserSettings = cloneSettings(this.viewSettings);
                 next.telemetryEnabled = !next.telemetryEnabled;
-                this.onChange(next);
+                this.commitSettings(next);
               }
             })
             this.ValueRow(
               $r('app.string.history_retention'),
-              this.historyRetentionLabel(),
+              () => this.historyRetentionLabel(),
               true,
               () => this.picker = PickerKind.HistoryRetention
             )
@@ -488,12 +495,12 @@ export struct SettingsPage {
           Column() {
             this.ValueRowText(
               $r('app.string.pro_settings_title'),
-              this.isPro ? $r('app.string.pro_settings_active') : $r('app.string.pro_settings_free'),
+              () => this.isPro ? $r('app.string.pro_settings_active') : $r('app.string.pro_settings_free'),
               true,
               () => this.onOpenPro()
             )
-            this.ValueRowText($r('app.string.about_app'), this.appVersionLabel(), true, () => this.showAbout())
-            this.ValueRowText($r('app.string.about_icp_label'), $r('app.string.about_icp_value'), false, () => {
+            this.ValueRowText($r('app.string.about_app'), () => this.appVersionLabel(), true, () => this.showAbout())
+            this.ValueRowText($r('app.string.about_icp_label'), () => $r('app.string.about_icp_value'), false, () => {
               void this.copyIcpNumber();
             })
           }
@@ -518,7 +525,7 @@ export struct SettingsPage {
       }
       if (this.isEditingSearchTemplate) {
         SearchTemplateSheet({
-          initialValue: this.settings.customSearchTemplate,
+          initialValue: this.viewSettings.customSearchTemplate,
           isWide: this.isWide,
           onSave: (template: string): void => this.saveSearchTemplate(template),
           onDismiss: (): void => { this.isEditingSearchTemplate = false; }
@@ -795,13 +802,19 @@ export struct SettingsPage {
   }
 
   private updateSettings(mutator: (settings: BrowserSettings) => void): void {
-    const next: BrowserSettings = cloneSettings(this.settings);
+    const next: BrowserSettings = cloneSettings(this.viewSettings);
     mutator(next);
+    this.commitSettings(next);
+  }
+
+  /** Refresh the page immediately while the parent persists and applies side effects. */
+  private commitSettings(next: BrowserSettings): void {
+    this.viewSettings = cloneSettings(next);
     this.onChange(next);
   }
 
   private isContentProtectionEnabled(): boolean {
-    return this.settings.blockAds || this.settings.blockTrackers;
+    return this.viewSettings.blockAds || this.viewSettings.blockTrackers;
   }
 
   private toggleContentProtection(): void {
@@ -873,7 +886,7 @@ export struct SettingsPage {
   }
 
   private shouldShowCurrentSiteDarkMode(): boolean {
-    return shouldShowCurrentSiteDarkModeRow(this.currentHost, this.settings.webDarkMode);
+    return shouldShowCurrentSiteDarkModeRow(this.currentHost, this.viewSettings.webDarkMode);
   }
 
   private appVersionLabel(): ResourceStr {
@@ -901,14 +914,14 @@ export struct SettingsPage {
   }
 
   @Builder
-  private ValueRow(label: Resource, value: Resource, divided: boolean, onTap: () => void) {
+  private ValueRow(label: Resource, value: () => Resource, divided: boolean, onTap: () => void) {
     Row() {
       Text(label)
         .fontSize(15)
         .fontColor($r('app.color.text_primary'))
         .layoutWeight(1)
       Row({ space: 8 }) {
-        Text(value)
+        Text(value())
           .fontSize(14)
           .fontColor($r('app.color.text_secondary'))
         AppIcon({ name: IconName.ChevronRight, glyphSize: 16, color: $r('app.color.text_secondary') })
@@ -949,14 +962,14 @@ export struct SettingsPage {
   }
 
   @Builder
-  private ValueRowText(label: Resource, value: ResourceStr, divided: boolean, onTap: () => void) {
+  private ValueRowText(label: Resource, value: () => ResourceStr, divided: boolean, onTap: () => void) {
     Row() {
       Text(label)
         .fontSize(15)
         .fontColor($r('app.color.text_primary'))
         .layoutWeight(1)
       Row({ space: 8 }) {
-        Text(value)
+        Text(value())
           .fontSize(14)
           .fontColor($r('app.color.text_secondary'))
           .fontFeature('"tnum" 1')
@@ -1177,10 +1190,10 @@ export struct SettingsPage {
 
   private selectedValue(): number {
     if (this.picker === PickerKind.RuleStrength) {
-      return this.settings.ruleStrength as number;
+      return this.viewSettings.ruleStrength as number;
     }
     if (this.picker === PickerKind.SearchEngine) {
-      return this.settings.searchEngine as number;
+      return this.viewSettings.searchEngine as number;
     }
     if (this.picker === PickerKind.TabExpiry) {
       return this.tabExpiryIndex();
@@ -1204,12 +1217,12 @@ export struct SettingsPage {
       return this.largeDownloadThresholdIndex();
     }
     if (this.picker === PickerKind.WebDarkMode) {
-      return this.settings.webDarkMode as number;
+      return this.viewSettings.webDarkMode as number;
     }
     if (this.picker === PickerKind.ClearDataRange) {
       return this.clearDataRangeIndex();
     }
-    return this.settings.appearance as number;
+    return this.viewSettings.appearance as number;
   }
 
   private applyPick(value: number): void {
@@ -1218,7 +1231,7 @@ export struct SettingsPage {
       this.picker = PickerKind.None;
       return;
     }
-    const next: BrowserSettings = cloneSettings(this.settings);
+    const next: BrowserSettings = cloneSettings(this.viewSettings);
     if (this.picker === PickerKind.RuleStrength) {
       next.ruleStrength = value as RuleStrength;
     } else if (this.picker === PickerKind.SearchEngine) {
@@ -1243,17 +1256,17 @@ export struct SettingsPage {
       next.appearance = value as AppearanceMode;
     }
     this.picker = PickerKind.None;
-    this.onChange(next);
+    this.commitSettings(next);
   }
 
   private tabExpiryIndex(): number {
-    if (this.settings.tabExpiryDays === TabExpiry.OneDay) {
+    if (this.viewSettings.tabExpiryDays === TabExpiry.OneDay) {
       return 1;
     }
-    if (this.settings.tabExpiryDays === TabExpiry.ThreeDays) {
+    if (this.viewSettings.tabExpiryDays === TabExpiry.ThreeDays) {
       return 2;
     }
-    if (this.settings.tabExpiryDays === TabExpiry.SevenDays) {
+    if (this.viewSettings.tabExpiryDays === TabExpiry.SevenDays) {
       return 3;
     }
     return 0;
@@ -1277,13 +1290,13 @@ export struct SettingsPage {
   }
 
   private historyRetentionIndex(): number {
-    if (this.settings.historyRetentionDays === 1) {
+    if (this.viewSettings.historyRetentionDays === 1) {
       return 1;
     }
-    if (this.settings.historyRetentionDays === 7) {
+    if (this.viewSettings.historyRetentionDays === 7) {
       return 2;
     }
-    if (this.settings.historyRetentionDays === 30) {
+    if (this.viewSettings.historyRetentionDays === 30) {
       return 3;
     }
     return 0;
@@ -1307,13 +1320,13 @@ export struct SettingsPage {
   }
 
   private liveWebViewLimitIndex(): number {
-    if (this.settings.liveWebViewLimit === 1) {
+    if (this.viewSettings.liveWebViewLimit === 1) {
       return 0;
     }
-    if (this.settings.liveWebViewLimit === 2) {
+    if (this.viewSettings.liveWebViewLimit === 2) {
       return 1;
     }
-    if (this.settings.liveWebViewLimit === 6) {
+    if (this.viewSettings.liveWebViewLimit === 6) {
       return 3;
     }
     return 2;
@@ -1337,7 +1350,7 @@ export struct SettingsPage {
   }
 
   private downloadConcurrencyIndex(): number {
-    return Math.min(3, Math.max(0, this.settings.downloadConcurrency - 1));
+    return Math.min(3, Math.max(0, this.viewSettings.downloadConcurrency - 1));
   }
 
   private downloadConcurrencyValue(index: number): number {
@@ -1349,13 +1362,13 @@ export struct SettingsPage {
   }
 
   private tabSoftLimitIndex(): number {
-    if (this.settings.tabSoftLimit === 8) {
+    if (this.viewSettings.tabSoftLimit === 8) {
       return 0;
     }
-    if (this.settings.tabSoftLimit === 20) {
+    if (this.viewSettings.tabSoftLimit === 20) {
       return 2;
     }
-    if (this.settings.tabSoftLimit === 40) {
+    if (this.viewSettings.tabSoftLimit === 40) {
       return 3;
     }
     return 1;
@@ -1379,13 +1392,13 @@ export struct SettingsPage {
   }
 
   private minimumFontSizeIndex(): number {
-    if (this.settings.minimumFontSize === 12) {
+    if (this.viewSettings.minimumFontSize === 12) {
       return 0;
     }
-    if (this.settings.minimumFontSize === 16) {
+    if (this.viewSettings.minimumFontSize === 16) {
       return 2;
     }
-    if (this.settings.minimumFontSize === 18) {
+    if (this.viewSettings.minimumFontSize === 18) {
       return 3;
     }
     return 1;
@@ -1409,13 +1422,13 @@ export struct SettingsPage {
   }
 
   private largeDownloadThresholdIndex(): number {
-    if (this.settings.largeDownloadThresholdMb === 100) {
+    if (this.viewSettings.largeDownloadThresholdMb === 100) {
       return 1;
     }
-    if (this.settings.largeDownloadThresholdMb === 500) {
+    if (this.viewSettings.largeDownloadThresholdMb === 500) {
       return 2;
     }
-    if (this.settings.largeDownloadThresholdMb === 1000) {
+    if (this.viewSettings.largeDownloadThresholdMb === 1000) {
       return 3;
     }
     return 0;
@@ -1449,10 +1462,10 @@ export struct SettingsPage {
   }
 
   private saveSearchTemplate(template: string): void {
-    const next: BrowserSettings = cloneSettings(this.settings);
+    const next: BrowserSettings = cloneSettings(this.viewSettings);
     next.customSearchTemplate = template;
     this.isEditingSearchTemplate = false;
-    this.onChange(next);
+    this.commitSettings(next);
   }
 
   private confirmClear(): void {

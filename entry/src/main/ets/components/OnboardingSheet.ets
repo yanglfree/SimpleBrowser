@@ -9,8 +9,9 @@ const COMPACT_CONTENT_MAX_WIDTH: number = 520;
 
 @Component
 export struct OnboardingSheet {
-  @Link settings: BrowserSettings;
+  @Prop settings: BrowserSettings;
   @State private page: number = 0;
+  @State private selectedSearchEngine: SearchEngine = SearchEngine.Bing;
   @Prop topInset: number = 0;
   @Prop bottomInset: number = 0;
   @Prop isWide: boolean = false;
@@ -20,6 +21,10 @@ export struct OnboardingSheet {
   onSkip: () => void = (): void => {};
 
   private swiperController: SwiperController = new SwiperController();
+
+  aboutToAppear(): void {
+    this.selectedSearchEngine = this.settings.searchEngine;
+  }
 
   build() {
     Column({ space: this.isWide ? 24 : 16 }) {
@@ -316,12 +321,17 @@ export struct OnboardingSheet {
       .layoutWeight(1)
       .textAlign(TextAlign.Center)
       .fontSize(12)
-      .fontColor(this.settings.searchEngine === engine
+      .fontColor(this.selectedSearchEngine === engine
         ? $r('app.color.accent_foreground')
         : $r('app.color.text_primary'))
-      .backgroundColor(this.settings.searchEngine === engine ? $r('app.color.accent') : $r('app.color.surface_subtle'))
+      .backgroundColor(this.selectedSearchEngine === engine ? $r('app.color.accent') : $r('app.color.surface_subtle'))
       .borderRadius(12)
-      .onClick(() => this.onSearchEngineChange(engine))
+      .onClick(() => this.selectSearchEngine(engine))
+  }
+
+  private selectSearchEngine(engine: SearchEngine): void {
+    this.selectedSearchEngine = engine;
+    this.onSearchEngineChange(engine);
   }
 
   private next(): void {
