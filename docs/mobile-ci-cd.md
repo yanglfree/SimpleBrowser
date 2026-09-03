@@ -1,5 +1,10 @@
 # Mobile CI/CD
 
+The current signing authority, automatic specified-device publication contract,
+activation sequence, and recovery rules are in
+[Canonical Harmony signing and device publication](harmony-signing-pipeline.md).
+The dated audit below records the pre-migration state, not proof of activation.
+
 ZhuoBrowser uses GitHub Actions only for orchestration and status. A trusted
 Apple Silicon self-hosted runner performs HarmonyOS tests, signing, and HAP
 builds. Cloudflare R2 retains immutable artifacts, D1 records build and checksum
@@ -23,7 +28,7 @@ push main or manual CI
 - Failed or skipped CI cannot upload artifacts.
 - GitHub-hosted compute, Actions cache, and Actions artifacts are not used.
 - The runner-local release signing profile is stored at
-  `~/.config/zhuobrowser/build-profile.release.json5` with mode `600` and is
+  `~/.config/zhuobrowser/signing.json` with mode `600` and is
   never committed.
 - R2 object keys use `harmony/<source-sha>/<artifact-name>` and are immutable.
 - The Worker verifies the uploaded byte count and SHA-256 before recording D1.
@@ -41,6 +46,7 @@ Ad Hoc installation, TestFlight, or App Store workflow in this migration.
 GitHub environment `mobile-distribution`:
 
 - Secret `DISTRIBUTION_UPLOAD_TOKEN`
+- Secret `PORTAL_UPLOAD_TOKEN` (product-scoped specified-device publication)
 - Variable `DISTRIBUTION_UPLOAD_URL` ending in `/api/artifacts`
 - Variable `HARMONY_DOWNLOAD_URL` containing the unlisted Worker channel URL
 
@@ -98,7 +104,7 @@ Server-side retention does not prove installation, launch, changed-path
 interaction, AGC association, review, or store publication. Record those as
 separate states.
 
-## Signing refresh and browser-install channel
+## Historical signing audit (2026-09-03, before canonical-source migration)
 
 Local signing configuration is private and ignored by Git. The maintainer Mac
 uses these separate selections, all referencing the original downloaded profile

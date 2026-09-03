@@ -9,23 +9,60 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: zhuobrowser-harmony-${{ github.event.workflow_run.head_sha || github.sha }}
+  group: zhuobrowser-harmony-publication
   cancel-in-progress: false
 
 env:
   PATH: /Users/liang/Library/Huawei/CommandLineTools/current/bin:/Users/liang/.nvm/versions/node/v24.19.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
   HVIGOR_BIN: /Users/liang/Library/Huawei/CommandLineTools/current/bin/hvigorw
-  HARMONY_SIGNING_PROFILE: /Users/liang/.config/zhuobrowser/build-profile.release.json5
+  HARMONY_SIGNING_SOURCE: /Users/liang/.config/zhuobrowser/signing.json
   SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
-  retain:
-    name: Build and retain signed HarmonyOS artifacts
+  inspect:
+    name: Resolve accepted CI and signing inputs
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+      (github.event.workflow_run.conclusion == 'success' &&
+       contains(fromJSON('["push", "workflow_dispatch", "schedule"]'), github.event.workflow_run.event))
+    runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
+    outputs:
+      changed: ${{ steps.inputs.outputs.changed }}
+      ci_run_id: ${{ steps.inputs.outputs.ci_run_id }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - id: inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
+          UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          ci_run_id="$UPSTREAM_RUN_ID"
+          if [[ -z "$ci_run_id" ]]; then
+            ci_run_id="$(gh run list --repo yanglfree/SimpleBrowser --workflow ci.yml --commit "$SOURCE_SHA" --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          fi
+          [[ "$ci_run_id" =~ ^[1-9][0-9]*$ ]]
+          accepted="$(gh api "repos/yanglfree/SimpleBrowser/actions/runs/$ci_run_id" --jq '.head_sha + ":" + .conclusion')"
+          test "$accepted" = "$SOURCE_SHA:success"
+          changed=true
+          if [[ "$UPSTREAM_EVENT" == schedule ]]; then
+            changed="$(node scripts/mobile_cicd/signing-source.mjs changed)"
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "ci_run_id=$ci_run_id" >> "$GITHUB_OUTPUT"
+
+  retain:
+    needs: inspect
+    name: Build and retain signed HarmonyOS artifacts
+    if: needs.inspect.outputs.changed == 'true'
     runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
     timeout-minutes: 60
     environment: mobile-distribution
@@ -48,8 +85,8 @@ jobs:
           git merge-base --is-ancestor "$SOURCE_SHA" origin/main
           test "$(uname -m)" = "arm64"
           test -x "$HVIGOR_BIN"
-          test -f "$HARMONY_SIGNING_PROFILE"
-          test "$(stat -f '%OLp' "$HARMONY_SIGNING_PROFILE")" = "600"
+          test -f "$HARMONY_SIGNING_SOURCE"
+          test "$(stat -f '%OLp' "$HARMONY_SIGNING_SOURCE")" = "600"
           df -Pk . | awk 'NR == 2 { if ($4 < 8388608) { print "At least 8 GiB free disk is required."; exit 1 } }'
 
       - name: Validate distribution configuration
@@ -65,7 +102,7 @@ jobs:
 
       - name: Build and validate signed HAP
         run: |
-          scripts/mobile_cicd/build_harmony_artifacts.sh "$RUNNER_TEMP/zhuobrowser-harmony-release"
+          scripts/mobile_cicd/build_harmony_artifacts.sh "$RUNNER_TEMP/zhuobrowser-harmony-release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
 
       - name: Upload immutable artifacts to Cloudflare
         env:
@@ -74,10 +111,11 @@ jobs:
           DOWNLOAD_URL: ${{ vars.HARMONY_DOWNLOAD_URL }}
         run: |
           set -euo pipefail
-          output_dir="$RUNNER_TEMP/zhuobrowser-harmony-release"
+          output_dir="$RUNNER_TEMP/zhuobrowser-harmony-release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           metadata="$output_dir/release-metadata.json"
           version="$(jq -r .versionName "$metadata")"
           build="$(jq -r .versionCode "$metadata")"
+          output_dir="$(node scripts/mobile_cicd/prepare-retention.mjs "$output_dir" "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT")"
           artifact_count=0
           for artifact in "$output_dir"/*; do
             scripts/mobile_cicd/upload_artifact.sh \
@@ -97,6 +135,28 @@ jobs:
             echo "- Version: \`$version ($build)\`"
             echo "- Source: \`$SOURCE_SHA\`"
             echo "- Retention: immutable Cloudflare R2 objects with D1 metadata"
-            echo "- downloads.youdroid.top registration: pending first verified artifact"
+            echo "- Specified-device publication: separate required job in this workflow"
             echo "- AppGallery Connect upload and submission: not performed"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-device:
+    name: Publish verified specified-device release
+    needs: [inspect, retain]
+    if: needs.inspect.outputs.changed == 'true'
+    runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
+    timeout-minutes: 60
+    environment: mobile-distribution
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Build, verify, upload and publish
+        env:
+          PORTAL_UPLOAD_TOKEN: ${{ secrets.PORTAL_UPLOAD_TOKEN }}
+          ACCEPTED_CI_RUN_ID: ${{ needs.inspect.outputs.ci_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          df -Pk . | awk 'NR == 2 { if ($4 < 8388608) exit 1 }'
+          node scripts/mobile_cicd/release-device.mjs publish "$RUNNER_TEMP/zhuobrowser-device-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          echo "Specified-device portal publication verified for $SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"

@@ -161,6 +161,7 @@ echo "📱 目标设备: $DEVICE_ID"
 
 # 构建 release 包 ------------------------------------------------------
 echo "🛠️  编译 Release 包 (hvigorw assembleHap -p buildMode=release)..."
+node scripts/mobile_cicd/signing-source.mjs sync-local debug
 "$HVIGORW" assembleHap -p buildMode=release
 
 if [ ! -f "$HAP" ]; then

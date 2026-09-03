@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '17,47 * * * *'
 
 permissions:
   contents: read
@@ -15,10 +17,31 @@ concurrency:
 env:
   PATH: /Users/liang/Library/Huawei/CommandLineTools/current/bin:/Users/liang/.nvm/versions/node/v24.19.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
   HVIGOR_BIN: /Users/liang/Library/Huawei/CommandLineTools/current/bin/hvigorw
-  HARMONY_SIGNING_PROFILE: /Users/liang/.config/zhuobrowser/build-profile.release.json5
+  HARMONY_SIGNING_SOURCE: /Users/liang/.config/zhuobrowser/signing.json
 
 jobs:
+  inspect:
+    name: Check canonical signing inputs
+    runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
+    outputs:
+      changed: ${{ steps.inputs.outputs.changed }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - id: inputs
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          changed=true
+          if [[ "$EVENT_NAME" == schedule ]]; then
+            changed="$(node scripts/mobile_cicd/signing-source.mjs changed)"
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
   verify:
+    needs: inspect
+    if: needs.inspect.outputs.changed == 'true'
     name: Test and build HarmonyOS app
     runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
     timeout-minutes: 60
@@ -39,8 +62,8 @@ jobs:
           command -v ohpm
           command -v node
           command -v actionlint
-          test -f "$HARMONY_SIGNING_PROFILE"
-          test "$(stat -f '%OLp' "$HARMONY_SIGNING_PROFILE")" = "600"
+          test -f "$HARMONY_SIGNING_SOURCE"
+          test "$(stat -f '%OLp' "$HARMONY_SIGNING_SOURCE")" = "600"
           "$HVIGOR_BIN" --version
           ohpm --version
           df -Pk . | awk 'NR == 2 { if ($4 < 8388608) { print "At least 8 GiB free disk is required."; exit 1 } }'
@@ -50,7 +73,7 @@ jobs:
           set -euo pipefail
           actionlint -color
           python3 scripts/mobile_cicd/check_ci_cost_contract.py
-          node --test scripts/mobile_cicd/verify_harmony_signing.test.mjs
+          node --test scripts/mobile_cicd/*.test.mjs
           for script in scripts/mobile_cicd/*.sh; do bash -n "$script"; done
           git log -1 --check --format=
 

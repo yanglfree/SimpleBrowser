@@ -53,11 +53,22 @@ for fragment in (
     "github.event.workflow_run.head_sha",
     "github.event.workflow_run.conclusion == 'success'",
     "ref: ${{ env.SOURCE_SHA }}",
+    "publish-device:",
+    "secrets.PORTAL_UPLOAD_TOKEN",
+    "ACCEPTED_CI_RUN_ID:",
+    "release-device.mjs publish",
+    "group: zhuobrowser-harmony-publication",
 ):
     if fragment not in release:
         fail(f"harmony-artifacts.yml is missing accepted-source invariant: {fragment}")
 
 all_workflows = "\n".join(path.read_text(encoding="utf-8").lower() for path in workflow_files)
+for legacy_source in ("harmony_signing_profile:", "build-profile.release.json5", "build-profile.device.json5", "portal_admin_token", "portal_recovery_token"):
+    if legacy_source in all_workflows:
+        fail(f"workflow bypasses signing/publication authority: {legacy_source}")
+ci = (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+if "schedule:" not in ci or "signing-source.mjs changed" not in ci:
+    fail("device profile refresh trigger is missing")
 for store_action in ("upload_to_app_gallery", "submit_for_review", "agc upload", "appgallery upload"):
     if store_action in all_workflows:
         fail(f"automated store action is forbidden: {store_action}")

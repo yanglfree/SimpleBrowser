@@ -54,6 +54,7 @@ export function verifySigning(configPath, distribution, embeddedProfilePath, hap
     signingConfig: signer.name,
     profileUuid: profile.uuid,
     profileSha256: sha256(material.profile),
+    profileExpiresAt: profile.validity['not-after'],
     distribution,
     certificateSha256: certificate.fingerprint256,
     iapEnabled: true,
