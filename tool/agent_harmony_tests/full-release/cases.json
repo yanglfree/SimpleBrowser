@@ -39,7 +39,7 @@
         "navigation-14",
         "navigation-15"
       ],
-      "notes": "passed: 3, partial: 4, not-run: 8"
+      "notes": "passed: 7, partial: 4, not-run: 4"
     },
     {
       "title": "Tabs, session and resource limits",
@@ -56,7 +56,7 @@
         "tabs-09",
         "tabs-10"
       ],
-      "notes": "passed: 2, partial: 2, not-run: 6"
+      "notes": "passed: 2, partial: 3, not-run: 5"
     },
     {
       "title": "Content blocking and site controls",
@@ -71,7 +71,7 @@
         "blocking-07",
         "blocking-08"
       ],
-      "notes": "partial: 3, not-run: 5"
+      "notes": "passed: 1, partial: 5, not-run: 2"
     },
     {
       "title": "Online reader mode",
@@ -117,7 +117,7 @@
         "saved-09",
         "saved-10"
       ],
-      "notes": "partial: 4, not-run: 6"
+      "notes": "partial: 6, not-run: 4"
     },
     {
       "title": "Downloads and native file operations",
@@ -130,7 +130,7 @@
         "downloads-05",
         "downloads-06"
       ],
-      "notes": "partial: 2, not-run: 4"
+      "notes": "partial: 5, not-run: 1"
     },
     {
       "title": "Privacy data and site permissions",
@@ -159,7 +159,7 @@
         "integration-07",
         "integration-08"
       ],
-      "notes": "passed: 3, not-run: 5"
+      "notes": "passed: 4, partial: 3, not-run: 1"
     },
     {
       "title": "Settings and appearance",
@@ -4094,12 +4094,12 @@
       {
         "caseId": "tabs-02",
         "status": "partial",
-        "notes": "Recent Tabs selected the expected QA tabs and overview close controls remained usable. Every backdrop dismissal variant was not repeated.",
+        "notes": "Recent Tabs listed and selected the expected current and recent tabs. The overview closed only the selected QA tab and its controls remained usable. Every backdrop dismissal and privacy-mode variant was not repeated.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
-            "summary": "Recent Tabs selected the expected QA tabs and overview close controls remained usable."
+            "path": "tool/agent_harmony_tests/full-release/evidence/tabs-overview.jpeg",
+            "summary": "The overview exposed usable per-tab close controls while preserving the remaining tabs."
           }
         ]
       },
@@ -4147,9 +4147,15 @@
       },
       {
         "caseId": "tabs-08",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Lowering the live-webview budget from four to one hibernated background tabs. Selecting the controlled article reattached it, restored reader mode, and produced neither a blank view nor duplicate navigation. Reading-position recovery was not established because automated ArkWeb swipes did not move the page. The budget was restored to four.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/hibernate-restored-selected.jpeg",
+            "summary": "The controlled article reattached from hibernation and restored reader mode without a blank view."
+          }
+        ]
       },
       {
         "caseId": "tabs-09",
@@ -4225,15 +4231,27 @@
       },
       {
         "caseId": "blocking-07",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Network blocking, tracker blocking, cosmetic filtering, automatic reader, web dark mode, and desktop UA each cycled through force-on, force-off, and inherit. All six overrides were restored to inherit. Corresponding behavior and second-host isolation remain only partly covered.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/site-controls-cycle.jpeg",
+            "summary": "The site-control sheet exposed all six override categories after their mode cycle and restoration."
+          }
+        ]
       },
       {
         "caseId": "blocking-08",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "The page-problem report displayed app version, viewport, load error, block-event counts, rule-source counts, and site override count. It was readable and copyable, excluded page/form content, and performed no unsolicited external transmission.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/page-diagnostics.jpeg",
+            "summary": "The diagnostics dialog exposed actionable counters without page or form content and required an explicit copy action."
+          }
+        ]
       },
       {
         "caseId": "reader-01",
