@@ -36,16 +36,16 @@
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>55</strong>Executed</div>
+    <div class="metric"><strong>57</strong>Executed</div>
     <div class="metric"><strong>24</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
-    <div class="metric"><strong>26</strong>Not run</div>
+    <div class="metric"><strong>24</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 55 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 57 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -63,7 +63,7 @@
         <td>Address, navigation and page tools</td>
         <td class="status-partial">partial</td>
         <td><code>navigation-01</code><br><code>navigation-02</code><br><code>navigation-03</code><br><code>navigation-04</code><br><code>navigation-05</code><br><code>navigation-06</code><br><code>navigation-07</code><br><code>navigation-08</code><br><code>navigation-09</code><br><code>navigation-10</code><br><code>navigation-11</code><br><code>navigation-12</code><br><code>navigation-13</code><br><code>navigation-14</code><br><code>navigation-15</code></td>
-        <td>passed: 7, partial: 4, not-run: 4</td>
+        <td>passed: 7, partial: 6, not-run: 2</td>
       </tr>
       <tr>
         <td>Tabs, session and resource limits</td>
@@ -217,7 +217,7 @@
         <td><code>navigation-04</code></td>
         <td>p1</td>
         <td>Suggestions and toggle</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>navigation</td>
       </tr>
       <tr>
@@ -266,7 +266,7 @@
         <td><code>navigation-11</code></td>
         <td>p1</td>
         <td>Zoom and minimum font size</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>navigation</td>
       </tr>
       <tr>
@@ -982,9 +982,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/custom-search-invalid-rejected.jpeg</code><br>A template without %s remained in the editor and was not saved.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-04</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>navigation-04</code> <span class="status-partial">partial</span></h3>
+        <p>With search shortcuts enabled, a matching QA history row and the explicit search row appeared. Disabling the setting removed the search row, and restoring it brought the row back. A separate bookmark suggestion was not created in this pass.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/search-suggestions-enabled.jpeg</code><br>The enabled address sheet displayed the matching QA history entry and explicit search shortcut.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/search-suggestions-disabled.jpeg</code><br>The disabled address sheet omitted the external search shortcut for the same unique query.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-05</code> <span class="status-passed">passed</span></h3>
@@ -1017,9 +1017,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/find-in-page.jpeg</code><br>Find-in-page displayed the controlled 1/1 match state before successful navigation and close.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-11</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>navigation-11</code> <span class="status-partial">partial</span></h3>
+        <p>The exact localized setting label became searchable after the observed search-index defect was fixed. Minimum font size changed from 12 px to 18 px, remained selected after a force-stop relaunch, and was restored to 12 px. Native multi-touch pinch zoom could not be injected by the device automation tool.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/settings-label-search-fixed.jpeg</code><br>Searching the exact localized label now returned the minimum-font setting.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/minimum-font-persisted.jpeg</code><br>The 18 px minimum-font selection remained active after a force-stop relaunch before restoration.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-12</code> <span class="status-partial">partial</span></h3>

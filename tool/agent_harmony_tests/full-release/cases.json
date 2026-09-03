@@ -39,7 +39,7 @@
         "navigation-14",
         "navigation-15"
       ],
-      "notes": "passed: 7, partial: 4, not-run: 4"
+      "notes": "passed: 7, partial: 6, not-run: 2"
     },
     {
       "title": "Tabs, session and resource limits",
@@ -797,14 +797,14 @@
         "Preserve existing user data; mutate only QA-created fixtures"
       ],
       "steps": [
-        "Set site zoom and minimum font",
-        "Open another host",
+        "Pinch-zoom a controlled page",
+        "Set the global minimum font size",
         "Relaunch",
         "Restore settings"
       ],
       "assertions": [
-        "Per-host zoom persists without leaking to other host",
-        "Font floor takes effect"
+        "Native pinch zoom changes page scale without freezing",
+        "The font floor persists and can be restored"
       ],
       "failureSignals": [
         "An assertion fails, the app crashes, or the expected control cannot be reached"
@@ -3853,9 +3853,9 @@
     },
     "appBuild": {
       "version": "1.0.1 (1000001); HEAD-equivalent physical-device candidate",
-      "sourceSha": "cf41578e8f9652345b7be73693be82440fe70d5d",
+      "sourceSha": "d86d3acb2a21b049365b0f0c1b888ca89f89cba0",
       "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "9b1c5226e9e0d96f69349f6eac6beee70830faa9ba07ce30cc271022afbd4a98",
+      "sha256": "32fea204b87bb389e1b6c92a81a4bc73e4f30eaec92290d6cdc1393492bfddcf",
       "signing": "debug profile for physical-device QA; AppGallery dis profile validated separately"
     },
     "results": [
@@ -3951,9 +3951,20 @@
       },
       {
         "caseId": "navigation-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "With search shortcuts enabled, a matching QA history row and the explicit search row appeared. Disabling the setting removed the search row, and restoring it brought the row back. A separate bookmark suggestion was not created in this pass.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/search-suggestions-enabled.jpeg",
+            "summary": "The enabled address sheet displayed the matching QA history entry and explicit search shortcut."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/search-suggestions-disabled.jpeg",
+            "summary": "The disabled address sheet omitted the external search shortcut for the same unique query."
+          }
+        ]
       },
       {
         "caseId": "navigation-05",
@@ -4023,9 +4034,20 @@
       },
       {
         "caseId": "navigation-11",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "The exact localized setting label became searchable after the observed search-index defect was fixed. Minimum font size changed from 12 px to 18 px, remained selected after a force-stop relaunch, and was restored to 12 px. Native multi-touch pinch zoom could not be injected by the device automation tool.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/settings-label-search-fixed.jpeg",
+            "summary": "Searching the exact localized label now returned the minimum-font setting."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/minimum-font-persisted.jpeg",
+            "summary": "The 18 px minimum-font selection remained active after a force-stop relaunch before restoration."
+          }
+        ]
       },
       {
         "caseId": "navigation-12",
