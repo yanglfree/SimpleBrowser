@@ -421,6 +421,42 @@ export const PASSWORD_FIELD_WATCHER_SCRIPT: string = `
   return 'armed';
 })();`;
 
+/**
+ * ArkWeb executes javascript: anchors without reporting them as a navigation.
+ * Guard user-activated links and form actions inside the page before page
+ * handlers run; ordinary page scripts remain enabled.
+ */
+export const BLOCKED_LINK_GUARD_SCRIPT: string = `
+(function() {
+  if (window.__zhuoBlockedLinkGuard) return 'armed';
+  window.__zhuoBlockedLinkGuard = true;
+  var blocked = /^(?:javascript|arkweb|chrome|chrome-devtools|devtools):/i;
+  function nearestLink(node) {
+    while (node && node !== document) {
+      if (node.tagName === 'A' || node.tagName === 'AREA') return node;
+      node = node.parentNode;
+    }
+    return null;
+  }
+  function stopBlockedLink(event) {
+    var link = nearestLink(event.target);
+    var href = link && link.getAttribute ? (link.getAttribute('href') || '').trim() : '';
+    if (!blocked.test(href)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+  document.addEventListener('click', stopBlockedLink, true);
+  document.addEventListener('auxclick', stopBlockedLink, true);
+  document.addEventListener('submit', function(event) {
+    var form = event.target;
+    var action = form && form.getAttribute ? (form.getAttribute('action') || '').trim() : '';
+    if (!blocked.test(action)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+  return 'armed';
+})();`;
+
 /** Installs the single extraction core shared by reader mode and offline capture. */
 export const READER_EXTRACTION_CORE_SCRIPT: string = `
 (function() {

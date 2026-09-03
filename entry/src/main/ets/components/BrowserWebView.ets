@@ -1,5 +1,5 @@
 import { webview } from '@kit.ArkWeb';
-import { scrolledFromTopScript } from '../constants/AppConstants';
+import { BLOCKED_LINK_GUARD_SCRIPT, scrolledFromTopScript } from '../constants/AppConstants';
 import { BrowserTab, WebDarkModePreference } from '../models/BrowserModels';
 import { BlockCategory } from '../models/BlockEventModels';
 import { AdsBlockService } from '../services/AdsBlockService';
@@ -65,6 +65,10 @@ export struct BrowserWebView {
       Web({ src: this.tab.url, controller: this.controller, incognitoMode: this.tab.isPrivate })
       .id(`web-core-${this.tab.id}`)
       .javaScriptAccess(true)
+      .javaScriptOnDocumentStart([{
+        script: BLOCKED_LINK_GUARD_SCRIPT,
+        scriptRules: ['*']
+      }])
       .domStorageAccess(true)
       .onlineImageAccess(true)
       .imageAccess(true)
@@ -92,29 +96,13 @@ export struct BrowserWebView {
       })
       .onProgressChange((event: OnProgressChangeEvent) =>
         this.kernelCallbacks.onProgressChange(event.newProgress))
-      .onLoadIntercept((event: OnLoadInterceptEvent): boolean => {
-        if (!event.data.isMainFrame()) {
-          return false;
-        }
-        const url: string = event.data.getRequestUrl();
-        if (isBlockedProtocol(url)) {
-          return true;
-        }
-        if (createExternalProtocolRequest(url) === undefined) {
-          return false;
-        }
-        let sourceUrl: string = this.tab.url;
-        try {
-          const currentUrl: string = this.controller.getUrl();
-          if (currentUrl.length > 0) {
-            sourceUrl = currentUrl;
-          }
-        } catch (_error) {
-          // The controller may not be attached during an early navigation.
-        }
-        this.onExternalProtocol(url, sourceUrl);
-        return true;
-      })
+      // ArkWeb does not report javascript: link activation through
+      // onLoadIntercept. onOverrideUrlLoading covers non-HTTP(S) navigation,
+      // while onLoadIntercept remains as a fallback for older load paths.
+      .onOverrideUrlLoading((request: WebResourceRequest): boolean =>
+        this.interceptNavigation(request))
+      .onLoadIntercept((event: OnLoadInterceptEvent): boolean =>
+        this.interceptNavigation(event.data))
       .onInterceptRequest((event: OnInterceptRequestEvent): WebResourceResponse | null =>
         this.adsBlockService.interceptRequest(
           event.request,
@@ -198,6 +186,30 @@ export struct BrowserWebView {
     }
       .width('100%')
       .height('100%')
+  }
+
+  private interceptNavigation(request: WebResourceRequest): boolean {
+    if (!request.isMainFrame()) {
+      return false;
+    }
+    const url: string = request.getRequestUrl();
+    if (isBlockedProtocol(url)) {
+      return true;
+    }
+    if (createExternalProtocolRequest(url) === undefined) {
+      return false;
+    }
+    let sourceUrl: string = this.tab.url;
+    try {
+      const currentUrl: string = this.controller.getUrl();
+      if (currentUrl.length > 0) {
+        sourceUrl = currentUrl;
+      }
+    } catch (_error) {
+      // The controller may not be attached during an early navigation.
+    }
+    this.onExternalProtocol(url, sourceUrl);
+    return true;
   }
 
   private webDarkModeValue(): WebDarkMode {
