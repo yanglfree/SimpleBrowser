@@ -4348,7 +4348,8 @@ struct Index {
     }
     this.showCapsule();
     const current: BrowserTab | undefined = this.viewModel.getTab(id);
-    if (current !== undefined && current.url !== url) {
+    const navigatedToNewUrl: boolean = current !== undefined && current.url !== url;
+    if (navigatedToNewUrl) {
       // Navigating to a new URL — the scroll position belongs to the old page
       // and would trigger a stale "continue reading" prompt on page end.
       this.viewModel.updateTab(id, {
@@ -4363,6 +4364,9 @@ struct Index {
       : 0;
     this.viewModel.updateTab(id, {
       url: url,
+      // A failed navigation may never deliver a title callback. Reset the old
+      // page title now so history and tab chrome cannot pair it with the new URL.
+      title: navigatedToNewUrl ? displayHost(url) : undefined,
       isLoading: true,
       progress: progress,
       isReader: false,
