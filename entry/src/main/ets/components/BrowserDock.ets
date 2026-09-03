@@ -1,5 +1,5 @@
 import { AppIcon, IconName, iconStrokeUnits } from './AppIcon';
-import { ReaderPaper, getReaderTheme } from '../models/BrowserModels';
+import { ReaderPaper, SecurityState, getReaderTheme } from '../models/BrowserModels';
 import {
   DOCK_BADGE_ICON_STROKE,
   DOCK_BADGE_SIZE,
@@ -59,6 +59,7 @@ export struct BrowserDock {
   @Prop tabCount: number = 1;
   @Prop activeTabIndex: number = 0;
   @Prop blockedCount: number = 0;
+  @Prop securityState: SecurityState = SecurityState.Unknown;
   @Prop isLoading: boolean = false;
   @Prop canGoBack: boolean = false;
   @Prop canGoForward: boolean = false;
@@ -81,6 +82,7 @@ export struct BrowserDock {
   onOpenMenu: () => void = (): void => {};
   onOpenHistory: () => void = (): void => {};
   onOpenBlocking: () => void = (): void => {};
+  onOpenSecurity: () => void = (): void => {};
   /** Reload, or stop while a load is in flight — the page decides which. */
   onReload: () => void = (): void => {};
   onHide: () => void = (): void => {};
@@ -156,6 +158,23 @@ export struct BrowserDock {
         Row() {
           if (this.isPrivate) {
             this.PrivateIndicator()
+          }
+          if (!this.isHome) {
+            Column() {
+              AppIcon({
+                name: this.securityState === SecurityState.Secure
+                  ? IconName.ShieldCheck
+                  : IconName.Shield,
+                glyphSize: 16,
+                color: this.securityColor(),
+                strokeWidth: iconStrokeUnits(16, DOCK_BADGE_ICON_STROKE)
+              })
+            }
+            .width(30)
+            .height(DOCK_ROW_HEIGHT)
+            .justifyContent(FlexAlign.Center)
+            .accessibilityText(this.securityAccessibilityText())
+            .onClick(() => this.onOpenSecurity())
           }
           if (!this.isHome && this.blockedCount > 0) {
             Row({ space: 3 }) {
@@ -330,6 +349,30 @@ export struct BrowserDock {
           .onActionEnd((event: GestureEvent) => this.resolveVerticalSwipe(event))
       )
     )
+  }
+
+  private securityColor(): ResourceColor {
+    if (this.securityState === SecurityState.Secure) {
+      return $r('app.color.accent');
+    }
+    if (this.securityState === SecurityState.Insecure ||
+      this.securityState === SecurityState.CertificateError) {
+      return $r('app.color.danger');
+    }
+    return this.iconColor();
+  }
+
+  private securityAccessibilityText(): Resource {
+    if (this.securityState === SecurityState.Secure) {
+      return $r('app.string.security_secure');
+    }
+    if (this.securityState === SecurityState.Insecure) {
+      return $r('app.string.security_insecure');
+    }
+    if (this.securityState === SecurityState.CertificateError) {
+      return $r('app.string.security_certificate_error');
+    }
+    return $r('app.string.security_unknown');
   }
 
   @Builder

@@ -1227,6 +1227,7 @@ struct Index {
       tabCount: this.tabs.length,
       activeTabIndex: this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId),
       blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
+      securityState: this.activeTab()?.securityState ?? SecurityState.Unknown,
       isLoading: this.activeTab()?.isLoading === true,
       canGoBack: WebKernelService.canNavigateBack(
         this.activeTab()?.canGoBack === true,
@@ -1273,6 +1274,10 @@ struct Index {
       onOpenBlocking: (): void => {
         this.isAddressMenuVisible = false;
         this.openBlockPresentation();
+      },
+      onOpenSecurity: (): void => {
+        this.isAddressMenuVisible = false;
+        this.openSecurityDetails();
       },
       onReload: (): void => { void this.performAction('reload'); },
       onHide: (): void => {
