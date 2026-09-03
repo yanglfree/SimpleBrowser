@@ -1,0 +1,77 @@
+[
+  {
+    "file": "generated/harmony-agc-phone/zh-Hans/01.png",
+    "source": "source/harmony-phone/zh-Hans/01-home.jpeg",
+    "title": "安静浏览",
+    "subtitle": "常用网站，一触即达",
+    "locale": "zh-Hans",
+    "device": "phone",
+    "width": 1080,
+    "height": 1920,
+    "bytes": 1663801,
+    "sha256": "341813f3f896ab4f00e320034869ba4c1849f2c405fa0d71c1aa317012f86549",
+    "source_sha256": "c422570c841003c60518af8f2a95bebfb9ff2150d7f824e05e1c1ff7139f7dff",
+    "focus": [
+      40,
+      820,
+      1040,
+      1470
+    ],
+    "crop": [
+      0,
+      105,
+      1084,
+      2360
+    ]
+  },
+  {
+    "file": "generated/harmony-agc-phone/zh-Hans/02.png",
+    "source": "source/harmony-phone/zh-Hans/02-open-options.jpeg",
+    "title": "按需打开",
+    "subtitle": "清洁、私密，随心选择",
+    "locale": "zh-Hans",
+    "device": "phone",
+    "width": 1080,
+    "height": 1920,
+    "bytes": 326183,
+    "sha256": "2f6562e668251bd594e63b011f2afa7ac6d9c0a66b983658bcc69ab38b9ec368",
+    "source_sha256": "abd86000d320fc7ef3814d8889f9fcd12cf3c111fcf7d9650e30f2f70703cb34",
+    "focus": [
+      70,
+      970,
+      1010,
+      1450
+    ],
+    "crop": [
+      0,
+      105,
+      1084,
+      2360
+    ]
+  },
+  {
+    "file": "generated/harmony-agc-phone/zh-Hans/03.png",
+    "source": "source/harmony-phone/zh-Hans/03-reader.jpeg",
+    "title": "自在阅读",
+    "subtitle": "字号、行距，随你调整",
+    "locale": "zh-Hans",
+    "device": "phone",
+    "width": 1080,
+    "height": 1920,
+    "bytes": 322191,
+    "sha256": "e8271f7e7eccb678c77f0892005a97ea1c4a75ceeab58a60d9faadf7acc62a52",
+    "source_sha256": "a7a08fd2bfb6464c7902b4db7d5700a3412b6de4c5e3210840c4f62c95c68ade",
+    "focus": [
+      40,
+      110,
+      900,
+      245
+    ],
+    "crop": [
+      0,
+      105,
+      1084,
+      2360
+    ]
+  }
+]
