@@ -43,6 +43,20 @@ interface SettingsSearchEntry {
   action: () => void;
 }
 
+export function matchesSettingsSearch(label: string, keywords: string, rawQuery: string): boolean {
+  const query: string = rawQuery.trim().toLowerCase();
+  const compactQuery: string = query.replace(/\s+/g, '');
+  const searchableText: string = `${label} ${keywords}`.toLowerCase();
+  const compactSearchableText: string = searchableText.replace(/\s+/g, '');
+  if (searchableText.includes(query) || compactSearchableText.includes(compactQuery)) {
+    return true;
+  }
+  // Chinese users commonly enter a phrase without spaces, while the index
+  // intentionally stores independent searchable terms.
+  return /[\u4e00-\u9fff]/.test(compactQuery) &&
+    compactQuery.split('').every((character: string): boolean => searchableText.includes(character));
+}
+
 interface SwitchRowParams {
   label: Resource;
   checked: boolean;
@@ -594,17 +608,14 @@ export struct SettingsPage {
   }
 
   private filteredSearchEntries(): SettingsSearchEntry[] {
-    const query: string = this.searchQuery.trim().toLowerCase();
-    const compactQuery: string = query.replace(/\s+/g, '');
     return this.searchEntries().filter((entry: SettingsSearchEntry): boolean => {
-      const keywords: string = entry.keywords.toLowerCase();
-      if (keywords.includes(query) || keywords.replace(/\s+/g, '').includes(compactQuery)) {
-        return true;
+      let label: string = '';
+      try {
+        label = this.getUIContext().getHostContext()?.resourceManager.getStringSync(entry.label) ?? '';
+      } catch (error) {
+        Logger.warn('SettingsPage', `Unable to resolve settings search label: ${String(error)}`);
       }
-      // Chinese users commonly enter a phrase without spaces, while the index
-      // intentionally stores independent searchable terms.
-      return /[\u4e00-\u9fff]/.test(compactQuery) &&
-        compactQuery.split('').every((character: string): boolean => keywords.includes(character));
+      return matchesSettingsSearch(label, entry.keywords, this.searchQuery);
     });
   }
 

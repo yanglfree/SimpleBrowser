@@ -5,6 +5,7 @@ import {
   shouldDismissActionSheet
 } from '../main/ets/components/ActionSheet';
 import {
+  matchesSettingsSearch,
   shouldShowCurrentSiteDarkModeRow
 } from '../main/ets/components/SettingsPage';
 import { GLYPH_GRID, iconStrokeUnits } from '../main/ets/components/AppIcon';
@@ -122,6 +123,12 @@ export default function browserInteractionTest(): void {
       expect(shouldShowCurrentSiteDarkModeRow('zhihu.com', WebDarkModePreference.System)).assertTrue();
       expect(shouldShowCurrentSiteDarkModeRow('zhihu.com', WebDarkModePreference.Light)).assertFalse();
       expect(shouldShowCurrentSiteDarkModeRow('', WebDarkModePreference.System)).assertFalse();
+    });
+
+    it('matches settings by their localized label as well as indexed keywords', 0, (): void => {
+      expect(matchesSettingsSearch('网页最小字号', '网页 字号 字体 大字 无障碍', '网页最小字号')).assertTrue();
+      expect(matchesSettingsSearch('网页最小字号', '网页 字号 字体 大字 无障碍', '大字')).assertTrue();
+      expect(matchesSettingsSearch('网页最小字号', '网页 字号 字体 大字 无障碍', '下载')).assertFalse();
     });
   });
 }
