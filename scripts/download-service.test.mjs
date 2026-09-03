@@ -110,6 +110,18 @@ test('resume does not depend on pause mutating an earlier native callback snapsh
   assert.equal(native.resumes, 1);
 });
 
+test('a progress snapshot cannot replace the before-download handle used to select the destination', async () => {
+  const f = fixture();
+  const before = item('handle');
+  f.callbacks.before(before);
+  const progress = item('handle');
+  progress.state = states.PAUSED;
+  f.callbacks.update(progress);
+  await tick();
+  assert.equal(before.starts.length, 1);
+  assert.equal(progress.starts.length, 0);
+});
+
 test('pause uses the latest callback item and a late progress callback cannot resume it', async () => {
   const f = fixture();
   f.callbacks.before(item('pause'));

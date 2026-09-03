@@ -63,6 +63,7 @@ export class DownloadService {
   private static maxConcurrent: number = 2;
   private static tasks: DownloadTask[] = [];
   private static items: Map<string, webview.WebDownloadItem> = new Map();
+  private static beforeItems: Map<string, webview.WebDownloadItem> = new Map();
   private static startedIds: string[] = [];
   private static listeners: DownloadListener[] = [];
   private static notifiedProgress: Map<string, number> = new Map();
@@ -242,6 +243,7 @@ export class DownloadService {
     }
     DownloadService.tasks = DownloadService.tasks.filter((item: DownloadTask) => item.id !== id);
     DownloadService.items.delete(id);
+    DownloadService.beforeItems.delete(id);
     DownloadService.paths.delete(id);
     DownloadService.startVersions.delete(id);
     DownloadService.pausedIds.delete(id);
@@ -262,6 +264,7 @@ export class DownloadService {
         // Restored tasks receive a new before-download callback with the same GUID.
         if (existing.status === DownloadTaskStatus.Downloading) {
           item.start(DownloadService.pathFor(existing));
+          DownloadService.beforeItems.delete(id);
           if (!DownloadService.startedIds.includes(id)) {
             DownloadService.startedIds.push(id);
           }
@@ -270,6 +273,7 @@ export class DownloadService {
         }
         return;
       }
+      DownloadService.beforeItems.set(id, item);
       DownloadService.tasks.push({
           id: id,
           fileName: DownloadService.safeFileName(item.getSuggestedFileName()),
@@ -346,7 +350,14 @@ export class DownloadService {
         webview.WebDownloadManager.resumeDownload(webview.WebDownloadItem.deserialize(item.serialize()));
       } else {
         if (!DownloadService.startedIds.includes(task.id)) {
-          item.start(DownloadService.pathFor(task));
+          // Only the before-download item owns the native start callback.
+          // Progress items are newer snapshots but cannot assign a destination.
+          const beforeItem: webview.WebDownloadItem | undefined = DownloadService.beforeItems.get(task.id);
+          if (beforeItem === undefined) {
+            throw new Error('Download destination callback is unavailable');
+          }
+          beforeItem.start(DownloadService.pathFor(task));
+          DownloadService.beforeItems.delete(task.id);
           DownloadService.startedIds.push(task.id);
         }
         if (DownloadService.pausedIds.has(task.id) || item.getState() === webview.WebDownloadState.PAUSED) {
