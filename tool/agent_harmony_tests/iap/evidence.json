@@ -1,0 +1,25 @@
+{
+  "observedAt": "2026-09-03T09:18:00Z",
+  "backendCommit": "84a0c4d",
+  "workerVersion": "24470910-4b78-4ae4-a6cc-328954375abf",
+  "previousWorkerVersion": "0ac1c4bd-eb31-440d-bc9d-71892bc20eeb",
+  "liveHost": "https://gateway.youdroid.top",
+  "applicationId": "6917614109541548410",
+  "transaction": {
+    "app_id": "zhuobrowser",
+    "product_id": "com.youdroid.zhuobrowser.pro_lifetime",
+    "environment": "Sandbox",
+    "status": "active",
+    "expires_at": null,
+    "verified_at": "2026-09-03T09:09:41.290Z",
+    "transaction_count": 1
+  },
+  "safety": {
+    "newPayment": false,
+    "manualEntitlementGrant": false,
+    "dataCleared": false,
+    "agcPublished": false,
+    "portalPublished": false,
+    "gitPushed": false
+  }
+}

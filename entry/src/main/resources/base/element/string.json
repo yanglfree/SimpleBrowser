@@ -462,7 +462,7 @@
     { "name": "pro_purchase_success", "value": "开通成功" },
     { "name": "pro_restore_success", "value": "权益已恢复" },
     { "name": "pro_restore_empty", "value": "未找到有效购买记录" },
-    { "name": "pro_purchase_pending", "value": "支付已完成，权益同步中，请稍后查看" },
+    { "name": "pro_purchase_pending", "value": "支付已完成，权益同步中。若未刷新，请点恢复购买，无需重复付款" },
     { "name": "pro_purchase_failed_prefix", "value": "支付唤起失败，请稍后再试" },
     { "name": "pro_plan_section", "value": "选择方案" },
     { "name": "pro_benefits_title", "value": "Pro 权益" },

@@ -15,6 +15,7 @@ import {
   IapPaywallTheme,
   NoopPaywallPurchaseAdapter
 } from '../models/IapPaywallModels'
+import { PendingPurchaseRecovery, PurchaseRecoveryResult } from '../models/PendingPurchaseRecovery'
 
 const TAG = 'StandardIapPaywallPage'
 
@@ -192,8 +193,11 @@ export struct StandardIapPaywallPage {
   @State private isTrialSelected: boolean = false
 
   private purchaseCooldownTimer: number = -1
+  private pendingRecovery: PendingPurchaseRecovery = new PendingPurchaseRecovery()
+  private isPaywallVisible: boolean = false
 
   aboutToAppear(): void {
+    this.isPaywallVisible = true
     this.entitlementRestored = this.isPro
     this.onPaywallAppear()
     this.selectedPlan = this.config.defaultSelectedPlan
@@ -208,7 +212,9 @@ export struct StandardIapPaywallPage {
   }
 
   aboutToDisappear(): void {
+    this.isPaywallVisible = false
     this.clearPurchaseCooldownTimer()
+    this.pendingRecovery.cancel()
   }
 
   // 面板/高亮底解析：优先用接入方传入的主题 token（可随明暗翻转），
@@ -1402,6 +1408,9 @@ export struct StandardIapPaywallPage {
         return
       }
       const success = await this.adapter.purchase(context, selectedProduct)
+      if (!this.isPaywallVisible) {
+        return
+      }
       if (success) {
         this.entitlementRestored = true
         this.showToast(this.config.copy.purchaseSuccessToast, 3000)
@@ -1412,6 +1421,9 @@ export struct StandardIapPaywallPage {
     } catch (err) {
       hilog.error(0x0000, TAG, 'Purchase error: ' + String(err))
       const errMsg = err instanceof Error ? err.message : String(err)
+      if (!this.isPaywallVisible) {
+        return
+      }
       if (errMsg === 'IAP_ENV_NOT_READY') {
         this.isEnvironmentReady = false
         this.showToast(this.config.copy.iapEnvErrorToast, 3000)
@@ -1421,9 +1433,16 @@ export struct StandardIapPaywallPage {
       } else if (errMsg === IAP_PAYWALL_PAYMENT_PENDING_ERROR) {
         this.showToast(this.config.copy.purchasePendingToast || '支付已完成，权益同步中，请稍后查看', 3500)
         this.entitlementRestored = false
-        void this.adapter.restorePurchases(context).catch((restoreErr: Object) => {
-          hilog.warn(0x0000, TAG, 'Pending purchase recovery deferred: ' + String(restoreErr))
-        })
+        const recovery = await this.pendingRecovery.run(
+          () => this.adapter.restorePurchases(context),
+          () => hilog.warn(0x0000, TAG, 'Pending purchase recovery will retry'))
+        if (recovery === PurchaseRecoveryResult.RECOVERED) {
+          this.entitlementRestored = true
+          this.showToast(this.config.copy.purchaseSuccessToast, 3000)
+          this.onPurchaseSucceeded()
+        } else if (recovery === PurchaseRecoveryResult.EXHAUSTED) {
+          this.showToast(this.config.copy.purchasePendingToast || DEFAULT_CONFIG.copy.purchasePendingToast!, 3500)
+        }
       } else {
         this.showToast(this.config.copy.purchaseLaunchFailedPrefix, 3000)
       }
@@ -1473,9 +1492,16 @@ export struct StandardIapPaywallPage {
   }
 
   private async handleRestore(): Promise<void> {
+    if (this.isPurchasing) {
+      return
+    }
+    this.isPurchasing = true
     try {
       const context = getContext(this) as common.UIAbilityContext
       const restored = await this.adapter.restorePurchases(context)
+      if (!this.isPaywallVisible) {
+        return
+      }
       if (restored) {
         this.entitlementRestored = true
         this.showToast(this.config.copy.restoreSuccessToast, 2000)
@@ -1485,6 +1511,9 @@ export struct StandardIapPaywallPage {
       }
     } catch (err) {
       hilog.error(0x0000, TAG, 'Restore error: ' + String(err))
+      this.showToast(this.config.copy.iapEnvErrorToast, 3000)
+    } finally {
+      this.isPurchasing = false
     }
   }
 

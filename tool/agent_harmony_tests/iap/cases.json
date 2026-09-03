@@ -1,0 +1,61 @@
+{
+  "runner": {
+    "appName": "ZhuoBrowser IAP recovery",
+    "platformName": "HarmonyOS Real-device QA",
+    "bundleId": "com.youdroid.zhuobrowser"
+  },
+  "coverageAreas": [
+    { "title": "Existing paid order recovery", "status": "passed", "caseIds": ["iap-recovery", "iap-membership"], "notes": "Existing lifetime sandbox purchase verified by the live gateway; member center displays unlocked." },
+    { "title": "Fresh purchases and subscription lifecycle", "status": "not-run", "caseIds": ["iap-new-purchases"], "notes": "No new purchase, refund, subscription renewal, account switch or app-data deletion was initiated." }
+  ],
+  "cases": [
+    {
+      "id": "iap-recovery", "title": "Recover the previously paid lifetime order", "priority": "p0",
+      "platforms": ["HarmonyOS"], "tags": ["iap", "restore", "server-verification"],
+      "preconditions": ["Existing unfulfilled lifetime sandbox purchase", "Debug-signed app and connected device"],
+      "steps": ["Deploy the catalog identity fix", "Overwrite-install without clearing app data", "Launch the app", "Read the product-scoped server ledger"],
+      "assertions": ["Huawei verification yields one active Sandbox lifetime transaction", "No manual grant or new payment"],
+      "failureSignals": ["harmony_jwt_not_configured", "Empty entitlement", "Duplicate transaction"]
+    },
+    {
+      "id": "iap-membership", "title": "Display the server-verified membership in the member center", "priority": "p0",
+      "platforms": ["HarmonyOS"], "tags": ["iap", "ui"],
+      "preconditions": ["Recovered active server entitlement"],
+      "steps": ["Open Settings", "Open Zhuo Pro", "Inspect the membership card and primary action"],
+      "assertions": ["Settings shows unlocked", "Member center shows Zhuo Pro unlocked and Start using"],
+      "failureSignals": ["Membership remains pending", "Purchase CTA remains visible"]
+    },
+    {
+      "id": "iap-new-purchases", "title": "Fresh monthly/yearly purchases, renewal, refund and cancellation", "priority": "p2",
+      "platforms": ["HarmonyOS"], "tags": ["iap", "subscription", "sandbox"],
+      "preconditions": ["Separate authorized sandbox purchase fixtures"],
+      "steps": ["Purchase each subscription", "Exercise renewal, expiry and refund"],
+      "assertions": ["Entitlements follow provider lifecycle"],
+      "failureSignals": ["Local-only access grant", "Incorrect expiry"]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-09-03",
+    "target": { "device": "4UQ9K25530058677", "type": "Physical HarmonyOS device" },
+    "appBuild": {
+      "versionName": "1.0.1", "versionCode": 1000001,
+      "signing": "Canonical debug profile, unchanged certificate, IAP enabled",
+      "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
+      "sha256": "a7d83713dcf61b8b196fd120807c96be9b187799eb3f42d3ac541f528829fe49",
+      "notes": "The initial recovery/UI capture used e6c4d23465f7264b6c85dda1aed4ab5a03b32a8311305682802d03877b6e30a3. The final build adds page-disappearance guards. Local builds retain pre-existing user UI edits, which are excluded from this commit. No portal release was published."
+    },
+    "results": [
+      { "caseId": "iap-recovery", "status": "passed", "notes": "Live provider verification created one active lifetime Sandbox transaction at 2026-09-03T09:09:41.290Z. Repeated UI restore attempts left a single ledger row; their transient toast/finish acknowledgement was not captured.", "evidence": [{ "type": "ledger", "path": "evidence.json", "summary": "Sanitized live ledger and deployment evidence" }] },
+      { "caseId": "iap-membership", "status": "passed", "notes": "Settings and member center both show unlocked. No additional payment was performed.", "evidence": [{ "type": "screenshot", "path": "member.jpeg", "summary": "Member center: unlocked and Start using" }, { "type": "screenshot", "path": "settings.jpeg", "summary": "Settings: Zhuo Pro unlocked" }] },
+      { "caseId": "iap-new-purchases", "status": "not-run", "notes": "No new charge, renewal simulation, refund, reinstall/data deletion or account-switch operation. Backend fixtures cover true expiry, inactive statuses and app identity; this is not full store lifecycle acceptance.", "evidence": [] }
+    ],
+    "validation": [
+      "ai-gateway: node --test, 156 passed",
+      "hvigorw test: entry 166 passed; iap_paywall_kit 11 passed",
+      "node --experimental-transform-types --test scripts/pending-purchase-recovery.test.mjs: 4 passed",
+      "hvigorw assembleHap -p buildMode=release: successful",
+      "hap-sign-tool verify-app: successful; embedded profile byte-identical to canonical debug profile",
+      "gateway.youdroid.top/health: HTTP 200; live IAP catalog contains three products and the expected Huawei applicationId"
+    ]
+  }
+}

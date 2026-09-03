@@ -147,27 +147,36 @@ export class ProBillingAdapter implements IapPaywallPurchaseAdapter {
     const current = await this.queryPurchases(context, iap.PurchaseQueryType.CURRENT_ENTITLEMENT, false);
     const purchases = this.deduplicate([...unfinished, ...current]);
     try {
-      const entitlement = purchases.length > 0
-        ? await ProEntitlementApiService.getInstance().restoreHarmonyPurchases(
-          context,
-          purchases.map((item: PendingPurchase): ProPurchaseEvidence => item.evidence),
-          'manual_restore'
-        )
-        : await ProEntitlementApiService.getInstance().fetchEntitlements(context);
+      const api = ProEntitlementApiService.getInstance();
+      let verificationFailed = false;
+      for (const pending of purchases) {
+        try {
+          const result = await api.verifyHarmonyPurchase(context, pending.evidence, 'restore');
+          if (result.verified && isActiveProEntitlement(result.entitlement)) {
+            await ProEntitlementService.getInstance().applyServerEntitlement(context, result.entitlement);
+            if (pending.shouldFinish && result.needsFinishTransaction) {
+              await this.finishPurchase(context, pending.evidence);
+            }
+          }
+        } catch (error) {
+          verificationFailed = true;
+          Logger.warn(TAG, 'Purchase verification deferred during restore');
+        }
+      }
+      const entitlement = await api.fetchEntitlements(context);
       if (!isActiveProEntitlement(entitlement)) {
+        if (verificationFailed) {
+          throw new Error(IAP_PAYWALL_PAYMENT_PENDING_ERROR);
+        }
         await ProEntitlementService.getInstance().applyServerEntitlement(context, null);
         return false;
       }
       await ProEntitlementService.getInstance().applyServerEntitlement(context, entitlement);
-      for (const pending of purchases) {
-        if (pending.shouldFinish) {
-          await this.finishPurchase(context, pending.evidence);
-        }
-      }
+      Logger.info(TAG, 'Restore completed with a server-verified active entitlement');
       return true;
     } catch (error) {
       Logger.error(TAG, `Restore failed: ${this.formatError(error as Object)}`);
-      return ProEntitlementService.getInstance().isPro();
+      throw new Error(IAP_PAYWALL_PAYMENT_PENDING_ERROR);
     }
   }
 
@@ -343,6 +352,7 @@ export class ProBillingAdapter implements IapPaywallPurchaseAdapter {
         purchaseToken: evidence.purchaseToken,
         purchaseOrderId: evidence.purchaseOrderId
       });
+      Logger.info(TAG, 'Verified purchase delivery acknowledged');
     } catch (error) {
       Logger.warn(TAG, `Purchase finish deferred: ${this.formatError(error as Object)}`);
     }
