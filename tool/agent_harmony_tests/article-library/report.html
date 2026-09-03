@@ -28,24 +28,24 @@
   <h1>ZhuoBrowser Article Library HarmonyOS Real-device QA Report</h1>
   <p>
     Date: 2026-09-03<br>
-    Target: Connected HarmonyOS phone, HarmonyOS; exclusive foreground unavailable, <code>4UQ9K25530058677</code><br>
-    App: ZhuoBrowser Article Library <code>local working-checkout candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
+    Target: Connected HarmonyOS phone, HarmonyOS; user provided original external-open dialog, <code>4UQ9K25530058677</code><br>
+    App: ZhuoBrowser Article Library <code>745cf23 plus offline-navigation fix and preserved concurrent edits</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
     HAP: <code>entry/build/default/outputs/default/entry-default-signed.hap</code><br>
     Auth source: No test entitlement or authentication state modified
   </p>
 
   <section class="summary" aria-label="Run summary">
-    <div class="metric"><strong>8</strong>Total cases</div>
-    <div class="metric"><strong>1</strong>Executed</div>
-    <div class="metric"><strong>0</strong>Passed</div>
+    <div class="metric"><strong>10</strong>Total cases</div>
+    <div class="metric"><strong>3</strong>Executed</div>
+    <div class="metric"><strong>3</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
-    <div class="metric"><strong>1</strong>Blocked</div>
+    <div class="metric"><strong>0</strong>Blocked</div>
     <div class="metric"><strong>7</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 8 Harmony scenarios. This run executed 1 cases with fresh evidence.
+    The agent QA suite contains 10 Harmony scenarios. This run executed 3 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -55,15 +55,15 @@
     <tbody>
       <tr>
         <td>Capture and recovery</td>
-        <td class="status-blocked">blocked</td>
-        <td><code>article-start</code><br><code>article-entry</code><br><code>article-wechat</code><br><code>article-retry</code></td>
-        <td>Build and automated checks passed; foreground device access was not exclusive.</td>
+        <td class="status-partial">partial</td>
+        <td><code>article-start</code><br><code>article-live-save</code><br><code>article-entry</code><br><code>article-wechat</code><br><code>article-retry</code></td>
+        <td>Original live URL saved; complete source comparison and broader entry/recovery matrix remain pending.</td>
       </tr>
       <tr>
         <td>Offline value and data ownership</td>
-        <td class="status-not-run">not-run</td>
-        <td><code>article-offline</code><br><code>article-organize</code><br><code>article-export</code><br><code>article-entitlement</code></td>
-        <td>No device interaction pass inferred from headless browser or adapter tests.</td>
+        <td class="status-partial">partial</td>
+        <td><code>article-offline-reopen</code><br><code>article-offline</code><br><code>article-organize</code><br><code>article-export</code><br><code>article-entitlement</code></td>
+        <td>Network-disabled reopen, offset and images observed. Cold relaunch and remaining scenarios are not inferred.</td>
       </tr></tbody>
   </table>
 
@@ -75,7 +75,21 @@
         <td><code>article-start</code></td>
         <td>p0</td>
         <td>Install and establish the article library foreground</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-passed">passed</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code>article-live-save</code></td>
+        <td>p0</td>
+        <td>Save the original live WeChat URL</td>
+        <td class="status-passed">passed</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code>article-offline-reopen</code></td>
+        <td>p0</td>
+        <td>Reopen saved content with WLAN and mobile data disabled</td>
+        <td class="status-passed">passed</td>
         <td></td>
       </tr>
       <tr>
@@ -132,18 +146,28 @@
   <h2>Latest Run Evidence</h2>
 
       <section class="case-result">
-        <h3><code>article-start</code> <span class="status-blocked">blocked</span></h3>
-        <p>An earlier candidate installed. Initial launch returned 10106102 (screen locked). Later launch returned success, but foreground inspection showed another app. No claim of feature interaction or final-candidate installation.</p>
-        <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
+        <h3><code>article-start</code> <span class="status-passed">passed</span></h3>
+        <p>Final no-debug signed candidate installed with -r, preserving user data. EntryAbility launched; library and reader visibly interactive.</p>
+        <ul><li><strong>screenshot</strong>: <code>evidence/reader-top.jpeg</code><br>Installed final candidate displaying saved article.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>article-live-save</code> <span class="status-passed">passed</span></h3>
+        <p>https://mp.weixin.qq.com/s/1gn655lr8912fp9RD9rbzg saved with correct title and complete status; one library record. Initial capture used the previously installed remediation candidate; final fixed reader renders that preserved record.</p>
+        <ul><li><strong>screenshot</strong>: <code>evidence/reader-top.jpeg</code><br>Title, saved status, opening paragraph and image visible.</li><li><strong>screenshot</strong>: <code>evidence/reader-middle.jpeg</code><br>Image, caption and subsequent paragraph visible.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>article-offline-reopen</code> <span class="status-passed">passed</span></h3>
+        <p>Disabled WLAN and mobile data, returned using hardware back and reopened at the prior paragraph. Additional images rendered while disconnected. Restored WLAN/mobile data to enabled. This does not claim process cold relaunch.</p>
+        <ul><li><strong>screenshot</strong>: <code>evidence/network-disabled.jpeg</code><br>Both network toggles visibly off.</li><li><strong>screenshot</strong>: <code>evidence/offline-reopen-offset.jpeg</code><br>Reopened at the previous reading position.</li><li><strong>screenshot</strong>: <code>evidence/offline-image.jpeg</code><br>Subsequent saved image renders without network.</li><li><strong>screenshot</strong>: <code>evidence/network-restored.jpeg</code><br>Both network toggles restored to enabled.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>article-entry</code> <span class="status-not-run">not-run</span></h3>
-        <p>Requires exclusive unlocked device session.</p>
+        <p>Menu save and add-link controls are visible; all entry actions, compact/landscape keyboard and private-tab assertions were not exercised.</p>
         <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
         <h3><code>article-wechat</code> <span class="status-not-run">not-run</span></h3>
-        <p>Original live URL not supplied; screenshot and frozen fixture do not replace live-page testing.</p>
+        <p>Original URL now available and basic save passes in article-live-save. Exhaustive source comparison through the ending and failure/retry branches remain pending.</p>
         <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
@@ -153,7 +177,7 @@
       </section>
       <section class="case-result">
         <h3><code>article-offline</code> <span class="status-not-run">not-run</span></h3>
-        <p>Browser CSP/DOM tests passed, but device offline relaunch not observed.</p>
+        <p>Network-disabled reopen passes in article-offline-reopen. Process cold relaunch and missing-image status case remain pending.</p>
         <p>No fresh HarmonyOS Real-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
@@ -177,9 +201,9 @@
     <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>hvigorw test</code></td>
+        <td><code>hvigorw test (prior remediation run)</code></td>
         <td class="status-passed">passed</td>
-        <td>170 passed, zero failures/errors/ignored; result file inspected.</td>
+        <td>Historical evidence: 170 passed; not rerun for this device follow-up.</td>
       </tr>
       <tr>
         <td><code>hvigorw assembleHap</code></td>
@@ -194,7 +218,7 @@
       <tr>
         <td><code>ARTICLE_TEST_BROWSER=chrome npm run test:articles</code></td>
         <td class="status-passed">passed</td>
-        <td>12/12 passed in both the working checkout and the task-only staged snapshot.</td>
+        <td>Fresh follow-up: 13/13 passed, including one-shot native data-document navigation and rejection of page data links/subframes.</td>
       </tr>
       <tr>
         <td><code>hvigorw assembleHap (task-only staged snapshot)</code></td>

@@ -3,6 +3,7 @@ import { ArticleHighlight } from '../models/ArticleLibraryModels';
 import { decodeArticleScriptResult } from '../models/ArticleCaptureModels';
 import { ARTICLE_SELECTION_SCRIPT, articleHighlightScript } from '../services/ArticleReaderScripts';
 import { Logger } from '../utils/Logger';
+import { OfflineArticleNavigation } from '../services/OfflineArticleNavigation';
 
 interface ArticleSelection {
   quote: string;
@@ -16,22 +17,28 @@ export struct OfflineArticleReader {
   @Prop @Watch('renderHighlights') targetId: string = '';
   @Prop initialOffset: number = 0;
   @State private busy: boolean = false;
+  @State private loadFailed: boolean = false;
   private controller: webview.WebviewController = new webview.WebviewController();
   private attached: boolean = false;
   private ready: boolean = false;
+  private navigation: OfflineArticleNavigation = new OfflineArticleNavigation();
   onSelection: (quote: string, text: string) => Promise<void> = async (): Promise<void> => {};
   onScroll: (offset: number) => void = (): void => {};
   onOpenLink: (url: string) => void = (): void => {};
 
   build() {
     Column() {
+      if (this.loadFailed) {
+        Text($r('app.string.article_library_unavailable')).fontSize(13)
+        Button($r('app.string.article_retry')).onClick((): void => this.loadDocument())
+      }
       Button($r('app.string.article_add_highlight'))
         .fontSize(13)
         .height(40)
         .margin({ top: 4, bottom: 4 })
         .enabled(!this.busy)
         .onClick((): void => { void this.saveSelection(); })
-      Web({ src: 'about:blank', controller: this.controller, incognitoMode: true })
+      Web({ src: '', controller: this.controller, incognitoMode: true })
         .javaScriptAccess(true)
         .fileAccess(false)
         .domStorageAccess(false)
@@ -41,7 +48,7 @@ export struct OfflineArticleReader {
         .onPageEnd((): void => { void this.documentReady(); })
         .onLoadIntercept((event: OnLoadInterceptEvent): boolean => {
           const url: string = event.data.getRequestUrl();
-          if (url === 'about:blank' || url === 'https://offline.invalid/') {
+          if (this.navigation.allowInternal(url, event.data.isMainFrame())) {
             return false;
           }
           if (event.data.isMainFrame() && /^https?:\/\//i.test(url)) {
@@ -62,22 +69,34 @@ export struct OfflineArticleReader {
       return;
     }
     this.ready = false;
+    this.loadFailed = false;
     try {
+      this.navigation.beginDocument();
       this.controller.loadData(this.html, 'text/html', 'UTF-8', 'https://offline.invalid/');
     } catch (error) {
+      this.navigation.finishDocument();
+      this.loadFailed = true;
       Logger.warn('OfflineArticleReader', 'Offline document could not be loaded');
       this.toast($r('app.string.article_library_unavailable'));
     }
   }
 
   private async documentReady(): Promise<void> {
-    this.ready = true;
+    this.navigation.finishDocument();
     try {
+      const hasContent: string = await this.controller.runJavaScript(
+        "!!document.getElementById('article-content')");
+      if (decodeArticleScriptResult(hasContent) !== 'true') {
+        this.loadFailed = true;
+        return;
+      }
+      this.ready = true;
       await this.controller.runJavaScript(articleHighlightScript(this.highlights, this.targetId));
       if (this.targetId.length === 0) {
         await this.controller.runJavaScript(`window.scrollTo(0, ${Math.max(0, this.initialOffset)})`);
       }
     } catch (error) {
+      this.loadFailed = true;
       Logger.warn('OfflineArticleReader', 'Offline reading position could not be restored');
     }
   }

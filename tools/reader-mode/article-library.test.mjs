@@ -5,6 +5,7 @@ import { productionCaptureScript } from './reader-core-source.mjs';
 import { loadEts } from './ets-module.mjs';
 
 const models = loadEts('entry/src/main/ets/models/ArticleCaptureModels.ets');
+const navigation = loadEts('entry/src/main/ets/services/OfflineArticleNavigation.ets');
 const scripts = loadEts('entry/src/main/ets/services/ArticleReaderScripts.ets');
 const exporting = loadEts('entry/src/main/ets/services/ArticleExportService.ets', {
   '@kit.AbilityKit': {}, '@kit.ArkTS': {}, '@ohos.file.fs': {}, '@ohos.file.picker': {}
@@ -116,4 +117,18 @@ test('a stalled ArkWeb evaluation fails within the bounded capture timeout', asy
     '@kit.ArkWeb':{},'../constants/AppConstants':{ARTICLE_CAPTURE_SCRIPT:'capture'}
   }).ArticleCaptureService;
   await assert.rejects(service.capture({runJavaScript:()=>new Promise(()=>{})}), /timed out/);
+});
+
+test('offline reader allows one native HTML load but blocks page data links and frames', () => {
+  const policy=new navigation.OfflineArticleNavigation();
+  const native='data:text/html;charset=UTF-8;base64,';
+  assert.equal(policy.allowInternal(native,true),false);
+  policy.beginDocument();
+  assert.equal(policy.allowInternal(native,false),false);
+  assert.equal(policy.allowInternal('data:text/javascript,alert(1)',true),false);
+  assert.equal(policy.allowInternal('https://example.test/',true),false);
+  assert.equal(policy.allowInternal(native,true),true);
+  assert.equal(policy.allowInternal(native,true),false);
+  policy.beginDocument();policy.finishDocument();
+  assert.equal(policy.allowInternal(native,true),false);
 });
