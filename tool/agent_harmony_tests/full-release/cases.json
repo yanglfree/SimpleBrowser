@@ -117,7 +117,7 @@
         "saved-09",
         "saved-10"
       ],
-      "notes": "partial: 6, not-run: 4"
+      "notes": "passed: 1, partial: 6, not-run: 3"
     },
     {
       "title": "Downloads and native file operations",
@@ -4407,9 +4407,20 @@
       },
       {
         "caseId": "saved-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "A controlled Slow link was added through the link-action sheet, remained in the saved-items surface after a force-stop relaunch, and was removed by its row swipe without affecting the remaining bookmark.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/read-later-cold-persistence.jpeg",
+            "summary": "The controlled Slow link remained in saved items after a force-stop relaunch."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/read-later-cleanup.jpeg",
+            "summary": "Removing the read-later item left the independent QA bookmark intact."
+          }
+        ]
       },
       {
         "caseId": "saved-03",

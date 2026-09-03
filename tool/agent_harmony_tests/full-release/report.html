@@ -36,16 +36,16 @@
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>58</strong>Executed</div>
-    <div class="metric"><strong>25</strong>Passed</div>
+    <div class="metric"><strong>59</strong>Executed</div>
+    <div class="metric"><strong>26</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
-    <div class="metric"><strong>23</strong>Not run</div>
+    <div class="metric"><strong>22</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 58 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 59 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -93,7 +93,7 @@
         <td>Bookmarks, history and start page</td>
         <td class="status-partial">partial</td>
         <td><code>saved-01</code><br><code>saved-02</code><br><code>saved-03</code><br><code>saved-04</code><br><code>saved-05</code><br><code>saved-06</code><br><code>saved-07</code><br><code>saved-08</code><br><code>saved-09</code><br><code>saved-10</code></td>
-        <td>partial: 6, not-run: 4</td>
+        <td>passed: 1, partial: 6, not-run: 3</td>
       </tr>
       <tr>
         <td>Downloads and native file operations</td>
@@ -539,7 +539,7 @@
         <td><code>saved-02</code></td>
         <td>p1</td>
         <td>Read-later lifecycle</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>saved</td>
       </tr>
       <tr>
@@ -1212,9 +1212,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-edit-delete.jpeg</code><br>The QA bookmark was reopened in the editor and renamed.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-cleanup-confirmed.jpeg</code><br>After removal, the current page returned to the Add Bookmark state.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>saved-02</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>saved-02</code> <span class="status-passed">passed</span></h3>
+        <p>A controlled Slow link was added through the link-action sheet, remained in the saved-items surface after a force-stop relaunch, and was removed by its row swipe without affecting the remaining bookmark.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/read-later-cold-persistence.jpeg</code><br>The controlled Slow link remained in saved items after a force-stop relaunch.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/read-later-cleanup.jpeg</code><br>Removing the read-later item left the independent QA bookmark intact.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>saved-03</code> <span class="status-not-run">not-run</span></h3>
