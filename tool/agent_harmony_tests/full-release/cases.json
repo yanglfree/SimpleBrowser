@@ -7,7 +7,7 @@
   "coverageAreas": [
     {
       "title": "Startup, consent and onboarding",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "startup-01",
         "startup-02",
@@ -17,11 +17,11 @@
         "startup-06",
         "startup-07"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "passed: 2, not-run: 5"
     },
     {
       "title": "Address, navigation and page tools",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "navigation-01",
         "navigation-02",
@@ -39,11 +39,11 @@
         "navigation-14",
         "navigation-15"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "passed: 3, partial: 4, not-run: 8"
     },
     {
       "title": "Tabs, session and resource limits",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "tabs-01",
         "tabs-02",
@@ -56,11 +56,11 @@
         "tabs-09",
         "tabs-10"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "passed: 2, partial: 2, not-run: 6"
     },
     {
       "title": "Content blocking and site controls",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "blocking-01",
         "blocking-02",
@@ -71,21 +71,21 @@
         "blocking-07",
         "blocking-08"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "partial: 3, not-run: 5"
     },
     {
       "title": "Online reader mode",
-      "status": "not-run",
+      "status": "passed",
       "caseIds": [
         "reader-01",
         "reader-02",
         "reader-03"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "passed: 3"
     },
     {
       "title": "Offline library, annotations and export",
-      "status": "not-run",
+      "status": "blocked",
       "caseIds": [
         "articles-01",
         "articles-02",
@@ -100,11 +100,11 @@
         "articles-11",
         "articles-12"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "blocked: 12"
     },
     {
       "title": "Bookmarks, history and start page",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "saved-01",
         "saved-02",
@@ -117,11 +117,11 @@
         "saved-09",
         "saved-10"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "partial: 4, not-run: 6"
     },
     {
       "title": "Downloads and native file operations",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "downloads-01",
         "downloads-02",
@@ -130,7 +130,7 @@
         "downloads-05",
         "downloads-06"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "partial: 2, not-run: 4"
     },
     {
       "title": "Privacy data and site permissions",
@@ -144,11 +144,11 @@
         "permissions-06",
         "permissions-07"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "blocked: 4, not-run: 3"
     },
     {
       "title": "External entry, sharing and defaults",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "integration-01",
         "integration-02",
@@ -159,11 +159,11 @@
         "integration-07",
         "integration-08"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "passed: 3, not-run: 5"
     },
     {
       "title": "Settings and appearance",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "appearance-01",
         "appearance-02",
@@ -171,11 +171,11 @@
         "appearance-04",
         "appearance-05"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "passed: 3, partial: 2"
     },
     {
       "title": "Membership and entitlement lifecycle",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "commerce-01",
         "commerce-02",
@@ -187,11 +187,11 @@
         "commerce-08",
         "commerce-09"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "passed: 2, blocked: 7"
     },
     {
       "title": "Phone, tablet, windows and accessibility",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "responsive-01",
         "responsive-02",
@@ -201,11 +201,11 @@
         "responsive-06",
         "responsive-07"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "partial: 1, blocked: 5, not-run: 1"
     },
     {
       "title": "Release and AGC gates",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "release-01",
         "release-02",
@@ -213,7 +213,7 @@
         "release-04",
         "release-05"
       ],
-      "notes": "Fresh physical-device evidence required for every assertion."
+      "notes": "partial: 2, blocked: 3"
     }
   ],
   "cases": [
@@ -3852,22 +3852,36 @@
       "runtime": "OpenHarmony-6.1.1.120"
     },
     "appBuild": {
-      "version": "1.0.1 (1000001); exploratory working-tree candidate",
-      "hapPath": "output/full-device-qa-20260904/candidate-d4176fd72e7b.hap",
-      "sha256": "d4176fd72e7be986563094f429c3ed5687a14a4ed5e2cdde489ed9170319042e"
+      "version": "1.0.1 (1000001); HEAD-equivalent physical-device candidate",
+      "sourceSha": "5e801e7ea801c5bcecded5ccac00a3e99a2ded94",
+      "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
+      "sha256": "12dee7a964f4cbb83c49a578950efb1582f9a68c42a2a0a594064e07e897a9d1",
+      "signing": "debug profile for physical-device QA; AppGallery dis profile validated separately"
     },
     "results": [
       {
         "caseId": "startup-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Installed and foregrounded the HEAD-equivalent debug-signed release build on Huawei TLR-AL00. Unit tests and device installation passed.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "Installed and foregrounded the HEAD-equivalent debug-signed release build on Huawei TLR-AL00."
+          }
+        ]
       },
       {
         "caseId": "startup-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Repeated warm launches, force-stop cold launch, and reinstall launches preserved the active normal session without a crash.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-cold-persistence.jpeg",
+            "summary": "Repeated warm launches, force-stop cold launch, and reinstall launches preserved the active normal session without a crash."
+          }
+        ]
       },
       {
         "caseId": "startup-03",
@@ -3901,21 +3915,39 @@
       },
       {
         "caseId": "navigation-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Address editing waited for explicit Enter submission; controlled HTTP fixture and public HTTPS pages loaded.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "Address editing waited for explicit Enter submission; controlled HTTP fixture and public HTTPS pages loaded."
+          }
+        ]
       },
       {
         "caseId": "navigation-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Bing and Baidu returned results. Google and DuckDuckGo routed to the selected provider; provider connectivity failures were shown as browser errors rather than misrouted URLs.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg",
+            "summary": "Bing and Baidu returned results."
+          }
+        ]
       },
       {
         "caseId": "navigation-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "A template without %s remained in the editor and was not saved. Automated special-character entry could not reliably inject a valid ?q=%s template, so substitution remains not-run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/custom-search-invalid-rejected.jpeg",
+            "summary": "A template without %s remained in the editor and was not saved."
+          }
+        ]
       },
       {
         "caseId": "navigation-04",
@@ -3937,9 +3969,15 @@
       },
       {
         "caseId": "navigation-07",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Back navigation and the full history surface worked. Forward state and long-press history selection were not fully repeated on the final candidate.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg",
+            "summary": "Back navigation and the full history surface worked."
+          }
+        ]
       },
       {
         "caseId": "navigation-08",
@@ -3955,9 +3993,15 @@
       },
       {
         "caseId": "navigation-10",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Find-in-page matched the controlled long-article marker, navigated matches, reported zero matches, and closed back to the page.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "Find-in-page matched the controlled long-article marker, navigated matches, reported zero matches, and closed back to the page."
+          }
+        ]
       },
       {
         "caseId": "navigation-11",
@@ -3967,9 +4011,15 @@
       },
       {
         "caseId": "navigation-12",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Desktop-once visibly changed the controlled page and mobile reset restored it. Always/global scopes were not fully exercised.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/desktop-ua.jpeg",
+            "summary": "Desktop-once visibly changed the controlled page and mobile reset restored it."
+          }
+        ]
       },
       {
         "caseId": "navigation-13",
@@ -3979,9 +4029,15 @@
       },
       {
         "caseId": "navigation-14",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "An unreachable local URL produced actionable offline feedback and retained Retry. Recovery after restoring the same endpoint remains not-run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg",
+            "summary": "An unreachable local URL produced actionable offline feedback and retained Retry."
+          }
+        ]
       },
       {
         "caseId": "navigation-15",
@@ -3991,27 +4047,51 @@
       },
       {
         "caseId": "tabs-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Created, selected, and closed multiple QA tabs. The overlapping close/new-tab hit target defect was fixed and reverified on device.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "Created, selected, and closed multiple QA tabs."
+          }
+        ]
       },
       {
         "caseId": "tabs-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Recent Tabs selected the expected QA tabs and overview close controls remained usable. Every backdrop dismissal variant was not repeated.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "Recent Tabs selected the expected QA tabs and overview close controls remained usable."
+          }
+        ]
       },
       {
         "caseId": "tabs-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Normal tab order, URLs, and active selection survived force-stop cold relaunch without duplication.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-cold-persistence.jpeg",
+            "summary": "Normal tab order, URLs, and active selection survived force-stop cold relaunch without duplication."
+          }
+        ]
       },
       {
         "caseId": "tabs-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Normal/private tab creation and switching worked. Full cookie/history isolation inspection after private relaunch remains not-run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "Normal/private tab creation and switching worked."
+          }
+        ]
       },
       {
         "caseId": "tabs-05",
@@ -4063,9 +4143,15 @@
       },
       {
         "caseId": "blocking-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Standard to strict to standard selection updated immediately and persisted. Category-level network deltas were not fully captured.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg",
+            "summary": "Standard to strict to standard selection updated immediately and persisted."
+          }
+        ]
       },
       {
         "caseId": "blocking-04",
@@ -4075,15 +4161,27 @@
       },
       {
         "caseId": "blocking-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Rule update exposed busy/completion state and advanced the last-updated timestamp. Offline retry remains not-run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg",
+            "summary": "Rule update exposed busy/completion state and advanced the last-updated timestamp."
+          }
+        ]
       },
       {
         "caseId": "blocking-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Per-site blocked count and event panel were reachable and internally consistent for the live Bing page. Private non-persistence remains not-run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg",
+            "summary": "Per-site blocked count and event panel were reachable and internally consistent for the live Bing page."
+          }
+        ]
       },
       {
         "caseId": "blocking-07",
@@ -4099,99 +4197,123 @@
       },
       {
         "caseId": "reader-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "The controlled long-form article entered reader mode with its beginning and continuation content intact after the viewport fix.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "The controlled long-form article entered reader mode with its beginning and continuation content intact after the viewport fix."
+          }
+        ]
       },
       {
         "caseId": "reader-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Reader font sizing and night appearance updated on device without clipping; reader controls remained reachable.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-appearance-night.jpeg",
+            "summary": "Reader font sizing and night appearance updated on device without clipping; reader controls remained reachable."
+          }
+        ]
       },
       {
         "caseId": "reader-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Reader exit returned to the source page and unsupported/home behavior remained recoverable.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "Reader exit returned to the source page and unsupported/home behavior remained recoverable."
+          }
+        ]
       },
       {
         "caseId": "articles-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-07",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-08",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-09",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-10",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-11",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "articles-12",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
         "evidence": []
       },
       {
         "caseId": "saved-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Bookmark add/remove and cold persistence passed. Rename and tag editing were not fully repeated.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-cold-persistence.jpeg",
+            "summary": "Bookmark add/remove and cold persistence passed."
+          }
+        ]
       },
       {
         "caseId": "saved-02",
@@ -4213,9 +4335,15 @@
       },
       {
         "caseId": "saved-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "History recorded the QA providers and unreachable URL. A stale-title defect was fixed so failed navigation uses the new host; targeted deletion remains not-run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg",
+            "summary": "History recorded the QA providers and unreachable URL."
+          }
+        ]
       },
       {
         "caseId": "saved-06",
@@ -4237,21 +4365,49 @@
       },
       {
         "caseId": "saved-09",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Quick-site visibility and 6 to 4 to 6 limit changes took effect and were restored. Icon failure fallback was not injected.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/start-background-restored.jpeg",
+            "summary": "Quick-site visibility and 6 to 4 to 6 limit changes took effect and were restored."
+          }
+        ]
       },
       {
         "caseId": "saved-10",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Built-in background off/on state changed visibly and was restored. Custom image picker cancellation remains not-run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/start-background-off.jpeg",
+            "summary": "Built-in background off/on state changed visibly and was restored."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/start-background-restored.jpeg",
+            "summary": "Built-in background off/on state changed visibly and was restored."
+          }
+        ]
       },
       {
         "caseId": "downloads-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "A real QQ Music DMG completed with a visible completion notice and persisted completed task metadata. Separate controlled text/image downloads remain not-run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-complete-notice.jpeg",
+            "summary": "A real QQ Music DMG completed with a visible completion notice and persisted completed task metadata."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-complete-tasks.json",
+            "summary": "A real QQ Music DMG completed with a visible completion notice and persisted completed task metadata."
+          }
+        ]
       },
       {
         "caseId": "downloads-02",
@@ -4279,32 +4435,38 @@
       },
       {
         "caseId": "downloads-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Completed task state survived relaunch. External removal and missing-file recovery remain not-run.",
+        "evidence": [
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-complete-tasks.json",
+            "summary": "Completed task state survived relaunch."
+          }
+        ]
       },
       {
         "caseId": "permissions-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.",
         "evidence": []
       },
       {
         "caseId": "permissions-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.",
         "evidence": []
       },
       {
         "caseId": "permissions-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.",
         "evidence": []
       },
       {
         "caseId": "permissions-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.",
         "evidence": []
       },
       {
@@ -4351,21 +4513,39 @@
       },
       {
         "caseId": "integration-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Set as default browser opened the HarmonyOS browser selection page with ZhuoBrowser listed and returned safely without changing the selection.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/default-browser-system-flow.jpeg",
+            "summary": "Set as default browser opened the HarmonyOS browser selection page with ZhuoBrowser listed and returned safely without changing the selection."
+          }
+        ]
       },
       {
         "caseId": "integration-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "System link sharing opened the native chooser with the current page title and targets; cancellation returned to the app.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg",
+            "summary": "System link sharing opened the native chooser with the current page title and targets; cancellation returned to the app."
+          }
+        ]
       },
       {
         "caseId": "integration-07",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Page screenshot sharing produced one image item in the native chooser and cancellation returned safely.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/screenshot-share.jpeg",
+            "summary": "Page screenshot sharing produced one image item in the native chooser and cancellation returned safely."
+          }
+        ]
       },
       {
         "caseId": "integration-08",
@@ -4375,122 +4555,175 @@
       },
       {
         "caseId": "appearance-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "System, light, dark, then system modes updated chrome and system bars immediately; the original mode was restored.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/appearance-light.jpeg",
+            "summary": "System, light, dark, then system modes updated chrome and system bars immediately; the original mode was restored."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/appearance-dark.jpeg",
+            "summary": "System, light, dark, then system modes updated chrome and system bars immediately; the original mode was restored."
+          }
+        ]
       },
       {
         "caseId": "appearance-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Global web dark mode visibly affected the controlled page and was restored. Host exclusion against a second host remains not-run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/web-dark-mode.jpeg",
+            "summary": "Global web dark mode visibly affected the controlled page and was restored."
+          }
+        ]
       },
       {
         "caseId": "appearance-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Settings search reached About. Search engine and rule-strength summaries now refresh immediately, persist across cold launch, and no longer display stale callback state.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg",
+            "summary": "Settings search reached About."
+          }
+        ]
       },
       {
         "caseId": "appearance-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "About, version, ICP entry, terms, and privacy policy were reachable and readable on the installed build.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/default-browser-system-flow.jpeg",
+            "summary": "About, version, ICP entry, terms, and privacy policy were reachable and readable on the installed build."
+          }
+        ]
       },
       {
         "caseId": "appearance-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Menus, settings, reader, history, share, picker, and paywall overlays dismissed without becoming stuck during repeated QA. Every panel was not exhaustively rapid-tapped.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "Menus, settings, reader, history, share, picker, and paywall overlays dismissed without becoming stuck during repeated QA."
+          }
+        ]
       },
       {
         "caseId": "commerce-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Live AGC catalog rendered monthly, yearly, and lifetime plans with correct selection state.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "Live AGC catalog rendered monthly, yearly, and lifetime plans with correct selection state."
+          }
+        ]
       },
       {
         "caseId": "commerce-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Purchase remained disabled until terms acceptance; selection and cancellation returned safely without starting a charge.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
+            "summary": "Purchase remained disabled until terms acceptance; selection and cancellation returned safely without starting a charge."
+          }
+        ]
       },
       {
         "caseId": "commerce-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
         "evidence": []
       },
       {
         "caseId": "commerce-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
         "evidence": []
       },
       {
         "caseId": "commerce-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
         "evidence": []
       },
       {
         "caseId": "commerce-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
         "evidence": []
       },
       {
         "caseId": "commerce-07",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
         "evidence": []
       },
       {
         "caseId": "commerce-08",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
         "evidence": []
       },
       {
         "caseId": "commerce-09",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
         "evidence": []
       },
       {
         "caseId": "responsive-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Phone portrait passed across primary surfaces and keyboard sheets. Landscape rotation remains not-run on this device.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/custom-search-invalid-rejected.jpeg",
+            "summary": "Phone portrait passed across primary surfaces and keyboard sheets."
+          }
+        ]
       },
       {
         "caseId": "responsive-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "No tablet or constrained-window target is currently connected.",
         "evidence": []
       },
       {
         "caseId": "responsive-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "No large-screen target is currently connected for split reading workspace verification.",
         "evidence": []
       },
       {
         "caseId": "responsive-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "No desktop-style large-screen target is currently connected.",
         "evidence": []
       },
       {
         "caseId": "responsive-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "No multi-window-capable test setup is currently available.",
         "evidence": []
       },
       {
         "caseId": "responsive-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "No foldable target is currently connected.",
         "evidence": []
       },
       {
@@ -4501,36 +4734,48 @@
       },
       {
         "caseId": "release-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Current source is 5e801e7ea801. Unit tests, debug-profile release assembly, install, and canonical AppGallery signing snapshot validation passed. Final app-gallery artifact is pending remaining QA.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg",
+            "summary": "Current source is 5e801e7ea801."
+          }
+        ]
       },
       {
         "caseId": "release-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "The current source SHA has not yet been promoted through specified-device portal delivery.",
         "evidence": []
       },
       {
         "caseId": "release-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "AGC draft and metadata were inspected. Canonical dis profile validates as app_gallery with IAP enabled, but mandatory contact/data declarations and package association are incomplete.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/default-browser-system-flow.jpeg",
+            "summary": "AGC draft and metadata were inspected."
+          }
+        ]
       },
       {
         "caseId": "release-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "AGC upload and association must wait for the final release artifact and explicit pre-upload confirmation.",
         "evidence": []
       },
       {
         "caseId": "release-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "Submission must wait for all acceptance gates, mandatory AGC fields, package association, and explicit pre-submit confirmation.",
         "evidence": []
       }
     ],
     "validation": [],
-    "notes": "Historical reports are references only. Existing edits were explicitly accepted into the candidate by the user; concurrent edits must finish before final source freeze. Never claim all-pass from unit tests or exploratory builds."
+    "notes": "Physical-device results are recorded per assertion. Partial and blocked cases remain release gates; no unexecuted behavior is counted as passed."
   }
 }
