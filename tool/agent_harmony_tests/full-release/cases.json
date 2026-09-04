@@ -60,7 +60,7 @@
     },
     {
       "title": "Content blocking and site controls",
-      "status": "partial",
+      "status": "passed",
       "caseIds": [
         "blocking-01",
         "blocking-02",
@@ -117,7 +117,7 @@
         "saved-09",
         "saved-10"
       ],
-      "notes": "passed: 8, partial: 1, not-run: 1"
+      "notes": "passed: 9, not-run: 1"
     },
     {
       "title": "Downloads and native file operations",
@@ -148,7 +148,7 @@
     },
     {
       "title": "External entry, sharing and defaults",
-      "status": "partial",
+      "status": "blocked",
       "caseIds": [
         "integration-01",
         "integration-02",
@@ -159,7 +159,7 @@
         "integration-07",
         "integration-08"
       ],
-      "notes": "passed: 7, not-run: 1"
+      "notes": "passed: 7, blocked: 1"
     },
     {
       "title": "Settings and appearance",
@@ -175,7 +175,7 @@
     },
     {
       "title": "Membership and entitlement lifecycle",
-      "status": "partial",
+      "status": "blocked",
       "caseIds": [
         "commerce-01",
         "commerce-02",
@@ -191,7 +191,7 @@
     },
     {
       "title": "Phone, tablet, windows and accessibility",
-      "status": "partial",
+      "status": "blocked",
       "caseIds": [
         "responsive-01",
         "responsive-02",
@@ -201,11 +201,11 @@
         "responsive-06",
         "responsive-07"
       ],
-      "notes": "partial: 1, blocked: 5, not-run: 1"
+      "notes": "passed: 1, partial: 1, blocked: 5"
     },
     {
       "title": "Release and AGC gates",
-      "status": "partial",
+      "status": "blocked",
       "caseIds": [
         "release-01",
         "release-02",
@@ -4893,13 +4893,23 @@
       },
       {
         "caseId": "saved-08",
-        "status": "partial",
-        "notes": "Long press exposed shortcut removal and the QA shortcut was hidden without deleting its independent history state. Automated drag attempts did not establish a persisted reorder, so ordering remains unverified.",
+        "status": "passed",
+        "notes": "Long press exposed shortcut removal without deleting independent history state. A pointer drag moved 36Kr from position six to position one; the new order survived force-stop and relaunch. A second drag restored the original order, which also survived a cold relaunch.",
         "evidence": [
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/quick-site-add-remove.jpeg",
-            "summary": "Long press exposed shortcut edit/remove controls; the QA shortcut was removed after validation."
+            "summary": "Long press exposed shortcut edit and removal controls; the QA shortcut was removed after validation."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/quicksite-reorder-persisted.jpeg",
+            "summary": "The reordered shortcut remained first after force-stop and relaunch."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/quicksite-order-restored-cold.jpeg",
+            "summary": "The original shortcut order was restored and remained stable after another cold relaunch."
           }
         ]
       },
@@ -5303,8 +5313,8 @@
       },
       {
         "caseId": "integration-08",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
+        "status": "blocked",
+        "notes": "The connected phone does not expose a supported multi-window drag-and-drop source for this case. Validation requires a supported tablet, desktop-style window, or external UDMF drag source; phone evidence cannot substitute.",
         "evidence": []
       },
       {
@@ -5492,9 +5502,25 @@
       },
       {
         "caseId": "responsive-07",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "System font size was raised from Standard to Extra large. Browser actions and settings remained readable and reachable without clipping. System screen reader focus advanced through browser controls and a quick-site item. The screen reader, its master shortcut, and font size were restored after the test.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/large-text-actions.jpeg",
+            "summary": "Browser actions remained readable and reachable at the largest system font size."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/large-text-settings.jpeg",
+            "summary": "Settings labels and choices remained usable at the largest system font size."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/screen-reader-next-focus.jpeg",
+            "summary": "System screen reader focus advanced to a quick-site item in the browser."
+          }
+        ]
       },
       {
         "caseId": "release-01",
