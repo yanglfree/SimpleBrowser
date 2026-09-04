@@ -4573,9 +4573,25 @@
       },
       {
         "caseId": "articles-03",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "partial",
+        "notes": "With airplane mode visibly enabled, a force-stop and cold launch reopened an existing saved article with its text and captured image readable offline. The original mobile-data and hotspot state was restored afterward. Reading-offset persistence was not explicitly changed or measured in this run.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/article-airplane-cold-open.jpeg",
+            "summary": "After a force-stop and cold launch in airplane mode, the saved article text and captured image remained readable."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/control-center-airplane-on.jpeg",
+            "summary": "The device control center visibly confirmed airplane mode before the offline cold-launch check."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/control-center-network-restored.jpeg",
+            "summary": "Airplane mode was disabled and the original mobile-data and personal-hotspot state was restored."
+          }
+        ]
       },
       {
         "caseId": "articles-04",
@@ -4621,9 +4637,30 @@
       },
       {
         "caseId": "articles-11",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Under the current non-Pro state, three existing articles remained visible and readable. Markdown export completed through the native picker and appeared in Files; canceling an earlier export returned safely. Attempting to resave the existing article opened the Pro paywall without modifying the record.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/article-nonpro-library.jpeg",
+            "summary": "The non-Pro library retained three existing articles and explained that reading and export remain available."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/article-nonpro-readable.jpeg",
+            "summary": "An existing saved article opened with its text and captured image readable."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/article-export-files.json",
+            "summary": "Files search found the exported Markdown document in the system Download location."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/article-nonpro-resave-gated.jpeg",
+            "summary": "Resaving an owned article in non-Pro state opened the Pro paywall while the existing article remained intact."
+          }
+        ]
       },
       {
         "caseId": "articles-12",

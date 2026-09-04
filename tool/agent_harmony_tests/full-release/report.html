@@ -36,16 +36,17 @@
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>70</strong>Executed</div>
-    <div class="metric"><strong>51</strong>Passed</div>
+    <div class="metric"><strong>72</strong>Executed</div>
+    <div class="metric"><strong>52</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
-    <div class="metric"><strong>31</strong>Blocked</div>
+    <div class="metric"><strong>20</strong>Partial</div>
+    <div class="metric"><strong>29</strong>Blocked</div>
     <div class="metric"><strong>11</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 70 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 72 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -85,9 +86,9 @@
       </tr>
       <tr>
         <td>Offline library, annotations and export</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-partial">partial</td>
         <td><code>articles-01</code><br><code>articles-02</code><br><code>articles-03</code><br><code>articles-04</code><br><code>articles-05</code><br><code>articles-06</code><br><code>articles-07</code><br><code>articles-08</code><br><code>articles-09</code><br><code>articles-10</code><br><code>articles-11</code><br><code>articles-12</code></td>
-        <td>blocked: 12</td>
+        <td>passed: 1, partial: 1, blocked: 10</td>
       </tr>
       <tr>
         <td>Bookmarks, history and start page</td>
@@ -1156,9 +1157,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>articles-03</code> <span class="status-blocked">blocked</span></h3>
-        <p>Requires an active Pro sandbox entitlement before the offline article library can be exercised.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>articles-03</code> <span class="status-partial">partial</span></h3>
+        <p>With airplane mode visibly enabled, a force-stop and cold launch reopened an existing saved article with its text and captured image readable offline. The original mobile-data and hotspot state was restored afterward. Reading-offset persistence was not explicitly changed or measured in this run.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-airplane-cold-open.jpeg</code><br>After a force-stop and cold launch in airplane mode, the saved article text and captured image remained readable.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/control-center-airplane-on.jpeg</code><br>The device control center visibly confirmed airplane mode before the offline cold-launch check.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/control-center-network-restored.jpeg</code><br>Airplane mode was disabled and the original mobile-data and personal-hotspot state was restored.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>articles-04</code> <span class="status-blocked">blocked</span></h3>
@@ -1196,9 +1197,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>articles-11</code> <span class="status-blocked">blocked</span></h3>
-        <p>Requires an active Pro sandbox entitlement before the offline article library can be exercised.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>articles-11</code> <span class="status-passed">passed</span></h3>
+        <p>Under the current non-Pro state, three existing articles remained visible and readable. Markdown export completed through the native picker and appeared in Files; canceling an earlier export returned safely. Attempting to resave the existing article opened the Pro paywall without modifying the record.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-nonpro-library.jpeg</code><br>The non-Pro library retained three existing articles and explained that reading and export remain available.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-nonpro-readable.jpeg</code><br>An existing saved article opened with its text and captured image readable.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-export-files.json</code><br>Files search found the exported Markdown document in the system Download location.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-nonpro-resave-gated.jpeg</code><br>Resaving an owned article in non-Pro state opened the Pro paywall while the existing article remained intact.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>articles-12</code> <span class="status-blocked">blocked</span></h3>
