@@ -3854,9 +3854,9 @@
     },
     "appBuild": {
       "version": "1.0.1 (1000001); HEAD-equivalent physical-device candidate",
-      "sourceSha": "c37dd64e8ab62edf088445ebdbdc7fc27f0d92ca",
+      "sourceSha": "002315d0a2148de00eb41360858bf311864a9881",
       "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "11fb5172090835b18ebc03a15240626976ceb945f86ca3169d87eaf83c976e65",
+      "sha256": "61d78a8c91895074c5a40ea47fd51483213efb4daa7a4849f3a0dcce3ba8bb77",
       "signing": "debug profile for physical-device QA; AppGallery dis profile validated separately"
     },
     "results": [
@@ -4254,9 +4254,25 @@
       },
       {
         "caseId": "tabs-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Ctrl+W closed a disposable normal tab, Ctrl+Shift+T restored it, and the restored tab remained usable. Earlier private-session verification established that a closed private tab was not resurrected. Close-all remains unexecuted to preserve the user-owned normal session.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-ctrl-t-new.jpeg",
+            "summary": "A disposable normal tab was created before close and reopen verification."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-ctrl-shift-t.jpeg",
+            "summary": "Ctrl+Shift+T restored the just-closed normal tab."
+          },
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-cleaned.json",
+            "summary": "After shortcut QA, both disposable tabs were closed and the original seven-tab session remained."
+          }
+        ]
       },
       {
         "caseId": "tabs-06",
@@ -4290,9 +4306,55 @@
       },
       {
         "caseId": "tabs-10",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "The candidate initially failed shortcuts when focus was on the root home surface, then again after ArkWeb consumed page-focused events. Default root focus and explicit ArkWeb forwarding were added. On the rebuilt candidate, Ctrl+L, Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+R, Ctrl+F, and Ctrl+S reached the expected browser commands. Find returned 1/1, the Find overlay suppressed Ctrl+T, and Save Article routed to the Pro gate. Privacy-consent modal suppression remains pending destructive fresh-install QA.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-fixed-ctrl-l.jpeg",
+            "summary": "Ctrl+L opened the address sheet from the home surface after default-focus repair."
+          },
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-web-ctrl-l-fixed.json",
+            "summary": "Ctrl+L opened the address sheet while ArkWeb held page focus after event forwarding repair."
+          },
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-web-ctrl-tab-fixed.json",
+            "summary": "Ctrl+Tab advanced from the active ArkWeb tab."
+          },
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-web-ctrl-shift-tab-fixed.json",
+            "summary": "Ctrl+Shift+Tab returned to the prior ArkWeb tab."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-reload-before.jpeg",
+            "summary": "The controlled page displayed Reload count 1 before Ctrl+R."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-reload-after.jpeg",
+            "summary": "The controlled page request count advanced after Ctrl+R."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-find-match.jpeg",
+            "summary": "Ctrl+F opened Find and the unique marker returned 1/1."
+          },
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-find-blocks-new-tab.json",
+            "summary": "Ctrl+T during the Find overlay left the tab count at nine."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-save-shortcut.jpeg",
+            "summary": "Ctrl+S routed Save Article to the Pro purchase gate."
+          }
+        ]
       },
       {
         "caseId": "blocking-01",
@@ -5121,12 +5183,12 @@
       {
         "caseId": "release-01",
         "status": "partial",
-        "notes": "Current physical-device source is c37dd64e8ab6. Unit tests, canonical debug-profile assembly, archive integrity validation, in-place install, and the latest repaired user paths passed. Final AppGallery artifact is pending remaining QA.",
+        "notes": "Current physical-device source is 002315d0a214. Unit tests, canonical debug-profile assembly, archive integrity validation, in-place install, and current keyboard regression passed. Final AppGallery artifact is pending remaining QA.",
         "evidence": [
           {
             "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-c37dd64-build.json",
-            "summary": "The c37dd64e8ab6 candidate passed unit tests, canonical build checks, archive integrity, in-place installation, and current repaired-path acceptance."
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-002315d-build.json",
+            "summary": "The 002315d0a214 candidate passed unit tests, canonical build checks, archive integrity, in-place installation, and keyboard acceptance."
           }
         ]
       },
@@ -5162,6 +5224,6 @@
       }
     ],
     "validation": [],
-    "notes": "Physical-device results are recorded per assertion. Partial and blocked cases remain release gates; no unexecuted behavior is counted as passed."
+    "notes": "Physical-device acceptance is active. Evidence is source- and artifact-pinned; unexecuted, destructive, entitlement, form-factor, and AGC mutation gates remain explicit."
   }
 }

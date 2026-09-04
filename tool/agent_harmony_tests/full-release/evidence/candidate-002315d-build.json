@@ -1,0 +1,13 @@
+{
+  "sourceSha": "002315d0a2148de00eb41360858bf311864a9881",
+  "testCommand": "hvigorw test",
+  "testResult": "BUILD SUCCESSFUL",
+  "buildCommand": "hvigorw assembleHap",
+  "buildResult": "BUILD SUCCESSFUL",
+  "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
+  "hapSha256": "61d78a8c91895074c5a40ea47fd51483213efb4daa7a4849f3a0dcce3ba8bb77",
+  "canonicalSigningSelection": "passed before and after build",
+  "archiveIntegrity": "passed",
+  "physicalDeviceInstall": "in-place install passed",
+  "deviceAcceptance": "home and ArkWeb keyboard shortcuts, overlay suppression, reload, find, paywall routing, and cleanup passed"
+}
