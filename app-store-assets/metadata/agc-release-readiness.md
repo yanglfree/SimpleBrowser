@@ -1,6 +1,6 @@
 # AGC Release Readiness
 
-Prepared for ZhuoBrowser 1.0.1 (1000001), source `a7bc9618c5768a5c17d3e5f1942b9994c82d790e`.
+Prepared for ZhuoBrowser 1.0.1. Product behavior is implemented through `b100501b97cf5ed5a54a0b23246a89b1a8f00512`; the full release report and tablet acceptance evidence are recorded through `607f881728ddcf1596e0c04454859d717fa3db2c`. The final AppGallery package must be built from the later `main` commit that contains this readiness update.
 
 This file separates answers supported by the current binary from declarations or materials that still require an AGC console decision. It is preparation evidence only; it does not mean that a package has been associated, uploaded, submitted, reviewed, or published.
 
@@ -52,30 +52,23 @@ The release profile and `entry/src/main/module.json5` must contain the same perm
 | --- | --- | --- |
 | Public privacy policy | Published and verified | Keep `https://browser.youdroid.top/privacy.html` in the AGC draft. The 2026-09-04 deployment serves the a7bc961 wording through Worker version `2cddc25e-cff1-4d55-95a8-d9713f4ac1f5`. |
 | Phone screenshots | Ready and already read back from the draft | Keep the five current 1080 x 1920 images in the verified order. |
-| Tablet and PC/2in1 screenshots | Missing | Capture the current candidate on each declared form factor, or remove an unsupported device type before submission. |
+| Tablet screenshots | Ready locally, not saved in AGC | Five real-device promotional images are available in Chinese and English at 2732 x 2048. Upload only the locale set enabled in the draft, then read back their order. |
+| PC/2in1 screenshots | Missing | `entry/src/main/module.json5` still declares `2in1`. Complete real-device acceptance and capture assets, or remove that device type through the product requirement workflow before submission. |
 | Privacy labels | Prepared, not saved | Enter the declarations from the matrix and read them back from AGC. |
 | Age rating | Questionnaire not completed | Complete it using the notes above and retain the calculated result. |
 | Software copyright or equivalent authorization | Missing from the repository | Provide the mainland-China copyright or agent-authorization material required by AGC. Do not fabricate or substitute screenshots. |
 | Filing material | App shows `鄂ICP备2024064800号-14A`; supporting console material is not verified | Confirm the corresponding filing record and upload any AGC-requested proof. |
 | Review contact | Not verified | Confirm the real reviewer contact and complete any phone verification code in AGC. Do not store personal phone data in this repository. |
-| AppGallery package | Built and locally verified | Associate and upload the exact `.app` only after all release QA gates pass and immediately after explicit external-mutation confirmation. |
+| AppGallery package | Final package not pinned yet | Build and validate the exact final `main` commit, then associate and upload that `.app` only after all release QA gates pass and immediately after explicit external-mutation confirmation. |
 | Submission | Not started | Submit only after package association, declarations, materials and final review-page readback all pass. |
 
-## Current pinned artifacts
+## Current release evidence
 
-- Debug device HAP: `output/full-device-qa-20260904/candidate-a7bc961/ZhuoBrowser-HarmonyOS-1.0.1+1000001-debug.hap`
-- Debug HAP SHA-256: `c013cd05c8f1b9e15cbf8bd0163276102aa3da90f6b193862db86fbb26a7a6ba`
-- AppGallery HAP SHA-256: `923e457af880d2916ae0da4065e966c70d8cbfd542779fadef197252d4b9735a`
-- AppGallery APP: `output/agc-candidate-a7bc961/ZhuoBrowser-HarmonyOS-1.0.1+1000001.app`
-- AppGallery APP SHA-256: `5f75d4b0d2738172199d959b7d67c2c913965e4a7c808903bbcf17a2de7f6629`
-- Store profile UUID: `78e9a894-7a63-49c9-a302-880919ceebb6`
-- Specified-device offline HAP: `output/device-candidate-a7bc961/install.hap`
-- Specified-device HAP SHA-256: `bfc15ddd149f900738eae893e46ec537a304e8e110139af3e1941cbaf152451d`
-- Specified-device manifest SHA-256: `b528d80210b5b7f4d9999acc63e3a762bccc7f7f4370ee08a0422eca00b14a73`
-- Specified-device profile UUID: `d39196f3-9645-4471-ae09-175524d10ebd`
+- Full release matrix: 112 cases, 99 passed, 9 partial, 4 blocked and 0 failed as recorded in `tool/agent_harmony_tests/full-release/`.
+- CI source `607f881728ddcf1596e0c04454859d717fa3db2c`: tests and HarmonyOS build passed in run `33888200725`.
+- Specified-device release source `607f881728ddcf1596e0c04454859d717fa3db2c`: signed artifact retention and verified portal publication passed in run `33888369706`.
+- Published specified-device build: 1.0.1 (1000006), release ID `287a0e8ee829bc1aee66baf29cd9792d2f5886c19a243659eb9be9c78a8ab5a4`, HAP SHA-256 `b6c1fcbdc6c3b616611dd002ce927afd99f3257174f4ea9882f98f8cb76a3df9`.
+- Tablet data restore: all five article-library database files were read back byte-for-byte after restoration; the cold-launched library showed zero articles, matching the snapshot contents.
+- Tablet assets: `app-store-assets/generated/harmony-agc-tablet/{zh-Hans,en}/`, five 2732 x 2048 PNG files per locale, all below 5 MB.
 
-The specified-device artifact was built offline as `1.0.1 (1000002)` with the
-canonical `internaltesting` profile and an officially signed manifest. It has no
-accepted CI run identity and has not been uploaded or published. The artifacts
-under `output/` are ignored local evidence. Rebuild and re-pin them if product
-code changes.
+These facts do not make the release submission-ready while partial and blocked cases remain. The final AppGallery `.app` path and SHA-256 are intentionally pinned after this document is committed so the package source is immutable and exact.

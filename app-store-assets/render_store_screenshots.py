@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / 'source/harmony-phone-v2/zh-Hans'
 OUTPUT = ROOT / 'generated/harmony-agc-phone/zh-Hans'
+TABLET_SOURCE = ROOT / 'source/harmony-tablet/zh-Hans'
 FONT = '/System/Library/Fonts/STHeiti Medium.ttc'
 SLIDES = [
     ('01-home.jpeg', '安静浏览', '常用网站，一触即达'),
@@ -17,6 +18,13 @@ SLIDES = [
     ('03-reader-controls.png', '阅读随心', '字号、行距、纸色可调'),
     ('04-site-blocking.png', '拦截可见', '本站请求，一目了然'),
     ('05-reader-mode.png', '专注阅读', '开启阅读模式，少些干扰'),
+]
+TABLET_SLIDES = [
+    ('01-home.png', '大屏浏览', '横屏空间，尽情展开', 'Browse bigger', 'Built for landscape'),
+    ('02-search.jpeg', '搜索尽览', '结果更宽，信息更多', 'See more results', 'More context at once'),
+    ('03-library-search.jpeg', '文章随查', '正文与笔记都能搜索', 'Find any article', 'Search text and notes'),
+    ('04-history-control.jpeg', '隐私可控', '按类型与时间清理', 'Privacy controls', 'Clear by type and time'),
+    ('05-pro.jpeg', '解锁书房', '离线阅读与本地批注', 'Unlock your library', 'Read and annotate offline'),
 ]
 
 
@@ -28,11 +36,74 @@ def rounded_image(image, radius):
     return result
 
 
-def centered(draw, text, y, size, color):
+def centered(draw, text, y, size, color, canvas_width=1080):
     font = ImageFont.truetype(FONT, size)
     width = draw.textlength(text, font=font)
     assert width < 960, 'Headline exceeds horizontal safe area'
-    draw.text(((1080-width)/2, y), text, font=font, fill=color)
+    draw.text(((canvas_width-width)/2, y), text, font=font, fill=color)
+
+
+def render_tablet():
+    manifests = []
+    previews = []
+    for locale, title_index, subtitle_index in [('zh-Hans', 1, 2), ('en', 3, 4)]:
+        output = ROOT / f'generated/harmony-agc-tablet/{locale}'
+        output.mkdir(parents=True, exist_ok=True)
+        locale_previews = []
+        for index, slide in enumerate(TABLET_SLIDES, 1):
+            filename, title, subtitle = slide[0], slide[title_index], slide[subtitle_index]
+            source_path = TABLET_SOURCE / filename
+            source = Image.open(source_path).convert('RGB')
+            canvas = Image.new('RGBA', (2732, 2048), '#FEFFFB')
+            draw = ImageDraw.Draw(canvas)
+            draw.ellipse((-420, -470, 740, 650), fill='#FBF3CE')
+            draw.ellipse((2140, 1370, 3100, 2320), fill='#E9F3F0')
+            centered(draw, '卓阅浏览器' if locale == 'zh-Hans' else 'ZhuoBrowser',
+                     58, 38, '#397365', 2732)
+            centered(draw, title, 130, 104, '#142D27', 2732)
+            centered(draw, subtitle, 270, 48, '#6A746F', 2732)
+            draw.rounded_rectangle((1236, 395, 1496, 414), 9, fill='#F4DA6A')
+
+            crop = (0, 86, source.width, source.height)
+            content = source.crop(crop)
+            frame_width = 2260
+            frame_height = round(content.height * frame_width / content.width)
+            frame_x, frame_y = (2732-frame_width)//2, 470
+            shadow = Image.new('RGBA', canvas.size)
+            ImageDraw.Draw(shadow).rounded_rectangle(
+                (frame_x-24, frame_y+12, frame_x+frame_width+24, frame_y+frame_height+50),
+                54, fill=(20, 45, 39, 34))
+            canvas = Image.alpha_composite(canvas, shadow.filter(ImageFilter.GaussianBlur(24)))
+            draw = ImageDraw.Draw(canvas)
+            draw.rounded_rectangle((frame_x-20, frame_y-20, frame_x+frame_width+20,
+                                    frame_y+frame_height+20), 50, fill='#19241E')
+            tablet = content.resize((frame_width, frame_height), Image.Resampling.LANCZOS)
+            canvas.alpha_composite(rounded_image(tablet, 34), (frame_x, frame_y))
+            footer = 'HarmonyOS 平板真机界面' if locale == 'zh-Hans' else 'Real HarmonyOS tablet UI'
+            centered(ImageDraw.Draw(canvas), footer, 1990, 24, '#748078', 2732)
+            path = output / f'{index:02d}.png'
+            canvas.convert('RGB').save(path, optimize=True)
+            assert path.stat().st_size < 5_000_000
+            manifests.append({
+                'file': str(path.relative_to(ROOT)), 'source': str(source_path.relative_to(ROOT)),
+                'title': title, 'subtitle': subtitle, 'locale': locale, 'device': 'tablet',
+                'width': 2732, 'height': 2048, 'bytes': path.stat().st_size,
+                'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                'source_sha256': hashlib.sha256(source_path.read_bytes()).hexdigest(),
+                'template': 'spotlight-card-tablet', 'crop': crop,
+                'page_content': 'real-device-capture',
+            })
+            locale_previews.append(canvas.convert('RGB').resize((546, 410), Image.Resampling.LANCZOS))
+        sheet = Image.new('RGB', (5*566+20, 470), '#E7ECE6')
+        for index, preview in enumerate(locale_previews):
+            sheet.paste(preview, (10+index*566, 10))
+        ImageDraw.Draw(sheet).text((18, 435), 'PREVIEW ONLY - NOT FOR STORE UPLOAD',
+                                  font=ImageFont.truetype(FONT, 18), fill='#35473F')
+        preview_dir = ROOT / 'generated/previews'
+        preview_dir.mkdir(parents=True, exist_ok=True)
+        sheet.save(preview_dir / f'contact-sheet-harmony-tablet-{locale}.jpg', quality=92)
+        previews.extend(locale_previews)
+    return manifests
 
 
 def render():
@@ -89,6 +160,7 @@ def render():
     preview_dir = ROOT / 'generated/previews'
     preview_dir.mkdir(parents=True, exist_ok=True)
     sheet.save(preview_dir / 'contact-sheet-harmony-zh-Hans.jpg', quality=92)
+    manifest.extend(render_tablet())
     (ROOT / 'generated/manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+'\n')
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
 

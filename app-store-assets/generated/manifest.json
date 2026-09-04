@@ -103,5 +103,215 @@
       2350
     ],
     "page_content": "local-placeholder-fixture"
+  },
+  {
+    "file": "generated/harmony-agc-tablet/zh-Hans/01.png",
+    "source": "source/harmony-tablet/zh-Hans/01-home.png",
+    "title": "大屏浏览",
+    "subtitle": "横屏空间，尽情展开",
+    "locale": "zh-Hans",
+    "device": "tablet",
+    "width": 2732,
+    "height": 2048,
+    "bytes": 3733589,
+    "sha256": "6b7ddb418e6374cd9e07dfb939ab8776e1ee164187c9ee0c43db20e619a4577a",
+    "source_sha256": "67a7720569a053cf8392f50f3629bb869158e7444b5b12a332c67d44894f6e20",
+    "template": "spotlight-card-tablet",
+    "crop": [
+      0,
+      86,
+      2880,
+      1920
+    ],
+    "page_content": "real-device-capture"
+  },
+  {
+    "file": "generated/harmony-agc-tablet/zh-Hans/02.png",
+    "source": "source/harmony-tablet/zh-Hans/02-search.jpeg",
+    "title": "搜索尽览",
+    "subtitle": "结果更宽，信息更多",
+    "locale": "zh-Hans",
+    "device": "tablet",
+    "width": 2732,
+    "height": 2048,
+    "bytes": 683629,
+    "sha256": "2628964424ae85c759ae5f9be1475a75b3198761985476f649f98b6443b7dc8e",
+    "source_sha256": "e261d0b4523b50df0ac48fa881911a4e926c4b6ff27128aa1298061611e6e7ad",
+    "template": "spotlight-card-tablet",
+    "crop": [
+      0,
+      86,
+      2880,
+      1920
+    ],
+    "page_content": "real-device-capture"
+  },
+  {
+    "file": "generated/harmony-agc-tablet/zh-Hans/03.png",
+    "source": "source/harmony-tablet/zh-Hans/03-library-search.jpeg",
+    "title": "文章随查",
+    "subtitle": "正文与笔记都能搜索",
+    "locale": "zh-Hans",
+    "device": "tablet",
+    "width": 2732,
+    "height": 2048,
+    "bytes": 363974,
+    "sha256": "ea977b6933e7944a5c9ee8f466c1cbd8c6991ee8e7ea995611df5e0533eaf2db",
+    "source_sha256": "7b605b6dd653508507a20461ece573d2b926ef00d61bf682091311f79b80807f",
+    "template": "spotlight-card-tablet",
+    "crop": [
+      0,
+      86,
+      2880,
+      1920
+    ],
+    "page_content": "real-device-capture"
+  },
+  {
+    "file": "generated/harmony-agc-tablet/zh-Hans/04.png",
+    "source": "source/harmony-tablet/zh-Hans/04-history-control.jpeg",
+    "title": "隐私可控",
+    "subtitle": "按类型与时间清理",
+    "locale": "zh-Hans",
+    "device": "tablet",
+    "width": 2732,
+    "height": 2048,
+    "bytes": 377693,
+    "sha256": "3ffe3e918241d2f3df3fab8e8714e208e7d2a3538cfe3f0b91064a75197acf49",
+    "source_sha256": "a532981d54524fa5421127c3de2cf8a9e4f8ded17f641c8e7a1e28ce07459f7a",
+    "template": "spotlight-card-tablet",
+    "crop": [
+      0,
+      86,
+      2880,
+      1920
+    ],
+    "page_content": "real-device-capture"
+  },
+  {
+    "file": "generated/harmony-agc-tablet/zh-Hans/05.png",
+    "source": "source/harmony-tablet/zh-Hans/05-pro.jpeg",
+    "title": "解锁书房",
+    "subtitle": "离线阅读与本地批注",
+    "locale": "zh-Hans",
+    "device": "tablet",
+    "width": 2732,
+    "height": 2048,
+    "bytes": 2679732,
+    "sha256": "db72b1370bf2cbc6c04afdf217d2209f2250180a1f3227ceb3c58fe15080e116",
+    "source_sha256": "ae4d675480ee5e1b96e7914b65f6b6379cad5b3eac8a7da4d703efa274ea5a8d",
+    "template": "spotlight-card-tablet",
+    "crop": [
+      0,
+      86,
+      2880,
+      1920
+    ],
+    "page_content": "real-device-capture"
+  },
+  {
+    "file": "generated/harmony-agc-tablet/en/01.png",
+    "source": "source/harmony-tablet/zh-Hans/01-home.png",
+    "title": "Browse bigger",
+    "subtitle": "Built for landscape",
+    "locale": "en",
+    "device": "tablet",
+    "width": 2732,
+    "height": 2048,
+    "bytes": 3729199,
+    "sha256": "e9abe15f201e29d3a9cf8eb9cbbb6c6fc783cd0fc5dbb5594339e5215a5e4116",
+    "source_sha256": "67a7720569a053cf8392f50f3629bb869158e7444b5b12a332c67d44894f6e20",
+    "template": "spotlight-card-tablet",
+    "crop": [
+      0,
+      86,
+      2880,
+      1920
+    ],
+    "page_content": "real-device-capture"
+  },
+  {
+    "file": "generated/harmony-agc-tablet/en/02.png",
+    "source": "source/harmony-tablet/zh-Hans/02-search.jpeg",
+    "title": "See more results",
+    "subtitle": "More context at once",
+    "locale": "en",
+    "device": "tablet",
+    "width": 2732,
+    "height": 2048,
+    "bytes": 673160,
+    "sha256": "2a3a4f7ef348983540944ee8a4c71356b05e99a4a85c22a428eb47fb6540351e",
+    "source_sha256": "e261d0b4523b50df0ac48fa881911a4e926c4b6ff27128aa1298061611e6e7ad",
+    "template": "spotlight-card-tablet",
+    "crop": [
+      0,
+      86,
+      2880,
+      1920
+    ],
+    "page_content": "real-device-capture"
+  },
+  {
+    "file": "generated/harmony-agc-tablet/en/03.png",
+    "source": "source/harmony-tablet/zh-Hans/03-library-search.jpeg",
+    "title": "Find any article",
+    "subtitle": "Search text and notes",
+    "locale": "en",
+    "device": "tablet",
+    "width": 2732,
+    "height": 2048,
+    "bytes": 355683,
+    "sha256": "245693bb554cca5ab5cc93db5c9145d30b5271c0296d14d78740d6c05bf2304c",
+    "source_sha256": "7b605b6dd653508507a20461ece573d2b926ef00d61bf682091311f79b80807f",
+    "template": "spotlight-card-tablet",
+    "crop": [
+      0,
+      86,
+      2880,
+      1920
+    ],
+    "page_content": "real-device-capture"
+  },
+  {
+    "file": "generated/harmony-agc-tablet/en/04.png",
+    "source": "source/harmony-tablet/zh-Hans/04-history-control.jpeg",
+    "title": "Privacy controls",
+    "subtitle": "Clear by type and time",
+    "locale": "en",
+    "device": "tablet",
+    "width": 2732,
+    "height": 2048,
+    "bytes": 374060,
+    "sha256": "c318d76efe1cf5370da8902496930d1e226a2031686da26f68b811fa233124d9",
+    "source_sha256": "a532981d54524fa5421127c3de2cf8a9e4f8ded17f641c8e7a1e28ce07459f7a",
+    "template": "spotlight-card-tablet",
+    "crop": [
+      0,
+      86,
+      2880,
+      1920
+    ],
+    "page_content": "real-device-capture"
+  },
+  {
+    "file": "generated/harmony-agc-tablet/en/05.png",
+    "source": "source/harmony-tablet/zh-Hans/05-pro.jpeg",
+    "title": "Unlock your library",
+    "subtitle": "Read and annotate offline",
+    "locale": "en",
+    "device": "tablet",
+    "width": 2732,
+    "height": 2048,
+    "bytes": 2669594,
+    "sha256": "a6ba0f3c58f15c170661a324228b4e290cddb067fbd8f2d407c6a554b30fb151",
+    "source_sha256": "ae4d675480ee5e1b96e7914b65f6b6379cad5b3eac8a7da4d703efa274ea5a8d",
+    "template": "spotlight-card-tablet",
+    "crop": [
+      0,
+      86,
+      2880,
+      1920
+    ],
+    "page_content": "real-device-capture"
   }
 ]
