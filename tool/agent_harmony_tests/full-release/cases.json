@@ -39,7 +39,7 @@
         "navigation-14",
         "navigation-15"
       ],
-      "notes": "passed: 9, partial: 6"
+      "notes": "passed: 11, partial: 4"
     },
     {
       "title": "Tabs, session and resource limits",
@@ -3940,9 +3940,14 @@
       },
       {
         "caseId": "navigation-03",
-        "status": "partial",
-        "notes": "A template without %s remained in the editor and was not saved. Automated special-character entry could not reliably inject a valid ?q=%s template, so substitution remains not-run.",
+        "status": "passed",
+        "notes": "A template without %s remained in the editor and was not saved. A valid controlled template was then saved, persisted across leaving the setting, and substituted the submitted query into /search?q=zhuocustomq. The custom template was cleared afterward.",
         "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/custom-search-substitution-url.jpeg",
+            "summary": "The address editor exposed the controlled /search?q=zhuocustomq result after template substitution."
+          },
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/custom-search-invalid-rejected.jpeg",
@@ -3952,9 +3957,14 @@
       },
       {
         "caseId": "navigation-04",
-        "status": "partial",
-        "notes": "With search shortcuts enabled, a matching QA history row and the explicit search row appeared. Disabling the setting removed the search row, and restoring it brought the row back. A separate bookmark suggestion was not created in this pass.",
+        "status": "passed",
+        "notes": "With search shortcuts enabled, matching history and explicit search rows appeared. Disabling the setting removed the search row, and restoring it brought the row back. A temporary bookmark whose matching history entry had been removed appeared with the bookmark icon; the temporary bookmark was deleted afterward.",
         "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/suggestions-bookmark-only.jpeg",
+            "summary": "A bookmark-only match appeared with the bookmark icon after its QA history entry was removed."
+          },
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/search-suggestions-enabled.jpeg",

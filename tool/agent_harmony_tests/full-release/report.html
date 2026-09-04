@@ -37,7 +37,7 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>63</strong>Executed</div>
-    <div class="metric"><strong>32</strong>Passed</div>
+    <div class="metric"><strong>34</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
     <div class="metric"><strong>18</strong>Not run</div>
@@ -63,7 +63,7 @@
         <td>Address, navigation and page tools</td>
         <td class="status-partial">partial</td>
         <td><code>navigation-01</code><br><code>navigation-02</code><br><code>navigation-03</code><br><code>navigation-04</code><br><code>navigation-05</code><br><code>navigation-06</code><br><code>navigation-07</code><br><code>navigation-08</code><br><code>navigation-09</code><br><code>navigation-10</code><br><code>navigation-11</code><br><code>navigation-12</code><br><code>navigation-13</code><br><code>navigation-14</code><br><code>navigation-15</code></td>
-        <td>passed: 9, partial: 6</td>
+        <td>passed: 11, partial: 4</td>
       </tr>
       <tr>
         <td>Tabs, session and resource limits</td>
@@ -210,14 +210,14 @@
         <td><code>navigation-03</code></td>
         <td>p1</td>
         <td>Custom search template</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>navigation</td>
       </tr>
       <tr>
         <td><code>navigation-04</code></td>
         <td>p1</td>
         <td>Suggestions and toggle</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>navigation</td>
       </tr>
       <tr>
@@ -977,14 +977,14 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg</code><br>Bing and Baidu returned results.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-03</code> <span class="status-partial">partial</span></h3>
-        <p>A template without %s remained in the editor and was not saved. Automated special-character entry could not reliably inject a valid ?q=%s template, so substitution remains not-run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/custom-search-invalid-rejected.jpeg</code><br>A template without %s remained in the editor and was not saved.</li></ul>
+        <h3><code>navigation-03</code> <span class="status-passed">passed</span></h3>
+        <p>A template without %s remained in the editor and was not saved. A valid controlled template was then saved, persisted across leaving the setting, and substituted the submitted query into /search?q=zhuocustomq. The custom template was cleared afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/custom-search-substitution-url.jpeg</code><br>The address editor exposed the controlled /search?q=zhuocustomq result after template substitution.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/custom-search-invalid-rejected.jpeg</code><br>A template without %s remained in the editor and was not saved.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-04</code> <span class="status-partial">partial</span></h3>
-        <p>With search shortcuts enabled, a matching QA history row and the explicit search row appeared. Disabling the setting removed the search row, and restoring it brought the row back. A separate bookmark suggestion was not created in this pass.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/search-suggestions-enabled.jpeg</code><br>The enabled address sheet displayed the matching QA history entry and explicit search shortcut.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/search-suggestions-disabled.jpeg</code><br>The disabled address sheet omitted the external search shortcut for the same unique query.</li></ul>
+        <h3><code>navigation-04</code> <span class="status-passed">passed</span></h3>
+        <p>With search shortcuts enabled, matching history and explicit search rows appeared. Disabling the setting removed the search row, and restoring it brought the row back. A temporary bookmark whose matching history entry had been removed appeared with the bookmark icon; the temporary bookmark was deleted afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/suggestions-bookmark-only.jpeg</code><br>A bookmark-only match appeared with the bookmark icon after its QA history entry was removed.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/search-suggestions-enabled.jpeg</code><br>The enabled address sheet displayed the matching QA history entry and explicit search shortcut.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/search-suggestions-disabled.jpeg</code><br>The disabled address sheet omitted the external search shortcut for the same unique query.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-05</code> <span class="status-passed">passed</span></h3>
