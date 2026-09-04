@@ -86,7 +86,10 @@ export class ProBillingAdapter implements IapPaywallPurchaseAdapter {
           products.push(mapped);
         }
       }
-      return { products: products, source: IapPaywallProductSource.LIVE_STORE };
+      return {
+        products: products,
+        source: products.length > 0 ? IapPaywallProductSource.LIVE_STORE : IapPaywallProductSource.FALLBACK
+      };
     } catch (error) {
       Logger.error(TAG, `Product query failed: ${this.formatError(error as Object)}`);
       return { products: [], source: IapPaywallProductSource.FALLBACK };

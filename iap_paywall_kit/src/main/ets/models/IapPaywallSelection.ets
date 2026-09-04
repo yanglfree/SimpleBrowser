@@ -1,4 +1,9 @@
-import { IapPaywallPlan, IapPaywallProduct, IapPaywallProductSource } from './IapPaywallModels'
+import {
+  IapPaywallPlan,
+  IapPaywallProduct,
+  IapPaywallProductLoadResult,
+  IapPaywallProductSource
+} from './IapPaywallModels'
 
 export function isValidPaywallProduct(product: IapPaywallProduct): boolean {
   return product.productId.trim().length > 0 && product.priceLabel.trim().length > 0
@@ -15,6 +20,12 @@ export function sanitizePaywallProducts(products: IapPaywallProduct[]): IapPaywa
     if (valid) seen.push(item.productId)
     return valid
   })
+}
+
+export function isPaywallProductLoadAvailable(result: IapPaywallProductLoadResult): boolean {
+  return result.source === IapPaywallProductSource.LIVE_STORE &&
+    sanitizePaywallProducts(result.products).some((product: IapPaywallProduct) =>
+      isPurchasablePaywallProduct(product))
 }
 
 export type IapPaywallSelection = PaidPaywallSelection | TrialPaywallSelection

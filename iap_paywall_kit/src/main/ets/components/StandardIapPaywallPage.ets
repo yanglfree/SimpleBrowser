@@ -15,7 +15,11 @@ import {
   IapPaywallTheme,
   NoopPaywallPurchaseAdapter
 } from '../models/IapPaywallModels'
-import { getPaywallItemKey, isPurchasablePaywallProduct } from '../models/IapPaywallSelection'
+import {
+  getPaywallItemKey,
+  isPaywallProductLoadAvailable,
+  isPurchasablePaywallProduct
+} from '../models/IapPaywallSelection'
 import { PendingPurchaseRecovery, PurchaseRecoveryResult } from '../models/PendingPurchaseRecovery'
 
 const TAG = 'StandardIapPaywallPage'
@@ -248,7 +252,8 @@ export struct StandardIapPaywallPage {
       }
       const result = await this.adapter.queryProducts(context)
       this.productSource = result.source
-      if (result.products.length > 0) {
+      this.isEnvironmentReady = isPaywallProductLoadAvailable(result)
+      if (this.isEnvironmentReady) {
         this.products = result.products
       }
     } catch (err) {
@@ -1525,8 +1530,9 @@ export struct StandardIapPaywallPage {
       const envOk = await this.adapter.checkEnvironment(context)
       this.isEnvironmentReady = envOk
       if (envOk) {
-        this.showToast(this.config.copy.iapEnvReady, 2000)
         await this.loadProducts()
+        this.showToast(this.isEnvironmentReady ? this.config.copy.iapEnvReady :
+          this.config.copy.iapEnvRetryFailed, 2000)
       } else {
         this.showToast(this.config.copy.iapEnvRetryFailed, 2000)
       }

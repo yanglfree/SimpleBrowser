@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@ohos/hypium'
 import {
   defaultPaywallSelection,
+  isPaywallProductLoadAvailable,
   isPurchasablePaywallProduct,
   selectPaywallProduct,
   sanitizePaywallProducts,
@@ -74,6 +75,17 @@ export default function paywallSelectionTest() {
         source: IapPaywallProductSource.FALLBACK
       }
       expect(isPurchasablePaywallProduct(fallback)).assertFalse()
+    })
+    it('reports product loading unavailable for empty or fallback store results', 0, () => {
+      expect(isPaywallProductLoadAvailable({
+        products: [], source: IapPaywallProductSource.LIVE_STORE
+      })).assertFalse()
+      expect(isPaywallProductLoadAvailable({
+        products: products, source: IapPaywallProductSource.FALLBACK
+      })).assertFalse()
+      expect(isPaywallProductLoadAvailable({
+        products: products, source: IapPaywallProductSource.LIVE_STORE
+      })).assertTrue()
     })
     it('generates selection-aware keys so ForEach re-renders checkmark on plan change', 0, () => {
       const monthlyProduct = products[0]
