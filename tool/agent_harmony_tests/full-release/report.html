@@ -37,7 +37,7 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>63</strong>Executed</div>
-    <div class="metric"><strong>40</strong>Passed</div>
+    <div class="metric"><strong>41</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
     <div class="metric"><strong>18</strong>Not run</div>
@@ -117,7 +117,7 @@
         <td>Settings and appearance</td>
         <td class="status-partial">partial</td>
         <td><code>appearance-01</code><br><code>appearance-02</code><br><code>appearance-03</code><br><code>appearance-04</code><br><code>appearance-05</code></td>
-        <td>passed: 3, partial: 2</td>
+        <td>passed: 4, partial: 1</td>
       </tr>
       <tr>
         <td>Membership and entitlement lifecycle</td>
@@ -756,7 +756,7 @@
         <td><code>appearance-02</code></td>
         <td>p1</td>
         <td>Web dark mode and exclusion</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>appearance</td>
       </tr>
       <tr>
@@ -1367,9 +1367,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/appearance-light.jpeg</code><br>System, light, dark, then system modes updated chrome and system bars immediately; the original mode was restored.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/appearance-dark.jpeg</code><br>System, light, dark, then system modes updated chrome and system bars immediately; the original mode was restored.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>appearance-02</code> <span class="status-partial">partial</span></h3>
-        <p>Global web dark mode visibly affected the controlled page and was restored. Host exclusion against a second host remains not-run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-mode.jpeg</code><br>Global web dark mode visibly affected the controlled page and was restored.</li></ul>
+        <h3><code>appearance-02</code> <span class="status-passed">passed</span></h3>
+        <p>With global web dark mode set to Always Dark, <code>127.0.0.1</code> was excluded through the current-site switch and remained light. A fresh WebView navigated to the second host name <code>localhost</code> rendered the same controlled page dark. The host exclusion was removed, global mode was restored to Follow System, the repurposed home tab returned home, and the QA history entry was deleted.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-excluded-host.jpeg</code><br>The excluded <code>127.0.0.1</code> host remained light while global dark mode was active.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-second-host.jpeg</code><br>A fresh WebView on non-excluded <code>localhost</code> rendered the same fixture in dark mode.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-restored-system.jpeg</code><br>The global setting and host exclusion were restored after the isolation check.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>appearance-03</code> <span class="status-passed">passed</span></h3>

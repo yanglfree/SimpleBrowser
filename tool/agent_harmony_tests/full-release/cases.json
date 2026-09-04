@@ -4903,13 +4903,23 @@
       },
       {
         "caseId": "appearance-02",
-        "status": "partial",
-        "notes": "Global web dark mode visibly affected the controlled page and was restored. Host exclusion against a second host remains not-run.",
+        "status": "passed",
+        "notes": "With global web dark mode set to Always Dark, 127.0.0.1 was excluded through the current-site switch and remained light. A fresh WebView navigated to the second host name localhost rendered the same controlled page dark. The host exclusion was removed, global mode was restored to Follow System, the repurposed home tab returned home, and the QA history entry was deleted.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/web-dark-mode.jpeg",
-            "summary": "Global web dark mode visibly affected the controlled page and was restored."
+            "path": "tool/agent_harmony_tests/full-release/evidence/web-dark-excluded-host.jpeg",
+            "summary": "The excluded 127.0.0.1 host remained light while global dark mode was active."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/web-dark-second-host.jpeg",
+            "summary": "A fresh WebView on non-excluded localhost rendered the same fixture in dark mode."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/web-dark-restored-system.jpeg",
+            "summary": "The global setting and host exclusion were restored after the isolation check."
           }
         ]
       },
