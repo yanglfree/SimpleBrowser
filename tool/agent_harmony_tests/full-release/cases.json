@@ -5632,9 +5632,15 @@
       },
       {
         "caseId": "release-02",
-        "status": "blocked",
-        "notes": "The current source SHA has not yet been promoted through specified-device portal delivery.",
-        "evidence": []
+        "status": "partial",
+        "notes": "The a7bc961 candidate built successfully as an offline 1.0.1 (1000002) internaltesting HAP with IAP capability and an officially verified signed manifest. It cannot be promoted until the source is pushed and accepted by GitHub CI; no portal upload, pointer change or portal installation was performed.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/device-release-a7bc961-validation.json",
+            "summary": "Canonical internaltesting signing, HAP and signed-manifest hashes for the unpublished a7bc961 device candidate."
+          }
+        ]
       },
       {
         "caseId": "release-03",

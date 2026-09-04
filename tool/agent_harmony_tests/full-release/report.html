@@ -36,10 +36,10 @@
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>99</strong>Executed</div>
+    <div class="metric"><strong>98</strong>Executed</div>
     <div class="metric"><strong>73</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
-    <div class="metric"><strong>26</strong>Blocked</div>
+    <div class="metric"><strong>25</strong>Blocked</div>
     <div class="metric"><strong>8</strong>Not run</div>
   </section>
 
@@ -135,7 +135,7 @@
         <td>Release and AGC gates</td>
         <td class="status-blocked">blocked</td>
         <td><code>release-01</code><br><code>release-02</code><br><code>release-03</code><br><code>release-04</code><br><code>release-05</code></td>
-        <td>partial: 2, blocked: 3</td>
+        <td>partial: 3, blocked: 2</td>
       </tr></tbody>
   </table>
 
@@ -903,7 +903,7 @@
         <td><code>release-02</code></td>
         <td>p0</td>
         <td>Specified-device portal delivery</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-partial">partial</td>
         <td>release</td>
       </tr>
       <tr>
@@ -1472,9 +1472,9 @@
         <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-a7bc961-validation.json</code><br>Pinned source, device HAP, AppGallery APP, signing and targeted device regression evidence for a7bc961.</li><li><strong>command</strong>: <code>hvigorw test</code><br>The complete ArkTS unit suite passed for the a7bc961 candidate.</li><li><strong>command</strong>: <code>node --test</code><br>All 64 Node tests passed for the a7bc961 candidate.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>release-02</code> <span class="status-blocked">blocked</span></h3>
-        <p>The current source SHA has not yet been promoted through specified-device portal delivery.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>release-02</code> <span class="status-partial">partial</span></h3>
+        <p>The a7bc961 candidate built successfully as an offline 1.0.1 (1000002) internaltesting HAP with IAP capability and an officially verified signed manifest. It cannot be promoted until the source is pushed and accepted by GitHub CI; no portal upload, pointer change or portal installation was performed.</p>
+        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/device-release-a7bc961-validation.json</code><br>Canonical internaltesting signing, HAP and signed-manifest hashes for the unpublished a7bc961 device candidate.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>release-03</code> <span class="status-partial">partial</span></h3>

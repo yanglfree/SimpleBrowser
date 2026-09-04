@@ -69,5 +69,13 @@ The release profile and `entry/src/main/module.json5` must contain the same perm
 - AppGallery APP: `output/agc-candidate-a7bc961/ZhuoBrowser-HarmonyOS-1.0.1+1000001.app`
 - AppGallery APP SHA-256: `5f75d4b0d2738172199d959b7d67c2c913965e4a7c808903bbcf17a2de7f6629`
 - Store profile UUID: `78e9a894-7a63-49c9-a302-880919ceebb6`
+- Specified-device offline HAP: `output/device-candidate-a7bc961/install.hap`
+- Specified-device HAP SHA-256: `bfc15ddd149f900738eae893e46ec537a304e8e110139af3e1941cbaf152451d`
+- Specified-device manifest SHA-256: `b528d80210b5b7f4d9999acc63e3a762bccc7f7f4370ee08a0422eca00b14a73`
+- Specified-device profile UUID: `d39196f3-9645-4471-ae09-175524d10ebd`
 
-The artifacts under `output/` are ignored local evidence. Rebuild and re-pin them if product code changes.
+The specified-device artifact was built offline as `1.0.1 (1000002)` with the
+canonical `internaltesting` profile and an officially signed manifest. It has no
+accepted CI run identity and has not been uploaded or published. The artifacts
+under `output/` are ignored local evidence. Rebuild and re-pin them if product
+code changes.

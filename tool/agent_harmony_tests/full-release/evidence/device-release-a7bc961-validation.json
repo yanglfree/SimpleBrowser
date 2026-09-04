@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-09-04T09:51:00Z",
+  "sourceSha": "a7bc9618c5768a5c17d3e5f1942b9994c82d790e",
+  "mode": "build-only",
+  "published": false,
+  "acceptedCiRunId": null,
+  "release": {
+    "versionName": "1.0.1",
+    "versionCode": 1000002,
+    "distribution": "internaltesting",
+    "iapEnabled": true,
+    "profileUuid": "d39196f3-9645-4471-ae09-175524d10ebd",
+    "profileSha256": "bf766921ad42f53b320edf1c87128526effffba6b5f45b0251b35ac5318f5e5b",
+    "certificateSha256": "1ce5995ca59c228d69e64a58d527c6dc70aa3071c66bfe336b0af38811781af5"
+  },
+  "artifacts": {
+    "install.hap": "bfc15ddd149f900738eae893e46ec537a304e8e110139af3e1941cbaf152451d",
+    "manifest.json5": "b528d80210b5b7f4d9999acc63e3a762bccc7f7f4370ee08a0422eca00b14a73",
+    "icon.png": "441acd097e3b419a8fc85dd1f03a74e955043d32201e14b093250716769ea43d",
+    "release-metadata.json": "39b5b59bc6dba5c828ebc0ee858f143863a6d4089bc99d8eb53ad5611988e5f5"
+  },
+  "checks": {
+    "canonicalSigningSource": "passed",
+    "hapSignatureProfileCertificateAndIap": "passed",
+    "manifestSignature": "passed",
+    "portalUpload": "not-run",
+    "portalPointerPromotion": "not-run",
+    "portalGetHeadRange": "not-run",
+    "deviceInstallThroughPortal": "not-run"
+  },
+  "result": "partial"
+}
