@@ -37,7 +37,7 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>63</strong>Executed</div>
-    <div class="metric"><strong>34</strong>Passed</div>
+    <div class="metric"><strong>35</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
     <div class="metric"><strong>18</strong>Not run</div>
@@ -63,7 +63,7 @@
         <td>Address, navigation and page tools</td>
         <td class="status-partial">partial</td>
         <td><code>navigation-01</code><br><code>navigation-02</code><br><code>navigation-03</code><br><code>navigation-04</code><br><code>navigation-05</code><br><code>navigation-06</code><br><code>navigation-07</code><br><code>navigation-08</code><br><code>navigation-09</code><br><code>navigation-10</code><br><code>navigation-11</code><br><code>navigation-12</code><br><code>navigation-13</code><br><code>navigation-14</code><br><code>navigation-15</code></td>
-        <td>passed: 11, partial: 4</td>
+        <td>passed: 12, partial: 3</td>
       </tr>
       <tr>
         <td>Tabs, session and resource limits</td>
@@ -273,7 +273,7 @@
         <td><code>navigation-12</code></td>
         <td>p1</td>
         <td>Mobile and desktop user agent</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>navigation</td>
       </tr>
       <tr>
@@ -1022,9 +1022,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/settings-label-search-fixed.jpeg</code><br>Searching the exact localized label now returned the minimum-font setting.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/minimum-font-persisted.jpeg</code><br>The 18 px minimum-font selection remained active after a force-stop relaunch before restoration.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-12</code> <span class="status-partial">partial</span></h3>
-        <p>Desktop-once visibly changed the controlled page and mobile reset restored it. Always/global scopes were not fully exercised.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/desktop-ua.jpeg</code><br>Desktop-once visibly changed the controlled page and mobile reset restored it.</li></ul>
+        <h3><code>navigation-12</code> <span class="status-passed">passed</span></h3>
+        <p>The controlled server observed the mobile baseline, desktop-once, and always-for-site user agents. The site override survived force-stop relaunch, clearing it restored mobile, global desktop applied to a second host name, and reset-all restored the mobile default. The disposable tab, UA history rows, global preference, site exception, fixture server, and reverse mapping were removed afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/ua-mobile-baseline.jpeg</code><br>The controlled server observed the default OpenHarmony mobile user agent.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/ua-site-always-cold-persisted.jpeg</code><br>The always-for-site desktop user agent remained active after a force-stop relaunch.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/ua-global-desktop-second-host.jpeg</code><br>The global desktop user agent applied to the second host name localhost.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/ua-reset-mobile.jpeg</code><br>Reset-all restored the OpenHarmony mobile user agent on the second host.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-13</code> <span class="status-partial">partial</span></h3>

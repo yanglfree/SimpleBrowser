@@ -39,7 +39,7 @@
         "navigation-14",
         "navigation-15"
       ],
-      "notes": "passed: 11, partial: 4"
+      "notes": "passed: 12, partial: 3"
     },
     {
       "title": "Tabs, session and resource limits",
@@ -4088,13 +4088,28 @@
       },
       {
         "caseId": "navigation-12",
-        "status": "partial",
-        "notes": "Desktop-once visibly changed the controlled page and mobile reset restored it. Always/global scopes were not fully exercised.",
+        "status": "passed",
+        "notes": "The controlled server observed the mobile baseline, desktop-once, and always-for-site user agents. The site override survived force-stop relaunch, clearing it restored mobile, global desktop applied to a second host name, and reset-all restored the mobile default. The disposable tab, UA history rows, global preference, site exception, fixture server, and reverse mapping were removed afterward.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/desktop-ua.jpeg",
-            "summary": "Desktop-once visibly changed the controlled page and mobile reset restored it."
+            "path": "tool/agent_harmony_tests/full-release/evidence/ua-mobile-baseline.jpeg",
+            "summary": "The controlled server observed the default OpenHarmony mobile user agent."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/ua-site-always-cold-persisted.jpeg",
+            "summary": "The always-for-site desktop user agent remained active after a force-stop relaunch."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/ua-global-desktop-second-host.jpeg",
+            "summary": "The global desktop user agent applied to the second host name localhost."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/ua-reset-mobile.jpeg",
+            "summary": "Reset-all restored the OpenHarmony mobile user agent on the second host."
           }
         ]
       },
