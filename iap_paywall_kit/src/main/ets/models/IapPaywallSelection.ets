@@ -1,7 +1,11 @@
-import { IapPaywallPlan, IapPaywallProduct } from './IapPaywallModels'
+import { IapPaywallPlan, IapPaywallProduct, IapPaywallProductSource } from './IapPaywallModels'
 
 export function isValidPaywallProduct(product: IapPaywallProduct): boolean {
   return product.productId.trim().length > 0 && product.priceLabel.trim().length > 0
+}
+
+export function isPurchasablePaywallProduct(product: IapPaywallProduct): boolean {
+  return product.source === IapPaywallProductSource.LIVE_STORE && isValidPaywallProduct(product)
 }
 
 export function sanitizePaywallProducts(products: IapPaywallProduct[]): IapPaywallProduct[] {
