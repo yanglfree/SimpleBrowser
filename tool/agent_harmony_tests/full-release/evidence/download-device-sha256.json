@@ -1,0 +1,25 @@
+{
+  "fixture": {
+    "pattern": "ZHUO-QA-RANGE-0123456789abcdef\\n",
+    "size": 16777216,
+    "expectedSha256": "667026a2592d632a907acb614c1ab849d2325a0e21395a5a68caf3bc21ede742"
+  },
+  "deviceFiles": [
+    {
+      "name": "zhuo-qa-range (2).bin",
+      "size": 16777216,
+      "sha256": "667026a2592d632a907acb614c1ab849d2325a0e21395a5a68caf3bc21ede742"
+    },
+    {
+      "name": "zhuo-qa-range (3).bin",
+      "size": 16777216,
+      "sha256": "667026a2592d632a907acb614c1ab849d2325a0e21395a5a68caf3bc21ede742"
+    },
+    {
+      "name": "zhuo-qa-range (4).bin",
+      "size": 16777216,
+      "sha256": "667026a2592d632a907acb614c1ab849d2325a0e21395a5a68caf3bc21ede742"
+    }
+  ],
+  "verification": "All completed 16 MiB device files match the deterministic controlled fixture hash."
+}

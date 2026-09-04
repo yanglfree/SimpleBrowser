@@ -37,8 +37,8 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>78</strong>Evidence-backed</div>
-    <div class="metric"><strong>70</strong>Passed</div>
-    <div class="metric"><strong>8</strong>Partial</div>
+    <div class="metric"><strong>73</strong>Passed</div>
+    <div class="metric"><strong>5</strong>Partial</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>26</strong>Blocked</div>
     <div class="metric"><strong>8</strong>Not run</div>
@@ -46,7 +46,7 @@
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run has evidence-backed results for 78 cases: 70 passed and 8 partial.
+    The agent QA suite contains 112 Harmony scenarios. This run has evidence-backed results for 78 cases: 73 passed and 5 partial.
     Blocked and not-run cases are explicit and are not counted as verified release coverage.
   </p>
 
@@ -88,7 +88,7 @@
         <td>Offline library, annotations and export</td>
         <td class="status-blocked">blocked</td>
         <td><code>articles-01</code><br><code>articles-02</code><br><code>articles-03</code><br><code>articles-04</code><br><code>articles-05</code><br><code>articles-06</code><br><code>articles-07</code><br><code>articles-08</code><br><code>articles-09</code><br><code>articles-10</code><br><code>articles-11</code><br><code>articles-12</code></td>
-        <td>passed: 1, partial: 1, blocked: 10</td>
+        <td>passed: 2, blocked: 10</td>
       </tr>
       <tr>
         <td>Bookmarks, history and start page</td>
@@ -98,9 +98,9 @@
       </tr>
       <tr>
         <td>Downloads and native file operations</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td><code>downloads-01</code><br><code>downloads-02</code><br><code>downloads-03</code><br><code>downloads-04</code><br><code>downloads-05</code><br><code>downloads-06</code></td>
-        <td>passed: 4, partial: 2</td>
+        <td>passed: 6</td>
       </tr>
       <tr>
         <td>Privacy data and site permissions</td>
@@ -464,7 +464,7 @@
         <td><code>articles-03</code></td>
         <td>p0</td>
         <td>Offline cold relaunch</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>articles</td>
       </tr>
       <tr>
@@ -611,7 +611,7 @@
         <td><code>downloads-02</code></td>
         <td>p1</td>
         <td>Pause, resume and concurrency</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>downloads</td>
       </tr>
       <tr>
@@ -632,7 +632,7 @@
         <td><code>downloads-05</code></td>
         <td>p1</td>
         <td>Open and share completed file</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>downloads</td>
       </tr>
       <tr>
@@ -1160,9 +1160,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>articles-03</code> <span class="status-partial">partial</span></h3>
-        <p>With airplane mode visibly enabled, a force-stop and cold launch reopened an existing saved article with its text and captured image readable offline. The original mobile-data and hotspot state was restored afterward. Reading-offset persistence was not explicitly changed or measured in this run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-airplane-cold-open.jpeg</code><br>After a force-stop and cold launch in airplane mode, the saved article text and captured image remained readable.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/control-center-airplane-on.jpeg</code><br>The device control center visibly confirmed airplane mode before the offline cold-launch check.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/control-center-network-restored.jpeg</code><br>Airplane mode was disabled and the original mobile-data and personal-hotspot state was restored.</li></ul>
+        <h3><code>articles-03</code> <span class="status-passed">passed</span></h3>
+        <p>With airplane mode visibly enabled, a force-stop and cold launch reopened an existing saved article with its text and captured image readable offline. On the exact 5f0e479 candidate, a controlled saved article was scrolled from the title to sections 01-03, dismissed, force-stopped, cold-launched, and reopened; it restored to the same section with matching element positions. The QA article was returned to the top afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-airplane-cold-open.jpeg</code><br>The saved article remained readable after an airplane-mode cold launch.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-reading-offset-scrolled.jpeg</code><br>The controlled article was scrolled to sections 01-03 before dismissal.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-reading-offset-cold-restored.jpeg</code><br>After force-stop and cold launch, reopening the article restored the same reading section.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-reading-offset-cold-restored.json</code><br>The restored UI tree matched the same visible section headings and positions.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>articles-04</code> <span class="status-blocked">blocked</span></h3>
@@ -1265,9 +1265,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-small-complete.jpeg</code><br>Controlled text and image tasks reached completed state with expected names and sizes.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-public-files.json</code><br>HarmonyOS Files listed the controlled downloads in the public Downloads collection.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>downloads-02</code> <span class="status-partial">partial</span></h3>
-        <p>A 16 MiB ranged download paused at 13 percent, resumed and completed. With concurrency set to one, one task downloaded while a second remained pending; the original limit was restored. Completion sizes matched, but the virtual public file path prevented an independent device-side byte hash.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-paused-slow.jpeg</code><br>The ranged download remained paused with a Continue action and stable progress.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-concurrency-one.jpeg</code><br>One task downloaded while the second remained pending at concurrency one.</li></ul>
+        <h3><code>downloads-02</code> <span class="status-passed">passed</span></h3>
+        <p>A 16 MiB ranged download paused at 13 percent, resumed and completed. With concurrency set to one, one task downloaded while a second remained pending; the original limit was restored. Three completed 16 MiB device files were then read directly from the public download directory and independently hashed. All matched the deterministic controlled fixture SHA-256 667026a2592d632a907acb614c1ab849d2325a0e21395a5a68caf3bc21ede742.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg</code><br>The controlled ranged task paused, resumed, and completed.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-concurrency-one.jpeg</code><br>A concurrency limit of one kept the second task pending while the first downloaded.</li><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-device-sha256.json</code><br>Three completed 16 MiB files independently matched the controlled fixture SHA-256.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>downloads-03</code> <span class="status-passed">passed</span></h3>
@@ -1280,9 +1280,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/large-download-policy-warning.jpeg</code><br>The 60 MB cellular download waited at an explicit filename-specific confirmation dialog.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/large-download-policy-approved.jpeg</code><br>The separately approved 60 MB QA task completed before its file and record were removed.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>downloads-05</code> <span class="status-partial">partial</span></h3>
-        <p>Opening a completed text download launched the native preview flow. Share opened the HarmonyOS share sheet with the expected filename and byte count, and cancellation returned safely. A final handoff into a receiving app remains unverified.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-share-sheet.jpeg</code><br>The native share sheet received the expected filename and 38-byte file before cancellation.</li></ul>
+        <h3><code>downloads-05</code> <span class="status-passed">passed</span></h3>
+        <p>Opening a completed text download launched the native preview flow. Share opened the HarmonyOS share sheet with the expected filename and 38 B size. Selecting Notes handed the file to its native receiver UI, which offered storage; closing before Store returned safely without creating a note.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-share-sheet.jpeg</code><br>The HarmonyOS share sheet displayed the expected file name and byte count.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-share-receiver-picker.jpeg</code><br>The system receiver picker offered local receiving applications.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-share-notes-receiver.jpeg</code><br>Notes received the shared file and displayed its Store action before cancellation.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-share-notes-receiver.json</code><br>The Notes UI extension was active with the file handoff and no store action had been triggered.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>downloads-06</code> <span class="status-passed">passed</span></h3>
