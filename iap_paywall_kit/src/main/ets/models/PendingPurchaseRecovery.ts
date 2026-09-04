@@ -1,7 +1,9 @@
-export enum PurchaseRecoveryResult {
-  RECOVERED = 'recovered',
-  EXHAUSTED = 'exhausted',
-  CANCELLED = 'cancelled'
+export type PurchaseRecoveryResult = 'recovered' | 'exhausted' | 'cancelled'
+
+export const PurchaseRecoveryResult = {
+  RECOVERED: 'recovered' as PurchaseRecoveryResult,
+  EXHAUSTED: 'exhausted' as PurchaseRecoveryResult,
+  CANCELLED: 'cancelled' as PurchaseRecoveryResult
 }
 
 export class PendingPurchaseRecovery {
