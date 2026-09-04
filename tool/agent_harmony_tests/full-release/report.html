@@ -37,9 +37,9 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>72</strong>Executed</div>
-    <div class="metric"><strong>52</strong>Passed</div>
+    <div class="metric"><strong>53</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
-    <div class="metric"><strong>20</strong>Partial</div>
+    <div class="metric"><strong>19</strong>Partial</div>
     <div class="metric"><strong>29</strong>Blocked</div>
     <div class="metric"><strong>11</strong>Not run</div>
   </section>
@@ -76,7 +76,7 @@
         <td>Content blocking and site controls</td>
         <td class="status-partial">partial</td>
         <td><code>blocking-01</code><br><code>blocking-02</code><br><code>blocking-03</code><br><code>blocking-04</code><br><code>blocking-05</code><br><code>blocking-06</code><br><code>blocking-07</code><br><code>blocking-08</code></td>
-        <td>passed: 6, partial: 2</td>
+        <td>passed: 7, partial: 1</td>
       </tr>
       <tr>
         <td>Online reader mode</td>
@@ -1112,9 +1112,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-allowed-host.jpeg</code><br>The allow-listed 127.0.0.1 host loaded the controlled ad and tracker resources.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-second-host-isolated.jpeg</code><br>The same WebView blocked both controlled resources after navigation to non-allowed localhost.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-allow-removed.jpeg</code><br>Removing the 127.0.0.1 exception restored blocking for both controlled resources.</li><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-host-isolation.json</code><br>The four-state host isolation matrix and cleanup state are recorded.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>blocking-05</code> <span class="status-partial">partial</span></h3>
-        <p>Rule update exposed busy/completion state and advanced the last-updated timestamp. Offline retry remains not-run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg</code><br>Rule update exposed busy/completion state and advanced the last-updated timestamp.</li></ul>
+        <h3><code>blocking-05</code> <span class="status-passed">passed</span></h3>
+        <p>Online rule update exposed busy/completion state and advanced the last-updated timestamp. With airplane mode enabled, a retry displayed that the update failed and the old rules were retained; the timestamp remained unchanged. The original mobile-data and hotspot state was restored afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg</code><br>Online rule update exposed busy/completion state and advanced the last-updated timestamp.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/rules-update-offline-retained.jpeg</code><br>In airplane mode, the app reported that the update failed and old rules were retained while the prior timestamp remained visible.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/rules-network-restored.jpeg</code><br>The device returned to its original mobile-data and personal-hotspot state after the offline check.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>blocking-06</code> <span class="status-passed">passed</span></h3>

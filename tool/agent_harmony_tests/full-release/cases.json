@@ -4462,13 +4462,23 @@
       },
       {
         "caseId": "blocking-05",
-        "status": "partial",
-        "notes": "Rule update exposed busy/completion state and advanced the last-updated timestamp. Offline retry remains not-run.",
+        "status": "passed",
+        "notes": "Online rule update exposed busy/completion state and advanced the last-updated timestamp. With airplane mode enabled, a retry displayed that the update failed and the old rules were retained; the timestamp remained unchanged. The original mobile-data and hotspot state was restored afterward.",
         "evidence": [
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg",
-            "summary": "Rule update exposed busy/completion state and advanced the last-updated timestamp."
+            "summary": "Online rule update exposed busy/completion state and advanced the last-updated timestamp."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/rules-update-offline-retained.jpeg",
+            "summary": "In airplane mode, the app reported that the update failed and old rules were retained while the prior timestamp remained visible."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/rules-network-restored.jpeg",
+            "summary": "The device returned to its original mobile-data and personal-hotspot state after the offline check."
           }
         ]
       },
