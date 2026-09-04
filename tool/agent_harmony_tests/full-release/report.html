@@ -37,7 +37,7 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>63</strong>Executed</div>
-    <div class="metric"><strong>37</strong>Passed</div>
+    <div class="metric"><strong>38</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
     <div class="metric"><strong>18</strong>Not run</div>
@@ -75,7 +75,7 @@
         <td>Content blocking and site controls</td>
         <td class="status-partial">partial</td>
         <td><code>blocking-01</code><br><code>blocking-02</code><br><code>blocking-03</code><br><code>blocking-04</code><br><code>blocking-05</code><br><code>blocking-06</code><br><code>blocking-07</code><br><code>blocking-08</code></td>
-        <td>passed: 4, partial: 4</td>
+        <td>passed: 5, partial: 3</td>
       </tr>
       <tr>
         <td>Online reader mode</td>
@@ -392,7 +392,7 @@
         <td><code>blocking-04</code></td>
         <td>p1</td>
         <td>Site allow-list</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>blocking</td>
       </tr>
       <tr>
@@ -1107,9 +1107,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-strict-fixed.jpeg</code><br>The rebuilt Strict mode hid the controlled ad slot, counted one block, and retained core navigation.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-standard-restored.jpeg</code><br>Restored Standard mode kept the controlled ordinary ad slot visible and the core page usable.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>blocking-04</code> <span class="status-partial">partial</span></h3>
-        <p>The per-site switch reloaded the controlled host, changed its exception state, and removal restored blocking. Isolation against a second host was not executed.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/reader-mode-generic.jpeg</code><br>The controlled host remained usable while the site exception was toggled and restored.</li></ul>
+        <h3><code>blocking-04</code> <span class="status-passed">passed</span></h3>
+        <p>The per-site allow-list enabled ads and trackers only for <code>127.0.0.1</code>. Navigating the same live WebView to <code>localhost</code> initially exposed a stale native blocking-policy defect. The controller is now reconfigured from every destination URL. On the rebuilt <code>3b95824</code> candidate, the allowed host loaded both resources while <code>localhost</code> blocked both; removing the exception restored blocking on <code>127.0.0.1</code> and kept <code>localhost</code> blocked. The allow-list entry, QA tab, history, fixture server, and reverse mapping were removed afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-allowed-host.jpeg</code><br>The allow-listed <code>127.0.0.1</code> host loaded the controlled ad and tracker resources.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-second-host-isolated.jpeg</code><br>The same WebView blocked both controlled resources after navigation to non-allowed <code>localhost</code>.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-allow-removed.jpeg</code><br>Removing the <code>127.0.0.1</code> exception restored blocking for both controlled resources.</li><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-host-isolation.json</code><br>The four-state host isolation matrix and cleanup state are recorded.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>blocking-05</code> <span class="status-partial">partial</span></h3>
@@ -1468,8 +1468,8 @@
       </section>
       <section class="case-result">
         <h3><code>release-01</code> <span class="status-partial">partial</span></h3>
-        <p>Current physical-device source is <code>bbd5b19e5660</code>. Unit tests, canonical debug-profile assembly, in-place install, and archive integrity validation passed. Final AppGallery artifact is pending remaining QA.</p>
-        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-bbd5b19-build.json</code><br>The <code>bbd5b19e5660</code> candidate passed unit tests, canonical build checks, archive integrity, and in-place installation.</li></ul>
+        <p>Current physical-device source is <code>3b95824815c6</code>. Unit tests, canonical debug-profile assembly, archive integrity validation, and in-place install passed. Final AppGallery artifact is pending remaining QA.</p>
+        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-3b95824-build.json</code><br>The <code>3b95824815c6</code> candidate passed unit tests, canonical build checks, archive integrity, and in-place installation.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>release-02</code> <span class="status-blocked">blocked</span></h3>

@@ -3854,9 +3854,9 @@
     },
     "appBuild": {
       "version": "1.0.1 (1000001); HEAD-equivalent physical-device candidate",
-      "sourceSha": "bbd5b19e566064728260403e4ff05a5e4c82b22d",
+      "sourceSha": "3b95824815c6ca46bfdff118139483431a227e5b",
       "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "8a5c40cefb0f742d86ba76abd1c8826ab7cc9255f6d6f9f141ac0669fda7a2a1",
+      "sha256": "2f0be6c2845832303c4252c069df6278e61363680f82c66b19118852fad672a7",
       "signing": "debug profile for physical-device QA; AppGallery dis profile validated separately"
     },
     "results": [
@@ -4352,13 +4352,28 @@
       },
       {
         "caseId": "blocking-04",
-        "status": "partial",
-        "notes": "The per-site switch reloaded the controlled host, changed its exception state, and removal restored blocking. Isolation against a second host was not executed.",
+        "status": "passed",
+        "notes": "The per-site allow-list enabled ads and trackers only for 127.0.0.1. Navigating the same live WebView to localhost initially exposed a stale native blocking-policy defect. The controller is now reconfigured from every destination URL. On the rebuilt 3b95824 candidate, the allowed host loaded both resources while localhost blocked both; removing the exception restored blocking on 127.0.0.1 and kept localhost blocked. The allow-list entry, QA tab, history, fixture server, and reverse mapping were removed afterward.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/reader-mode-generic.jpeg",
-            "summary": "The controlled host remained usable while the site exception was toggled and restored."
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-allowed-host.jpeg",
+            "summary": "The allow-listed 127.0.0.1 host loaded the controlled ad and tracker resources."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-second-host-isolated.jpeg",
+            "summary": "The same WebView blocked both controlled resources after navigation to non-allowed localhost."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-allow-removed.jpeg",
+            "summary": "Removing the 127.0.0.1 exception restored blocking for both controlled resources."
+          },
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-host-isolation.json",
+            "summary": "The four-state host isolation matrix and cleanup state are recorded."
           }
         ]
       },
@@ -5041,12 +5056,12 @@
       {
         "caseId": "release-01",
         "status": "partial",
-        "notes": "Current physical-device source is bbd5b19e5660. Unit tests, canonical debug-profile assembly, in-place install, and archive integrity validation passed. Final AppGallery artifact is pending remaining QA.",
+        "notes": "Current physical-device source is 3b95824815c6. Unit tests, canonical debug-profile assembly, archive integrity validation, and in-place install passed. Final AppGallery artifact is pending remaining QA.",
         "evidence": [
           {
             "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-bbd5b19-build.json",
-            "summary": "The bbd5b19e5660 candidate passed unit tests, canonical build checks, archive integrity, and in-place installation."
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-3b95824-build.json",
+            "summary": "The 3b95824815c6 candidate passed unit tests, canonical build checks, archive integrity, and in-place installation."
           }
         ]
       },

@@ -1,0 +1,40 @@
+{
+  "device": "Huawei TLR-AL00",
+  "sourceSha": "3b95824815c6ca46bfdff118139483431a227e5b",
+  "fixturePort": 4188,
+  "observations": [
+    {
+      "host": "127.0.0.1",
+      "allowed": true,
+      "ad": "loaded",
+      "tracker": "loaded"
+    },
+    {
+      "host": "localhost",
+      "allowed": false,
+      "ad": "blocked",
+      "tracker": "blocked",
+      "navigation": "same WebView after the allowed host"
+    },
+    {
+      "host": "127.0.0.1",
+      "allowed": false,
+      "ad": "blocked",
+      "tracker": "blocked"
+    },
+    {
+      "host": "localhost",
+      "allowed": false,
+      "ad": "blocked",
+      "tracker": "blocked",
+      "navigation": "same WebView after allow-list removal"
+    }
+  ],
+  "cleanup": {
+    "allowedHostRemoved": true,
+    "qaTabClosed": true,
+    "qaHistoryRemoved": true,
+    "fixtureServerStopped": true,
+    "reverseMappingRemoved": true
+  }
+}
