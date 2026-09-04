@@ -280,9 +280,9 @@ export class BrowserRepository {
     await this.save(HISTORY_KEY, JSON.stringify(this.history));
   }
 
-  async clearHistory(before: number = 0): Promise<void> {
-    this.history = before > 0
-      ? this.history.filter((item: HistoryEntry) => item.visitedAt > before)
+  async clearHistory(since: number = 0): Promise<void> {
+    this.history = since > 0
+      ? this.history.filter((item: HistoryEntry) => item.visitedAt < since)
       : [];
     await this.save(HISTORY_KEY, JSON.stringify(this.history));
   }

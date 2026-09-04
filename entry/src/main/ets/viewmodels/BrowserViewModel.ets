@@ -1048,8 +1048,8 @@ export class BrowserViewModel {
     Logger.info(TAG, 'Browser settings updated');
   }
 
-  async clearHistory(before: number = 0): Promise<void> {
-    await this.repository.clearHistory(before);
+  async clearHistory(since: number = 0): Promise<void> {
+    await this.repository.clearHistory(since);
     this.history = this.repository.getHistory();
   }
 

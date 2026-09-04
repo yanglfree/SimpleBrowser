@@ -246,6 +246,33 @@ export default function browserViewModelTest(): void {
       expect(retained.length).assertEqual(1);
       expect(retained[0].id).assertEqual(currentEntry.id);
     });
+
+    it('clears entries visited since the selected browsing-data cutoff', 0, async (): Promise<void> => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const cutoff: number = Date.now() - 24 * 60 * 60 * 1000;
+      const olderEntry: HistoryEntry = {
+        id: 'history-before-cutoff',
+        title: 'Before cutoff',
+        url: 'https://before.example',
+        visitedAt: cutoff - 1,
+        visitCount: 1
+      };
+      const recentEntry: HistoryEntry = {
+        id: 'history-after-cutoff',
+        title: 'After cutoff',
+        url: 'https://after.example',
+        visitedAt: cutoff + 1,
+        visitCount: 1
+      };
+      await viewModel.repository.recordHistory(olderEntry);
+      await viewModel.repository.recordHistory(recentEntry);
+
+      await viewModel.clearHistory(cutoff);
+
+      const retained: HistoryEntry[] = viewModel.repository.getHistory();
+      expect(retained.length).assertEqual(1);
+      expect(retained[0].id).assertEqual(olderEntry.id);
+    });
   });
 
   describe('BrowserViewModel window transfer', (): void => {

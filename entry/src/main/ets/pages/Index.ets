@@ -4350,6 +4350,11 @@ struct Index {
     if (range === ClearDataRange.All) {
       return 0;
     }
+    if (range === ClearDataRange.Today) {
+      const today: Date = new Date();
+      today.setHours(0, 0, 0, 0);
+      return today.getTime();
+    }
     return Date.now() - Number(range) * 24 * 60 * 60 * 1000;
   }
 
