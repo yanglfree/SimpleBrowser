@@ -29,15 +29,15 @@
   <p>
     Date: 2026-09-04<br>
     Target: Huawei TLR-AL00, OpenHarmony-6.1.1.120, <code>4UQ9K25530058677</code><br>
-    App: ZhuoBrowser Full Release Acceptance <code>1.0.1 (1000001); 0464ab0 physical-device candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
+    App: ZhuoBrowser Full Release Acceptance <code>1.0.1 (1000001); 089a373 physical-device candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
     HAP: <code>entry/build/default/outputs/default/entry-default-signed.hap</code><br>
     Auth source: none
   </p>
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>92</strong>Executed</div>
-    <div class="metric"><strong>66</strong>Passed</div>
+    <div class="metric"><strong>93</strong>Executed</div>
+    <div class="metric"><strong>67</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>26</strong>Blocked</div>
     <div class="metric"><strong>9</strong>Not run</div>
@@ -45,7 +45,7 @@
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 92 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 93 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -350,7 +350,7 @@
         <td><code>tabs-08</code></td>
         <td>p1</td>
         <td>Hibernation and reading position</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>tabs</td>
       </tr>
       <tr>
@@ -1077,9 +1077,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>tabs-08</code> <span class="status-partial">partial</span></h3>
-        <p>Lowering the live-webview budget from four to one hibernated background tabs. Selecting the controlled article reattached it, restored reader mode, and produced neither a blank view nor duplicate navigation. Reading-position recovery was not established because automated ArkWeb swipes did not move the page. The budget was restored to four.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/hibernate-restored-selected.jpeg</code><br>The controlled article reattached from hibernation and restored reader mode without a blank view.</li></ul>
+        <h3><code>tabs-08</code> <span class="status-passed">passed</span></h3>
+        <p>Lowering the live-WebView budget from four to one hibernated background tabs. Selecting the controlled article reattached it without a blank view or duplicate navigation, and the budget was restored to four. Separately, a controlled long page saved an absolute scroll position of 3164. After force-stop and cold relaunch, the page started at marker 1 and offered to continue; tapping Continue restored marker 5. The candidate now applies both the native ArkWeb controller scroll and a DOM fallback. The two pre-existing user tabs remained intact.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/hibernate-restored-selected.jpeg</code><br>The controlled article reattached from hibernation without a blank view or duplicate navigation.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/scroll-resume-prompt.jpeg</code><br>Cold relaunch opened the controlled page at marker 1 and displayed the explicit continue-reading prompt.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/scroll-resume-success.jpeg</code><br>Tapping Continue restored the controlled page to marker 5.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/scroll-resume-prompt.json</code><br>The cold-start UI tree recorded marker 1 and the visible Continue action.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/scroll-resume-success.json</code><br>The post-action UI tree recorded marker 5 and no duplicate prompt.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>tabs-09</code> <span class="status-passed">passed</span></h3>
@@ -1468,8 +1468,8 @@
       </section>
       <section class="case-result">
         <h3><code>release-01</code> <span class="status-partial">partial</span></h3>
-        <p>Current physical-device source is 96968d7c1a64. Unit tests, canonical debug signing selection, archive integrity, HAP signature/profile verification, in-place installation, download recovery, cookie cleanup and form-hibernation regressions passed. This is a debug device-acceptance artifact; the AppGallery dis artifact remains pending final QA.</p>
-        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-96968d7-build.json</code><br>The 96968d7 candidate passed build, canonical debug signing, archive, signature/profile and in-place installation checks; AppGallery packaging is pending.</li></ul>
+        <p>Current physical-device source is 089a3734566f. Unit tests, canonical debug signing selection, archive integrity, HAP signature/profile verification, in-place installation, permission, telemetry, and scroll-resume regressions passed. This is a debug device-acceptance artifact; the AppGallery dis artifact remains pending final QA.</p>
+        <ul><li><strong>command</strong>: <code>hvigorw test</code><br>The complete unit suite passed for the 089a373 candidate.</li><li><strong>command</strong>: <code>hvigorw assembleHap</code><br>The canonical debug-signed physical-device HAP built successfully with SHA-256 7011b7de9305c1b841f8c91ce9550531488807a42d6d26e3960d8de4bed1da74.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/scroll-resume-success.jpeg</code><br>The installed 089a373 candidate restored the saved page position on the physical device.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>release-02</code> <span class="status-blocked">blocked</span></h3>
@@ -1495,7 +1495,27 @@
   <h2>Validation</h2>
   <table>
     <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
-    <tbody></tbody>
+    <tbody>
+      <tr>
+        <td><code>hvigorw test</code></td>
+        <td class="status-passed">passed</td>
+        <td>Complete unit suite passed after the telemetry and scroll restoration changes.</td>
+      </tr>
+      <tr>
+        <td><code>node scripts/mobile_cicd/signing-source.mjs assert-selected</code></td>
+        <td class="status-passed">passed</td>
+        <td>The build used the selected canonical physical-device signing source.</td>
+      </tr>
+      <tr>
+        <td><code>hvigorw assembleHap</code></td>
+        <td class="status-passed">passed</td>
+        <td>Candidate HAP built successfully and its SHA-256 was recorded.</td>
+      </tr>
+      <tr>
+        <td><code>hdc install -r entry-default-signed.hap</code></td>
+        <td class="status-passed">passed</td>
+        <td>Candidate installed in place on Huawei TLR-AL00 and preserved the existing session.</td>
+      </tr></tbody>
   </table>
 
   <h2>Known Exclusions</h2>
