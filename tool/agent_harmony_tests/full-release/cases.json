@@ -71,7 +71,7 @@
         "blocking-07",
         "blocking-08"
       ],
-      "notes": "passed: 6, partial: 2"
+      "notes": "passed: 7, partial: 1"
     },
     {
       "title": "Online reader mode",
@@ -100,7 +100,7 @@
         "articles-11",
         "articles-12"
       ],
-      "notes": "blocked: 12"
+      "notes": "passed: 1, partial: 1, blocked: 10"
     },
     {
       "title": "Bookmarks, history and start page",
@@ -117,7 +117,7 @@
         "saved-09",
         "saved-10"
       ],
-      "notes": "passed: 7, partial: 2, not-run: 1"
+      "notes": "passed: 8, partial: 1, not-run: 1"
     },
     {
       "title": "Downloads and native file operations",
@@ -159,7 +159,7 @@
         "integration-07",
         "integration-08"
       ],
-      "notes": "passed: 4, partial: 3, not-run: 1"
+      "notes": "passed: 7, not-run: 1"
     },
     {
       "title": "Settings and appearance",
@@ -5106,13 +5106,28 @@
       },
       {
         "caseId": "integration-04",
-        "status": "partial",
-        "notes": "Controlled javascript and devtools-style executable links were blocked after the navigation guard fix and never executed. Internal home/data handling was not fully repeated.",
+        "status": "passed",
+        "notes": "Controlled javascript and devtools-style executable links remained blocked and never executed. A controlled browser://home link transitioned from ArkWeb to the native start page, and the temporary tab closed cleanly back to the original seven-tab session. An ordinary page data: link did not execute; the separately verified offline reader remained usable through its explicitly authorized internal data document path. The QA history entry was removed afterward.",
         "evidence": [
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/blocked-protocol-fixed.jpeg",
-            "summary": "The controlled executable protocol remained on the fixture instead of replacing or escaping the page."
+            "summary": "Controlled executable protocols remained on the fixture instead of executing or escaping the page."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/internal-home-rendered.jpeg",
+            "summary": "A controlled browser://home link transitioned from ArkWeb into the native start page."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/article-airplane-cold-open.jpeg",
+            "summary": "The offline reader rendered its explicitly authorized internal data document during a cold offline open."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/internal-navigation-cleaned.json",
+            "summary": "The temporary internal-navigation tab was closed and its history entry removed while the original seven-tab session remained."
           }
         ]
       },

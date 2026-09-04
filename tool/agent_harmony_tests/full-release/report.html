@@ -37,9 +37,9 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>72</strong>Executed</div>
-    <div class="metric"><strong>56</strong>Passed</div>
+    <div class="metric"><strong>57</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
-    <div class="metric"><strong>16</strong>Partial</div>
+    <div class="metric"><strong>15</strong>Partial</div>
     <div class="metric"><strong>29</strong>Blocked</div>
     <div class="metric"><strong>11</strong>Not run</div>
   </section>
@@ -112,7 +112,7 @@
         <td>External entry, sharing and defaults</td>
         <td class="status-partial">partial</td>
         <td><code>integration-01</code><br><code>integration-02</code><br><code>integration-03</code><br><code>integration-04</code><br><code>integration-05</code><br><code>integration-06</code><br><code>integration-07</code><br><code>integration-08</code></td>
-        <td>passed: 6, partial: 1, not-run: 1</td>
+        <td>passed: 7, not-run: 1</td>
       </tr>
       <tr>
         <td>Settings and appearance</td>
@@ -715,7 +715,7 @@
         <td><code>integration-04</code></td>
         <td>p0</td>
         <td>Blocked and internal protocols</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>integration</td>
       </tr>
       <tr>
@@ -1337,9 +1337,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg</code><br>External protocol handling remained behind explicit user confirmation and cancellation.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>integration-04</code> <span class="status-partial">partial</span></h3>
-        <p>Controlled javascript and devtools-style executable links were blocked after the navigation guard fix and never executed. Internal home/data handling was not fully repeated.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocked-protocol-fixed.jpeg</code><br>The controlled executable protocol remained on the fixture instead of replacing or escaping the page.</li></ul>
+        <h3><code>integration-04</code> <span class="status-passed">passed</span></h3>
+        <p>Controlled javascript and devtools-style executable links remained blocked and never executed. A controlled <code>browser://home</code> link transitioned from ArkWeb to the native start page, and the temporary tab closed cleanly back to the original seven-tab session. An ordinary page <code>data:</code> link did not execute; the separately verified offline reader remained usable through its explicitly authorized internal data document path. The QA history entry was removed afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocked-protocol-fixed.jpeg</code><br>Controlled executable protocols remained on the fixture instead of executing or escaping the page.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/internal-home-rendered.jpeg</code><br>A controlled <code>browser://home</code> link transitioned from ArkWeb into the native start page.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/article-airplane-cold-open.jpeg</code><br>The offline reader rendered its explicitly authorized internal data document during a cold offline open.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/internal-navigation-cleaned.json</code><br>The temporary internal-navigation tab was closed and its history entry removed while the original seven-tab session remained.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>integration-05</code> <span class="status-passed">passed</span></h3>
