@@ -56,7 +56,7 @@
         "tabs-09",
         "tabs-10"
       ],
-      "notes": "passed: 5, partial: 3, not-run: 2"
+      "notes": "passed: 8, partial: 1, not-run: 1"
     },
     {
       "title": "Content blocking and site controls",
@@ -163,7 +163,7 @@
     },
     {
       "title": "Settings and appearance",
-      "status": "partial",
+      "status": "passed",
       "caseIds": [
         "appearance-01",
         "appearance-02",
@@ -171,7 +171,7 @@
         "appearance-04",
         "appearance-05"
       ],
-      "notes": "passed: 4, partial: 1"
+      "notes": "passed: 5"
     },
     {
       "title": "Membership and entitlement lifecycle",
@@ -3858,22 +3858,27 @@
       "runtime": "OpenHarmony-6.1.1.120"
     },
     "appBuild": {
-      "version": "1.0.1 (1000001); 089a373 physical-device candidate",
-      "sourceSha": "089a3734566f3cd00fe43995756dbcaf29b9827c",
-      "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "7011b7de9305c1b841f8c91ce9550531488807a42d6d26e3960d8de4bed1da74",
-      "signing": "canonical debug profile for physical-device QA; AppGallery dis artifact remains pending"
+      "version": "1.0.1 (1000001); 5f0e479 physical-device candidate",
+      "sourceSha": "5f0e4792032da32e9eb71f5ab34c1d63771e3a08",
+      "hapPath": "output/full-device-qa-20260904/candidate-5f0e479-debug.hap",
+      "sha256": "d2c34d226e58611b7e12aacf4545adaad7bdcfd96559ad56a42ac9c5985593a2",
+      "signing": "canonical debug profile for physical-device QA; paired AppGallery APP verified with SHA-256 c9c01ff0cb83a269de8f19b7cf793d84e11c8011d408a570e45f4094b3c12fba"
     },
     "results": [
       {
         "caseId": "startup-01",
         "status": "passed",
-        "notes": "Installed and foregrounded the HEAD-equivalent debug-signed release build on Huawei TLR-AL00. Unit tests and device installation passed.",
+        "notes": "Installed and foregrounded the exact 5f0e479 canonical debug-signed candidate on Huawei TLR-AL00. The app was interactive, and a force-stop cold launch restored the two-tab user session with Home active.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
-            "summary": "Installed and foregrounded the HEAD-equivalent debug-signed release build on Huawei TLR-AL00."
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-5f0e479-cold-session.jpeg",
+            "summary": "The exact 5f0e479 candidate cold-launched into the preserved two-tab user session."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-5f0e479-cold-session.json",
+            "summary": "The physical-device UI tree confirmed an interactive Home tab and tab count of two."
           }
         ]
       },
@@ -4279,31 +4284,52 @@
       },
       {
         "caseId": "tabs-05",
-        "status": "partial",
-        "notes": "Ctrl+W closed a disposable normal tab, Ctrl+Shift+T restored it, and the restored tab remained usable. Earlier private-session verification established that a closed private tab was not resurrected. Close-all remains unexecuted to preserve the user-owned normal session.",
+        "status": "passed",
+        "notes": "Normal-tab reopen and private-tab non-restoration were already verified. On the exact 5f0e479 candidate, Close All reduced the session to one usable Home tab without a blank screen or crash. The original QQMusic plus active Home session was reconstructed and survived a force-stop cold launch.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-ctrl-t-new.jpeg",
-            "summary": "A disposable normal tab was created before close and reopen verification."
+            "path": "tool/agent_harmony_tests/full-release/evidence/tabs-close-all-safe-home.jpeg",
+            "summary": "Close All left one usable Home tab."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tabs-close-all-safe-home.json",
+            "summary": "The UI tree confirmed the single safe Home tab after Close All."
           },
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-ctrl-shift-t.jpeg",
-            "summary": "Ctrl+Shift+T restored the just-closed normal tab."
-          },
-          {
-            "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-cleaned.json",
-            "summary": "After shortcut QA, both disposable tabs were closed and the original seven-tab session remained."
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-5f0e479-cold-session.jpeg",
+            "summary": "The reconstructed two-tab user session survived force-stop and cold launch."
           }
         ]
       },
       {
         "caseId": "tabs-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "The reminder threshold was temporarily lowered from 12 to 8. Creating the ninth tab displayed the soft-limit alert; Continue New kept all nine tabs. At ten tabs, One-tap Cleanup reduced the session to seven while preserving the active newest tab and the non-empty QQMusic tab. The threshold was restored to 12 and the original two-tab session was reconstructed.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tab-soft-limit-prompt.jpeg",
+            "summary": "Creating the ninth tab displayed the recoverable soft-limit prompt."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tab-soft-limit-cleaned.jpeg",
+            "summary": "One-tap Cleanup reduced ten tabs to seven while preserving protected tabs."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tab-limit-restored-check.jpeg",
+            "summary": "The original threshold of 12 was restored and visibly selected."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-5f0e479-cold-session.jpeg",
+            "summary": "Temporary tabs were removed and the original two-tab session was restored."
+          }
+        ]
       },
       {
         "caseId": "tabs-07",
@@ -5407,13 +5433,18 @@
       },
       {
         "caseId": "appearance-05",
-        "status": "partial",
-        "notes": "Menus, settings, reader, history, share, picker, and paywall overlays dismissed without becoming stuck during repeated QA. Every panel was not exhaustively rapid-tapped.",
+        "status": "passed",
+        "notes": "Menus, settings, reader, history, share, picker, and paywall overlays had already dismissed cleanly during repeated QA. On the exact 5f0e479 candidate, the browser action sheet was opened and backdrop-dismissed twelve times in rapid succession; no overlay remained stuck or stacked, and the underlying two-tab session remained interactive.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg",
-            "summary": "Menus, settings, reader, history, share, picker, and paywall overlays dismissed without becoming stuck during repeated QA."
+            "path": "tool/agent_harmony_tests/full-release/evidence/rapid-actions-final.jpeg",
+            "summary": "The browser returned to an unobstructed, usable Home page after twelve rapid action-sheet cycles."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/rapid-actions-final.json",
+            "summary": "The final UI tree contained no stuck action-sheet overlay and retained the two-tab session."
           }
         ]
       },
@@ -5550,22 +5581,32 @@
       {
         "caseId": "release-01",
         "status": "partial",
-        "notes": "Current physical-device source is 089a3734566f. Unit tests, canonical debug signing selection, archive integrity, HAP signature/profile verification, in-place installation, permission, telemetry, and scroll-resume regressions passed. This is a debug device-acceptance artifact; the AppGallery dis artifact remains pending final QA.",
+        "notes": "Current physical-device source is 5f0e4792032d. The complete unit suite and 64 Node tests passed. Canonical debug and AppGallery signing sources, archive integrity, HAP signature/profile, IAP capability, in-place installation, cold session restoration, close-all, soft-limit cleanup, and rapid modal regressions passed. The AppGallery APP is built and verified, but final QA, specified-device promotion, AGC association, upload, and submission remain incomplete.",
         "evidence": [
           {
             "type": "command",
             "path": "hvigorw test",
-            "summary": "The complete unit suite passed for the 089a373 candidate."
+            "summary": "The complete unit suite passed for the 5f0e479 candidate."
           },
           {
             "type": "command",
-            "path": "hvigorw assembleHap",
-            "summary": "The canonical debug-signed physical-device HAP built successfully with SHA-256 7011b7de9305c1b841f8c91ce9550531488807a42d6d26e3960d8de4bed1da74."
+            "path": "node --test",
+            "summary": "All 64 Node tests passed for the 5f0e479 candidate."
+          },
+          {
+            "type": "command",
+            "path": "output/full-device-qa-20260904/candidate-5f0e479-debug.hap",
+            "summary": "Canonical debug HAP SHA-256 d2c34d226e58611b7e12aacf4545adaad7bdcfd96559ad56a42ac9c5985593a2 installed successfully."
+          },
+          {
+            "type": "command",
+            "path": "output/agc-candidate-5f0e479/ZhuoBrowser-HarmonyOS-1.0.1+1000001.app",
+            "summary": "Canonical AppGallery APP SHA-256 c9c01ff0cb83a269de8f19b7cf793d84e11c8011d408a570e45f4094b3c12fba verified as app_gallery with IAP enabled."
           },
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/scroll-resume-success.jpeg",
-            "summary": "The installed 089a373 candidate restored the saved page position on the physical device."
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-5f0e479-cold-session.jpeg",
+            "summary": "The installed 5f0e479 candidate restored the preserved physical-device session."
           }
         ]
       },
@@ -5604,24 +5645,34 @@
       {
         "command": "hvigorw test",
         "status": "passed",
-        "summary": "Complete unit suite passed after the telemetry and scroll restoration changes."
+        "summary": "Complete unit suite passed for source 5f0e479."
+      },
+      {
+        "command": "node --test",
+        "status": "passed",
+        "summary": "All 64 Node tests passed for source 5f0e479."
       },
       {
         "command": "node scripts/mobile_cicd/signing-source.mjs assert-selected",
         "status": "passed",
-        "summary": "The build used the selected canonical physical-device signing source."
+        "summary": "Both physical-device and AppGallery builds used their selected canonical signing sources."
       },
       {
         "command": "hvigorw assembleHap",
         "status": "passed",
-        "summary": "Candidate HAP built successfully and its SHA-256 was recorded."
+        "summary": "Canonical debug HAP built and its SHA-256 was recorded."
       },
       {
-        "command": "hdc install -r entry-default-signed.hap",
+        "command": "hvigorw assembleHap -p buildMode=release",
+        "status": "passed",
+        "summary": "Canonical AppGallery APP built and its signature, embedded app_gallery profile, certificate, and IAP capability were verified."
+      },
+      {
+        "command": "hdc install -r candidate-5f0e479-debug.hap",
         "status": "passed",
         "summary": "Candidate installed in place on Huawei TLR-AL00 and preserved the existing session."
       }
     ],
-    "notes": "Physical-device acceptance is active. Evidence is source- and artifact-pinned; unexecuted, destructive, entitlement, form-factor, and AGC mutation gates remain explicit."
+    "notes": "Physical-device acceptance is active on source 5f0e479. Evidence is source- and artifact-pinned; destructive fresh-data cases, purchase/restore cases, form-factor hardware coverage, specified-device delivery, and AGC mutation gates remain explicit."
   }
 }
