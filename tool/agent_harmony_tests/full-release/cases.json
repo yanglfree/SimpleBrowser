@@ -39,7 +39,7 @@
         "navigation-14",
         "navigation-15"
       ],
-      "notes": "passed: 8, partial: 7"
+      "notes": "passed: 9, partial: 6"
     },
     {
       "title": "Tabs, session and resource limits",
@@ -4032,9 +4032,14 @@
       },
       {
         "caseId": "navigation-09",
-        "status": "partial",
-        "notes": "Background-tab opening, link copy and share cancellation were exercised without an unsolicited external send. Foreground opening was not repeated on the final candidate.",
+        "status": "passed",
+        "notes": "A direct tap opened the controlled slow link in the current tab and rendered its completion marker. Long-press background-tab opening, link copy and share cancellation were also exercised without an unsolicited external send. The two QA history entries created by the final foreground check were removed afterward.",
         "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/link-foreground-open-complete.jpeg",
+            "summary": "The controlled slow link finished loading in the current tab after a direct tap."
+          },
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg",
