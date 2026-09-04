@@ -56,6 +56,7 @@
     { "name": "frequent_sites", "value": "常访问" },
     { "name": "add_shortcut", "value": "添加" },
     { "name": "quick_site_add_title", "value": "添加快捷方式" },
+    { "name": "quick_site_edit_title", "value": "编辑快捷方式" },
     { "name": "quick_site_source_custom", "value": "自定义" },
     { "name": "quick_site_source_favorites", "value": "书签" },
     { "name": "quick_site_source_history", "value": "历史" },

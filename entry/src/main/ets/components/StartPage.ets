@@ -18,6 +18,7 @@ export struct StartPage {
   @Prop isLandscape: boolean = false;
   onAddSite: () => void = (): void => {};
   onOpenSite: (url: string) => void = (_url: string): void => {};
+  onEditSite: (site: QuickSite) => void = (_site: QuickSite): void => {};
   onRemoveSite: (url: string) => void = (_url: string): void => {};
   onMoveSite: (from: number, to: number) => void = (_from: number, _to: number): void => {};
   onOpenPageSettings: () => void = (): void => {};
@@ -48,6 +49,7 @@ export struct StartPage {
             isLandscape: this.isLandscape,
             onAddSite: this.onAddSite,
             onOpenSite: this.onOpenSite,
+            onEditSite: this.onEditSite,
             onRemoveSite: this.onRemoveSite,
             onMoveSite: this.onMoveSite
           })

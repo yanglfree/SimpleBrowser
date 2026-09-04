@@ -53,6 +53,7 @@ export struct QuickSiteGrid {
   private wiggleTimer: number = -1;
   onAddSite: () => void = (): void => {};
   onOpenSite: (url: string) => void = (_url: string): void => {};
+  onEditSite: (site: QuickSite) => void = (_site: QuickSite): void => {};
   onRemoveSite: (url: string) => void = (_url: string): void => {};
   onMoveSite: (from: number, to: number) => void = (_from: number, _to: number): void => {};
 
@@ -165,7 +166,9 @@ export struct QuickSiteGrid {
     .width('100%')
     .rotate({ angle: this.tileAngle(index) })
     .onClick(() => {
-      if (!this.isEditing) {
+      if (this.isEditing) {
+        this.onEditSite(site);
+      } else {
         this.onOpenSite(site.url);
       }
     })

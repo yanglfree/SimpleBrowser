@@ -47,12 +47,20 @@ export struct QuickSiteEditor {
   @Prop keyboardInset: number = 0;
   @Prop availableHeight: number = QUICK_SITE_EDITOR_COMPACT_HEIGHT;
   @Prop topInset: number = 0;
+  @Prop initialName: string = '';
+  @Prop initialUrl: string = '';
+  @Prop isEditing: boolean = false;
   @State private source: QuickSiteSource = QuickSiteSource.Custom;
   @State private name: string = '';
   @State private url: string = '';
   @State private hasAttemptedSave: boolean = false;
   onSave: (title: string, url: string) => void = (_title: string, _url: string): void => {};
   onDismiss: () => void = (): void => {};
+
+  aboutToAppear(): void {
+    this.name = this.initialName;
+    this.url = this.initialUrl;
+  }
 
   build() {
     Stack({
@@ -75,7 +83,9 @@ export struct QuickSiteEditor {
   private Panel() {
     Column({ space: QUICK_SITE_EDITOR_SECTION_GAP }) {
       Row({ space: QUICK_SITE_EDITOR_HEADER_GAP }) {
-        Text($r('app.string.quick_site_add_title'))
+        Text(this.isEditing
+          ? $r('app.string.quick_site_edit_title')
+          : $r('app.string.quick_site_add_title'))
           .fontSize(this.isWide ? QUICK_SITE_EDITOR_WIDE_TITLE_SIZE : QUICK_SITE_EDITOR_COMPACT_TITLE_SIZE)
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.text_primary'))

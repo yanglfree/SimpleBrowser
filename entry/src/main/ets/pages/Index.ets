@@ -377,6 +377,8 @@ struct Index {
   @State private isAddressMenuVisible: boolean = false;
   @State private suggestions: Suggestion[] = [];
   @State private quickSites: QuickSite[] = [];
+  @State private editingQuickSiteUrl: string = '';
+  @State private editingQuickSiteTitle: string = '';
   /** Shared by the start page's tiles and the desktop tab strip; keyed by host. */
   @State private siteIcons: SiteIcon[] = [];
   /** The hosts the current icon set was fetched for; see refreshSiteIcons. */
@@ -805,8 +807,9 @@ struct Index {
               hidePageSettings: this.usesWideChrome(),
               isWide: this.usesWideChrome(),
               isLandscape: this.isLandscape(),
-              onAddSite: (): void => { this.sheet = Overlay.QuickSiteEditor; },
+              onAddSite: (): void => { this.openQuickSiteEditor(); },
               onOpenSite: (url: string): void => this.navigateTo(url),
+              onEditSite: (site: QuickSite): void => { this.openQuickSiteEditor(site); },
               onRemoveSite: (url: string): void => { void this.removeQuickSite(url); },
               onMoveSite: (from: number, to: number): void => { void this.moveQuickSite(from, to); },
               onOpenPageSettings: (): void => { this.sheet = Overlay.PageSettings; },
@@ -1683,7 +1686,10 @@ struct Index {
         keyboardInset: this.keyboardInset,
         availableHeight: this.windowMetrics.heightVp,
         topInset: this.topInset,
-        onSave: (title: string, url: string): void => { void this.addQuickSite(title, url); },
+        initialName: this.editingQuickSiteTitle,
+        initialUrl: this.editingQuickSiteUrl,
+        isEditing: this.editingQuickSiteUrl.length > 0,
+        onSave: (title: string, url: string): void => { void this.saveQuickSite(title, url); },
         onDismiss: (): void => { this.sheet = Overlay.None; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 180, curve: Curve.EaseOut }))
@@ -4150,11 +4156,22 @@ struct Index {
     this.syncState();
   }
 
-  private async addQuickSite(title: string, url: string): Promise<void> {
-    if (!await this.viewModel.addQuickSite(title, url)) {
+  private openQuickSiteEditor(site?: QuickSite): void {
+    this.editingQuickSiteTitle = site?.title ?? '';
+    this.editingQuickSiteUrl = site?.url ?? '';
+    this.sheet = Overlay.QuickSiteEditor;
+  }
+
+  private async saveQuickSite(title: string, url: string): Promise<void> {
+    const saved: boolean = this.editingQuickSiteUrl.length > 0
+      ? await this.viewModel.editQuickSite(this.editingQuickSiteUrl, title, url)
+      : await this.viewModel.addQuickSite(title, url);
+    if (!saved) {
       return;
     }
     this.sheet = Overlay.None;
+    this.editingQuickSiteTitle = '';
+    this.editingQuickSiteUrl = '';
     this.syncState();
   }
 

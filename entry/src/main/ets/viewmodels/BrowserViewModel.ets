@@ -858,6 +858,34 @@ export class BrowserViewModel {
     return true;
   }
 
+  async editQuickSite(originalUrl: string, title: string, url: string): Promise<boolean> {
+    const normalizedUrl: string = normalizeUrlInput(url.trim());
+    const originalHost: string = rawHost(originalUrl);
+    const nextHost: string = rawHost(normalizedUrl);
+    if (originalHost.length === 0 || nextHost.length === 0) {
+      return false;
+    }
+    const resolvedTitle: string = title.trim().length > 0 ? title.trim() : displayHost(normalizedUrl);
+    if (originalHost !== nextHost) {
+      await this.repository.removeCustomQuickSite(originalUrl);
+      await this.repository.setQuickHostHidden(originalHost, true);
+    }
+    await this.repository.upsertCustomQuickSite({
+      title: resolvedTitle,
+      url: normalizedUrl,
+      badge: siteBadge(resolvedTitle, normalizedUrl),
+      colorIndex: BrowserViewModel.colorIndexFor(nextHost)
+    });
+    await this.repository.setQuickHostHidden(nextHost, false);
+    const order: string[] = this.repository.getQuickSiteOrder();
+    const originalIndex: number = order.indexOf(originalHost);
+    const withoutEditedHosts: string[] = order.filter((host: string): boolean =>
+      host !== originalHost && host !== nextHost);
+    withoutEditedHosts.splice(originalIndex >= 0 ? originalIndex : 0, 0, nextHost);
+    await this.repository.saveQuickSiteOrder(withoutEditedHosts);
+    return true;
+  }
+
   async removeQuickSite(url: string): Promise<void> {
     await this.repository.removeCustomQuickSite(url);
     await this.repository.setQuickHostHidden(rawHost(url), true);
