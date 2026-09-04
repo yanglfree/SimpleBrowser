@@ -71,7 +71,7 @@
         "blocking-07",
         "blocking-08"
       ],
-      "notes": "passed: 3, partial: 5"
+      "notes": "passed: 4, partial: 4"
     },
     {
       "title": "Online reader mode",
@@ -3854,9 +3854,9 @@
     },
     "appBuild": {
       "version": "1.0.1 (1000001); HEAD-equivalent physical-device candidate",
-      "sourceSha": "d86d3acb2a21b049365b0f0c1b888ca89f89cba0",
+      "sourceSha": "bbd5b19e566064728260403e4ff05a5e4c82b22d",
       "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "32fea204b87bb389e1b6c92a81a4bc73e4f30eaec92290d6cdc1393492bfddcf",
+      "sha256": "8a5c40cefb0f742d86ba76abd1c8826ab7cc9255f6d6f9f141ac0669fda7a2a1",
       "signing": "debug profile for physical-device QA; AppGallery dis profile validated separately"
     },
     "results": [
@@ -4335,13 +4335,18 @@
       },
       {
         "caseId": "blocking-03",
-        "status": "partial",
-        "notes": "Standard to strict to standard selection updated immediately and persisted. Category-level network deltas were not fully captured.",
+        "status": "passed",
+        "notes": "The controlled fixture kept its core content and ordinary ad slot visible in Standard mode while removing the cookie overlay. Strict mode initially exposed a class-token boundary defect when an ad-marked element also had an id. The shared token matcher was fixed, unit tested, rebuilt from bbd5b19, installed in place, and reverified: Strict hid the ad slot and counted one block while the core page and link remained usable. Returning to Standard restored the ad slot, and the setting, fixture history, server, and reverse mapping were restored afterward.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg",
-            "summary": "Standard to strict to standard selection updated immediately and persisted."
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-strict-fixed.jpeg",
+            "summary": "The rebuilt Strict mode hid the controlled ad slot, counted one block, and retained core navigation."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-standard-restored.jpeg",
+            "summary": "Restored Standard mode kept the controlled ordinary ad slot visible and the core page usable."
           }
         ]
       },
@@ -5036,12 +5041,12 @@
       {
         "caseId": "release-01",
         "status": "partial",
-        "notes": "Current source is 5e801e7ea801. Unit tests, debug-profile release assembly, install, and canonical AppGallery signing snapshot validation passed. Final app-gallery artifact is pending remaining QA.",
+        "notes": "Current physical-device source is bbd5b19e5660. Unit tests, canonical debug-profile assembly, in-place install, and archive integrity validation passed. Final AppGallery artifact is pending remaining QA.",
         "evidence": [
           {
-            "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg",
-            "summary": "Current source is 5e801e7ea801."
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-bbd5b19-build.json",
+            "summary": "The bbd5b19e5660 candidate passed unit tests, canonical build checks, archive integrity, and in-place installation."
           }
         ]
       },

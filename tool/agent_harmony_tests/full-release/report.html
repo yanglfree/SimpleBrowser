@@ -37,7 +37,7 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>63</strong>Executed</div>
-    <div class="metric"><strong>36</strong>Passed</div>
+    <div class="metric"><strong>37</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
     <div class="metric"><strong>18</strong>Not run</div>
@@ -75,7 +75,7 @@
         <td>Content blocking and site controls</td>
         <td class="status-partial">partial</td>
         <td><code>blocking-01</code><br><code>blocking-02</code><br><code>blocking-03</code><br><code>blocking-04</code><br><code>blocking-05</code><br><code>blocking-06</code><br><code>blocking-07</code><br><code>blocking-08</code></td>
-        <td>passed: 3, partial: 5</td>
+        <td>passed: 4, partial: 4</td>
       </tr>
       <tr>
         <td>Online reader mode</td>
@@ -385,7 +385,7 @@
         <td><code>blocking-03</code></td>
         <td>p1</td>
         <td>Standard and strict modes</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>blocking</td>
       </tr>
       <tr>
@@ -1102,9 +1102,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-disabled-uncached.jpeg</code><br>With tracker and cosmetic controls disabled, both controlled ad markers were present.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-controls-restored.jpeg</code><br>All six per-site controls were restored to Inherit Global.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-restored-uncached.jpeg</code><br>After restoration, safe content remained while ad and cosmetic markers disappeared.</li><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-network-request-log.json</code><br>The controlled server log captures enabled, disabled, and restored request sets.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>blocking-03</code> <span class="status-partial">partial</span></h3>
-        <p>Standard to strict to standard selection updated immediately and persisted. Category-level network deltas were not fully captured.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg</code><br>Standard to strict to standard selection updated immediately and persisted.</li></ul>
+        <h3><code>blocking-03</code> <span class="status-passed">passed</span></h3>
+        <p>The controlled fixture kept its core content and ordinary ad slot visible in Standard mode while removing the cookie overlay. Strict mode initially exposed a class-token boundary defect when an ad-marked element also had an id. The shared token matcher was fixed, unit tested, rebuilt from <code>bbd5b19</code>, installed in place, and reverified: Strict hid the ad slot and counted one block while the core page and link remained usable. Returning to Standard restored the ad slot, and the setting, fixture history, server, and reverse mapping were restored afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-strict-fixed.jpeg</code><br>The rebuilt Strict mode hid the controlled ad slot, counted one block, and retained core navigation.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-standard-restored.jpeg</code><br>Restored Standard mode kept the controlled ordinary ad slot visible and the core page usable.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>blocking-04</code> <span class="status-partial">partial</span></h3>
@@ -1468,8 +1468,8 @@
       </section>
       <section class="case-result">
         <h3><code>release-01</code> <span class="status-partial">partial</span></h3>
-        <p>Current source is 5e801e7ea801. Unit tests, debug-profile release assembly, install, and canonical AppGallery signing snapshot validation passed. Final app-gallery artifact is pending remaining QA.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg</code><br>Current source is 5e801e7ea801.</li></ul>
+        <p>Current physical-device source is <code>bbd5b19e5660</code>. Unit tests, canonical debug-profile assembly, in-place install, and archive integrity validation passed. Final AppGallery artifact is pending remaining QA.</p>
+        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-bbd5b19-build.json</code><br>The <code>bbd5b19e5660</code> candidate passed unit tests, canonical build checks, archive integrity, and in-place installation.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>release-02</code> <span class="status-blocked">blocked</span></h3>
