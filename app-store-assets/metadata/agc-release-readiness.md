@@ -50,6 +50,7 @@ The release profile and `entry/src/main/module.json5` must contain the same perm
 
 | Gate | Current state | Required action |
 | --- | --- | --- |
+| Public privacy policy | Published and verified | Keep `https://browser.youdroid.top/privacy.html` in the AGC draft. The 2026-09-04 deployment serves the a7bc961 wording through Worker version `2cddc25e-cff1-4d55-95a8-d9713f4ac1f5`. |
 | Phone screenshots | Ready and already read back from the draft | Keep the five current 1080 x 1920 images in the verified order. |
 | Tablet and PC/2in1 screenshots | Missing | Capture the current candidate on each declared form factor, or remove an unsupported device type before submission. |
 | Privacy labels | Prepared, not saved | Enter the declarations from the matrix and read them back from AGC. |

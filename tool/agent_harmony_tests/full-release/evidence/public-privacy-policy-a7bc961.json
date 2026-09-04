@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-09-04T09:47:32Z",
+  "sourceSha": "a7bc9618c5768a5c17d3e5f1942b9994c82d790e",
+  "url": "https://browser.youdroid.top/privacy.html",
+  "deployment": {
+    "worker": "zhuoyue-browser-site",
+    "versionId": "2cddc25e-cff1-4d55-95a8-d9713f4ac1f5",
+    "customDomain": "browser.youdroid.top"
+  },
+  "http": {
+    "requestedStatus": 307,
+    "redirectLocation": "/privacy",
+    "resolvedStatus": 200,
+    "contentType": "text/html",
+    "cacheControl": "public, max-age=0, must-revalidate",
+    "contentSecurityPolicyPresent": true,
+    "permissionsPolicyPresent": true,
+    "referrerPolicyPresent": true,
+    "nosniffPresent": true
+  },
+  "contentChecks": {
+    "localStorageDisclosure": true,
+    "noVisitedUrlUploadDisclosure": true,
+    "telemetryDefaultOffDisclosure": true,
+    "deviceSystemEventDirectoryDisclosure": true,
+    "telemetryOmitsUrlDomainContentSearchAndPrivateSessionDisclosure": true,
+    "zhuoBrowserDoesNotUploadTelemetryDisclosure": true
+  },
+  "result": "passed"
+}
