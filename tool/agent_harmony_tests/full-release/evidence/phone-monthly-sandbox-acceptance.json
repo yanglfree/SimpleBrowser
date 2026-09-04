@@ -1,0 +1,21 @@
+{
+  "device": "Huawei TLR-AL00",
+  "environment": "Huawei AppGallery sandbox",
+  "sourceCommit": "8b322e1c028c90cfd4f3d7fc3eff92c503867924",
+  "build": {
+    "versionName": "1.0.1",
+    "versionCode": 1000001,
+    "appProvisionType": "debug"
+  },
+  "results": {
+    "monthlyProductQuery": "passed",
+    "monthlySandboxCashier": "passed",
+    "monthlyPurchase": "passed",
+    "serverVerifiedEntitlement": "passed",
+    "finishPurchase": "passed",
+    "restoreAfterDataClear": "passed",
+    "subscriptionCancellation": "passed",
+    "accessUntilCancelledPeriodEnd": "passed"
+  },
+  "privacy": "Order identifiers, purchase tokens, account data and biometric details are intentionally excluded."
+}

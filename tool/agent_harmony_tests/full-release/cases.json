@@ -3860,11 +3860,11 @@
       "resolution": "2880x1920"
     },
     "appBuild": {
-      "version": "Tablet release 1.0.1 (1000007); phone debug 1.0.1 (1000001)",
-      "sourceSha": "d93b8729b2cf79aa485b4d09d3e20a4a4bc34207 on tablet; 2f80eafecacdb1be0b6e842a49be310cb80ace8a on phone",
-      "hapPath": "Portal specified-device release 72c8ed4b10f8dc922a5a49e0c6f2ab13c081fbc7514071083327e4873e55b245; local rebuilt debug candidate",
-      "sha256": "af0fa68b31b046d10cd7721b1dd524f9f3de6ca2399128e628dfe95be221cc46 tablet; b3e7d545234cfc1f7e24fdfa8f10af9da8fb1ff3fb003f5f1445ac4ea51f7ee3 phone",
-      "signing": "Canonical internaltesting profile on tablet; canonical debug profile on phone"
+      "version": "Tablet release 1.0.1 (1000007); phone release 1.0.1 (1000009); phone sandbox debug 1.0.1 (1000001)",
+      "sourceSha": "d93b8729b2cf79aa485b4d09d3e20a4a4bc34207 on tablet; 8b322e1c028c90cfd4f3d7fc3eff92c503867924 on phone",
+      "hapPath": "Portal specified-device releases 72c8ed4b10f8dc922a5a49e0c6f2ab13c081fbc7514071083327e4873e55b245 and 1c26afc9e881a42ba8cf23f4c4d6283f540dc8925769baf0597b25489d216cfc; local canonical debug sandbox build",
+      "sha256": "af0fa68b31b046d10cd7721b1dd524f9f3de6ca2399128e628dfe95be221cc46 tablet; a5c451c3a65bc8180b0a79325d90b4384d4c7ee1ab42b130e236375aa1c06d72 phone release",
+      "signing": "Canonical internaltesting profile on tablet and phone release; canonical debug profile for phone IAP sandbox"
     },
     "results": [
       {
@@ -5680,13 +5680,18 @@
       },
       {
         "caseId": "commerce-03",
-        "status": "partial",
-        "notes": "The monthly product reached Huawei AppGallery sandbox cashier and the cashier declared that no charge would occur. Final biometric confirmation was not completed for the monthly SKU.",
+        "status": "passed",
+        "notes": "The monthly subscription completed in the Huawei AppGallery sandbox after biometric confirmation, received a server-verified entitlement, and finished the store transaction. The sandbox cashier explicitly stated that no charge would occur.",
         "evidence": [
           {
             "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-commerce-sandbox-acceptance.json",
-            "summary": "Sanitized sandbox lifecycle record; provider identifiers are excluded."
+            "path": "tool/agent_harmony_tests/full-release/evidence/phone-monthly-sandbox-acceptance.json",
+            "summary": "Sanitized phone sandbox purchase record; provider identifiers are excluded."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/phone-monthly-sandbox-success.jpeg",
+            "summary": "The app displayed the unlocked Pro state after the monthly sandbox purchase."
           }
         ]
       },
@@ -5717,8 +5722,18 @@
       {
         "caseId": "commerce-06",
         "status": "passed",
-        "notes": "After clearing app data, restore re-established the legitimate yearly entitlement only after server verification. Existing pending-purchase recovery tests and repeated relaunches showed no duplicate delivery or late grant.",
+        "notes": "After clearing app data, restore re-established the legitimate monthly entitlement only after store lookup and server verification. Earlier yearly restore plus pending-purchase recovery tests cover repeated recovery and duplicate delivery.",
         "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/phone-monthly-sandbox-acceptance.json",
+            "summary": "A fresh phone identity restored the monthly subscription after app-data clear."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/phone-monthly-sandbox-restored.jpeg",
+            "summary": "The paywall returned to the unlocked Pro state after restore."
+          },
           {
             "type": "command",
             "path": "tool/agent_harmony_tests/full-release/evidence/tablet-commerce-sandbox-acceptance.json",
@@ -5746,12 +5761,17 @@
       {
         "caseId": "commerce-08",
         "status": "partial",
-        "notes": "Yearly cancellation and full refund completed in provider sandbox. A server defect that retained refunded access was fixed and deployed; device cold launch returned to Free and restore did not regrant. Automated renewal and natural expiry were not observed.",
+        "notes": "Yearly cancellation and full refund completed in provider sandbox. A server defect that retained refunded access was fixed and deployed; device cold launch returned to Free and restore did not regrant. A new monthly subscription was also cancelled on phone and remained active only until its provider expiry. Automated renewal and natural expiry were not observed.",
         "evidence": [
           {
             "type": "command",
             "path": "tool/agent_harmony_tests/full-release/evidence/tablet-commerce-sandbox-acceptance.json",
             "summary": "Sanitized cancellation, refund and post-refund restore record."
+          },
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/phone-monthly-sandbox-acceptance.json",
+            "summary": "Sanitized monthly cancellation and period-end state record."
           }
         ]
       },
@@ -5953,9 +5973,29 @@
         "command": "physical phone aged-session and history fixtures",
         "status": "passed",
         "summary": "Tabs-07 and saved-06 passed, including the immediate-history refresh regression and byte-exact restoration of 35 original files."
+      },
+      {
+        "command": "GitHub CI 33897447322",
+        "status": "passed",
+        "summary": "CI accepted exact product source 8b322e1 after the unavailable-product feedback fix."
+      },
+      {
+        "command": "GitHub signed artifacts 33897597950",
+        "status": "passed",
+        "summary": "Signed AppGallery and specified-device artifacts passed for exact product source 8b322e1."
+      },
+      {
+        "command": "specified-device build 1000009",
+        "status": "passed",
+        "summary": "Release build installed over the restored phone data, reported the release provision, cold-launched, and displayed the restored two-tab session and three saved articles."
+      },
+      {
+        "command": "phone monthly sandbox lifecycle",
+        "status": "passed",
+        "summary": "Monthly purchase, server entitlement, transaction finish, restore after data clear, and subscription cancellation passed; the original 35-file snapshot was then restored byte-for-byte."
       }
     ],
-    "notes": "Tablet acceptance is pinned to d93b872 product code and build 1000007. Phone regression acceptance is pinned to 2f80eaf product code. Remaining evidence gaps are keyboard-open and phone-landscape rotation, supported UDMF cross-app drop, monthly final purchase, controlled commerce outage, renewal or natural expiry, second-account isolation, physical foldable posture, and final AGC console declarations/materials. AGC upload and submission remain gated.",
+    "notes": "Tablet acceptance remains pinned to d93b872 product code and build 1000007. Phone release and commerce acceptance are pinned to 8b322e1 product code and build 1000009, with IAP sandbox execution on its canonical debug profile. Remaining evidence gaps are keyboard-open rotation, supported UDMF cross-app drop, controlled commerce outage, renewal or natural expiry, second-account isolation, physical foldable posture, and final AGC console declarations/materials. AGC upload and submission remain gated.",
     "secondaryTargets": [
       {
         "name": "Huawei TLR-AL00",
@@ -5965,7 +6005,11 @@
         "resolution": "1084x2412",
         "scope": [
           "tabs-07",
-          "saved-06"
+          "saved-06",
+          "commerce-03",
+          "commerce-06",
+          "commerce-08",
+          "release build 1000009 restore acceptance"
         ]
       }
     ]
