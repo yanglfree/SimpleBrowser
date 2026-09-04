@@ -4115,8 +4115,8 @@
       },
       {
         "caseId": "navigation-13",
-        "status": "partial",
-        "notes": "Address-bar swipe switched to the adjacent tab and back; toolbar up-swipe opened Actions, down-swipe collapsed the toolbar, and tapping restored it. With the master gesture switch off, up-swipe was inert while the menu button still opened Actions; the switch was restored. Automated long-press injection did not establish the blocking-panel gesture.",
+        "status": "passed",
+        "notes": "Address-bar swipe switched to the adjacent tab and back; toolbar up-swipe opened Actions, down-swipe collapsed the toolbar, and tapping restored it. With the master gesture switch off, up-swipe was inert while the menu button still opened Actions; the switch was restored. A native long press on the tab counter opened Recent Tabs and backdrop tap dismissed it without changing the active page.",
         "evidence": [
           {
             "type": "screenshot",
@@ -4132,6 +4132,11 @@
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/navigation-gestures-restored.jpeg",
             "summary": "The gesture master switch was restored after the disabled-state and button-control checks."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-counter-longpress.jpeg",
+            "summary": "A native long press on the tab counter opened the Recent Tabs dock."
           }
         ]
       },
@@ -4183,13 +4188,18 @@
       },
       {
         "caseId": "tabs-02",
-        "status": "partial",
-        "notes": "Recent Tabs listed and selected the expected current and recent tabs. The overview closed only the selected QA tab and its controls remained usable. Every backdrop dismissal and privacy-mode variant was not repeated.",
+        "status": "passed",
+        "notes": "Long-pressing the tab counter opened Recent Tabs, selecting the controlled QA Fast entry activated the expected tab, and a backdrop tap dismissed the dock without changing the page. The full overview retained working close controls after dismissal and reopening. In private mode, Recent Tabs exposed only the active private working set; the QA private tab was then closed and the normal seven-tab session remained.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/tabs-overview.jpeg",
-            "summary": "The overview exposed usable per-tab close controls while preserving the remaining tabs."
+            "path": "tool/agent_harmony_tests/full-release/evidence/recent-tab-selected.jpeg",
+            "summary": "Selecting QA Fast from Recent Tabs activated the expected controlled normal tab."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/recent-tabs-private-scope.jpeg",
+            "summary": "Private Recent Tabs showed only the active private working set and a new-tab action."
           }
         ]
       },

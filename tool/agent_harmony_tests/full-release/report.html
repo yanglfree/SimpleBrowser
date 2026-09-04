@@ -37,7 +37,7 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>63</strong>Executed</div>
-    <div class="metric"><strong>38</strong>Passed</div>
+    <div class="metric"><strong>40</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
     <div class="metric"><strong>18</strong>Not run</div>
@@ -63,13 +63,13 @@
         <td>Address, navigation and page tools</td>
         <td class="status-partial">partial</td>
         <td><code>navigation-01</code><br><code>navigation-02</code><br><code>navigation-03</code><br><code>navigation-04</code><br><code>navigation-05</code><br><code>navigation-06</code><br><code>navigation-07</code><br><code>navigation-08</code><br><code>navigation-09</code><br><code>navigation-10</code><br><code>navigation-11</code><br><code>navigation-12</code><br><code>navigation-13</code><br><code>navigation-14</code><br><code>navigation-15</code></td>
-        <td>passed: 12, partial: 3</td>
+        <td>passed: 13, partial: 2</td>
       </tr>
       <tr>
         <td>Tabs, session and resource limits</td>
         <td class="status-partial">partial</td>
         <td><code>tabs-01</code><br><code>tabs-02</code><br><code>tabs-03</code><br><code>tabs-04</code><br><code>tabs-05</code><br><code>tabs-06</code><br><code>tabs-07</code><br><code>tabs-08</code><br><code>tabs-09</code><br><code>tabs-10</code></td>
-        <td>passed: 3, partial: 2, not-run: 5</td>
+        <td>passed: 4, partial: 1, not-run: 5</td>
       </tr>
       <tr>
         <td>Content blocking and site controls</td>
@@ -280,7 +280,7 @@
         <td><code>navigation-13</code></td>
         <td>p1</td>
         <td>Toolbar scrolling and navigation gestures</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>navigation</td>
       </tr>
       <tr>
@@ -308,7 +308,7 @@
         <td><code>tabs-02</code></td>
         <td>p1</td>
         <td>Overview dismissal and recent tabs</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>tabs</td>
       </tr>
       <tr>
@@ -1027,9 +1027,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/ua-mobile-baseline.jpeg</code><br>The controlled server observed the default OpenHarmony mobile user agent.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/ua-site-always-cold-persisted.jpeg</code><br>The always-for-site desktop user agent remained active after a force-stop relaunch.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/ua-global-desktop-second-host.jpeg</code><br>The global desktop user agent applied to the second host name localhost.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/ua-reset-mobile.jpeg</code><br>Reset-all restored the OpenHarmony mobile user agent on the second host.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-13</code> <span class="status-partial">partial</span></h3>
-        <p>Address-bar swipe switched to the adjacent tab and back; toolbar up-swipe opened Actions, down-swipe collapsed the toolbar, and tapping restored it. With the master gesture switch off, up-swipe was inert while the menu button still opened Actions; the switch was restored. Automated long-press injection did not establish the blocking-panel gesture.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-dock-swipe-actions.jpeg</code><br>An upward toolbar swipe opened the Actions panel.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-dock-collapsed.jpeg</code><br>A downward toolbar swipe collapsed the dock to its compact host pill.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-gestures-restored.jpeg</code><br>The gesture master switch was restored after the disabled-state and button-control checks.</li></ul>
+        <h3><code>navigation-13</code> <span class="status-passed">passed</span></h3>
+        <p>Address-bar swipe switched to the adjacent tab and back; toolbar up-swipe opened Actions, down-swipe collapsed the toolbar, and tapping restored it. With the master gesture switch off, up-swipe was inert while the menu button still opened Actions; the switch was restored. A native long press on the tab counter opened Recent Tabs and backdrop tap dismissed it without changing the active page.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-dock-swipe-actions.jpeg</code><br>An upward toolbar swipe opened the Actions panel.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-dock-collapsed.jpeg</code><br>A downward toolbar swipe collapsed the dock to its compact host pill.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-gestures-restored.jpeg</code><br>The gesture master switch was restored after the disabled-state and button-control checks.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-counter-longpress.jpeg</code><br>A native long press on the tab counter opened the Recent Tabs dock.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-14</code> <span class="status-passed">passed</span></h3>
@@ -1047,9 +1047,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/reader-long-article.jpeg</code><br>Created, selected, and closed multiple QA tabs.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>tabs-02</code> <span class="status-partial">partial</span></h3>
-        <p>Recent Tabs listed and selected the expected current and recent tabs. The overview closed only the selected QA tab and its controls remained usable. Every backdrop dismissal and privacy-mode variant was not repeated.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/tabs-overview.jpeg</code><br>The overview exposed usable per-tab close controls while preserving the remaining tabs.</li></ul>
+        <h3><code>tabs-02</code> <span class="status-passed">passed</span></h3>
+        <p>Long-pressing the tab counter opened Recent Tabs, selecting the controlled QA Fast entry activated the expected tab, and a backdrop tap dismissed the dock without changing the page. The full overview retained working close controls after dismissal and reopening. In private mode, Recent Tabs exposed only the active private working set; the QA private tab was then closed and the normal seven-tab session remained.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/recent-tab-selected.jpeg</code><br>Selecting QA Fast from Recent Tabs activated the expected controlled normal tab.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/recent-tabs-private-scope.jpeg</code><br>Private Recent Tabs showed only the active private working set and a new-tab action.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>tabs-03</code> <span class="status-passed">passed</span></h3>
