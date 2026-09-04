@@ -29,23 +29,23 @@
   <p>
     Date: 2026-09-04<br>
     Target: Huawei TLR-AL00, OpenHarmony-6.1.1.120, <code>4UQ9K25530058677</code><br>
-    App: ZhuoBrowser Full Release Acceptance <code>1.0.1 (1000001); HEAD-equivalent physical-device candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
+    App: ZhuoBrowser Full Release Acceptance <code>1.0.1 (1000001); 96968d7 HEAD-equivalent physical-device candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
     HAP: <code>entry/build/default/outputs/default/entry-default-signed.hap</code><br>
     Auth source: none
   </p>
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>67</strong>Executed</div>
-    <div class="metric"><strong>46</strong>Passed</div>
+    <div class="metric"><strong>70</strong>Executed</div>
+    <div class="metric"><strong>51</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
-    <div class="metric"><strong>14</strong>Not run</div>
+    <div class="metric"><strong>11</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 67 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 70 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -69,7 +69,7 @@
         <td>Tabs, session and resource limits</td>
         <td class="status-partial">partial</td>
         <td><code>tabs-01</code><br><code>tabs-02</code><br><code>tabs-03</code><br><code>tabs-04</code><br><code>tabs-05</code><br><code>tabs-06</code><br><code>tabs-07</code><br><code>tabs-08</code><br><code>tabs-09</code><br><code>tabs-10</code></td>
-        <td>passed: 4, partial: 3, not-run: 3</td>
+        <td>passed: 5, partial: 3, not-run: 2</td>
       </tr>
       <tr>
         <td>Content blocking and site controls</td>
@@ -99,13 +99,13 @@
         <td>Downloads and native file operations</td>
         <td class="status-partial">partial</td>
         <td><code>downloads-01</code><br><code>downloads-02</code><br><code>downloads-03</code><br><code>downloads-04</code><br><code>downloads-05</code><br><code>downloads-06</code></td>
-        <td>passed: 1, partial: 5</td>
+        <td>passed: 4, partial: 2</td>
       </tr>
       <tr>
         <td>Privacy data and site permissions</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td><code>permissions-01</code><br><code>permissions-02</code><br><code>permissions-03</code><br><code>permissions-04</code><br><code>permissions-05</code><br><code>permissions-06</code><br><code>permissions-07</code></td>
-        <td>blocked: 4, not-run: 3</td>
+        <td>passed: 1, partial: 1, blocked: 4, not-run: 1</td>
       </tr>
       <tr>
         <td>External entry, sharing and defaults</td>
@@ -357,7 +357,7 @@
         <td><code>tabs-09</code></td>
         <td>p1</td>
         <td>Form drafts and scroll resume</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>tabs</td>
       </tr>
       <tr>
@@ -602,7 +602,7 @@
         <td><code>downloads-01</code></td>
         <td>p0</td>
         <td>Download to public directory</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>downloads</td>
       </tr>
       <tr>
@@ -616,7 +616,7 @@
         <td><code>downloads-03</code></td>
         <td>p1</td>
         <td>Cancel and retry</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>downloads</td>
       </tr>
       <tr>
@@ -637,7 +637,7 @@
         <td><code>downloads-06</code></td>
         <td>p1</td>
         <td>Downloads persist and missing files recover</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>downloads</td>
       </tr>
       <tr>
@@ -672,7 +672,7 @@
         <td><code>permissions-05</code></td>
         <td>p1</td>
         <td>Cookie persistence and clear-on-close</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>permissions</td>
       </tr>
       <tr>
@@ -686,7 +686,7 @@
         <td><code>permissions-07</code></td>
         <td>p0</td>
         <td>Telemetry opt-in and opt-out</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>permissions</td>
       </tr>
       <tr>
@@ -930,7 +930,6 @@
   </table>
 
   <h2>Latest Run Evidence</h2>
-
       <section class="case-result">
         <h3><code>startup-01</code> <span class="status-passed">passed</span></h3>
         <p>Installed and foregrounded the HEAD-equivalent debug-signed release build on Huawei TLR-AL00. Unit tests and device installation passed.</p>
@@ -1082,9 +1081,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/hibernate-restored-selected.jpeg</code><br>The controlled article reattached from hibernation and restored reader mode without a blank view.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>tabs-09</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>tabs-09</code> <span class="status-passed">passed</span></h3>
+        <p>With the simultaneous-live-page limit set to one, the controlled form tab hibernated after switching away. Returning restored the ordinary draft and offered resume/start-over behavior. The serialized tab state contained the ordinary draft and excluded the dummy password. The original live-page limit was restored.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/form-hibernation-restored.jpeg</code><br>The hibernated form tab returned with its ordinary draft and resume prompt.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/form-values-top.json</code><br>The restored ordinary draft was visible; the dummy password was absent from persisted tab state.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>tabs-10</code> <span class="status-partial">partial</span></h3>
@@ -1103,13 +1102,13 @@
       </section>
       <section class="case-result">
         <h3><code>blocking-03</code> <span class="status-passed">passed</span></h3>
-        <p>The controlled fixture kept its core content and ordinary ad slot visible in Standard mode while removing the cookie overlay. Strict mode initially exposed a class-token boundary defect when an ad-marked element also had an id. The shared token matcher was fixed, unit tested, rebuilt from <code>bbd5b19</code>, installed in place, and reverified: Strict hid the ad slot and counted one block while the core page and link remained usable. Returning to Standard restored the ad slot, and the setting, fixture history, server, and reverse mapping were restored afterward.</p>
+        <p>The controlled fixture kept its core content and ordinary ad slot visible in Standard mode while removing the cookie overlay. Strict mode initially exposed a class-token boundary defect when an ad-marked element also had an id. The shared token matcher was fixed, unit tested, rebuilt from bbd5b19, installed in place, and reverified: Strict hid the ad slot and counted one block while the core page and link remained usable. Returning to Standard restored the ad slot, and the setting, fixture history, server, and reverse mapping were restored afterward.</p>
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-strict-fixed.jpeg</code><br>The rebuilt Strict mode hid the controlled ad slot, counted one block, and retained core navigation.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-standard-restored.jpeg</code><br>Restored Standard mode kept the controlled ordinary ad slot visible and the core page usable.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>blocking-04</code> <span class="status-passed">passed</span></h3>
-        <p>The per-site allow-list enabled ads and trackers only for <code>127.0.0.1</code>. Navigating the same live WebView to <code>localhost</code> initially exposed a stale native blocking-policy defect. The controller is now reconfigured from every destination URL. On the rebuilt <code>3b95824</code> candidate, the allowed host loaded both resources while <code>localhost</code> blocked both; removing the exception restored blocking on <code>127.0.0.1</code> and kept <code>localhost</code> blocked. The allow-list entry, QA tab, history, fixture server, and reverse mapping were removed afterward.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-allowed-host.jpeg</code><br>The allow-listed <code>127.0.0.1</code> host loaded the controlled ad and tracker resources.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-second-host-isolated.jpeg</code><br>The same WebView blocked both controlled resources after navigation to non-allowed <code>localhost</code>.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-allow-removed.jpeg</code><br>Removing the <code>127.0.0.1</code> exception restored blocking for both controlled resources.</li><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-host-isolation.json</code><br>The four-state host isolation matrix and cleanup state are recorded.</li></ul>
+        <p>The per-site allow-list enabled ads and trackers only for 127.0.0.1. Navigating the same live WebView to localhost initially exposed a stale native blocking-policy defect. The controller is now reconfigured from every destination URL. On the rebuilt 3b95824 candidate, the allowed host loaded both resources while localhost blocked both; removing the exception restored blocking on 127.0.0.1 and kept localhost blocked. The allow-list entry, QA tab, history, fixture server, and reverse mapping were removed afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-allowed-host.jpeg</code><br>The allow-listed 127.0.0.1 host loaded the controlled ad and tracker resources.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-second-host-isolated.jpeg</code><br>The same WebView blocked both controlled resources after navigation to non-allowed localhost.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-allow-removed.jpeg</code><br>Removing the 127.0.0.1 exception restored blocking for both controlled resources.</li><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-host-isolation.json</code><br>The four-state host isolation matrix and cleanup state are recorded.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>blocking-05</code> <span class="status-partial">partial</span></h3>
@@ -1257,19 +1256,19 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-off.jpeg</code><br>Built-in background off/on state changed visibly and was restored.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-restored.jpeg</code><br>Built-in background off/on state changed visibly and was restored.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-photo-picker.jpeg</code><br>The custom-image action opened the system privacy-preserving photo picker.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-picker-cancelled-relaunch.jpeg</code><br>Cancelling the picker left the built-in background selected after a force-stop relaunch.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>downloads-01</code> <span class="status-partial">partial</span></h3>
-        <p>A controlled zhuo-qa.bin task completed with the expected name and native open chooser, then was removed. A second controlled image and direct filesystem-size inspection were not completed.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg</code><br>The controlled zhuo-qa.bin download reached the completed state with Open and Share actions.</li></ul>
+        <h3><code>downloads-01</code> <span class="status-passed">passed</span></h3>
+        <p>Controlled text and image downloads completed with the expected names and byte counts. HarmonyOS Files showed both entries in the public Downloads collection.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-small-complete.jpeg</code><br>Controlled text and image tasks reached completed state with expected names and sizes.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-public-files.json</code><br>HarmonyOS Files listed the controlled downloads in the public Downloads collection.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>downloads-02</code> <span class="status-partial">partial</span></h3>
-        <p>A 12 MB ranged download progressed, paused at 19 percent, resumed through 34 percent, and was later cancelled. Byte-integrity comparison, a queued second task and concurrency-limit behavior remain unverified.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg</code><br>The controlled download UI remained actionable across observed pause and resume progress.</li></ul>
+        <p>A 16 MiB ranged download paused at 13 percent, resumed and completed. With concurrency set to one, one task downloaded while a second remained pending; the original limit was restored. Completion sizes matched, but the virtual public file path prevented an independent device-side byte hash.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-paused-slow.jpeg</code><br>The ranged download remained paused with a Continue action and stable progress.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-concurrency-one.jpeg</code><br>One task downloaded while the second remained pending at concurrency one.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>downloads-03</code> <span class="status-partial">partial</span></h3>
-        <p>Cancelling the disposable slow task stopped it and removed the task. Download-specific failure, recovery retry and duplicate-task assertions remain unverified.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg</code><br>The disposable slow download was cancelled after pause/resume validation and cleaned up.</li></ul>
+        <h3><code>downloads-03</code> <span class="status-passed">passed</span></h3>
+        <p>A disposable task was cancelled without leaving a completed record. A force-stopped in-progress ranged task returned as failed rather than falsely completed; Retry resumed it to completion without a duplicate record.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-retry-complete.jpeg</code><br>The interrupted task recovered through Retry and reached one completed record.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>downloads-04</code> <span class="status-passed">passed</span></h3>
@@ -1278,13 +1277,13 @@
       </section>
       <section class="case-result">
         <h3><code>downloads-05</code> <span class="status-partial">partial</span></h3>
-        <p>Opening the controlled completed file launched the native chooser. File handoff to a receiving app and Share cancellation were not completed.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg</code><br>The completed QA download exposed working Open and Share actions before cleanup.</li></ul>
+        <p>Opening a completed text download launched the native preview flow. Share opened the HarmonyOS share sheet with the expected filename and byte count, and cancellation returned safely. A final handoff into a receiving app remains unverified.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-share-sheet.jpeg</code><br>The native share sheet received the expected filename and 38-byte file before cancellation.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>downloads-06</code> <span class="status-partial">partial</span></h3>
-        <p>Completed task state survived relaunch. External removal and missing-file recovery remain not-run.</p>
-        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-complete-tasks.json</code><br>Completed task state survived relaunch.</li></ul>
+        <h3><code>downloads-06</code> <span class="status-passed">passed</span></h3>
+        <p>Completed and interrupted task records survived force-stop relaunch. After the controlled image was removed through HarmonyOS Files, relaunch changed that record to a clear file-removed state and offered record deletion instead of stale Open/Share actions.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-cold-restored-records.jpeg</code><br>Completed download records survived a cold process relaunch.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-missing-file-feedback.jpeg</code><br>The externally removed file was reported as removed with safe record cleanup.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>permissions-01</code> <span class="status-blocked">blocked</span></h3>
@@ -1307,9 +1306,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>permissions-05</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>permissions-05</code> <span class="status-passed">passed</span></h3>
+        <p>A controlled cookie survived normal tab close and cold relaunch. With clear-on-close enabled it was absent after relaunch; the setting was then restored disabled and the QA cookie was cleaned up.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/cookie-normal-cold-persisted.jpeg</code><br>The controlled cookie survived normal cold relaunch.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/cookie-cleared-on-close.jpeg</code><br>The controlled cookie was absent after clear-on-close and cold relaunch.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>permissions-06</code> <span class="status-not-run">not-run</span></h3>
@@ -1317,9 +1316,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>permissions-07</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>permissions-07</code> <span class="status-partial">partial</span></h3>
+        <p>Telemetry defaulted off, enabled and persisted across cold relaunch, then disabled and remained off. Source guards omit private-tab reporting and restrict payloads to coarse fields, but a physical-device event-store inspection for private-page suppression remains unverified.</p>
+        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/telemetry-cold-enabled.json</code><br>Telemetry remained enabled across cold relaunch during the opt-in check.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/telemetry-restored-disabled.json</code><br>Telemetry was restored disabled and remained off.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>integration-01</code> <span class="status-partial">partial</span></h3>
@@ -1368,8 +1367,8 @@
       </section>
       <section class="case-result">
         <h3><code>appearance-02</code> <span class="status-passed">passed</span></h3>
-        <p>With global web dark mode set to Always Dark, <code>127.0.0.1</code> was excluded through the current-site switch and remained light. A fresh WebView navigated to the second host name <code>localhost</code> rendered the same controlled page dark. The host exclusion was removed, global mode was restored to Follow System, the repurposed home tab returned home, and the QA history entry was deleted.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-excluded-host.jpeg</code><br>The excluded <code>127.0.0.1</code> host remained light while global dark mode was active.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-second-host.jpeg</code><br>A fresh WebView on non-excluded <code>localhost</code> rendered the same fixture in dark mode.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-restored-system.jpeg</code><br>The global setting and host exclusion were restored after the isolation check.</li></ul>
+        <p>With global web dark mode set to Always Dark, 127.0.0.1 was excluded through the current-site switch and remained light. A fresh WebView navigated to the second host name localhost rendered the same controlled page dark. The host exclusion was removed, global mode was restored to Follow System, the repurposed home tab returned home, and the QA history entry was deleted.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-excluded-host.jpeg</code><br>The excluded 127.0.0.1 host remained light while global dark mode was active.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-second-host.jpeg</code><br>A fresh WebView on non-excluded localhost rendered the same fixture in dark mode.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-restored-system.jpeg</code><br>The global setting and host exclusion were restored after the isolation check.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>appearance-03</code> <span class="status-passed">passed</span></h3>
@@ -1468,8 +1467,8 @@
       </section>
       <section class="case-result">
         <h3><code>release-01</code> <span class="status-partial">partial</span></h3>
-        <p>Current physical-device source is 09233e77ee00. Unit tests, canonical debug-profile assembly, archive and signature integrity, in-place install, keyboard regression, and bookmark-transfer regression passed. Final AppGallery artifact is pending remaining QA.</p>
-        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-09233e7-build.json</code><br>The 09233e77ee00 candidate passed unit tests, canonical build checks, archive and signature integrity, in-place installation, keyboard acceptance, and bookmark-transfer acceptance.</li></ul>
+        <p>Current physical-device source is 96968d7c1a64. Unit tests, canonical debug signing selection, archive integrity, HAP signature/profile verification, in-place installation, download recovery, cookie cleanup and form-hibernation regressions passed. This is a debug device-acceptance artifact; the AppGallery dis artifact remains pending final QA.</p>
+        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-96968d7-build.json</code><br>The 96968d7 candidate passed build, canonical debug signing, archive, signature/profile and in-place installation checks; AppGallery packaging is pending.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>release-02</code> <span class="status-blocked">blocked</span></h3>

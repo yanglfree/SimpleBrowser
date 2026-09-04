@@ -1,0 +1,21 @@
+{
+  "sourceSha": "96968d7c1a64bd3b7eb1a65a6b8b77c83cf2fdb5",
+  "versionName": "1.0.1",
+  "versionCode": 1000001,
+  "bundleName": "com.youdroid.zhuobrowser",
+  "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
+  "hapSha256": "a91a0dd783f653f803b5dbb1bc8f76f200aa6c56e07fee7576094d784393930c",
+  "buildMode": "debug",
+  "signingChannel": "debug",
+  "iapCapability": true,
+  "verification": {
+    "unitTests": "passed",
+    "canonicalSigningSelection": "passed",
+    "hapArchiveIntegrity": "passed",
+    "hapSignature": "passed",
+    "embeddedProfile": "passed",
+    "inPlaceDeviceInstall": "passed",
+    "physicalDeviceRegression": "in-progress",
+    "appGalleryArtifact": "pending"
+  }
+}

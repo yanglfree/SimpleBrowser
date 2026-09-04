@@ -39,7 +39,7 @@
         "navigation-14",
         "navigation-15"
       ],
-      "notes": "passed: 12, partial: 3"
+      "notes": "passed: 13, partial: 2"
     },
     {
       "title": "Tabs, session and resource limits",
@@ -56,7 +56,7 @@
         "tabs-09",
         "tabs-10"
       ],
-      "notes": "passed: 3, partial: 2, not-run: 5"
+      "notes": "passed: 5, partial: 3, not-run: 2"
     },
     {
       "title": "Content blocking and site controls",
@@ -71,7 +71,7 @@
         "blocking-07",
         "blocking-08"
       ],
-      "notes": "passed: 4, partial: 4"
+      "notes": "passed: 6, partial: 2"
     },
     {
       "title": "Online reader mode",
@@ -117,7 +117,7 @@
         "saved-09",
         "saved-10"
       ],
-      "notes": "passed: 3, partial: 4, not-run: 3"
+      "notes": "passed: 7, partial: 2, not-run: 1"
     },
     {
       "title": "Downloads and native file operations",
@@ -130,11 +130,11 @@
         "downloads-05",
         "downloads-06"
       ],
-      "notes": "passed: 1, partial: 5"
+      "notes": "passed: 4, partial: 2"
     },
     {
       "title": "Privacy data and site permissions",
-      "status": "not-run",
+      "status": "partial",
       "caseIds": [
         "permissions-01",
         "permissions-02",
@@ -144,7 +144,7 @@
         "permissions-06",
         "permissions-07"
       ],
-      "notes": "blocked: 4, not-run: 3"
+      "notes": "passed: 1, partial: 1, blocked: 4, not-run: 1"
     },
     {
       "title": "External entry, sharing and defaults",
@@ -171,7 +171,7 @@
         "appearance-04",
         "appearance-05"
       ],
-      "notes": "passed: 3, partial: 2"
+      "notes": "passed: 4, partial: 1"
     },
     {
       "title": "Membership and entitlement lifecycle",
@@ -3853,11 +3853,11 @@
       "runtime": "OpenHarmony-6.1.1.120"
     },
     "appBuild": {
-      "version": "1.0.1 (1000001); HEAD-equivalent physical-device candidate",
-      "sourceSha": "09233e77ee000f6978217e20bfbb1875d371e1ef",
+      "version": "1.0.1 (1000001); 96968d7 HEAD-equivalent physical-device candidate",
+      "sourceSha": "96968d7c1a64bd3b7eb1a65a6b8b77c83cf2fdb5",
       "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "dc151dfa9e6268710fba685a6fbf6a29326af251e389d23e70d0040d2f5cf80c",
-      "signing": "debug profile for physical-device QA; AppGallery dis profile validated separately"
+      "sha256": "a91a0dd783f653f803b5dbb1bc8f76f200aa6c56e07fee7576094d784393930c",
+      "signing": "canonical debug profile for physical-device QA; AppGallery dis artifact remains pending"
     },
     "results": [
       {
@@ -4300,9 +4300,20 @@
       },
       {
         "caseId": "tabs-09",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "With the simultaneous-live-page limit set to one, the controlled form tab hibernated after switching away. Returning restored the ordinary draft and offered resume/start-over behavior. The serialized tab state contained the ordinary draft and excluded the dummy password. The original live-page limit was restored.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/form-hibernation-restored.jpeg",
+            "summary": "The hibernated form tab returned with its ordinary draft and resume prompt."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/form-values-top.json",
+            "summary": "The restored ordinary draft was visible; the dummy password was absent from persisted tab state."
+          }
+        ]
       },
       {
         "caseId": "tabs-10",
@@ -4826,37 +4837,47 @@
       },
       {
         "caseId": "downloads-01",
-        "status": "partial",
-        "notes": "A controlled zhuo-qa.bin task completed with the expected name and native open chooser, then was removed. A second controlled image and direct filesystem-size inspection were not completed.",
+        "status": "passed",
+        "notes": "Controlled text and image downloads completed with the expected names and byte counts. HarmonyOS Files showed both entries in the public Downloads collection.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg",
-            "summary": "The controlled zhuo-qa.bin download reached the completed state with Open and Share actions."
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-small-complete.jpeg",
+            "summary": "Controlled text and image tasks reached completed state with expected names and sizes."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-public-files.json",
+            "summary": "HarmonyOS Files listed the controlled downloads in the public Downloads collection."
           }
         ]
       },
       {
         "caseId": "downloads-02",
         "status": "partial",
-        "notes": "A 12 MB ranged download progressed, paused at 19 percent, resumed through 34 percent, and was later cancelled. Byte-integrity comparison, a queued second task and concurrency-limit behavior remain unverified.",
+        "notes": "A 16 MiB ranged download paused at 13 percent, resumed and completed. With concurrency set to one, one task downloaded while a second remained pending; the original limit was restored. Completion sizes matched, but the virtual public file path prevented an independent device-side byte hash.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg",
-            "summary": "The controlled download UI remained actionable across observed pause and resume progress."
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-paused-slow.jpeg",
+            "summary": "The ranged download remained paused with a Continue action and stable progress."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-concurrency-one.jpeg",
+            "summary": "One task downloaded while the second remained pending at concurrency one."
           }
         ]
       },
       {
         "caseId": "downloads-03",
-        "status": "partial",
-        "notes": "Cancelling the disposable slow task stopped it and removed the task. Download-specific failure, recovery retry and duplicate-task assertions remain unverified.",
+        "status": "passed",
+        "notes": "A disposable task was cancelled without leaving a completed record. A force-stopped in-progress ranged task returned as failed rather than falsely completed; Retry resumed it to completion without a duplicate record.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg",
-            "summary": "The disposable slow download was cancelled after pause/resume validation and cleaned up."
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-retry-complete.jpeg",
+            "summary": "The interrupted task recovered through Retry and reached one completed record."
           }
         ]
       },
@@ -4880,24 +4901,29 @@
       {
         "caseId": "downloads-05",
         "status": "partial",
-        "notes": "Opening the controlled completed file launched the native chooser. File handoff to a receiving app and Share cancellation were not completed.",
+        "notes": "Opening a completed text download launched the native preview flow. Share opened the HarmonyOS share sheet with the expected filename and byte count, and cancellation returned safely. A final handoff into a receiving app remains unverified.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/download-pause-resume-cancel.jpeg",
-            "summary": "The completed QA download exposed working Open and Share actions before cleanup."
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-share-sheet.jpeg",
+            "summary": "The native share sheet received the expected filename and 38-byte file before cancellation."
           }
         ]
       },
       {
         "caseId": "downloads-06",
-        "status": "partial",
-        "notes": "Completed task state survived relaunch. External removal and missing-file recovery remain not-run.",
+        "status": "passed",
+        "notes": "Completed and interrupted task records survived force-stop relaunch. After the controlled image was removed through HarmonyOS Files, relaunch changed that record to a clear file-removed state and offered record deletion instead of stale Open/Share actions.",
         "evidence": [
           {
-            "type": "ui-tree",
-            "path": "tool/agent_harmony_tests/full-release/evidence/download-complete-tasks.json",
-            "summary": "Completed task state survived relaunch."
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-cold-restored-records.jpeg",
+            "summary": "Completed download records survived a cold process relaunch."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/download-missing-file-feedback.jpeg",
+            "summary": "The externally removed file was reported as removed with safe record cleanup."
           }
         ]
       },
@@ -4927,9 +4953,20 @@
       },
       {
         "caseId": "permissions-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "A controlled cookie survived normal tab close and cold relaunch. With clear-on-close enabled it was absent after relaunch; the setting was then restored disabled and the QA cookie was cleaned up.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/cookie-normal-cold-persisted.jpeg",
+            "summary": "The controlled cookie survived normal cold relaunch."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/cookie-cleared-on-close.jpeg",
+            "summary": "The controlled cookie was absent after clear-on-close and cold relaunch."
+          }
+        ]
       },
       {
         "caseId": "permissions-06",
@@ -4939,9 +4976,20 @@
       },
       {
         "caseId": "permissions-07",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Telemetry defaulted off, enabled and persisted across cold relaunch, then disabled and remained off. Source guards omit private-tab reporting and restrict payloads to coarse fields, but a physical-device event-store inspection for private-page suppression remains unverified.",
+        "evidence": [
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/telemetry-cold-enabled.json",
+            "summary": "Telemetry remained enabled across cold relaunch during the opt-in check."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/telemetry-restored-disabled.json",
+            "summary": "Telemetry was restored disabled and remained off."
+          }
+        ]
       },
       {
         "caseId": "integration-01",
@@ -5225,12 +5273,12 @@
       {
         "caseId": "release-01",
         "status": "partial",
-        "notes": "Current physical-device source is 09233e77ee00. Unit tests, canonical debug-profile assembly, archive and signature integrity, in-place install, keyboard regression, and bookmark-transfer regression passed. Final AppGallery artifact is pending remaining QA.",
+        "notes": "Current physical-device source is 96968d7c1a64. Unit tests, canonical debug signing selection, archive integrity, HAP signature/profile verification, in-place installation, download recovery, cookie cleanup and form-hibernation regressions passed. This is a debug device-acceptance artifact; the AppGallery dis artifact remains pending final QA.",
         "evidence": [
           {
             "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-09233e7-build.json",
-            "summary": "The 09233e77ee00 candidate passed unit tests, canonical build checks, archive and signature integrity, in-place installation, keyboard acceptance, and bookmark-transfer acceptance."
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-96968d7-build.json",
+            "summary": "The 96968d7 candidate passed build, canonical debug signing, archive, signature/profile and in-place installation checks; AppGallery packaging is pending."
           }
         ]
       },
