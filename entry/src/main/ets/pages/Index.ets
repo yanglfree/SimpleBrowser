@@ -107,6 +107,10 @@ import {
   RECENT_TAB_LIMIT
 } from '../components/TabTokens';
 import { PrivacyService } from '../services/PrivacyService';
+import {
+  nativePermissionResultAllows,
+  nativePermissionsForSiteResources
+} from '../services/SitePermissionPolicy';
 import { CertificateService } from '../services/CertificateService';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { AppMetadataService } from '../services/AppMetadataService';
@@ -3934,17 +3938,10 @@ struct Index {
     request: PermissionRequest | undefined,
     geolocation: OnGeolocationShowEvent | undefined
   ): Promise<void> {
-    const nativePermissions: Permissions[] = [];
-    if (resources.includes('TYPE_VIDEO_CAPTURE')) {
-      nativePermissions.push('ohos.permission.CAMERA');
-    }
-    if (resources.includes('TYPE_AUDIO_CAPTURE')) {
-      nativePermissions.push('ohos.permission.MICROPHONE');
-    }
-    if (resources.includes('LOCATION')) {
-      nativePermissions.push('ohos.permission.LOCATION');
-    }
-    const nativeAllowed: boolean = await this.requestNativePermissions(nativePermissions);
+    const nativeAllowed: boolean = await this.requestNativePermissions(
+      resources,
+      nativePermissionsForSiteResources(resources)
+    );
     if (!nativeAllowed) {
       request?.deny();
       geolocation?.geolocation.invoke(origin, false, false);
@@ -3958,7 +3955,7 @@ struct Index {
     await this.updateSitePermission(origin, resources, SitePermissionDecision.Allow);
   }
 
-  private async requestNativePermissions(permissions: Permissions[]): Promise<boolean> {
+  private async requestNativePermissions(resources: string[], permissions: Permissions[]): Promise<boolean> {
     if (permissions.length === 0) {
       return true;
     }
@@ -3966,9 +3963,7 @@ struct Index {
       const manager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
       const result: PermissionRequestResult =
         await manager.requestPermissionsFromUser(this.appContext(), permissions);
-      return result.authResults.length === permissions.length &&
-        result.authResults.every((status: number): boolean =>
-          status === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED);
+      return nativePermissionResultAllows(resources, permissions, result.authResults);
     } catch (error) {
       Logger.warn(TAG, `Native site permission request failed: ${String(error)}`);
       return false;
