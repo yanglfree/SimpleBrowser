@@ -3814,6 +3814,7 @@ struct Index {
     this.settings = cloneSettings(normalized);
     TelemetryService.setEnabled(normalized.privacyConsentAccepted && normalized.telemetryEnabled);
     await this.viewModel.updateSettings(normalized);
+    this.syncState();
     DownloadService.configurePolicy(
       normalized.largeDownloadThresholdMb,
       normalized.wifiOnlyDownloads,
