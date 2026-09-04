@@ -3724,7 +3724,7 @@ struct Index {
     if (report.result === 'unavailable' || !applied.includes('reader')) {
       Logger.info(TAG, 'Reader mode found no article to reflow');
       if (tab?.isPrivate !== true) {
-        TelemetryService.reportReaderExtraction(report, rawHost(tab?.url ?? ''));
+        TelemetryService.reportReaderExtraction(report);
       }
       try {
         this.getUIContext().getPromptAction().showToast({ message: $r('app.string.reader_mode_unavailable') });
@@ -3737,7 +3737,7 @@ struct Index {
       return;
     }
     if (tab?.isPrivate !== true) {
-      TelemetryService.reportReaderExtraction(report, rawHost(tab?.url ?? ''));
+      TelemetryService.reportReaderExtraction(report);
     }
     this.viewModel.updateTab(id, { isReader: true });
     if (tab !== undefined && tab.readerScrollY > 0) {
@@ -4409,7 +4409,7 @@ struct Index {
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     const startedAt: number | undefined = this.pageLoadStartedAt.get(id);
     if (startedAt !== undefined && tab?.isPrivate !== true) {
-      TelemetryService.recordPageLoad(displayHost(url), Date.now() - startedAt);
+      TelemetryService.recordPageLoad(Date.now() - startedAt);
     }
     // Chromium commits an error page like any other document, so this fires
     // after a failure too. Clearing the error here would wipe what the kernel

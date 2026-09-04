@@ -17,7 +17,6 @@ interface CrashPayload {
 }
 
 interface PageLoadPayload {
-  host: string;
   duration_ms: number;
 }
 
@@ -36,7 +35,6 @@ interface ActionUsagePayload {
 interface ReaderPayload {
   result: string;
   strategy: string;
-  host: string;
   candidate_chars: string;
   output_ratio: string;
   paragraphs: string;
@@ -49,8 +47,8 @@ interface ReaderPayload {
  *
  * 1. Nothing leaves the device — events go through hiAppEvent, which the user
  *    can inspect or clear with the system's app-event tooling.
- * 2. No personal data. URLs are stripped to their host, and crash payloads
- *    carry only the exception category and name.
+ * 2. No personal data. Page locations are omitted, and crash payloads carry
+ *    only the exception category and name.
  * 3. A private tab suppresses every write, including coarse action events.
  */
 export class TelemetryService {
@@ -110,13 +108,12 @@ export class TelemetryService {
     TelemetryService.writeEvent('startup', payload);
   }
 
-  /** Page load duration for a given host; the path and query are discarded. */
-  static recordPageLoad(host: string, ms: number): void {
-    if (host.length === 0 || ms < 0) {
+  /** Records page-load duration without any page location. */
+  static recordPageLoad(ms: number): void {
+    if (ms < 0) {
       return;
     }
     const payload: PageLoadPayload = {
-      host: host,
       duration_ms: TelemetryService.clamp(ms)
     };
     TelemetryService.writeEvent('page_load', payload);
@@ -128,13 +125,12 @@ export class TelemetryService {
     TelemetryService.writeEvent('memory_pressure', payload);
   }
 
-  /** Records only the host and coarse quality metrics, never page or article content. */
-  static reportReaderExtraction(report: ReaderExtractionReport, host: string): void {
+  /** Records only coarse quality metrics, never a page location or article content. */
+  static reportReaderExtraction(report: ReaderExtractionReport): void {
     const buckets: ReaderExtractionBuckets = readerExtractionBuckets(report);
     const payload: ReaderPayload = {
       result: report.result,
       strategy: report.strategy,
-      host: TelemetryService.trim(host.toLowerCase(), 120),
       candidate_chars: buckets.candidateChars,
       output_ratio: buckets.outputRatio,
       paragraphs: buckets.paragraphs,
