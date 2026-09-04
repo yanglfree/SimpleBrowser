@@ -71,7 +71,7 @@
         "blocking-07",
         "blocking-08"
       ],
-      "notes": "passed: 1, partial: 5, not-run: 2"
+      "notes": "passed: 3, partial: 5"
     },
     {
       "title": "Online reader mode",
@@ -4246,15 +4246,52 @@
       },
       {
         "caseId": "blocking-01",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "With blocking enabled, the physical-device fixture server received the main document and allowed image but no matching /ads/banners image or /ads/cbr.js tracker script. Safe page content remained visible, ad/cosmetic markers were absent, and the in-app activity list recorded both advertisement and tracker categories.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-native-fixture.jpeg",
+            "summary": "The blocked fixture retained allowed content while network-ad and cosmetic-ad markers were absent."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-activity-fixture.jpeg",
+            "summary": "The current-page activity list recorded blocked advertisement and tracker requests from system rules."
+          },
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-network-request-log.json",
+            "summary": "The controlled server log recorded only the document and allowed image while blocking was enabled."
+          }
+        ]
       },
       {
         "caseId": "blocking-02",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Disabling tracker blocking and cosmetic cleanup for the fixture host made the tracker script, ad image, and cosmetic marker observable; the server received every controlled resource. Restoring all six site controls to Inherit removed the markers again and returned the server log to document plus allowed image only.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-disabled-uncached.jpeg",
+            "summary": "With tracker and cosmetic controls disabled, both controlled ad markers were present."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-controls-restored.jpeg",
+            "summary": "All six per-site controls were restored to Inherit Global."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-restored-uncached.jpeg",
+            "summary": "After restoration, safe content remained while ad and cosmetic markers disappeared."
+          },
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-network-request-log.json",
+            "summary": "The controlled server log captures enabled, disabled, and restored request sets."
+          }
+        ]
       },
       {
         "caseId": "blocking-03",

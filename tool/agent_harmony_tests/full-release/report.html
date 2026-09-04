@@ -36,16 +36,16 @@
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>61</strong>Executed</div>
-    <div class="metric"><strong>28</strong>Passed</div>
+    <div class="metric"><strong>63</strong>Executed</div>
+    <div class="metric"><strong>30</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
-    <div class="metric"><strong>20</strong>Not run</div>
+    <div class="metric"><strong>18</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 61 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 63 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -75,7 +75,7 @@
         <td>Content blocking and site controls</td>
         <td class="status-partial">partial</td>
         <td><code>blocking-01</code><br><code>blocking-02</code><br><code>blocking-03</code><br><code>blocking-04</code><br><code>blocking-05</code><br><code>blocking-06</code><br><code>blocking-07</code><br><code>blocking-08</code></td>
-        <td>passed: 1, partial: 5, not-run: 2</td>
+        <td>passed: 3, partial: 5</td>
       </tr>
       <tr>
         <td>Online reader mode</td>
@@ -371,14 +371,14 @@
         <td><code>blocking-01</code></td>
         <td>p0</td>
         <td>Native request blocking</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>blocking</td>
       </tr>
       <tr>
         <td><code>blocking-02</code></td>
         <td>p1</td>
         <td>Trackers and cosmetic cleanup</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>blocking</td>
       </tr>
       <tr>
@@ -1092,14 +1092,14 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>blocking-01</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>blocking-01</code> <span class="status-passed">passed</span></h3>
+        <p>With blocking enabled, the physical-device fixture server received the main document and allowed image but no matching /ads/banners image or /ads/cbr.js tracker script. Safe page content remained visible, ad/cosmetic markers were absent, and the in-app activity list recorded both advertisement and tracker categories.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-native-fixture.jpeg</code><br>The blocked fixture retained allowed content while network-ad and cosmetic-ad markers were absent.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-activity-fixture.jpeg</code><br>The current-page activity list recorded blocked advertisement and tracker requests from system rules.</li><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-network-request-log.json</code><br>The controlled server log recorded only the document and allowed image while blocking was enabled.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>blocking-02</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>blocking-02</code> <span class="status-passed">passed</span></h3>
+        <p>Disabling tracker blocking and cosmetic cleanup for the fixture host made the tracker script, ad image, and cosmetic marker observable; the server received every controlled resource. Restoring all six site controls to Inherit removed the markers again and returned the server log to document plus allowed image only.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-disabled-uncached.jpeg</code><br>With tracker and cosmetic controls disabled, both controlled ad markers were present.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-controls-restored.jpeg</code><br>All six per-site controls were restored to Inherit Global.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-restored-uncached.jpeg</code><br>After restoration, safe content remained while ad and cosmetic markers disappeared.</li><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-network-request-log.json</code><br>The controlled server log captures enabled, disabled, and restored request sets.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>blocking-03</code> <span class="status-partial">partial</span></h3>

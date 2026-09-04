@@ -1,0 +1,33 @@
+{
+  "fixture": "http://127.0.0.1:4184",
+  "blockingEnabled": {
+    "requestsObserved": [
+      "/fixture",
+      "/allowed.png",
+      "/favicon.ico",
+      "/favicon.ico"
+    ],
+    "notObserved": [
+      "/ads/banners/qa.png",
+      "/ads/cbr.js?analytics=1"
+    ]
+  },
+  "trackerAndCosmeticDisabled": {
+    "requestsObserved": [
+      "/fixture-off2?n=off2",
+      "/allowed.png?n=off2",
+      "/ads/banners/qa.png?n=off2",
+      "/ads/cbr.js?analytics=1&n=off2"
+    ]
+  },
+  "controlsRestoredToInherit": {
+    "requestsObserved": [
+      "/fixture-restored?n=on3",
+      "/allowed.png?n=on3"
+    ],
+    "notObserved": [
+      "/ads/banners/qa.png?n=on3",
+      "/ads/cbr.js?analytics=1&n=on3"
+    ]
+  }
+}
