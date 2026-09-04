@@ -39,7 +39,7 @@
         "navigation-14",
         "navigation-15"
       ],
-      "notes": "passed: 13, partial: 2"
+      "notes": "passed: 14, partial: 1"
     },
     {
       "title": "Tabs, session and resource limits",
@@ -4071,18 +4071,38 @@
       },
       {
         "caseId": "navigation-11",
-        "status": "partial",
-        "notes": "The exact localized setting label became searchable after the observed search-index defect was fixed. Minimum font size changed from 12 px to 18 px, remained selected after a force-stop relaunch, and was restored to 12 px. Native multi-touch pinch zoom could not be injected by the device automation tool.",
+        "status": "passed",
+        "notes": "The exact localized setting label became searchable. Minimum font size changed from 12 px to 18 px, persisted across force-stop relaunch, and was restored to 12 px. A native two-finger gesture on a controlled long-form page visibly enlarged the page, the inverse gesture restored its original scale and usable chrome, and the temporary tab and history record were removed.",
         "evidence": [
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/settings-label-search-fixed.jpeg",
-            "summary": "Searching the exact localized label now returned the minimum-font setting."
+            "summary": "Searching the exact localized label returned the minimum-font setting."
           },
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/minimum-font-persisted.jpeg",
-            "summary": "The 18 px minimum-font selection remained active after a force-stop relaunch before restoration."
+            "summary": "The 18 px minimum-font selection remained active after force-stop relaunch before restoration."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/pinch-baseline.jpeg",
+            "summary": "The controlled long-form page established the pre-gesture text geometry."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/pinch-zoomed.jpeg",
+            "summary": "Native two-finger injection visibly enlarged the page content."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/pinch-restored.jpeg",
+            "summary": "The inverse two-finger gesture restored the original page scale and usable browser chrome."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/pinch-history-cleaned.json",
+            "summary": "The temporary zoom-test history record was removed, restoring the prior history count."
           }
         ]
       },

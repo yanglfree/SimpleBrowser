@@ -37,9 +37,9 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>72</strong>Executed</div>
-    <div class="metric"><strong>58</strong>Passed</div>
+    <div class="metric"><strong>59</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
-    <div class="metric"><strong>14</strong>Partial</div>
+    <div class="metric"><strong>13</strong>Partial</div>
     <div class="metric"><strong>29</strong>Blocked</div>
     <div class="metric"><strong>11</strong>Not run</div>
   </section>
@@ -64,7 +64,7 @@
         <td>Address, navigation and page tools</td>
         <td class="status-partial">partial</td>
         <td><code>navigation-01</code><br><code>navigation-02</code><br><code>navigation-03</code><br><code>navigation-04</code><br><code>navigation-05</code><br><code>navigation-06</code><br><code>navigation-07</code><br><code>navigation-08</code><br><code>navigation-09</code><br><code>navigation-10</code><br><code>navigation-11</code><br><code>navigation-12</code><br><code>navigation-13</code><br><code>navigation-14</code><br><code>navigation-15</code></td>
-        <td>passed: 13, partial: 2</td>
+        <td>passed: 14, partial: 1</td>
       </tr>
       <tr>
         <td>Tabs, session and resource limits</td>
@@ -267,7 +267,7 @@
         <td><code>navigation-11</code></td>
         <td>p1</td>
         <td>Zoom and minimum font size</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>navigation</td>
       </tr>
       <tr>
@@ -1017,9 +1017,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/find-in-page.jpeg</code><br>Find-in-page displayed the controlled 1/1 match state before successful navigation and close.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-11</code> <span class="status-partial">partial</span></h3>
-        <p>The exact localized setting label became searchable after the observed search-index defect was fixed. Minimum font size changed from 12 px to 18 px, remained selected after a force-stop relaunch, and was restored to 12 px. Native multi-touch pinch zoom could not be injected by the device automation tool.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/settings-label-search-fixed.jpeg</code><br>Searching the exact localized label now returned the minimum-font setting.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/minimum-font-persisted.jpeg</code><br>The 18 px minimum-font selection remained active after a force-stop relaunch before restoration.</li></ul>
+        <h3><code>navigation-11</code> <span class="status-passed">passed</span></h3>
+        <p>The exact localized setting label became searchable. Minimum font size changed from 12 px to 18 px, persisted across force-stop relaunch, and was restored to 12 px. A native two-finger gesture on a controlled long-form page visibly enlarged the page, the inverse gesture restored its original scale and usable chrome, and the temporary tab and history record were removed.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/settings-label-search-fixed.jpeg</code><br>Searching the exact localized label returned the minimum-font setting.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/minimum-font-persisted.jpeg</code><br>The 18 px minimum-font selection remained active after force-stop relaunch before restoration.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/pinch-baseline.jpeg</code><br>The controlled long-form page established the pre-gesture text geometry.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/pinch-zoomed.jpeg</code><br>Native two-finger injection visibly enlarged the page content.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/pinch-restored.jpeg</code><br>The inverse two-finger gesture restored the original page scale and usable browser chrome.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/pinch-history-cleaned.json</code><br>The temporary zoom-test history record was removed, restoring the prior history count.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-12</code> <span class="status-passed">passed</span></h3>
