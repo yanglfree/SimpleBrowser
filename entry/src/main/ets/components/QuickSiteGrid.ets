@@ -172,7 +172,7 @@ export struct QuickSiteGrid {
         this.onOpenSite(site.url);
       }
     })
-    .parallelGesture(
+    .gesture(
       LongPressGesture({ repeat: false, duration: QUICK_SITE_EDIT_LONG_PRESS_DURATION })
         .onAction(() => this.enterEditing())
     )
