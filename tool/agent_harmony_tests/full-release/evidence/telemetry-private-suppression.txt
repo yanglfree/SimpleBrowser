@@ -1,0 +1,4 @@
+16:02:17 Telemetry enabled
+16:02:34 Suppressed action_usage in private context
+16:04:29 Telemetry disabled
+16:04:33 Telemetry disabled after cold relaunch

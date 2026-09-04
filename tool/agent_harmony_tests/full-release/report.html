@@ -29,15 +29,15 @@
   <p>
     Date: 2026-09-04<br>
     Target: Huawei TLR-AL00, OpenHarmony-6.1.1.120, <code>4UQ9K25530058677</code><br>
-    App: ZhuoBrowser Full Release Acceptance <code>1.0.1 (1000001); 31bcc39 physical-device candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
+    App: ZhuoBrowser Full Release Acceptance <code>1.0.1 (1000001); 0464ab0 physical-device candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
     HAP: <code>entry/build/default/outputs/default/entry-default-signed.hap</code><br>
     Auth source: none
   </p>
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>91</strong>Executed</div>
-    <div class="metric"><strong>65</strong>Passed</div>
+    <div class="metric"><strong>92</strong>Executed</div>
+    <div class="metric"><strong>66</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>26</strong>Blocked</div>
     <div class="metric"><strong>9</strong>Not run</div>
@@ -45,7 +45,7 @@
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 91 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 92 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -105,7 +105,7 @@
         <td>Privacy data and site permissions</td>
         <td class="status-partial">partial</td>
         <td><code>permissions-01</code><br><code>permissions-02</code><br><code>permissions-03</code><br><code>permissions-04</code><br><code>permissions-05</code><br><code>permissions-06</code><br><code>permissions-07</code></td>
-        <td>passed: 5, partial: 1, not-run: 1</td>
+        <td>passed: 6, not-run: 1</td>
       </tr>
       <tr>
         <td>External entry, sharing and defaults</td>
@@ -686,7 +686,7 @@
         <td><code>permissions-07</code></td>
         <td>p0</td>
         <td>Telemetry opt-in and opt-out</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>permissions</td>
       </tr>
       <tr>
@@ -1317,9 +1317,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>permissions-07</code> <span class="status-partial">partial</span></h3>
-        <p>Telemetry defaulted off, enabled and persisted across cold relaunch, then disabled and remained off. Source guards omit private-tab reporting and restrict payloads to coarse fields, but a physical-device event-store inspection for private-page suppression remains unverified.</p>
-        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/telemetry-cold-enabled.json</code><br>Telemetry remained enabled across cold relaunch during the opt-in check.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/telemetry-restored-disabled.json</code><br>Telemetry was restored disabled and remained off.</li></ul>
+        <h3><code>permissions-07</code> <span class="status-passed">passed</span></h3>
+        <p>Telemetry defaulted off, enabled and persisted, then disabled and remained off after a cold relaunch. The candidate now applies a centralized private-context gate to every event and excludes free-form exception messages from crash payloads. With telemetry enabled on the physical device, opening History from a private tab produced the explicit suppression trace and no telemetry write path.</p>
+        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/telemetry-private-context.json</code><br>The physical-device action was exercised with an active private tab.</li><li><strong>text</strong>: <code>tool/agent_harmony_tests/full-release/evidence/telemetry-private-suppression.txt</code><br>The runtime suppressed action_usage in private context, then telemetry was restored off and stayed off after cold relaunch.</li><li><strong>command</strong>: <code>hvigorw test</code><br>The telemetry policy test requires opt-in and a non-private context; the complete suite passed.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>integration-01</code> <span class="status-passed">passed</span></h3>

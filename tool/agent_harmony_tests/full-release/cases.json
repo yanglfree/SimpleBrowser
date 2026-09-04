@@ -144,7 +144,7 @@
         "permissions-06",
         "permissions-07"
       ],
-      "notes": "passed: 5, partial: 1, not-run: 1"
+      "notes": "passed: 6, not-run: 1"
     },
     {
       "title": "External entry, sharing and defaults",
@@ -3858,10 +3858,10 @@
       "runtime": "OpenHarmony-6.1.1.120"
     },
     "appBuild": {
-      "version": "1.0.1 (1000001); 31bcc39 physical-device candidate",
-      "sourceSha": "31bcc396ac4dca3ae851a2a4a875529b18999b13",
+      "version": "1.0.1 (1000001); 0464ab0 physical-device candidate",
+      "sourceSha": "0464ab053e7352c3c1bb6080a5f2341fe3cd3fb3",
       "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "35db6d2b01183295b842cf0ce6011177eb47447e03a218efc5bb451f5eaccd0a",
+      "sha256": "c71b80c32c89223e3de54821733d5fe9ac0428385f4f55abdb4739af2490e7eb",
       "signing": "canonical debug profile for physical-device QA; AppGallery dis artifact remains pending"
     },
     "results": [
@@ -5172,18 +5172,23 @@
       },
       {
         "caseId": "permissions-07",
-        "status": "partial",
-        "notes": "Telemetry defaulted off, enabled and persisted across cold relaunch, then disabled and remained off. Source guards omit private-tab reporting and restrict payloads to coarse fields, but a physical-device event-store inspection for private-page suppression remains unverified.",
+        "status": "passed",
+        "notes": "Telemetry defaulted off, enabled and persisted, then disabled and remained off after a cold relaunch. The candidate now applies a centralized private-context gate to every event and excludes free-form exception messages from crash payloads. With telemetry enabled on the physical device, opening History from a private tab produced the explicit suppression trace and no telemetry write path.",
         "evidence": [
           {
             "type": "ui-tree",
-            "path": "tool/agent_harmony_tests/full-release/evidence/telemetry-cold-enabled.json",
-            "summary": "Telemetry remained enabled across cold relaunch during the opt-in check."
+            "path": "tool/agent_harmony_tests/full-release/evidence/telemetry-private-context.json",
+            "summary": "The physical-device action was exercised with an active private tab."
           },
           {
-            "type": "ui-tree",
-            "path": "tool/agent_harmony_tests/full-release/evidence/telemetry-restored-disabled.json",
-            "summary": "Telemetry was restored disabled and remained off."
+            "type": "text",
+            "path": "tool/agent_harmony_tests/full-release/evidence/telemetry-private-suppression.txt",
+            "summary": "The runtime suppressed action_usage in private context, then telemetry was restored off and stayed off after cold relaunch."
+          },
+          {
+            "type": "command",
+            "path": "hvigorw test",
+            "summary": "The telemetry policy test requires opt-in and a non-private context; the complete suite passed."
           }
         ]
       },
