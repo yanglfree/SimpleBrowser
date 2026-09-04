@@ -36,16 +36,16 @@
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>65</strong>Executed</div>
-    <div class="metric"><strong>44</strong>Passed</div>
+    <div class="metric"><strong>67</strong>Executed</div>
+    <div class="metric"><strong>46</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
-    <div class="metric"><strong>16</strong>Not run</div>
+    <div class="metric"><strong>14</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 65 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 67 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -93,7 +93,7 @@
         <td>Bookmarks, history and start page</td>
         <td class="status-partial">partial</td>
         <td><code>saved-01</code><br><code>saved-02</code><br><code>saved-03</code><br><code>saved-04</code><br><code>saved-05</code><br><code>saved-06</code><br><code>saved-07</code><br><code>saved-08</code><br><code>saved-09</code><br><code>saved-10</code></td>
-        <td>passed: 5, partial: 2, not-run: 3</td>
+        <td>passed: 7, partial: 2, not-run: 1</td>
       </tr>
       <tr>
         <td>Downloads and native file operations</td>
@@ -406,7 +406,7 @@
         <td><code>blocking-06</code></td>
         <td>p1</td>
         <td>Block events and statistics</td>
-        <td class="status-passed">partial</td>passed</td>
+        <td class="status-passed">passed</td>
         <td>blocking</td>
       </tr>
       <tr>
@@ -546,21 +546,21 @@
         <td><code>saved-03</code></td>
         <td>p1</td>
         <td>Bookmark HTML import</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>saved</td>
       </tr>
       <tr>
         <td><code>saved-04</code></td>
         <td>p1</td>
         <td>Bookmark HTML export</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>saved</td>
       </tr>
       <tr>
         <td><code>saved-05</code></td>
         <td>p1</td>
         <td>History entry and site deletion</td>
-        <td class="status-passed">partial</td>passed</td>
+        <td class="status-passed">passed</td>
         <td>saved</td>
       </tr>
       <tr>
@@ -574,7 +574,7 @@
         <td><code>saved-07</code></td>
         <td>p1</td>
         <td>Quick-site add and edit</td>
-        <td class="status-passed">partial</td>passed</td>
+        <td class="status-passed">passed</td>
         <td>saved</td>
       </tr>
       <tr>
@@ -1217,14 +1217,14 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/read-later-cold-persistence.jpeg</code><br>The controlled Slow link remained in saved items after a force-stop relaunch.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/read-later-cleanup.jpeg</code><br>Removing the read-later item left the independent QA bookmark intact.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>saved-03</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>saved-03</code> <span class="status-passed">passed</span></h3>
+        <p>Imported a controlled Netscape file through the authorized file://docs picker URI. Two unique HTTP(S) records were retained; the duplicate, javascript link, and file link were rejected. Reimport kept the total at four, picker cancellation returned safely, and QA-created records and files were removed.</p>
+        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-import-complex-results.json</code><br>The bookmark list retained exactly two unique valid records from the controlled complex fixture.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-reimport-deduplicated.json</code><br>Reimporting the same file preserved the four-record total without duplicates.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-import-cancelled.jpeg</code><br>Cancelling the native file picker returned safely to the settings page.</li><li><strong>text</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-import-fixture.html</code><br>Controlled Netscape fixture with valid, duplicate, unsafe-scheme, reordered-attribute, entity, and tag cases.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>saved-04</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>saved-04</code> <span class="status-passed">passed</span></h3>
+        <p>Exported four controlled bookmarks to the native picker, pulled the resulting Netscape HTML from the device, and confirmed titles, entity-encoded URLs, and TAGS alpha,beta. Reimport preserved the four records without overwrite or duplication; imported fixtures and the exported device file were cleaned.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-export-download-dir.jpeg</code><br>The native export picker targeted the public Download directory.</li><li><strong>text</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-export-roundtrip.html</code><br>Exported Netscape HTML pulled from the physical device, including encoded entities and normalized tags.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-export-reimport-preserved.jpeg</code><br>Reimporting the exported file preserved four bookmarks without duplicates.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/bookmark-qa-cleaned.jpeg</code><br>QA-created imported bookmarks were removed while the independent QA Fast record remained.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>saved-05</code> <span class="status-passed">passed</span></h3>
@@ -1468,8 +1468,8 @@
       </section>
       <section class="case-result">
         <h3><code>release-01</code> <span class="status-partial">partial</span></h3>
-        <p>Current physical-device source is 002315d0a214. Unit tests, canonical debug-profile assembly, archive integrity validation, in-place install, and current keyboard regression passed. Final AppGallery artifact is pending remaining QA.</p>
-        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-002315d-build.json</code><br>The 002315d0a214 candidate passed unit tests, canonical build checks, archive integrity, in-place installation, and keyboard acceptance.</li></ul>
+        <p>Current physical-device source is 09233e77ee00. Unit tests, canonical debug-profile assembly, archive and signature integrity, in-place install, keyboard regression, and bookmark-transfer regression passed. Final AppGallery artifact is pending remaining QA.</p>
+        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-09233e7-build.json</code><br>The 09233e77ee00 candidate passed unit tests, canonical build checks, archive and signature integrity, in-place installation, keyboard acceptance, and bookmark-transfer acceptance.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>release-02</code> <span class="status-blocked">blocked</span></h3>

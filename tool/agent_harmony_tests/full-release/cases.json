@@ -3854,9 +3854,9 @@
     },
     "appBuild": {
       "version": "1.0.1 (1000001); HEAD-equivalent physical-device candidate",
-      "sourceSha": "002315d0a2148de00eb41360858bf311864a9881",
+      "sourceSha": "09233e77ee000f6978217e20bfbb1875d371e1ef",
       "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "61d78a8c91895074c5a40ea47fd51483213efb4daa7a4849f3a0dcce3ba8bb77",
+      "sha256": "dc151dfa9e6268710fba685a6fbf6a29326af251e389d23e70d0040d2f5cf80c",
       "signing": "debug profile for physical-device QA; AppGallery dis profile validated separately"
     },
     "results": [
@@ -4656,15 +4656,57 @@
       },
       {
         "caseId": "saved-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Imported a controlled Netscape file through the authorized file://docs picker URI. Two unique HTTP(S) records were retained; the duplicate, javascript link, and file link were rejected. Reimport kept the total at four, picker cancellation returned safely, and QA-created records and files were removed.",
+        "evidence": [
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-import-complex-results.json",
+            "summary": "The bookmark list retained exactly two unique valid records from the controlled complex fixture."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-reimport-deduplicated.json",
+            "summary": "Reimporting the same file preserved the four-record total without duplicates."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-import-cancelled.jpeg",
+            "summary": "Cancelling the native file picker returned safely to the settings page."
+          },
+          {
+            "type": "text",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-import-fixture.html",
+            "summary": "Controlled Netscape fixture with valid, duplicate, unsafe-scheme, reordered-attribute, entity, and tag cases."
+          }
+        ]
       },
       {
         "caseId": "saved-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Exported four controlled bookmarks to the native picker, pulled the resulting Netscape HTML from the device, and confirmed titles, entity-encoded URLs, and TAGS alpha,beta. Reimport preserved the four records without overwrite or duplication; imported fixtures and the exported device file were cleaned.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-export-download-dir.jpeg",
+            "summary": "The native export picker targeted the public Download directory."
+          },
+          {
+            "type": "text",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-export-roundtrip.html",
+            "summary": "Exported Netscape HTML pulled from the physical device, including encoded entities and normalized tags."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-export-reimport-preserved.jpeg",
+            "summary": "Reimporting the exported file preserved four bookmarks without duplicates."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/bookmark-qa-cleaned.jpeg",
+            "summary": "QA-created imported bookmarks were removed while the independent QA Fast record remained."
+          }
+        ]
       },
       {
         "caseId": "saved-05",
@@ -5183,12 +5225,12 @@
       {
         "caseId": "release-01",
         "status": "partial",
-        "notes": "Current physical-device source is 002315d0a214. Unit tests, canonical debug-profile assembly, archive integrity validation, in-place install, and current keyboard regression passed. Final AppGallery artifact is pending remaining QA.",
+        "notes": "Current physical-device source is 09233e77ee00. Unit tests, canonical debug-profile assembly, archive and signature integrity, in-place install, keyboard regression, and bookmark-transfer regression passed. Final AppGallery artifact is pending remaining QA.",
         "evidence": [
           {
             "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-002315d-build.json",
-            "summary": "The 002315d0a214 candidate passed unit tests, canonical build checks, archive integrity, in-place installation, and keyboard acceptance."
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-09233e7-build.json",
+            "summary": "The 09233e77ee00 candidate passed unit tests, canonical build checks, archive and signature integrity, in-place installation, keyboard acceptance, and bookmark-transfer acceptance."
           }
         ]
       },
