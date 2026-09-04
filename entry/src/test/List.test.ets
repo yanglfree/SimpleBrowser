@@ -29,6 +29,7 @@ import browserReportedBugsTest from './BrowserReportedBugs.test';
 import readerModeRegressionTest from './ReaderModeRegression.test';
 import readerExtractionModelsTest from './ReaderExtractionModels.test';
 import longScreenshotServiceTest from './LongScreenshotService.test';
+import bookmarkTransferServiceTest from './BookmarkTransferService.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -62,4 +63,5 @@ export default function testsuite(): void {
   readerModeRegressionTest();
   readerExtractionModelsTest();
   longScreenshotServiceTest();
+  bookmarkTransferServiceTest();
 }
