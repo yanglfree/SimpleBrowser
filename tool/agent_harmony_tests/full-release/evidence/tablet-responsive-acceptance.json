@@ -1,0 +1,16 @@
+{
+  "sourceSha": "b100501b97cf5ed5a54a0b23246a89b1a8f00512",
+  "device": "Huawei MatePad Pro WEB-W00",
+  "results": {
+    "landscapeWideChrome": "passed",
+    "constrainedSplitWindow": "passed",
+    "splitArticleWorkspace": "passed",
+    "compactReaderAndNoteSwitching": "passed",
+    "desktopTabDragReorder": "passed",
+    "tabPinAndUnpin": "passed",
+    "multipleAppWindows": "passed",
+    "externalKeyboardShortcuts": "passed",
+    "crossAppDropUnsupportedPayloadIgnored": "passed",
+    "crossAppSupportedPayload": "not observed"
+  }
+}

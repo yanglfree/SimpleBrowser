@@ -1,0 +1,29 @@
+{
+  "sourceSha": "b100501b97cf5ed5a54a0b23246a89b1a8f00512",
+  "device": {
+    "model": "Huawei MatePad Pro WEB-W00",
+    "runtime": "HarmonyOS 6.1.0",
+    "orientation": "landscape",
+    "resolution": "2880x1920"
+  },
+  "localVerification": {
+    "arktsSuite": "passed",
+    "assembleHap": "passed",
+    "physicalOverwriteInstall": "passed"
+  },
+  "ci": {
+    "acceptedRun": 33885202323,
+    "signedArtifactsRun": 33885519943,
+    "status": "passed"
+  },
+  "specifiedDeviceRelease": {
+    "releaseId": "d4b41106138466ecf660ebd4c9d5a7d3ddb3795ae9217b6874fd38da9d1fc617",
+    "build": 1000005,
+    "hapSha256": "2b45fbdb809992bed729a792e8d4f70ddb5c5050403e117d50514f60fb37411a",
+    "getHeadRangeAndChecksum": "passed",
+    "systemInstallPrompt": "passed",
+    "physicalOverwriteInstall": "passed",
+    "coldLaunch": "passed",
+    "articleDataPreserved": true
+  }
+}

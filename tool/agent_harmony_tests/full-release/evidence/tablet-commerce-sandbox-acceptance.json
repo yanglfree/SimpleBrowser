@@ -1,0 +1,17 @@
+{
+  "device": "Huawei MatePad Pro WEB-W00",
+  "environment": "Huawei AppGallery sandbox",
+  "results": {
+    "monthlyProductAndSandboxCashier": "passed without final biometric purchase",
+    "yearlyPurchase": "passed",
+    "yearlyColdLaunchEntitlement": "passed",
+    "yearlyRestoreAfterDataClear": "passed",
+    "yearlySubscriptionCancellation": "passed",
+    "yearlyFullRefund": "passed",
+    "refundRevokedEntitlement": "passed after server fix",
+    "refundRestoreDidNotRegrant": "passed",
+    "lifetimePurchase": "passed",
+    "lifetimeColdLaunchEntitlement": "passed"
+  },
+  "privacy": "Order identifiers, purchase tokens, account data and biometric details are intentionally excluded."
+}

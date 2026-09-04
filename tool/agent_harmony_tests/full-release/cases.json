@@ -7,7 +7,7 @@
   "coverageAreas": [
     {
       "title": "Startup, consent and onboarding",
-      "status": "partial",
+      "status": "passed",
       "caseIds": [
         "startup-01",
         "startup-02",
@@ -17,7 +17,7 @@
         "startup-06",
         "startup-07"
       ],
-      "notes": "passed: 2, not-run: 5"
+      "notes": "passed: 7"
     },
     {
       "title": "Address, navigation and page tools",
@@ -56,7 +56,7 @@
         "tabs-09",
         "tabs-10"
       ],
-      "notes": "passed: 8, partial: 1, not-run: 1"
+      "notes": "passed: 9, partial: 1"
     },
     {
       "title": "Content blocking and site controls",
@@ -85,7 +85,7 @@
     },
     {
       "title": "Offline library, annotations and export",
-      "status": "blocked",
+      "status": "passed",
       "caseIds": [
         "articles-01",
         "articles-02",
@@ -100,7 +100,7 @@
         "articles-11",
         "articles-12"
       ],
-      "notes": "passed: 2, blocked: 10"
+      "notes": "passed: 12"
     },
     {
       "title": "Bookmarks, history and start page",
@@ -117,7 +117,7 @@
         "saved-09",
         "saved-10"
       ],
-      "notes": "passed: 9, not-run: 1"
+      "notes": "passed: 9, partial: 1"
     },
     {
       "title": "Downloads and native file operations",
@@ -134,7 +134,7 @@
     },
     {
       "title": "Privacy data and site permissions",
-      "status": "partial",
+      "status": "passed",
       "caseIds": [
         "permissions-01",
         "permissions-02",
@@ -144,11 +144,11 @@
         "permissions-06",
         "permissions-07"
       ],
-      "notes": "passed: 6, not-run: 1"
+      "notes": "passed: 7"
     },
     {
       "title": "External entry, sharing and defaults",
-      "status": "blocked",
+      "status": "partial",
       "caseIds": [
         "integration-01",
         "integration-02",
@@ -159,7 +159,7 @@
         "integration-07",
         "integration-08"
       ],
-      "notes": "passed: 7, blocked: 1"
+      "notes": "passed: 7, partial: 1"
     },
     {
       "title": "Settings and appearance",
@@ -187,7 +187,7 @@
         "commerce-08",
         "commerce-09"
       ],
-      "notes": "passed: 2, blocked: 7"
+      "notes": "passed: 5, partial: 3, blocked: 1"
     },
     {
       "title": "Phone, tablet, windows and accessibility",
@@ -201,7 +201,7 @@
         "responsive-06",
         "responsive-07"
       ],
-      "notes": "passed: 1, partial: 1, blocked: 5"
+      "notes": "passed: 5, partial: 1, blocked: 1"
     },
     {
       "title": "Release and AGC gates",
@@ -213,7 +213,7 @@
         "release-04",
         "release-05"
       ],
-      "notes": "partial: 2, blocked: 3"
+      "notes": "passed: 2, partial: 1, blocked: 2"
     }
   ],
   "cases": [
@@ -3853,16 +3853,18 @@
   "lastRun": {
     "date": "2026-09-04",
     "target": {
-      "name": "Huawei TLR-AL00",
-      "id": "4UQ9K25530058677",
-      "runtime": "OpenHarmony-6.1.1.120"
+      "name": "Huawei MatePad Pro WEB-W00",
+      "id": "192.168.43.22:43759",
+      "runtime": "HarmonyOS 6.1.0",
+      "orientation": "landscape",
+      "resolution": "2880x1920"
     },
     "appBuild": {
-      "version": "1.0.1 (1000001); a7bc961 physical-device candidate",
-      "sourceSha": "a7bc9618c5768a5c17d3e5f1942b9994c82d790e",
-      "hapPath": "output/full-device-qa-20260904/candidate-a7bc961/ZhuoBrowser-HarmonyOS-1.0.1+1000001-debug.hap",
-      "sha256": "c013cd05c8f1b9e15cbf8bd0163276102aa3da90f6b193862db86fbb26a7a6ba",
-      "signing": "canonical debug profile for physical-device QA; paired AppGallery APP verified with SHA-256 5f75d4b0d2738172199d959b7d67c2c913965e4a7c808903bbcf17a2de7f6629"
+      "version": "1.0.1 (1000005); b100501 product-code candidate",
+      "sourceSha": "b100501b97cf5ed5a54a0b23246a89b1a8f00512",
+      "hapPath": "specified-device release d4b41106138466ecf660ebd4c9d5a7d3ddb3795ae9217b6874fd38da9d1fc617/install.hap",
+      "sha256": "2b45fbdb809992bed729a792e8d4f70ddb5c5050403e117d50514f60fb37411a",
+      "signing": "canonical internaltesting profile; CI 33885519943; stable-manifest system installation verified"
     },
     "results": [
       {
@@ -3896,39 +3898,88 @@
       },
       {
         "caseId": "startup-03",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
-      },
-      {
-        "caseId": "startup-04",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
-      },
-      {
-        "caseId": "startup-05",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
-      },
-      {
-        "caseId": "startup-06",
-        "status": "partial",
-        "notes": "Source audit confirms that remote rule updates, favicon resolution, entitlement synchronization and external-open handling do not start until privacy consent and onboarding are complete, while telemetry writes remain disabled before opt-in. A fresh-data physical-device request and app-event trace is still required.",
+        "status": "passed",
+        "notes": "Fresh-data tablet launch blocked browsing and keyboard shortcuts behind consent until the user completed the required choice.",
         "evidence": [
           {
             "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/pre-consent-source-audit-a7bc961.json",
-            "summary": "Audited all pre-consent startup gates and network-capable service entry points in a7bc961."
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-acceptance.json",
+            "summary": "Sanitized fresh-data tablet acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-consent.png",
+            "summary": "Fresh landscape tablet displayed the blocking first-use consent gate."
+          }
+        ]
+      },
+      {
+        "caseId": "startup-04",
+        "status": "passed",
+        "notes": "Privacy policy and terms were opened from the first-use gate, scrolled through, and returned to the gate without bypassing consent.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-acceptance.json",
+            "summary": "Sanitized fresh-data tablet acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-consent.png",
+            "summary": "Fresh landscape tablet displayed the blocking first-use consent gate."
+          }
+        ]
+      },
+      {
+        "caseId": "startup-05",
+        "status": "passed",
+        "notes": "Consent acceptance opened onboarding and persisted across a cold relaunch.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-acceptance.json",
+            "summary": "Sanitized fresh-data tablet acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-consent.png",
+            "summary": "Fresh landscape tablet displayed the blocking first-use consent gate."
+          }
+        ]
+      },
+      {
+        "caseId": "startup-06",
+        "status": "passed",
+        "notes": "A fresh-data service trace observed no nonessential pre-consent requests; source gates and telemetry opt-in tests passed.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-acceptance.json",
+            "summary": "Sanitized fresh-data tablet acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-consent.png",
+            "summary": "Fresh landscape tablet displayed the blocking first-use consent gate."
           }
         ]
       },
       {
         "caseId": "startup-07",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Both complete-onboarding and skip-onboarding paths reached Home and persisted after cold relaunch.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-acceptance.json",
+            "summary": "Sanitized fresh-data tablet acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-consent.png",
+            "summary": "Fresh landscape tablet displayed the blocking first-use consent gate."
+          }
+        ]
       },
       {
         "caseId": "navigation-01",
@@ -4400,53 +4451,18 @@
       },
       {
         "caseId": "tabs-10",
-        "status": "partial",
-        "notes": "The candidate initially failed shortcuts when focus was on the root home surface, then again after ArkWeb consumed page-focused events. Default root focus and explicit ArkWeb forwarding were added. On the rebuilt candidate, Ctrl+L, Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+R, Ctrl+F, and Ctrl+S reached the expected browser commands. Find returned 1/1, the Find overlay suppressed Ctrl+T, and Save Article routed to the Pro gate. Privacy-consent modal suppression remains pending destructive fresh-install QA.",
+        "status": "passed",
+        "notes": "On the landscape tablet, Ctrl+L, Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+R, Ctrl+F and Ctrl+S reached the expected commands. The fresh consent gate suppressed keyboard navigation before acceptance.",
         "evidence": [
           {
-            "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-fixed-ctrl-l.jpeg",
-            "summary": "Ctrl+L opened the address sheet from the home surface after default-focus repair."
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-responsive-acceptance.json",
+            "summary": "Sanitized tablet keyboard and responsive acceptance record."
           },
           {
             "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-web-ctrl-l-fixed.json",
-            "summary": "Ctrl+L opened the address sheet while ArkWeb held page focus after event forwarding repair."
-          },
-          {
-            "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-web-ctrl-tab-fixed.json",
-            "summary": "Ctrl+Tab advanced from the active ArkWeb tab."
-          },
-          {
-            "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-web-ctrl-shift-tab-fixed.json",
-            "summary": "Ctrl+Shift+Tab returned to the prior ArkWeb tab."
-          },
-          {
-            "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-reload-before.jpeg",
-            "summary": "The controlled page displayed Reload count 1 before Ctrl+R."
-          },
-          {
-            "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-reload-after.jpeg",
-            "summary": "The controlled page request count advanced after Ctrl+R."
-          },
-          {
-            "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-find-match.jpeg",
-            "summary": "Ctrl+F opened Find and the unique marker returned 1/1."
-          },
-          {
-            "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-find-blocks-new-tab.json",
-            "summary": "Ctrl+T during the Find overlay left the tab count at nine."
-          },
-          {
-            "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/keyboard-save-shortcut.jpeg",
-            "summary": "Ctrl+S routed Save Article to the Pro purchase gate."
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-fresh-acceptance.json",
+            "summary": "Consent-modal shortcut suppression passed on fresh data."
           }
         ]
       },
@@ -4689,15 +4705,37 @@
       },
       {
         "caseId": "articles-01",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Saved controlled pages from in-app and external entry paths; completed records appeared in the local library.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-acceptance.json",
+            "summary": "Sanitized tablet article acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-search.jpeg",
+            "summary": "Landscape tablet library matched the controlled full-text marker."
+          }
+        ]
       },
       {
         "caseId": "articles-02",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "A controlled unreachable capture entered retry state; retry recovered after the source became available.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-acceptance.json",
+            "summary": "Sanitized tablet article acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-search.jpeg",
+            "summary": "Landscape tablet library matched the controlled full-text marker."
+          }
+        ]
       },
       {
         "caseId": "articles-03",
@@ -4728,45 +4766,122 @@
       },
       {
         "caseId": "articles-04",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Full-text search matched unique body and note text; tag and topic filters returned the expected record.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-acceptance.json",
+            "summary": "Sanitized tablet article acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-search.jpeg",
+            "summary": "Landscape tablet library matched the controlled full-text marker."
+          }
+        ]
       },
       {
         "caseId": "articles-05",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Tag, topic, archive and unarchive state updated and archive state survived a cold relaunch.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-acceptance.json",
+            "summary": "Sanitized tablet article acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-search.jpeg",
+            "summary": "Landscape tablet library matched the controlled full-text marker."
+          }
+        ]
       },
       {
         "caseId": "articles-06",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Added a highlight from a real text selection, located it, and deleted it.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-acceptance.json",
+            "summary": "Sanitized tablet article acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-search.jpeg",
+            "summary": "Landscape tablet library matched the controlled full-text marker."
+          }
+        ]
       },
       {
         "caseId": "articles-07",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Added, edited and deleted a note; note content participated in full-text search.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-acceptance.json",
+            "summary": "Sanitized tablet article acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-search.jpeg",
+            "summary": "Landscape tablet library matched the controlled full-text marker."
+          }
+        ]
       },
       {
         "caseId": "articles-08",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Exported standalone HTML through the system picker and verified title, body and links in the saved file.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-acceptance.json",
+            "summary": "Sanitized tablet article acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-search.jpeg",
+            "summary": "Landscape tablet library matched the controlled full-text marker."
+          }
+        ]
       },
       {
         "caseId": "articles-09",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Exported Markdown through the system picker and verified title, body, source URL, note, tag and topic.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-acceptance.json",
+            "summary": "Sanitized tablet article acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-search.jpeg",
+            "summary": "Landscape tablet library matched the controlled full-text marker."
+          }
+        ]
       },
       {
         "caseId": "articles-10",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Exercised delete cancellation and confirmation; only the selected QA record was removed.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-acceptance.json",
+            "summary": "Sanitized tablet article acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-search.jpeg",
+            "summary": "Landscape tablet library matched the controlled full-text marker."
+          }
+        ]
       },
       {
         "caseId": "articles-11",
@@ -4797,9 +4912,20 @@
       },
       {
         "caseId": "articles-12",
-        "status": "blocked",
-        "notes": "Requires an active Pro sandbox entitlement before the offline article library can be exercised.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Article records created on the earlier candidate remained readable through b100501 debug and build 1000005 specified-device overwrite installs.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-acceptance.json",
+            "summary": "Sanitized tablet article acceptance record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-article-search.jpeg",
+            "summary": "Landscape tablet library matched the controlled full-text marker."
+          }
+        ]
       },
       {
         "caseId": "saved-01",
@@ -5255,9 +5381,20 @@
       },
       {
         "caseId": "permissions-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "passed",
+        "notes": "History-only Today clearing removed current-day entries after b100501 while preserving the article library. The all-category all-time flow also completed without deleting articles.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/clear-browsing-data-b100501.json",
+            "summary": "Sanitized b100501 clear-data regression record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-clear-history-selection.jpeg",
+            "summary": "Only History was selected with the Today range before the corrected clear action."
+          }
+        ]
       },
       {
         "caseId": "permissions-07",
@@ -5412,9 +5549,15 @@
       },
       {
         "caseId": "integration-08",
-        "status": "blocked",
-        "notes": "The connected phone does not expose a supported multi-window drag-and-drop source for this case. Validation requires a supported tablet, desktop-style window, or external UDMF drag source; phone evidence cannot substitute.",
-        "evidence": []
+        "status": "partial",
+        "notes": "A real browser/ZhuoBrowser split-screen source and target were established. Unsupported payloads were ignored safely, but HDC gesture injection did not produce a supported UDMF hyperlink/plain-text payload, so the supported-content assertion remains unobserved.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-responsive-acceptance.json",
+            "summary": "Records the real split-window setup and the remaining supported-payload gap."
+          }
+        ]
       },
       {
         "caseId": "appearance-01",
@@ -5522,44 +5665,85 @@
       },
       {
         "caseId": "commerce-03",
-        "status": "blocked",
-        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
-        "evidence": []
+        "status": "partial",
+        "notes": "The monthly product reached Huawei AppGallery sandbox cashier and the cashier declared that no charge would occur. Final biometric confirmation was not completed for the monthly SKU.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-commerce-sandbox-acceptance.json",
+            "summary": "Sanitized sandbox lifecycle record; provider identifiers are excluded."
+          }
+        ]
       },
       {
         "caseId": "commerce-04",
-        "status": "blocked",
-        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
-        "evidence": []
+        "status": "passed",
+        "notes": "The yearly sandbox subscription completed after provider biometric confirmation, unlocked only the verified Pro entitlement, survived cold launch, and exposed subscription management.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-commerce-sandbox-acceptance.json",
+            "summary": "Sanitized yearly sandbox purchase record."
+          }
+        ]
       },
       {
         "caseId": "commerce-05",
-        "status": "blocked",
-        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
-        "evidence": []
+        "status": "passed",
+        "notes": "The lifetime non-consumable sandbox purchase completed, unlocked Pro without a fabricated expiry, and remained active after cold launch and the build 1000005 overwrite install.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-commerce-sandbox-acceptance.json",
+            "summary": "Sanitized lifetime sandbox purchase record."
+          }
+        ]
       },
       {
         "caseId": "commerce-06",
-        "status": "blocked",
-        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
-        "evidence": []
+        "status": "passed",
+        "notes": "After clearing app data, restore re-established the legitimate yearly entitlement only after server verification. Existing pending-purchase recovery tests and repeated relaunches showed no duplicate delivery or late grant.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-commerce-sandbox-acceptance.json",
+            "summary": "Sanitized restore and recovery record."
+          },
+          {
+            "type": "command",
+            "path": "hvigorw test",
+            "summary": "Pending purchase recovery and duplicate-delivery coverage passed."
+          }
+        ]
       },
       {
         "caseId": "commerce-07",
-        "status": "blocked",
-        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Cached lifetime access remained usable across cold launch, but a controlled backend-unreachable restore with a fresh/expired cache was not executed on this TCP-connected tablet.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-commerce-sandbox-acceptance.json",
+            "summary": "Cached entitlement cold-launch evidence."
+          }
+        ]
       },
       {
         "caseId": "commerce-08",
-        "status": "blocked",
-        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Yearly cancellation and full refund completed in provider sandbox. A server defect that retained refunded access was fixed and deployed; device cold launch returned to Free and restore did not regrant. Automated renewal and natural expiry were not observed.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-commerce-sandbox-acceptance.json",
+            "summary": "Sanitized cancellation, refund and post-refund restore record."
+          }
+        ]
       },
       {
         "caseId": "commerce-09",
         "status": "blocked",
-        "notes": "Awaiting explicit authorization for sandbox purchase and lifecycle mutations.",
+        "notes": "A second isolated Huawei sandbox account was not available. Data-clear restore and overwrite installation passed for the owning account, but cross-account non-leakage cannot be claimed.",
         "evidence": []
       },
       {
@@ -5576,27 +5760,61 @@
       },
       {
         "caseId": "responsive-02",
-        "status": "blocked",
-        "notes": "No tablet or constrained-window target is currently connected.",
-        "evidence": []
+        "status": "passed",
+        "notes": "The app used wide tablet chrome at 2880x1920 and adapted to a constrained half-width split window with all tested controls reachable.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-responsive-acceptance.json",
+            "summary": "Sanitized tablet and constrained-window record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-split-article.jpeg",
+            "summary": "Article workspace remained usable in the constrained window."
+          }
+        ]
       },
       {
         "caseId": "responsive-03",
-        "status": "blocked",
-        "notes": "No large-screen target is currently connected for split reading workspace verification.",
-        "evidence": []
+        "status": "passed",
+        "notes": "The landscape tablet showed the split article workspace; constrained layout preserved reader and note controls through compact switches.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-responsive-acceptance.json",
+            "summary": "Sanitized split-reading workspace record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-split-article.jpeg",
+            "summary": "Real half-width article workspace."
+          }
+        ]
       },
       {
         "caseId": "responsive-04",
-        "status": "blocked",
-        "notes": "No desktop-style large-screen target is currently connected.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Mouse/gesture tab reordering changed tab order, and right-click pin/unpin moved the tab into and out of the compact pinned group.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-responsive-acceptance.json",
+            "summary": "Sanitized desktop-style tab interaction record."
+          }
+        ]
       },
       {
         "caseId": "responsive-05",
-        "status": "blocked",
-        "notes": "No multi-window-capable test setup is currently available.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Moving a QA tab to a new window created two independent ZhuoBrowser missions; the original and new window remained available.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-responsive-acceptance.json",
+            "summary": "Sanitized multiple-window record."
+          }
+        ]
       },
       {
         "caseId": "responsive-06",
@@ -5628,42 +5846,42 @@
       },
       {
         "caseId": "release-01",
-        "status": "partial",
-        "notes": "Current physical-device source is a7bc9618c576. The complete ArkTS unit suite and 64 Node tests passed. Canonical debug and AppGallery artifacts passed archive integrity, HAP signature/profile, certificate, IAP capability and SHA-256 checks. The debug candidate installed in place, preserved the existing session, and passed the telemetry regression. Final destructive, purchase, form-factor, specified-device, AGC association, upload and submission gates remain incomplete.",
+        "status": "passed",
+        "notes": "Product code source b100501 passed the ArkTS suite and local build, was installed on the physical tablet, and passed the corrected clear-history regression. CI accepted the exact SHA and produced signed artifacts.",
         "evidence": [
           {
             "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-a7bc961-validation.json",
-            "summary": "Pinned source, device HAP, AppGallery APP, signing and targeted device regression evidence for a7bc961."
-          },
-          {
-            "type": "command",
-            "path": "hvigorw test",
-            "summary": "The complete ArkTS unit suite passed for the a7bc961 candidate."
-          },
-          {
-            "type": "command",
-            "path": "node --test",
-            "summary": "All 64 Node tests passed for the a7bc961 candidate."
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-b100501-validation.json",
+            "summary": "Pinned b100501 local, CI and physical-device verification record."
           }
         ]
       },
       {
         "caseId": "release-02",
-        "status": "partial",
-        "notes": "The a7bc961 candidate built successfully as an offline 1.0.1 (1000002) internaltesting HAP with IAP capability and an officially verified signed manifest. It cannot be promoted until the source is pushed and accepted by GitHub CI; no portal upload, pointer change or portal installation was performed.",
+        "status": "passed",
+        "notes": "CI published immutable build 1000005 for b100501. Live GET, HEAD, byte-range and checksums passed. The system install prompt consumed the stable manifest, overwrite-installed build 1000005, cold-launched it and preserved article data.",
         "evidence": [
           {
             "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/device-release-a7bc961-validation.json",
-            "summary": "Canonical internaltesting signing, HAP and signed-manifest hashes for the unpublished a7bc961 device candidate."
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-b100501-validation.json",
+            "summary": "Specified-device publication and physical installation record."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-portal-install-prompt.jpeg",
+            "summary": "System confirmed installation from the product portal domain."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-portal-cold-launch.jpeg",
+            "summary": "Build 1000005 cold-launched after portal installation."
           }
         ]
       },
       {
         "caseId": "release-03",
         "status": "partial",
-        "notes": "AGC draft metadata and five phone screenshots were previously saved and read back. The a7bc961 privacy policy was published to the configured public URL and its content and security headers were read back from the custom domain. The privacy data flow, sensitive-permission explanations and age-rating questionnaire notes are prepared. Package association, console declarations, tablet/PC assets, copyright or authorization material, filing proof and verified review contact remain incomplete.",
+        "notes": "AGC draft metadata and five phone screenshots were saved and read back. The public privacy policy was published and verified on the custom domain. Current landscape-tablet device evidence is available for asset preparation. Privacy-label, sensitive-permission and age-rating answers are prepared. Package association, console declarations, tablet/PC asset selection, copyright or authorization material, filing proof and verified review contact remain incomplete.",
         "evidence": [
           {
             "type": "screenshot",
@@ -5673,12 +5891,12 @@
           {
             "type": "document",
             "path": "app-store-assets/metadata/agc-release-readiness.md",
-            "summary": "Implementation-backed privacy, permission, age-rating and release-material matrix for a7bc961."
+            "summary": "Implementation-backed privacy, permission, age-rating and release-material matrix."
           },
           {
             "type": "command",
             "path": "tool/agent_harmony_tests/full-release/evidence/public-privacy-policy-a7bc961.json",
-            "summary": "Cloudflare Worker version and custom-domain HTTP/content checks for the published a7bc961 privacy policy."
+            "summary": "Cloudflare Worker version and custom-domain HTTP/content checks for the published current privacy policy."
           }
         ]
       },
@@ -5699,34 +5917,29 @@
       {
         "command": "hvigorw test",
         "status": "passed",
-        "summary": "Complete ArkTS unit suite passed for source a7bc961."
+        "summary": "Complete ArkTS suite passed for b100501, including corrected history cutoff behavior."
       },
       {
-        "command": "node --test scripts/*.test.mjs scripts/mobile_cicd/*.test.mjs tools/reader-mode/*.test.mjs",
+        "command": "hvigorw assembleHap",
         "status": "passed",
-        "summary": "All 64 Node tests passed for source a7bc961."
+        "summary": "Canonical local HAP built successfully for b100501."
       },
       {
-        "command": "node scripts/mobile_cicd/signing-source.mjs assert-selected",
+        "command": "GitHub CI 33885202323",
         "status": "passed",
-        "summary": "Physical-device and AppGallery builds used their canonical signing sources."
+        "summary": "CI accepted exact source b100501."
       },
       {
-        "command": "hvigorw assembleHap -p buildMode=release",
+        "command": "GitHub signed artifacts 33885519943",
         "status": "passed",
-        "summary": "Canonical debug HAP built and its signature, embedded profile and SHA-256 were verified."
+        "summary": "Signed store artifacts and specified-device publication passed."
       },
       {
-        "command": "scripts/mobile_cicd/build_harmony_artifacts.sh output/agc-candidate-a7bc961",
+        "command": "specified-device build 1000005",
         "status": "passed",
-        "summary": "AppGallery HAP and APP archive passed signature, profile, certificate, IAP capability, embedded-byte and SHA-256 checks."
-      },
-      {
-        "command": "hdc install -r ZhuoBrowser-HarmonyOS-1.0.1+1000001-debug.hap",
-        "status": "passed",
-        "summary": "Candidate installed in place on Huawei TLR-AL00 and preserved the existing two-tab session."
+        "summary": "Live checksums, GET, HEAD, Range, system installation, cold launch and data preservation passed."
       }
     ],
-    "notes": "Physical-device acceptance is pinned to source a7bc961. Prior case evidence remains applicable because the only product-code delta removes page-location fields from optional local telemetry; that changed path was re-run on device. Destructive fresh-data cases, purchase/restore cases, form-factor hardware coverage, specified-device delivery, and AGC mutation gates remain explicit."
+    "notes": "Physical tablet acceptance is pinned to b100501 product code. Later report-only commits do not change the executable. Remaining evidence gaps are monthly final purchase, controlled commerce outage, second-account isolation, supported UDMF cross-app drop, phone landscape rotation, aged-session/dated-history fixtures, and physical foldable posture. AGC upload and submission remain gated."
   }
 }

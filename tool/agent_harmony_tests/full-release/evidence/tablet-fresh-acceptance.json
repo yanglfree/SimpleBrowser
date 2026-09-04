@@ -1,0 +1,15 @@
+{
+  "sourceSha": "9b557cf4f82bd031cd1c2ae207d85086a10f4ddb",
+  "device": "Huawei MatePad Pro WEB-W00",
+  "results": {
+    "consentBlockedBrowsing": "passed",
+    "privacyDocumentRead": "passed",
+    "termsDocumentRead": "passed",
+    "consentPersisted": "passed",
+    "preConsentServiceTrace": "no nonessential request observed",
+    "onboardingCompletedAndPersisted": "passed",
+    "onboardingSkippedAndPersisted": "passed",
+    "consentModalKeyboardSuppression": "passed"
+  },
+  "note": "Fresh-data execution preceded b100501. The only later product-code change corrected browsing-history deletion direction and local Today cutoff."
+}

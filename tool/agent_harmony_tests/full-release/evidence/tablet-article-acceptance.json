@@ -1,0 +1,20 @@
+{
+  "sourceSha": "9b557cf4f82bd031cd1c2ae207d85086a10f4ddb",
+  "device": "Huawei MatePad Pro WEB-W00",
+  "results": {
+    "saveFromMenuAndExternalEntry": "passed",
+    "captureFailureAndRetry": "passed",
+    "offlineColdOpen": "passed",
+    "bodyNoteTagAndTopicSearch": "passed",
+    "tagTopicAndArchiveFilters": "passed",
+    "highlightAddLocateDelete": "passed",
+    "noteAddEditDelete": "passed",
+    "htmlExportThroughSystemPicker": "passed",
+    "markdownExportThroughSystemPicker": "passed",
+    "deleteCancelAndConfirm": "passed",
+    "nonProOwnedDataReadAndExport": "passed",
+    "nonProNewSaveGated": "passed",
+    "upgradeAndOverwriteInstallPreservedLibrary": "passed"
+  },
+  "regression": "The library remained readable after b100501 debug and build 1000005 specified-device overwrite installs."
+}
