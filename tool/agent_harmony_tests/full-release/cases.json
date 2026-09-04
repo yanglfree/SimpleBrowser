@@ -5045,13 +5045,23 @@
       },
       {
         "caseId": "integration-01",
-        "status": "partial",
-        "notes": "External HTTP entry was exercised cold and warm with the expected open prompt and no duplicate tab. Shared-text entry was not exercised.",
+        "status": "passed",
+        "notes": "External HTTP entry was exercised cold and warm with the expected open prompt and no duplicate tab. A system sendData Want containing surrounding text and a controlled URL produced the external-open menu; Clean Open created exactly one tab at the extracted URL. Closing it restored the seven-tab session, and its QA history entry was removed.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg",
-            "summary": "External URL handling reached the controlled app entry flow without unsolicited dispatch."
+            "path": "tool/agent_harmony_tests/full-release/evidence/shared-text-entry-prompt.jpeg",
+            "summary": "A system sendData Want containing text and an embedded URL produced the external-open action menu with the supplied title."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/shared-text-entry-opened.jpeg",
+            "summary": "Clean Open loaded the extracted controlled URL in exactly one new tab, taking the session from seven to eight tabs."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/shared-text-entry-cleaned.json",
+            "summary": "After closing the QA tab, the original seven-tab session remained and the QA history entry was removed."
           }
         ]
       },
