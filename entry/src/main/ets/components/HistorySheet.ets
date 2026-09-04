@@ -1,6 +1,6 @@
 import { HistoryEntry, SavedItem } from '../models/BrowserModels';
 import { dayKey } from '../utils/Formatting';
-import { displayHost } from '../utils/UrlUtils';
+import { displayHost, rawHost } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 
 const HISTORY_SWIPE_DISTANCE: number = 26;
@@ -225,6 +225,8 @@ export struct HistorySheet {
               if (saved !== undefined) {
                 this.onEditItem(saved);
               }
+            } else {
+              this.confirmDeleteSite(entry);
             }
           }),
         PanGesture({ direction: PanDirection.Horizontal, distance: HISTORY_SWIPE_DISTANCE })
@@ -246,6 +248,25 @@ export struct HistorySheet {
     if (this.query.trim().length > 0) {
       this.searchResults = this.searchResults.filter((item: HistoryEntry): boolean => item.id !== entry.id);
     }
+  }
+
+  private confirmDeleteSite(entry: HistoryEntry): void {
+    const host: string = rawHost(entry.url);
+    if (host.length === 0) {
+      return;
+    }
+    this.getUIContext().showAlertDialog({
+      title: $r('app.string.history_delete_site_title'),
+      message: $r('app.string.history_delete_site_message', displayHost(entry.url)),
+      primaryButton: {
+        value: $r('app.string.cancel'),
+        action: (): void => {}
+      },
+      secondaryButton: {
+        value: $r('app.string.history_delete_site_confirm'),
+        action: (): void => this.onDeleteSite(host)
+      }
+    });
   }
 
   private restoreScrollOffset(): void {
