@@ -6,6 +6,7 @@ import {
   ReaderExtractionBuckets,
   readerExtractionBuckets
 } from '../models/ReaderExtractionModels';
+import { allowsTelemetryWrite } from './TelemetryPolicy';
 
 const TAG: string = 'TelemetryService';
 const EVENT_DOMAIN: string = 'dolphin_browser';
@@ -13,7 +14,6 @@ const EVENT_DOMAIN: string = 'dolphin_browser';
 interface CrashPayload {
   kind: string;
   name: string;
-  message: string;
 }
 
 interface PageLoadPayload {
@@ -50,12 +50,13 @@ interface ReaderPayload {
  * 1. Nothing leaves the device — events go through hiAppEvent, which the user
  *    can inspect or clear with the system's app-event tooling.
  * 2. No personal data. URLs are stripped to their host, and crash payloads
- *    carry only the exception name and message (no stack pointers, no file
- *    paths).
+ *    carry only the exception category and name.
+ * 3. A private tab suppresses every write, including coarse action events.
  */
 export class TelemetryService {
   private static registered: boolean = false;
   private static enabled: boolean = false;
+  private static privateContext: boolean = false;
   private static consentResolved: boolean = false;
   private static pendingStartupMs: number | undefined = undefined;
 
@@ -70,6 +71,11 @@ export class TelemetryService {
       TelemetryService.writeEvent('startup', payload);
     }
     Logger.info(TAG, `Telemetry ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  /** Called whenever the focused tab changes. Private browsing is a hard stop. */
+  static setPrivateContext(privateContext: boolean): void {
+    TelemetryService.privateContext = privateContext;
   }
 
   static registerCrashObservers(): void {
@@ -141,8 +147,7 @@ export class TelemetryService {
   static reportCrash(name: string, error: Error): void {
     const payload: CrashPayload = {
       kind: name,
-      name: error.name ?? 'Error',
-      message: TelemetryService.trim(error.message, 240)
+      name: error.name ?? 'Error'
     };
     TelemetryService.writeEvent('crash', payload);
   }
@@ -157,7 +162,10 @@ export class TelemetryService {
   }
 
   private static writeEvent(eventName: string, params: Object): void {
-    if (!TelemetryService.enabled) {
+    if (!allowsTelemetryWrite(TelemetryService.enabled, TelemetryService.privateContext)) {
+      if (TelemetryService.enabled && TelemetryService.privateContext) {
+        Logger.info(TAG, `Suppressed ${eventName} in private context`);
+      }
       return;
     }
     const info: hiAppEvent.AppEventInfo = {

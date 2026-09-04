@@ -5208,6 +5208,7 @@ struct Index {
   private syncState(): void {
     this.tabs = this.viewModel.tabs.map((tab: BrowserTab) => cloneTab(tab));
     this.activeTabId = this.viewModel.activeTabId;
+    TelemetryService.setPrivateContext(this.activeTab()?.isPrivate === true);
     this.recentTabs = this.viewModel.recentTabs(RECENT_TAB_LIMIT);
     this.settings = cloneSettings(this.viewModel.settings);
     this.history = this.viewModel.history.map((entry: HistoryEntry) => cloneHistoryEntry(entry));

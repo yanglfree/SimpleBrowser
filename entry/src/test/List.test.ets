@@ -31,6 +31,7 @@ import readerExtractionModelsTest from './ReaderExtractionModels.test';
 import longScreenshotServiceTest from './LongScreenshotService.test';
 import bookmarkTransferServiceTest from './BookmarkTransferService.test';
 import sitePermissionPolicyTest from './SitePermissionPolicy.test';
+import telemetryPolicyTest from './TelemetryPolicy.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -66,4 +67,5 @@ export default function testsuite(): void {
   longScreenshotServiceTest();
   bookmarkTransferServiceTest();
   sitePermissionPolicyTest();
+  telemetryPolicyTest();
 }
