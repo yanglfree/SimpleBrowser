@@ -3858,11 +3858,11 @@
       "runtime": "OpenHarmony-6.1.1.120"
     },
     "appBuild": {
-      "version": "1.0.1 (1000001); 5f0e479 physical-device candidate",
-      "sourceSha": "5f0e4792032da32e9eb71f5ab34c1d63771e3a08",
-      "hapPath": "output/full-device-qa-20260904/candidate-5f0e479-debug.hap",
-      "sha256": "d2c34d226e58611b7e12aacf4545adaad7bdcfd96559ad56a42ac9c5985593a2",
-      "signing": "canonical debug profile for physical-device QA; paired AppGallery APP verified with SHA-256 c9c01ff0cb83a269de8f19b7cf793d84e11c8011d408a570e45f4094b3c12fba"
+      "version": "1.0.1 (1000001); a7bc961 physical-device candidate",
+      "sourceSha": "a7bc9618c5768a5c17d3e5f1942b9994c82d790e",
+      "hapPath": "output/full-device-qa-20260904/candidate-a7bc961/ZhuoBrowser-HarmonyOS-1.0.1+1000001-debug.hap",
+      "sha256": "c013cd05c8f1b9e15cbf8bd0163276102aa3da90f6b193862db86fbb26a7a6ba",
+      "signing": "canonical debug profile for physical-device QA; paired AppGallery APP verified with SHA-256 5f75d4b0d2738172199d959b7d67c2c913965e4a7c808903bbcf17a2de7f6629"
     },
     "results": [
       {
@@ -5244,8 +5244,13 @@
       {
         "caseId": "permissions-07",
         "status": "passed",
-        "notes": "Telemetry defaulted off, enabled and persisted, then disabled and remained off after a cold relaunch. The candidate now applies a centralized private-context gate to every event and excludes free-form exception messages from crash payloads. With telemetry enabled on the physical device, opening History from a private tab produced the explicit suppression trace and no telemetry write path.",
+        "notes": "Telemetry remained opt-in, was enabled from Settings on the a7bc961 physical-device candidate, recorded a normal page-load event locally, and was restored off. Source inspection and the compiled candidate confirm that page-load and reader events no longer contain URL or host fields. The centralized private-context suppression and coarse crash payload behavior remain covered by the prior physical-device evidence and passing unit suite.",
         "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-a7bc961-validation.json",
+            "summary": "The a7bc961 candidate installed in place, preserved the session, completed the opt-in page-load path, and persisted opt-out."
+          },
           {
             "type": "ui-tree",
             "path": "tool/agent_harmony_tests/full-release/evidence/telemetry-private-context.json",
@@ -5606,32 +5611,22 @@
       {
         "caseId": "release-01",
         "status": "partial",
-        "notes": "Current physical-device source is 5f0e4792032d. The complete unit suite and 64 Node tests passed. Canonical debug and AppGallery signing sources, archive integrity, HAP signature/profile, IAP capability, in-place installation, cold session restoration, close-all, soft-limit cleanup, and rapid modal regressions passed. The AppGallery APP is built and verified, but final QA, specified-device promotion, AGC association, upload, and submission remain incomplete.",
+        "notes": "Current physical-device source is a7bc9618c576. The complete ArkTS unit suite and 64 Node tests passed. Canonical debug and AppGallery artifacts passed archive integrity, HAP signature/profile, certificate, IAP capability and SHA-256 checks. The debug candidate installed in place, preserved the existing session, and passed the telemetry regression. Final destructive, purchase, form-factor, specified-device, AGC association, upload and submission gates remain incomplete.",
         "evidence": [
           {
             "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-a7bc961-validation.json",
+            "summary": "Pinned source, device HAP, AppGallery APP, signing and targeted device regression evidence for a7bc961."
+          },
+          {
+            "type": "command",
             "path": "hvigorw test",
-            "summary": "The complete unit suite passed for the 5f0e479 candidate."
+            "summary": "The complete ArkTS unit suite passed for the a7bc961 candidate."
           },
           {
             "type": "command",
             "path": "node --test",
-            "summary": "All 64 Node tests passed for the 5f0e479 candidate."
-          },
-          {
-            "type": "command",
-            "path": "output/full-device-qa-20260904/candidate-5f0e479-debug.hap",
-            "summary": "Canonical debug HAP SHA-256 d2c34d226e58611b7e12aacf4545adaad7bdcfd96559ad56a42ac9c5985593a2 installed successfully."
-          },
-          {
-            "type": "command",
-            "path": "output/agc-candidate-5f0e479/ZhuoBrowser-HarmonyOS-1.0.1+1000001.app",
-            "summary": "Canonical AppGallery APP SHA-256 c9c01ff0cb83a269de8f19b7cf793d84e11c8011d408a570e45f4094b3c12fba verified as app_gallery with IAP enabled."
-          },
-          {
-            "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-5f0e479-cold-session.jpeg",
-            "summary": "The installed 5f0e479 candidate restored the preserved physical-device session."
+            "summary": "All 64 Node tests passed for the a7bc961 candidate."
           }
         ]
       },
@@ -5644,12 +5639,17 @@
       {
         "caseId": "release-03",
         "status": "partial",
-        "notes": "AGC draft and metadata were inspected. Canonical dis profile validates as app_gallery with IAP enabled, but mandatory contact/data declarations and package association are incomplete.",
+        "notes": "AGC draft metadata and five phone screenshots were previously saved and read back. The a7bc961 privacy data flow, sensitive-permission explanations and age-rating questionnaire notes are prepared. Package association, console declarations, tablet/PC assets, copyright or authorization material, filing proof and verified review contact remain incomplete.",
         "evidence": [
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/default-browser-system-flow.jpeg",
             "summary": "AGC draft and metadata were inspected."
+          },
+          {
+            "type": "document",
+            "path": "app-store-assets/metadata/agc-release-readiness.md",
+            "summary": "Implementation-backed privacy, permission, age-rating and release-material matrix for a7bc961."
           }
         ]
       },
@@ -5670,34 +5670,34 @@
       {
         "command": "hvigorw test",
         "status": "passed",
-        "summary": "Complete unit suite passed for source 5f0e479."
+        "summary": "Complete ArkTS unit suite passed for source a7bc961."
       },
       {
-        "command": "node --test",
+        "command": "node --test scripts/*.test.mjs scripts/mobile_cicd/*.test.mjs tools/reader-mode/*.test.mjs",
         "status": "passed",
-        "summary": "All 64 Node tests passed for source 5f0e479."
+        "summary": "All 64 Node tests passed for source a7bc961."
       },
       {
         "command": "node scripts/mobile_cicd/signing-source.mjs assert-selected",
         "status": "passed",
-        "summary": "Both physical-device and AppGallery builds used their selected canonical signing sources."
-      },
-      {
-        "command": "hvigorw assembleHap",
-        "status": "passed",
-        "summary": "Canonical debug HAP built and its SHA-256 was recorded."
+        "summary": "Physical-device and AppGallery builds used their canonical signing sources."
       },
       {
         "command": "hvigorw assembleHap -p buildMode=release",
         "status": "passed",
-        "summary": "Canonical AppGallery APP built and its signature, embedded app_gallery profile, certificate, and IAP capability were verified."
+        "summary": "Canonical debug HAP built and its signature, embedded profile and SHA-256 were verified."
       },
       {
-        "command": "hdc install -r candidate-5f0e479-debug.hap",
+        "command": "scripts/mobile_cicd/build_harmony_artifacts.sh output/agc-candidate-a7bc961",
         "status": "passed",
-        "summary": "Candidate installed in place on Huawei TLR-AL00 and preserved the existing session."
+        "summary": "AppGallery HAP and APP archive passed signature, profile, certificate, IAP capability, embedded-byte and SHA-256 checks."
+      },
+      {
+        "command": "hdc install -r ZhuoBrowser-HarmonyOS-1.0.1+1000001-debug.hap",
+        "status": "passed",
+        "summary": "Candidate installed in place on Huawei TLR-AL00 and preserved the existing two-tab session."
       }
     ],
-    "notes": "Physical-device acceptance is active on source 5f0e479. Evidence is source- and artifact-pinned; destructive fresh-data cases, purchase/restore cases, form-factor hardware coverage, specified-device delivery, and AGC mutation gates remain explicit."
+    "notes": "Physical-device acceptance is pinned to source a7bc961. Prior case evidence remains applicable because the only product-code delta removes page-location fields from optional local telemetry; that changed path was re-run on device. Destructive fresh-data cases, purchase/restore cases, form-factor hardware coverage, specified-device delivery, and AGC mutation gates remain explicit."
   }
 }

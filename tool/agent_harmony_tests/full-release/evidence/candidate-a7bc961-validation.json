@@ -1,0 +1,31 @@
+{
+  "sourceSha": "a7bc9618c5768a5c17d3e5f1942b9994c82d790e",
+  "device": {
+    "model": "Huawei TLR-AL00",
+    "runtime": "OpenHarmony-6.1.1.120",
+    "candidateSha256": "c013cd05c8f1b9e15cbf8bd0163276102aa3da90f6b193862db86fbb26a7a6ba",
+    "installation": "in-place",
+    "sessionPreserved": true,
+    "telemetryRegression": {
+      "enabledFromSettings": true,
+      "pageLoadCompleted": true,
+      "restoredDisabled": true
+    }
+  },
+  "appGallery": {
+    "hapSha256": "923e457af880d2916ae0da4065e966c70d8cbfd542779fadef197252d4b9735a",
+    "appSha256": "5f75d4b0d2738172199d959b7d67c2c913965e4a7c808903bbcf17a2de7f6629",
+    "distribution": "app_gallery",
+    "profileUuid": "78e9a894-7a63-49c9-a302-880919ceebb6",
+    "iapEnabled": true,
+    "archiveIntegrityVerified": true
+  },
+  "validation": {
+    "hvigorUnitSuite": "passed",
+    "nodeTests": {
+      "passed": 64,
+      "failed": 0
+    },
+    "telemetryPageLocationFields": "removed"
+  }
+}
