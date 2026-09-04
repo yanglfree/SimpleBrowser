@@ -1,13 +1,17 @@
 import { webview } from '@kit.ArkWeb';
 import { common, Want, wantConstant } from '@kit.AbilityKit';
+import { util } from '@kit.ArkTS';
 import { connection } from '@kit.NetworkKit';
 import { notificationManager } from '@kit.NotificationKit';
 import { fileUri, picker } from '@kit.CoreFileKit';
+import preferences from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
+import { STORE_NAME } from '../constants/AppConstants';
 import { Logger } from '../utils/Logger';
 import { ShareService, ShareOutcome } from './ShareService';
 
 const TAG: string = 'DownloadService';
+const DOWNLOADS_KEY: string = 'download_tasks_v1';
 
 export enum DownloadTaskStatus {
   Pending = 0,
@@ -29,6 +33,44 @@ export interface DownloadTask {
   speed: number;
   attempts: number;
   error: string;
+}
+
+interface StoredDownloadRecord {
+  task: DownloadTask;
+  path: string;
+  serializedItem: string;
+}
+
+export function reconcileRestoredDownloadTask(
+  task: DownloadTask,
+  path: string,
+  fileExists: (candidate: string) => boolean
+): DownloadTask {
+  const restored: DownloadTask = {
+    id: task.id,
+    fileName: task.fileName,
+    url: task.url,
+    status: task.status,
+    progress: task.progress,
+    receivedBytes: task.receivedBytes,
+    totalBytes: task.totalBytes,
+    speed: 0,
+    attempts: task.attempts,
+    error: task.error
+  };
+  if (restored.status === DownloadTaskStatus.Completed &&
+    (path.length === 0 || !fileExists(path))) {
+    restored.status = DownloadTaskStatus.Failed;
+    restored.error = 'missing';
+    return restored;
+  }
+  if (restored.status === DownloadTaskStatus.Pending ||
+    restored.status === DownloadTaskStatus.Downloading ||
+    restored.status === DownloadTaskStatus.Paused) {
+    restored.status = DownloadTaskStatus.Failed;
+    restored.error = 'interrupted';
+  }
+  return restored;
 }
 
 export enum DownloadPolicyReason {
@@ -78,8 +120,12 @@ export class DownloadService {
   private static policyPrompt: DownloadPolicyPrompt | undefined = undefined;
   private static promptingIds: string[] = [];
   private static approvedIds: string[] = [];
+  private static store: preferences.Preferences | undefined;
+  private static saveQueue: Promise<void> = Promise.resolve();
+  private static serializedItems: Map<string, string> = new Map();
+  private static restoredIds: Set<string> = new Set();
 
-  static configure(context: common.UIAbilityContext): void {
+  static async configure(context: common.UIAbilityContext): Promise<void> {
     DownloadService.context = context;
     if (DownloadService.isConfigured) {
       return;
@@ -95,6 +141,7 @@ export class DownloadService {
     });
     webview.WebDownloadManager.setDownloadDelegate(delegate);
     DownloadService.isConfigured = true;
+    await DownloadService.restore(context);
   }
 
   static setConcurrencyLimit(limit: number): void {
@@ -139,6 +186,7 @@ export class DownloadService {
         Logger.warn(TAG, `Unable to cancel policy-blocked download: ${String(error)}`);
       }
       DownloadService.publishTasks();
+      DownloadService.persistSoon();
     }
     DownloadService.pump();
   }
@@ -171,6 +219,7 @@ export class DownloadService {
       item.pause();
       DownloadService.pausedIds.add(id);
       DownloadService.publishTasks();
+      DownloadService.persistSoon();
       DownloadService.pump();
     } catch (error) {
       task.status = DownloadTaskStatus.Downloading;
@@ -187,6 +236,7 @@ export class DownloadService {
     task.status = DownloadTaskStatus.Pending;
     DownloadService.pump();
     DownloadService.publishTasks();
+    DownloadService.persistSoon();
   }
 
   static retry(id: string): void {
@@ -199,6 +249,7 @@ export class DownloadService {
     task.error = '';
     DownloadService.pump();
     DownloadService.publishTasks();
+    DownloadService.persistSoon();
   }
 
   static async open(context: common.UIAbilityContext, task: DownloadTask): Promise<boolean> {
@@ -249,9 +300,12 @@ export class DownloadService {
     DownloadService.pausedIds.delete(id);
     DownloadService.startedIds = DownloadService.startedIds.filter((item: string) => item !== id);
     DownloadService.notifiedProgress.delete(id);
+    DownloadService.serializedItems.delete(id);
+    DownloadService.restoredIds.delete(id);
     DownloadService.promptingIds = DownloadService.promptingIds.filter((item: string) => item !== id);
     DownloadService.approvedIds = DownloadService.approvedIds.filter((item: string) => item !== id);
     DownloadService.publishTasks();
+    DownloadService.persistSoon();
     DownloadService.pump();
   }
 
@@ -291,6 +345,7 @@ export class DownloadService {
       item.pause();
       DownloadService.pausedIds.add(id);
       DownloadService.publishTasks();
+      DownloadService.persistSoon();
       DownloadService.pump();
     } catch (error) {
       Logger.error(TAG, `Failed to enqueue download: ${String(error)}`);
@@ -345,7 +400,13 @@ export class DownloadService {
       }
       task.attempts += 1;
       task.error = '';
-      if (item.getState() === webview.WebDownloadState.INTERRUPTED ||
+      if (DownloadService.restoredIds.has(task.id)) {
+        webview.WebDownloadManager.resumeDownload(item);
+        DownloadService.restoredIds.delete(task.id);
+        if (!DownloadService.startedIds.includes(task.id)) {
+          DownloadService.startedIds.push(task.id);
+        }
+      } else if (item.getState() === webview.WebDownloadState.INTERRUPTED ||
         item.getState() === webview.WebDownloadState.CANCELED) {
         webview.WebDownloadManager.resumeDownload(webview.WebDownloadItem.deserialize(item.serialize()));
       } else {
@@ -367,6 +428,7 @@ export class DownloadService {
       }
       Logger.info(TAG, `Download started: ${task.fileName}`);
       DownloadService.publishTasks();
+      DownloadService.persistSoon();
     } catch (error) {
       if (DownloadService.task(task.id) !== task || task.status === DownloadTaskStatus.Canceled ||
         DownloadService.startVersions.get(task.id) !== version) {
@@ -381,6 +443,7 @@ export class DownloadService {
       }
       Logger.error(TAG, `Failed to start download: ${String(error)}`);
       DownloadService.publishTasks();
+      DownloadService.persistSoon();
       DownloadService.notify(task, DownloadService.localized('download_failed'));
       DownloadService.pump();
     }
@@ -452,6 +515,7 @@ export class DownloadService {
     if (progressBucket >= 0 && progressBucket > previousBucket) {
       DownloadService.notifiedProgress.set(task.id, progressBucket);
       DownloadService.notify(task, `${DownloadService.localized('download_status_downloading')} ${progressBucket}%`);
+      DownloadService.persistSoon();
     }
     DownloadService.publishTasks();
   }
@@ -475,6 +539,7 @@ export class DownloadService {
     Logger.info(TAG, `Download finished: ${task.receivedBytes}/${task.totalBytes} bytes`);
     DownloadService.notify(task, DownloadService.localized('download_notice_completed'));
     DownloadService.publishTasks();
+    DownloadService.persistSoon();
     DownloadService.pump();
   }
 
@@ -502,6 +567,7 @@ export class DownloadService {
     Logger.warn(TAG, `Download failed with native error ${task.error}`);
     DownloadService.notify(task, DownloadService.localized('download_failed'));
     DownloadService.publishTasks();
+    DownloadService.persistSoon();
     DownloadService.pump();
   }
 
@@ -541,6 +607,95 @@ export class DownloadService {
     for (const listener of DownloadService.listeners) {
       listener(tasks);
     }
+  }
+
+  private static async restore(context: common.UIAbilityContext): Promise<void> {
+    try {
+      DownloadService.store = await preferences.getPreferences(context, STORE_NAME);
+      const value: preferences.ValueType = await DownloadService.store.get(DOWNLOADS_KEY, '[]');
+      if (typeof value !== 'string' || value.length === 0) {
+        return;
+      }
+      const records: StoredDownloadRecord[] = JSON.parse(value) as StoredDownloadRecord[];
+      if (!Array.isArray(records)) {
+        return;
+      }
+      for (const record of records) {
+        if (!DownloadService.isStoredRecord(record)) {
+          continue;
+        }
+        const task: DownloadTask = reconcileRestoredDownloadTask(
+          record.task,
+          record.path,
+          (candidate: string): boolean => fs.accessSync(candidate)
+        );
+        DownloadService.tasks.push(task);
+        if (record.path.length > 0) {
+          DownloadService.paths.set(task.id, record.path);
+          if (DownloadService.downloadDirectory.length === 0) {
+            DownloadService.downloadDirectory = record.path.slice(0, Math.max(0, record.path.lastIndexOf('/')));
+          }
+        }
+        if (record.serializedItem.length > 0 && task.error !== 'missing') {
+          try {
+            const bytes: Uint8Array = new util.Base64Helper().decodeSync(record.serializedItem);
+            DownloadService.items.set(task.id, webview.WebDownloadItem.deserialize(bytes));
+            DownloadService.serializedItems.set(task.id, record.serializedItem);
+            if (task.status !== DownloadTaskStatus.Completed) {
+              DownloadService.restoredIds.add(task.id);
+            }
+          } catch (error) {
+            task.error = 'interrupted_unavailable';
+            Logger.warn(TAG, `Unable to restore download ${task.id}: ${String(error)}`);
+          }
+        }
+      }
+      DownloadService.persistSoon();
+    } catch (error) {
+      Logger.warn(TAG, `Unable to restore downloads: ${String(error)}`);
+    }
+  }
+
+  private static isStoredRecord(record: StoredDownloadRecord): boolean {
+    return record !== undefined && record.task !== undefined &&
+      typeof record.task.id === 'string' && record.task.id.length > 0 &&
+      typeof record.task.fileName === 'string' && typeof record.task.url === 'string' &&
+      typeof record.path === 'string' && typeof record.serializedItem === 'string';
+  }
+
+  private static persistSoon(): void {
+    const store: preferences.Preferences | undefined = DownloadService.store;
+    if (store === undefined) {
+      return;
+    }
+    const queued: Promise<void> = DownloadService.saveQueue.then(async (): Promise<void> => {
+      const records: StoredDownloadRecord[] = DownloadService.tasks.map((task: DownloadTask): StoredDownloadRecord => {
+        let serializedItem: string = DownloadService.serializedItems.get(task.id) ?? '';
+        const item: webview.WebDownloadItem | undefined = DownloadService.items.get(task.id);
+        if (item !== undefined) {
+          try {
+            serializedItem = new util.Base64Helper().encodeToStringSync(item.serialize());
+            DownloadService.serializedItems.set(task.id, serializedItem);
+          } catch (error) {
+            Logger.warn(TAG, `Unable to serialize download ${task.id}: ${String(error)}`);
+          }
+        }
+        return {
+          task: DownloadService.cloneTask(task),
+          path: DownloadService.paths.get(task.id) ?? '',
+          serializedItem: serializedItem
+        };
+      });
+      try {
+        await store.put(DOWNLOADS_KEY, JSON.stringify(records));
+        await store.flush();
+      } catch (error) {
+        Logger.warn(TAG, `Unable to persist downloads: ${String(error)}`);
+      }
+    });
+    DownloadService.saveQueue = queued.catch((error: Error): void => {
+      Logger.warn(TAG, `Download persistence queue failed: ${String(error)}`);
+    });
   }
 
   private static notify(task: DownloadTask, suffix: string): void {

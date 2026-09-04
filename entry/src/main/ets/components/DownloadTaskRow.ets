@@ -56,7 +56,8 @@ export struct DownloadTaskRow {
             .fontSize(12)
             .fontColor($r('app.color.accent'))
             .onClick(() => this.onResume(this.task.id))
-        } else if (this.task.status === DownloadTaskStatus.Failed || this.task.status === DownloadTaskStatus.Canceled) {
+        } else if ((this.task.status === DownloadTaskStatus.Failed && this.task.error !== 'missing' &&
+          this.task.error !== 'interrupted_unavailable') || this.task.status === DownloadTaskStatus.Canceled) {
           Text($r('app.string.download_retry'))
             .fontSize(12)
             .fontColor($r('app.color.accent'))

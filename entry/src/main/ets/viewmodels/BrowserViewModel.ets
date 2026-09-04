@@ -136,7 +136,7 @@ export class BrowserViewModel {
     }
     await this.adsBlockService.initialize(context);
     this.adsBlockService.applyAllowedHosts(this.repository.getAllowedHosts());
-    DownloadService.configure(context);
+    await DownloadService.configure(context);
     DownloadService.setConcurrencyLimit(this.settings.downloadConcurrency);
     this.persistSession();
   }

@@ -35,6 +35,9 @@ export function downloadStatusLabel(status: DownloadTaskStatus): Resource {
 }
 
 export function downloadErrorLabel(error: string): Resource {
+  if (error === 'missing') {
+    return $r('app.string.download_error_missing');
+  }
   if (error === 'storage' || error === '2') {
     return $r('app.string.download_error_storage');
   }
