@@ -17,6 +17,16 @@ export function prepareRetention(directory, releaseId) {
   metadata.retentionId = releaseId;
   writeFileSync(join(target, metadata.artifact), bytes);
   writeFileSync(join(target, `${releaseId}-SHA256SUMS`), `${hash}  ${metadata.artifact}\n`);
+  if (metadata.storeArtifact !== undefined) {
+    assert.match(metadata.storeArtifact, /^[A-Za-z0-9][A-Za-z0-9._+-]*\.app$/);
+    const storeBytes = readFileSync(join(directory, metadata.storeArtifact));
+    const storeHash = createHash('sha256').update(storeBytes).digest('hex');
+    assert.equal(metadata.storeSha256, storeHash, 'Store artifact metadata checksum mismatch');
+    assert.equal(readFileSync(join(directory, 'STORE_SHA256SUMS'), 'utf8').trim(), `${storeHash}  ${metadata.storeArtifact}`, 'Store retention input checksum mismatch');
+    metadata.storeArtifact = `${releaseId}-${metadata.storeArtifact}`;
+    writeFileSync(join(target, metadata.storeArtifact), storeBytes);
+    writeFileSync(join(target, `${releaseId}-STORE_SHA256SUMS`), `${storeHash}  ${metadata.storeArtifact}\n`);
+  }
   writeFileSync(join(target, `${releaseId}-release-metadata.json`), JSON.stringify(metadata) + '\n');
   return target;
 }

@@ -8,6 +8,8 @@ SIGNING_TARGET="${REPO_ROOT}/build-profile.json5"
 SIGNING_CHANNEL="${HARMONY_CHANNEL:-app_gallery}"
 HVIGOR_BIN="${HVIGOR_BIN:-hvigorw}"
 HAP_SIGN_TOOL="${HAP_SIGN_TOOL:-${HOME}/Library/Huawei/CommandLineTools/current/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar}"
+APP_PACKING_TOOL="${APP_PACKING_TOOL:-${HOME}/Library/Huawei/CommandLineTools/current/sdk/default/openharmony/toolchains/lib/app_packing_tool.jar}"
+IAP_BUILD_PROFILE="${REPO_ROOT}/iap_paywall_kit/BuildProfile.ets"
 BACKUP_DIR="$(mktemp -d)"
 
 die() { echo "Harmony artifact build error: $*" >&2; exit 1; }
@@ -15,6 +17,9 @@ die() { echo "Harmony artifact build error: $*" >&2; exit 1; }
 [[ -n "${OUTPUT_DIR}" ]] || die "an output directory is required"
 [[ "${SIGNING_CHANNEL}" == app_gallery || "${SIGNING_CHANNEL}" == internaltesting ]] || die "unsupported distribution channel"
 [[ -f "${HAP_SIGN_TOOL}" ]] || die "HAP signature verifier is missing"
+if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
+  [[ -f "${APP_PACKING_TOOL}" ]] || die "App Pack tool is missing"
+fi
 command -v "${HVIGOR_BIN}" >/dev/null 2>&1 || [[ -x "${HVIGOR_BIN}" ]] || die "hvigorw is unavailable"
 command -v ohpm >/dev/null 2>&1 || die "ohpm is unavailable"
 
@@ -27,12 +32,18 @@ restore_profile() {
   else
     rm -f "${SIGNING_TARGET}"
   fi
+  if [[ -f "${BACKUP_DIR}/iap-BuildProfile.ets" ]]; then
+    cp "${BACKUP_DIR}/iap-BuildProfile.ets" "${IAP_BUILD_PROFILE}"
+  fi
   rm -rf "${BACKUP_DIR}"
 }
 trap restore_profile EXIT INT TERM
 
 if [[ -f "${SIGNING_TARGET}" ]]; then
   cp "${SIGNING_TARGET}" "${BACKUP_DIR}/build-profile.json5"
+fi
+if [[ -f "${IAP_BUILD_PROFILE}" ]]; then
+  cp "${IAP_BUILD_PROFILE}" "${BACKUP_DIR}/iap-BuildProfile.ets"
 fi
 INPUT_DIGEST="$(node "${REPO_ROOT}/scripts/mobile_cicd/signing-source.mjs" fingerprint "${SIGNING_CHANNEL}")"
 node "${REPO_ROOT}/scripts/mobile_cicd/signing-source.mjs" snapshot "${SIGNING_CHANNEL}" "${BACKUP_DIR}/signing"
@@ -99,12 +110,33 @@ mkdir -p "${OUTPUT_DIR}"
 DESTINATION="$(cd "${OUTPUT_DIR}" && pwd)"
 ARTIFACT_NAME="ZhuoBrowser-HarmonyOS-${VERSION_NAME}+${VERSION_CODE}.hap"
 cp "${HAP_PATH}" "${DESTINATION}/${ARTIFACT_NAME}"
+STORE_ARTIFACT_NAME=""
+STORE_SHA256=""
+if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
+  STORE_ARTIFACT_NAME="ZhuoBrowser-HarmonyOS-${VERSION_NAME}+${VERSION_CODE}.app"
+  unzip -p "${DESTINATION}/${ARTIFACT_NAME}" pack.info > "${BACKUP_DIR}/pack.info"
+  java -jar "${APP_PACKING_TOOL}" --mode app \
+    --hap-path "${DESTINATION}/${ARTIFACT_NAME}" \
+    --out-path "${DESTINATION}/${STORE_ARTIFACT_NAME}" \
+    --pack-info-path "${BACKUP_DIR}/pack.info" \
+    --replace-pack-info false --force true >/dev/null
+  unzip -tq "${DESTINATION}/${STORE_ARTIFACT_NAME}" >/dev/null
+  unzip -p "${DESTINATION}/${STORE_ARTIFACT_NAME}" "${ARTIFACT_NAME}" > "${BACKUP_DIR}/embedded.hap"
+  cmp "${DESTINATION}/${ARTIFACT_NAME}" "${BACKUP_DIR}/embedded.hap" >/dev/null || die "App Pack changed the signed HAP bytes"
+  unzip -p "${DESTINATION}/${STORE_ARTIFACT_NAME}" pack.info > "${BACKUP_DIR}/embedded-pack.info"
+  cmp "${BACKUP_DIR}/pack.info" "${BACKUP_DIR}/embedded-pack.info" >/dev/null || die "App Pack metadata mismatch"
+  STORE_SHA256="$(shasum -a 256 "${DESTINATION}/${STORE_ARTIFACT_NAME}" | awk '{print $1}')"
+fi
 (
   cd "${DESTINATION}"
   shasum -a 256 "${ARTIFACT_NAME}" > SHA256SUMS
+  if [[ -n "${STORE_ARTIFACT_NAME}" ]]; then
+    shasum -a 256 "${STORE_ARTIFACT_NAME}" > STORE_SHA256SUMS
+  fi
   APP_NAME="zhuobrowser" BUNDLE_NAME="${BUNDLE_NAME}" VERSION_NAME="${VERSION_NAME}" \
     VERSION_CODE="${VERSION_CODE}" SOURCE_SHA="${SOURCE_SHA:-$(git -C "${REPO_ROOT}" rev-parse HEAD)}" \
-    ARTIFACT_NAME="${ARTIFACT_NAME}" SIGNING_METADATA="${SIGNING_METADATA}" INPUT_DIGEST="${INPUT_DIGEST}" node <<'NODE' > release-metadata.json
+    ARTIFACT_NAME="${ARTIFACT_NAME}" STORE_ARTIFACT_NAME="${STORE_ARTIFACT_NAME}" STORE_SHA256="${STORE_SHA256}" \
+    SIGNING_METADATA="${SIGNING_METADATA}" INPUT_DIGEST="${INPUT_DIGEST}" node <<'NODE' > release-metadata.json
 const payload = {
   app: process.env.APP_NAME,
   platform: "harmony",
@@ -116,6 +148,10 @@ const payload = {
   signing: JSON.parse(process.env.SIGNING_METADATA),
   inputDigest: process.env.INPUT_DIGEST,
 };
+if (process.env.STORE_ARTIFACT_NAME) {
+  payload.storeArtifact = process.env.STORE_ARTIFACT_NAME;
+  payload.storeSha256 = process.env.STORE_SHA256;
+}
 process.stdout.write(`${JSON.stringify(payload)}\n`);
 NODE
 )

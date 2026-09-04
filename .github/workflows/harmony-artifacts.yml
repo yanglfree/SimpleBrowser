@@ -100,7 +100,7 @@ jobs:
           [[ "$UPLOAD_URL" == https://*/api/artifacts ]]
           [[ "$DOWNLOAD_URL" == https://* ]]
 
-      - name: Build and validate signed HAP
+      - name: Build and validate signed HAP and store App Pack
         run: |
           scripts/mobile_cicd/build_harmony_artifacts.sh "$RUNNER_TEMP/zhuobrowser-harmony-release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
 
@@ -127,13 +127,14 @@ jobs:
               --upload-token "$UPLOAD_TOKEN"
             artifact_count=$((artifact_count + 1))
           done
-          test "$artifact_count" -eq 3
-          scripts/mobile_cicd/verify_build_status.sh "$DOWNLOAD_URL" "$SOURCE_SHA" uploaded 3
+          test "$artifact_count" -eq 5
+          scripts/mobile_cicd/verify_build_status.sh "$DOWNLOAD_URL" "$SOURCE_SHA" uploaded 5
           {
             echo "## ZhuoBrowser HarmonyOS signed artifacts"
             echo
             echo "- Version: \`$version ($build)\`"
             echo "- Source: \`$SOURCE_SHA\`"
+            echo "- Store package: signed HAP preserved byte-for-byte inside the retained App Pack"
             echo "- Retention: immutable Cloudflare R2 objects with D1 metadata"
             echo "- Specified-device publication: separate required job in this workflow"
             echo "- AppGallery Connect upload and submission: not performed"

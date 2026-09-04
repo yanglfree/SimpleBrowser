@@ -15,7 +15,7 @@ unlisted download/status surface.
 push main or manual CI
   -> CI on [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
   -> successful workflow_run.head_sha
-  -> signed HAP + SHA256SUMS + release-metadata.json
+  -> signed HAP + store App Pack + checksums + release-metadata.json
   -> authenticated Worker upload
   -> immutable R2 objects and D1 status
   -> optional downloads.youdroid.top registration after live verification
@@ -31,6 +31,9 @@ push main or manual CI
   `~/.config/zhuobrowser/signing.json` with mode `600` and is
   never committed.
 - R2 object keys use `harmony/<source-sha>/<artifact-name>` and are immutable.
+- AppGallery builds retain both the signed HAP and an `.app` wrapper. The wrapper
+  must contain the exact verified HAP bytes; specified-device builds continue to
+  use the HAP directly.
 - The Worker verifies the uploaded byte count and SHA-256 before recording D1.
 - The unified `downloads.youdroid.top` portal remains a separate presentation
   and proxy layer. Do not mark ZhuoBrowser available there before the exact HAP,
@@ -91,7 +94,7 @@ use the same SHA. Then independently verify D1 status and every live artifact:
 
 ```bash
 scripts/mobile_cicd/verify_build_status.sh \
-  "$HARMONY_DOWNLOAD_URL" "$SOURCE_SHA" uploaded 3
+  "$HARMONY_DOWNLOAD_URL" "$SOURCE_SHA" uploaded 5
 
 curl --fail --head \
   "$HARMONY_DOWNLOAD_URL/artifacts/harmony/$SOURCE_SHA/$HAP_NAME"
@@ -135,7 +138,10 @@ node scripts/mobile_cicd/verify_harmony_signing.mjs \
 The artifact script requires an AppGallery profile, validates IAP capability,
 identity, validity, and the matching certificate before building. After building,
 it verifies the HAP signature, exact embedded profile bytes, and actual signing
-certificate. Non-secret signing metadata is retained in `release-metadata.json`.
+certificate. It then creates the store `.app` without rewriting `pack.info` and
+checks that the embedded HAP is byte-identical to the verified source. Non-secret
+signing metadata and both artifact checksums are retained in
+`release-metadata.json`.
 Do not point this store-retention job at the device profile: browser installation
 also needs its own signed manifest and publication step.
 
