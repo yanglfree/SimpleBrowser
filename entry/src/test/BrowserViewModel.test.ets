@@ -178,6 +178,34 @@ export default function browserViewModelTest(): void {
     });
   });
 
+  describe('BrowserViewModel archived tab recovery', (): void => {
+    it('restores every pending archived tab and removes the durable archive', 0, async (): Promise<void> => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const active: BrowserTab = viewModel.createTab('https://active.example', false);
+      const firstArchived: BrowserTab = viewModel.createTab('https://first-archived.example', false);
+      const secondArchived: BrowserTab = viewModel.createTab('https://second-archived.example', false);
+      viewModel.tabs = [active];
+      viewModel.activeTabId = active.id;
+      await viewModel.repository.archiveTabs([firstArchived, secondArchived]);
+      viewModel.expiredTabs = viewModel.repository.getArchivedTabs();
+      const restoredAt: number = Date.now();
+
+      await viewModel.restoreExpiredTabs();
+
+      expect(viewModel.tabs.length).assertEqual(3);
+      expect(viewModel.tabs[1].id === firstArchived.id).assertFalse();
+      expect(viewModel.tabs[2].id === secondArchived.id).assertFalse();
+      expect(viewModel.tabs[1].url).assertEqual(firstArchived.url);
+      expect(viewModel.tabs[2].url).assertEqual(secondArchived.url);
+      expect(viewModel.tabs[1].lastVisitedAt >= restoredAt).assertTrue();
+      expect(viewModel.tabs[2].lastVisitedAt >= restoredAt).assertTrue();
+      expect(viewModel.expiredTabCount).assertEqual(0);
+      expect(viewModel.repository.getArchivedTabs().length).assertEqual(0);
+      expect(viewModel.activeTabId).assertEqual(active.id);
+      expect(viewModel.createTab(HOME_URL, false).id).assertEqual('tab-6');
+    });
+  });
+
   describe('BrowserViewModel window transfer', (): void => {
     it('adopts one transferred tab with a fresh identity and preserved page state', 0, (): void => {
       const viewModel: BrowserViewModel = new BrowserViewModel();

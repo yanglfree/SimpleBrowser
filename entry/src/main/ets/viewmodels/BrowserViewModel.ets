@@ -112,12 +112,13 @@ export class BrowserViewModel {
         restored.isDesktop = this.preferredDesktopForUrl(restored.url);
         return restored;
       });
-      this.expiredTabs = cutoff === 0
+      const newlyExpiredTabs: BrowserTab[] = cutoff === 0
         ? []
         : sessionTabs.filter((tab: BrowserTab): boolean => tab.lastVisitedAt < cutoff);
-      if (this.expiredTabs.length > 0) {
-        await this.repository.archiveTabs(this.expiredTabs);
+      if (newlyExpiredTabs.length > 0) {
+        await this.repository.archiveTabs(newlyExpiredTabs);
       }
+      this.expiredTabs = this.repository.getArchivedTabs();
       this.tabs = sessionTabs.filter((tab: BrowserTab): boolean =>
         cutoff === 0 || tab.lastVisitedAt >= cutoff);
       if (this.tabs.length === 0) {
@@ -126,11 +127,16 @@ export class BrowserViewModel {
       this.activeTabId = this.tabs.some((tab: BrowserTab) => tab.id === session.activeTabId)
         ? session.activeTabId
         : this.tabs[0].id;
-      this.tabSequence = this.tabs.reduce((max: number, tab: BrowserTab): number => {
+      this.tabSequence = this.tabs.concat(this.expiredTabs).reduce((max: number, tab: BrowserTab): number => {
         const value: number = Number(tab.id.replace('tab-', ''));
         return Number.isNaN(value) ? max : Math.max(max, value);
       }, 0);
     } else {
+      this.expiredTabs = this.repository.getArchivedTabs();
+      this.tabSequence = this.expiredTabs.reduce((max: number, tab: BrowserTab): number => {
+        const value: number = Number(tab.id.replace('tab-', ''));
+        return Number.isNaN(value) ? max : Math.max(max, value);
+      }, 0);
       this.tabs = [this.createTab(HOME_URL, false)];
       this.activeTabId = this.tabs[0].id;
     }
@@ -588,8 +594,19 @@ export class BrowserViewModel {
     if (this.expiredTabs.length === 0) {
       return;
     }
-    const restored: BrowserTab[] = this.expiredTabs.map((tab: BrowserTab) => cloneTab(tab));
-    await this.repository.removeArchivedTabs(restored.map((tab: BrowserTab) => tab.id));
+    const archivedIds: string[] = this.expiredTabs.map((tab: BrowserTab): string => tab.id);
+    const restored: BrowserTab[] = this.expiredTabs.map((tab: BrowserTab): BrowserTab => {
+      const restoredTab: BrowserTab = cloneTab(tab);
+      const identity: BrowserTab = this.createTab(tab.url, false);
+      restoredTab.id = identity.id;
+      restoredTab.isPrivate = false;
+      restoredTab.isLoading = !isHomeUrl(restoredTab.url);
+      restoredTab.progress = 0;
+      restoredTab.isDesktop = this.preferredDesktopForUrl(restoredTab.url);
+      restoredTab.lastVisitedAt = Date.now();
+      return restoredTab;
+    });
+    await this.repository.removeArchivedTabs(archivedIds);
     this.tabs = this.tabs.concat(restored);
     this.expiredTabs = [];
     this.persistSession();
