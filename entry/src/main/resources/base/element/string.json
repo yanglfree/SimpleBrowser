@@ -249,7 +249,7 @@
     { "name": "history_empty", "value": "暂无历史记录" },
     { "name": "history_delete", "value": "删除" },
     { "name": "history_delete_site_title", "value": "删除网站历史记录" },
-    { "name": "history_delete_site_message", "value": "删除 %{public}s 的全部历史记录？此操作无法撤销。" },
+    { "name": "history_delete_site_message", "value": "删除 %s 的全部历史记录？此操作无法撤销。" },
     { "name": "history_delete_site_confirm", "value": "全部删除" },
     { "name": "tab_hibernated", "value": "标签已休眠以节省内存" },
     { "name": "tab_hibernated_restore", "value": "点击恢复页面" },
