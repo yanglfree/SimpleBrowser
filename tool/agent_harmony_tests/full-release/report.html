@@ -37,7 +37,7 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>63</strong>Executed</div>
-    <div class="metric"><strong>30</strong>Passed</div>
+    <div class="metric"><strong>31</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
     <div class="metric"><strong>18</strong>Not run</div>
@@ -63,7 +63,7 @@
         <td>Address, navigation and page tools</td>
         <td class="status-partial">partial</td>
         <td><code>navigation-01</code><br><code>navigation-02</code><br><code>navigation-03</code><br><code>navigation-04</code><br><code>navigation-05</code><br><code>navigation-06</code><br><code>navigation-07</code><br><code>navigation-08</code><br><code>navigation-09</code><br><code>navigation-10</code><br><code>navigation-11</code><br><code>navigation-12</code><br><code>navigation-13</code><br><code>navigation-14</code><br><code>navigation-15</code></td>
-        <td>passed: 7, partial: 8</td>
+        <td>passed: 8, partial: 7</td>
       </tr>
       <tr>
         <td>Tabs, session and resource limits</td>
@@ -238,7 +238,7 @@
         <td><code>navigation-07</code></td>
         <td>p0</td>
         <td>Back, forward and history list</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>navigation</td>
       </tr>
       <tr>
@@ -997,9 +997,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-url-shortcuts.jpeg</code><br>The address editor composed www.example.com from the www. prefix and .com suffix shortcuts.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-current-host-shortcut.jpeg</code><br>The current-host shortcut replaced the draft with 127.0.0.1 before cancellation.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-07</code> <span class="status-partial">partial</span></h3>
-        <p>Back navigation and the full history surface worked. Forward state and long-press history selection were not fully repeated on the final candidate.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg</code><br>Back navigation and the full history surface worked.</li></ul>
+        <h3><code>navigation-07</code> <span class="status-passed">passed</span></h3>
+        <p>The controlled A to B to C chain navigated back through B to A and forward through B to C with the expected toolbar controls. Opening History from Actions and selecting the middle entry returned to B. All QA history entries were removed afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-back-forward.jpeg</code><br>After two Back and two Forward actions, the controlled chain returned to QA Page C.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-history-abc.jpeg</code><br>The History surface contained the three controlled page visits.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-history-select.jpeg</code><br>Selecting the middle history entry opened QA Page B.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-08</code> <span class="status-passed">passed</span></h3>

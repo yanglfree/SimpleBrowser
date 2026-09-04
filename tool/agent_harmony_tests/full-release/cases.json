@@ -39,7 +39,7 @@
         "navigation-14",
         "navigation-15"
       ],
-      "notes": "passed: 7, partial: 8"
+      "notes": "passed: 8, partial: 7"
     },
     {
       "title": "Tabs, session and resource limits",
@@ -668,7 +668,7 @@
       "steps": [
         "Navigate fixture A to B to C",
         "Use Back and Forward",
-        "Long-press navigation control and select earlier item"
+        "Open History from Actions and select an earlier item"
       ],
       "assertions": [
         "Correct page and enabled state",
@@ -3998,13 +3998,23 @@
       },
       {
         "caseId": "navigation-07",
-        "status": "partial",
-        "notes": "Back navigation and the full history surface worked. Forward state and long-press history selection were not fully repeated on the final candidate.",
+        "status": "passed",
+        "notes": "The controlled A to B to C chain navigated back through B to A and forward through B to C with the expected toolbar controls. Opening History from Actions and selecting the middle entry returned to B. All QA history entries were removed afterward.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/history-title-fixed.jpeg",
-            "summary": "Back navigation and the full history surface worked."
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-back-forward.jpeg",
+            "summary": "After two Back and two Forward actions, the controlled chain returned to QA Page C."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-history-abc.jpeg",
+            "summary": "The History surface contained the three controlled page visits."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-history-select.jpeg",
+            "summary": "Selecting the middle history entry opened QA Page B."
           }
         ]
       },
