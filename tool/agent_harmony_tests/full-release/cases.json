@@ -5067,13 +5067,28 @@
       },
       {
         "caseId": "integration-02",
-        "status": "partial",
-        "notes": "Private external entry was exercised and its visit remained absent from history after close. Disposable external task persistence was not exercised.",
+        "status": "passed",
+        "notes": "Private external entry remained absent from history after close. Read and Close created an eighth tab with the private indicator; after force-stop and cold relaunch it was excluded from the restored seven-tab session, and no matching browser.youdroid.top visit appeared in history.",
         "evidence": [
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg",
-            "summary": "History inspection retained no private visit while normal controlled visits remained available."
+            "summary": "Earlier private external entry remained absent from history while normal controlled visits remained available."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/disposable-external-open.jpeg",
+            "summary": "Read and Close created an eighth external tab with the visible private indicator."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/disposable-external-cold-excluded.jpeg",
+            "summary": "After force-stop and cold relaunch, the disposable external task was absent and the original seven tabs remained."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/disposable-external-history.json",
+            "summary": "History contained no browser.youdroid.top record from the disposable external task."
           }
         ]
       },

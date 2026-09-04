@@ -37,9 +37,9 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>72</strong>Executed</div>
-    <div class="metric"><strong>55</strong>Passed</div>
+    <div class="metric"><strong>56</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
-    <div class="metric"><strong>17</strong>Partial</div>
+    <div class="metric"><strong>16</strong>Partial</div>
     <div class="metric"><strong>29</strong>Blocked</div>
     <div class="metric"><strong>11</strong>Not run</div>
   </section>
@@ -112,7 +112,7 @@
         <td>External entry, sharing and defaults</td>
         <td class="status-partial">partial</td>
         <td><code>integration-01</code><br><code>integration-02</code><br><code>integration-03</code><br><code>integration-04</code><br><code>integration-05</code><br><code>integration-06</code><br><code>integration-07</code><br><code>integration-08</code></td>
-        <td>passed: 5, partial: 2, not-run: 1</td>
+        <td>passed: 6, partial: 1, not-run: 1</td>
       </tr>
       <tr>
         <td>Settings and appearance</td>
@@ -701,7 +701,7 @@
         <td><code>integration-02</code></td>
         <td>p1</td>
         <td>Disposable and private external tasks</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>integration</td>
       </tr>
       <tr>
@@ -1327,9 +1327,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/shared-text-entry-prompt.jpeg</code><br>A system sendData Want containing text and an embedded URL produced the external-open action menu with the supplied title.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/shared-text-entry-opened.jpeg</code><br>Clean Open loaded the extracted controlled URL in exactly one new tab, taking the session from seven to eight tabs.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/shared-text-entry-cleaned.json</code><br>After closing the QA tab, the original seven-tab session remained and the QA history entry was removed.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>integration-02</code> <span class="status-partial">partial</span></h3>
-        <p>Private external entry was exercised and its visit remained absent from history after close. Disposable external task persistence was not exercised.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg</code><br>History inspection retained no private visit while normal controlled visits remained available.</li></ul>
+        <h3><code>integration-02</code> <span class="status-passed">passed</span></h3>
+        <p>Private external entry remained absent from history after close. Read and Close created an eighth tab with the private indicator; after force-stop and cold relaunch it was excluded from the restored seven-tab session, and no matching browser.youdroid.top visit appeared in history.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg</code><br>Earlier private external entry remained absent from history while normal controlled visits remained available.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/disposable-external-open.jpeg</code><br>Read and Close created an eighth external tab with the visible private indicator.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/disposable-external-cold-excluded.jpeg</code><br>After force-stop and cold relaunch, the disposable external task was absent and the original seven tabs remained.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/disposable-external-history.json</code><br>History contained no browser.youdroid.top record from the disposable external task.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>integration-03</code> <span class="status-passed">passed</span></h3>
