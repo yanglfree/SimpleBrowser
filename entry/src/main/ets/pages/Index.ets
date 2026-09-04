@@ -3755,7 +3755,7 @@ struct Index {
     this.viewModel.updateTab(id, { isReader: false });
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (controller !== undefined && tab !== undefined && tab.scrollY > 0) {
-      await this.runScript(controller, restoreScrollPositionScript(tab.scrollY));
+      await this.restoreControllerScrollPosition(controller, tab.scrollY);
     }
     this.syncState();
     if (id === this.disposableReaderTabId) {
@@ -5174,8 +5174,21 @@ struct Index {
   private async applyScrollPosition(id: string, position: number): Promise<void> {
     const controller: webview.WebviewController | undefined = this.controllers.get(id);
     if (controller !== undefined && position > 0) {
-      await this.runScript(controller, restoreScrollPositionScript(position));
+      await this.restoreControllerScrollPosition(controller, position);
     }
+  }
+
+  /** ArkWeb can accept window.scrollTo without moving the native surface. */
+  private async restoreControllerScrollPosition(
+    controller: webview.WebviewController,
+    position: number
+  ): Promise<void> {
+    try {
+      controller.scrollTo(0, position);
+    } catch (error) {
+      Logger.warn(TAG, `Native scroll restore failed: ${String(error)}`);
+    }
+    await this.runScript(controller, restoreScrollPositionScript(position));
   }
 
   private clearScrollPosition(tab: BrowserTab): void {
