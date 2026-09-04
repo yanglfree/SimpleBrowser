@@ -862,7 +862,8 @@ struct Index {
               onPasswordFieldFocus: (): void => { void this.handlePasswordFocusOnInsecurePage(tab.id); },
               onExternalProtocol: (url: string, sourceUrl: string): void => {
                 this.promptExternalProtocol(url, sourceUrl);
-              }
+              },
+              onShortcut: (event: KeyEvent): boolean => this.handleBrowserShortcut(event)
             })
           } else {
             this.HibernatedTab(tab)

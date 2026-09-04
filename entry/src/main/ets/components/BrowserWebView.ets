@@ -58,6 +58,7 @@ export struct BrowserWebView {
   onPasswordFieldFocus: () => void = (): void => {};
   onExternalProtocol: (url: string, sourceUrl: string) => void =
     (_url: string, _sourceUrl: string): void => {};
+  onShortcut: (event: KeyEvent) => boolean = (_event: KeyEvent): boolean => false;
   private securityBridge: DolphinSecurityBridge = new DolphinSecurityBridge();
 
   build() {
@@ -82,6 +83,7 @@ export struct BrowserWebView {
       .backgroundColor($r('app.color.content_background'))
       .width('100%')
       .height('100%')
+      .onKeyEvent((event: KeyEvent): boolean => this.onShortcut(event))
       .onControllerAttached(() => {
         this.adsBlockService.configure(this.controller, this.blockAds);
         WebKernelService.applyUserAgent(this.controller, this.tab.isDesktop);
