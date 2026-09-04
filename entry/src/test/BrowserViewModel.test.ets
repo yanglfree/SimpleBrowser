@@ -254,6 +254,16 @@ export default function browserViewModelTest(): void {
     });
   });
 
+  describe('BrowserViewModel content blocking policy', (): void => {
+    it('keeps a host allow-list entry scoped to that exact navigation host', 0, async (): Promise<void> => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      await viewModel.setHostAllowed('http://127.0.0.1:4188/fixture', true);
+
+      expect(viewModel.adsBlockEnabledForUrl('http://127.0.0.1:4188/next')).assertFalse();
+      expect(viewModel.adsBlockEnabledForUrl('http://localhost:4188/fixture')).assertTrue();
+    });
+  });
+
   describe('Pane layout', (): void => {
     it('keeps a draggable divider inside the supported 30/70 range', 0, (): void => {
       expect(clampPaneRatio(0.1)).assertEqual(0.3);

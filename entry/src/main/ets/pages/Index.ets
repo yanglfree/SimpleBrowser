@@ -815,9 +815,7 @@ struct Index {
           } else if (this.isTabLive(tab.id)) {
             BrowserWebView({
               tab: tab,
-              blockAds: this.viewModel.effectiveSiteControl(tab.url).networkBlockingEnabled &&
-                this.viewModel.effectiveSiteControl(tab.url).trackerBlockingEnabled &&
-                !this.viewModel.isHostAllowed(tab.url),
+              blockAds: this.viewModel.adsBlockEnabledForUrl(tab.url),
               interceptRequests: this.viewModel.effectiveSiteControl(tab.url).networkBlockingEnabled &&
                 !this.viewModel.isHostAllowed(tab.url),
               blockTrackers: this.viewModel.effectiveSiteControl(tab.url).trackerBlockingEnabled,
@@ -4298,13 +4296,14 @@ struct Index {
   /** Pushes the current blocking policy into every live web view. */
   private reconfigureBlocking(): void {
     for (const tab of this.tabs) {
-      const controller: webview.WebviewController | undefined = this.controllers.get(tab.id);
-      if (controller !== undefined) {
-        const effective = this.viewModel.effectiveSiteControl(tab.url);
-        const enabled: boolean = effective.networkBlockingEnabled && effective.trackerBlockingEnabled &&
-          !this.viewModel.isHostAllowed(tab.url);
-        this.viewModel.adsBlockService.configure(controller, enabled);
-      }
+      this.configureBlockingForUrl(tab.id, tab.url);
+    }
+  }
+
+  private configureBlockingForUrl(id: string, url: string): void {
+    const controller: webview.WebviewController | undefined = this.controllers.get(id);
+    if (controller !== undefined) {
+      this.viewModel.adsBlockService.configure(controller, this.viewModel.adsBlockEnabledForUrl(url));
     }
   }
 
@@ -4343,6 +4342,9 @@ struct Index {
   // ------------------------------------------------------------- web events
 
   private handlePageBegin(id: string, url: string): void {
+    // A controller survives cross-host navigation, so refresh its native policy
+    // before the destination document starts requesting subresources.
+    this.configureBlockingForUrl(id, url);
     this.dismissResumePrompt();
     this.pageScrollOffsets.set(id, 0);
     this.pageLoadStartedAt.set(id, Date.now());

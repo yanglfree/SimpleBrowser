@@ -823,6 +823,11 @@ export class BrowserViewModel {
     return this.repository.isHostAllowed(rawHost(url));
   }
 
+  adsBlockEnabledForUrl(url: string): boolean {
+    const effective: EffectiveSiteControl = this.effectiveSiteControl(url);
+    return effective.networkBlockingEnabled && effective.trackerBlockingEnabled && !this.isHostAllowed(url);
+  }
+
   getAllowedHosts(): string[] {
     return this.repository.getAllowedHosts();
   }
