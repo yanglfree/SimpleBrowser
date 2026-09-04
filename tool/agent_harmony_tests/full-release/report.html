@@ -40,12 +40,12 @@
     <div class="metric"><strong>73</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>25</strong>Blocked</div>
-    <div class="metric"><strong>8</strong>Not run</div>
+    <div class="metric"><strong>5</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 99 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 98 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -57,7 +57,7 @@
         <td>Startup, consent and onboarding</td>
         <td class="status-partial">partial</td>
         <td><code>startup-01</code><br><code>startup-02</code><br><code>startup-03</code><br><code>startup-04</code><br><code>startup-05</code><br><code>startup-06</code><br><code>startup-07</code></td>
-        <td>passed: 2, not-run: 5</td>
+        <td>passed: 2, partial: 1, not-run: 4</td>
       </tr>
       <tr>
         <td>Address, navigation and page tools</td>
@@ -69,7 +69,7 @@
         <td>Tabs, session and resource limits</td>
         <td class="status-partial">partial</td>
         <td><code>tabs-01</code><br><code>tabs-02</code><br><code>tabs-03</code><br><code>tabs-04</code><br><code>tabs-05</code><br><code>tabs-06</code><br><code>tabs-07</code><br><code>tabs-08</code><br><code>tabs-09</code><br><code>tabs-10</code></td>
-        <td>passed: 8, partial: 1, not-run: 1</td>
+        <td>passed: 8, partial: 2</td>
       </tr>
       <tr>
         <td>Content blocking and site controls</td>
@@ -93,7 +93,7 @@
         <td>Bookmarks, history and start page</td>
         <td class="status-partial">partial</td>
         <td><code>saved-01</code><br><code>saved-02</code><br><code>saved-03</code><br><code>saved-04</code><br><code>saved-05</code><br><code>saved-06</code><br><code>saved-07</code><br><code>saved-08</code><br><code>saved-09</code><br><code>saved-10</code></td>
-        <td>passed: 9, not-run: 1</td>
+        <td>passed: 9, partial: 1</td>
       </tr>
       <tr>
         <td>Downloads and native file operations</td>
@@ -182,7 +182,7 @@
         <td><code>startup-06</code></td>
         <td>p0</td>
         <td>No nonessential processing before consent</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>startup</td>
       </tr>
       <tr>
@@ -343,7 +343,7 @@
         <td><code>tabs-07</code></td>
         <td>p1</td>
         <td>Expired tab archival and restore</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>tabs</td>
       </tr>
       <tr>
@@ -567,7 +567,7 @@
         <td><code>saved-06</code></td>
         <td>p1</td>
         <td>History retention</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-partial">partial</td>
         <td>saved</td>
       </tr>
       <tr>
@@ -957,9 +957,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>startup-06</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>startup-06</code> <span class="status-partial">partial</span></h3>
+        <p>Source audit confirms that remote rule updates, favicon resolution, entitlement synchronization and external-open handling do not start until privacy consent and onboarding are complete, while telemetry writes remain disabled before opt-in. A fresh-data physical-device request and app-event trace is still required.</p>
+        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/pre-consent-source-audit-a7bc961.json</code><br>Audited all pre-consent startup gates and network-capable service entry points in a7bc961.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>startup-07</code> <span class="status-not-run">not-run</span></h3>
@@ -1072,9 +1072,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/tab-soft-limit-prompt.jpeg</code><br>Creating the ninth tab displayed the recoverable soft-limit prompt.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/tab-soft-limit-cleaned.jpeg</code><br>One-tap Cleanup reduced ten tabs to seven while preserving protected tabs.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/tab-limit-restored-check.jpeg</code><br>The original threshold of 12 was restored and visibly selected.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-5f0e479-cold-session.jpeg</code><br>Temporary tabs were removed and the original two-tab session was restored.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>tabs-07</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>tabs-07</code> <span class="status-partial">partial</span></h3>
+        <p>Unit coverage now verifies that keeping an expired-tab archive dismisses the current prompt without deleting the durable archive, and that restore assigns fresh identities and removes the archive. The aged-session launch and prompt still require a physical-device fixture.</p>
+        <ul><li><strong>command</strong>: <code>hvigorw test</code><br>The complete ArkTS suite passed with durable keep-archive and restore coverage.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>tabs-08</code> <span class="status-passed">passed</span></h3>
@@ -1232,9 +1232,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg</code><br>Targeted QA history deletion updated immediately.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-delete-site-prompt.jpeg</code><br>Long press exposed the localized whole-host deletion confirmation.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-host-deleted.jpeg</code><br>Confirming deletion removed all searched localhost records.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-other-host-retained.jpeg</code><br>History from 127.0.0.1 and other sites remained after localhost deletion.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>saved-06</code> <span class="status-not-run">not-run</span></h3>
-        <p>Awaiting the fixed final candidate and fresh physical-device execution.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>saved-06</code> <span class="status-partial">partial</span></h3>
+        <p>Unit coverage now verifies that a seven-day retention selection removes an eight-day entry while preserving a current entry. Physical-device persistence and relaunch with a dated disposable fixture remain pending.</p>
+        <ul><li><strong>command</strong>: <code>hvigorw test</code><br>The complete ArkTS suite passed with selective history-retention coverage.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>saved-07</code> <span class="status-passed">passed</span></h3>

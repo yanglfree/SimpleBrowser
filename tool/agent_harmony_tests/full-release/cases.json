@@ -3914,9 +3914,15 @@
       },
       {
         "caseId": "startup-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Source audit confirms that remote rule updates, favicon resolution, entitlement synchronization and external-open handling do not start until privacy consent and onboarding are complete, while telemetry writes remain disabled before opt-in. A fresh-data physical-device request and app-event trace is still required.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/pre-consent-source-audit-a7bc961.json",
+            "summary": "Audited all pre-consent startup gates and network-capable service entry points in a7bc961."
+          }
+        ]
       },
       {
         "caseId": "startup-07",
@@ -4333,9 +4339,15 @@
       },
       {
         "caseId": "tabs-07",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Unit coverage now verifies that keeping an expired-tab archive dismisses the current prompt without deleting the durable archive, and that restore assigns fresh identities and removes the archive. The aged-session launch and prompt still require a physical-device fixture.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "hvigorw test",
+            "summary": "The complete ArkTS suite passed with durable keep-archive and restore coverage."
+          }
+        ]
       },
       {
         "caseId": "tabs-08",
@@ -4906,9 +4918,15 @@
       },
       {
         "caseId": "saved-06",
-        "status": "not-run",
-        "notes": "Awaiting the fixed final candidate and fresh physical-device execution.",
-        "evidence": []
+        "status": "partial",
+        "notes": "Unit coverage now verifies that a seven-day retention selection removes an eight-day entry while preserving a current entry. Physical-device persistence and relaunch with a dated disposable fixture remain pending.",
+        "evidence": [
+          {
+            "type": "command",
+            "path": "hvigorw test",
+            "summary": "The complete ArkTS suite passed with selective history-retention coverage."
+          }
+        ]
       },
       {
         "caseId": "saved-07",

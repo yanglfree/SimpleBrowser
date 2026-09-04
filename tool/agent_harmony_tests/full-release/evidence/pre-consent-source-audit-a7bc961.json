@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-09-04T09:58:00Z",
+  "sourceSha": "a7bc9618c5768a5c17d3e5f1942b9994c82d790e",
+  "scope": "pre-consent startup processing",
+  "findings": [
+    {
+      "path": "entry/src/main/ets/pages/Index.ets",
+      "check": "resumeConsentedStartup returns while privacy consent is absent and again while onboarding is incomplete"
+    },
+    {
+      "path": "entry/src/main/ets/pages/Index.ets",
+      "check": "rule refresh, favicon network resolution, entitlement synchronization and external-open subscription start only after both gates"
+    },
+    {
+      "path": "entry/src/main/ets/services/TelemetryService.ets",
+      "check": "all event writes require telemetry to be enabled; initial and unresolved-consent states suppress writes"
+    },
+    {
+      "path": "entry/src/main/ets/services/FaviconService.ets",
+      "check": "initialize creates only the local cache directory; network work starts from iconFor after the consent gate"
+    },
+    {
+      "path": "entry/src/main/ets/entryability/EntryAbility.ets",
+      "check": "crash observers can register before consent but cannot write while telemetry remains disabled"
+    }
+  ],
+  "limitations": [
+    "A fresh-data physical-device network and app-event trace is still required before this case can pass."
+  ],
+  "result": "partial"
+}

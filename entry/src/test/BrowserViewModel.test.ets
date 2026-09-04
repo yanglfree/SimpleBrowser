@@ -179,6 +179,19 @@ export default function browserViewModelTest(): void {
   });
 
   describe('BrowserViewModel archived tab recovery', (): void => {
+    it('keeps dismissed expired tabs in the durable archive for a later restore', 0, async (): Promise<void> => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const archived: BrowserTab = viewModel.createTab('https://archived.example', false);
+      await viewModel.repository.archiveTabs([archived]);
+      viewModel.expiredTabs = viewModel.repository.getArchivedTabs();
+
+      await viewModel.archiveExpiredTabs();
+
+      expect(viewModel.expiredTabCount).assertEqual(0);
+      expect(viewModel.repository.getArchivedTabs().length).assertEqual(1);
+      expect(viewModel.repository.getArchivedTabs()[0].url).assertEqual(archived.url);
+    });
+
     it('restores every pending archived tab and removes the durable archive', 0, async (): Promise<void> => {
       const viewModel: BrowserViewModel = new BrowserViewModel();
       const active: BrowserTab = viewModel.createTab('https://active.example', false);
@@ -203,6 +216,35 @@ export default function browserViewModelTest(): void {
       expect(viewModel.repository.getArchivedTabs().length).assertEqual(0);
       expect(viewModel.activeTabId).assertEqual(active.id);
       expect(viewModel.createTab(HOME_URL, false).id).assertEqual('tab-6');
+    });
+  });
+
+  describe('BrowserViewModel history retention', (): void => {
+    it('removes only entries older than the selected retention window', 0, async (): Promise<void> => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const now: number = Date.now();
+      const oldEntry: HistoryEntry = {
+        id: 'history-old',
+        title: 'Old page',
+        url: 'https://old.example',
+        visitedAt: now - 8 * 24 * 60 * 60 * 1000,
+        visitCount: 1
+      };
+      const currentEntry: HistoryEntry = {
+        id: 'history-current',
+        title: 'Current page',
+        url: 'https://current.example',
+        visitedAt: now,
+        visitCount: 1
+      };
+      await viewModel.repository.recordHistory(oldEntry);
+      await viewModel.repository.recordHistory(currentEntry);
+
+      await viewModel.repository.applyHistoryRetention(7);
+
+      const retained: HistoryEntry[] = viewModel.repository.getHistory();
+      expect(retained.length).assertEqual(1);
+      expect(retained[0].id).assertEqual(currentEntry.id);
     });
   });
 
