@@ -37,9 +37,9 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>72</strong>Executed</div>
-    <div class="metric"><strong>57</strong>Passed</div>
+    <div class="metric"><strong>58</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
-    <div class="metric"><strong>15</strong>Partial</div>
+    <div class="metric"><strong>14</strong>Partial</div>
     <div class="metric"><strong>29</strong>Blocked</div>
     <div class="metric"><strong>11</strong>Not run</div>
   </section>
@@ -76,7 +76,7 @@
         <td>Content blocking and site controls</td>
         <td class="status-partial">partial</td>
         <td><code>blocking-01</code><br><code>blocking-02</code><br><code>blocking-03</code><br><code>blocking-04</code><br><code>blocking-05</code><br><code>blocking-06</code><br><code>blocking-07</code><br><code>blocking-08</code></td>
-        <td>passed: 7, partial: 1</td>
+        <td>passed: 8</td>
       </tr>
       <tr>
         <td>Online reader mode</td>
@@ -414,7 +414,7 @@
         <td><code>blocking-07</code></td>
         <td>p1</td>
         <td>Per-site override modes</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>blocking</td>
       </tr>
       <tr>
@@ -1122,9 +1122,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-private-events.jpeg</code><br>The private tab exposed current-page ad and tracker block events.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-private-panel.jpeg</code><br>Private activity was visible for the active page while the persisted baseline remained 12 site and 1,294 global.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-private-not-persisted.jpeg</code><br>After the private tab closed, a zero-block normal page showed the unchanged 12 site and 1,294 global totals.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>blocking-07</code> <span class="status-partial">partial</span></h3>
-        <p>Network blocking, tracker blocking, cosmetic filtering, automatic reader, web dark mode, and desktop UA each cycled through force-on, force-off, and inherit. All six overrides were restored to inherit. Corresponding behavior and second-host isolation remain only partly covered.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/site-controls-cycle.jpeg</code><br>The site-control sheet exposed all six override categories after their mode cycle and restoration.</li></ul>
+        <h3><code>blocking-07</code> <span class="status-passed">passed</span></h3>
+        <p>All six per-site fields cycled through force-on, force-off, and inherit. Controlled requests proved network, tracker, and cosmetic behavior plus host isolation; controlled second-host checks proved dark-mode and desktop-UA scope. On the physical device, force-on automatic reader converted a fresh controlled long-form page into reader mode, then every 127.0.0.1 override was restored to inherit. The temporary tab and QA history were removed.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/site-controls-cycle.jpeg</code><br>All six per-site controls exposed force-on, force-off, and inherit states.</li><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-host-isolation.json</code><br>Controlled requests proved network and tracker behavior remained scoped to the selected host.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-disabled-uncached.jpeg</code><br>Tracker and cosmetic force-off behavior exposed the controlled tracker, ad image, and cosmetic marker.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/web-dark-second-host.jpeg</code><br>The dark-mode override remained isolated while the second host followed the global setting.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/ua-global-desktop-second-host.jpeg</code><br>Desktop-UA behavior was verified against a second host name.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/site-auto-reader-enabled.jpeg</code><br>Force-on automatic reader converted a fresh controlled long-form page into reader mode.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/site-controls-all-restored.jpeg</code><br>All six 127.0.0.1 site controls were restored to inherit.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/site-auto-reader-cleaned.json</code><br>The QA tab and its two temporary history records were removed, leaving the original history count.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>blocking-08</code> <span class="status-passed">passed</span></h3>

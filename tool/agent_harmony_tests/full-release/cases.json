@@ -71,7 +71,7 @@
         "blocking-07",
         "blocking-08"
       ],
-      "notes": "passed: 7, partial: 1"
+      "notes": "passed: 8"
     },
     {
       "title": "Online reader mode",
@@ -4506,13 +4506,48 @@
       },
       {
         "caseId": "blocking-07",
-        "status": "partial",
-        "notes": "Network blocking, tracker blocking, cosmetic filtering, automatic reader, web dark mode, and desktop UA each cycled through force-on, force-off, and inherit. All six overrides were restored to inherit. Corresponding behavior and second-host isolation remain only partly covered.",
+        "status": "passed",
+        "notes": "All six per-site fields cycled through force-on, force-off, and inherit. Controlled requests proved network, tracker, and cosmetic behavior plus host isolation; controlled second-host checks proved dark-mode and desktop-UA scope. On the physical device, force-on automatic reader converted a fresh controlled long-form page into reader mode, then every 127.0.0.1 override was restored to inherit. The temporary tab and QA history were removed.",
         "evidence": [
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/site-controls-cycle.jpeg",
-            "summary": "The site-control sheet exposed all six override categories after their mode cycle and restoration."
+            "summary": "All six per-site controls exposed force-on, force-off, and inherit states."
+          },
+          {
+            "type": "command",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-host-isolation.json",
+            "summary": "Controlled requests proved network and tracker behavior remained scoped to the selected host."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-disabled-uncached.jpeg",
+            "summary": "Tracker and cosmetic force-off behavior exposed the controlled tracker, ad image, and cosmetic marker."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/web-dark-second-host.jpeg",
+            "summary": "The dark-mode override remained isolated while the second host followed the global setting."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/ua-global-desktop-second-host.jpeg",
+            "summary": "Desktop-UA behavior was verified against a second host name."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/site-auto-reader-enabled.jpeg",
+            "summary": "Force-on automatic reader converted a fresh controlled long-form page into reader mode."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/site-controls-all-restored.jpeg",
+            "summary": "All six 127.0.0.1 site controls were restored to inherit."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/site-auto-reader-cleaned.json",
+            "summary": "The QA tab and its two temporary history records were removed, leaving the original history count."
           }
         ]
       },
