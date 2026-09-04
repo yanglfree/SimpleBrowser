@@ -1,0 +1,53 @@
+{
+  "date": "2026-09-04",
+  "device": {
+    "model": "TLR-AL00",
+    "runtime": "OpenHarmony-6.1.1.120",
+    "resolution": "1084x2412",
+    "orientation": "portrait",
+    "transport": "USB HDC"
+  },
+  "candidate": {
+    "version": "1.0.1 (1000001 debug)",
+    "sourceSha": "2f80eafecacdb1be0b6e842a49be310cb80ace8a",
+    "hapSha256": "b3e7d545234cfc1f7e24fdfa8f10af9da8fb1ff3fb003f5f1445ac4ea51f7ee3"
+  },
+  "tabs07": {
+    "result": "passed",
+    "fixture": "Two synthetic normal tabs: current and eight days old; expiry threshold seven days.",
+    "observations": [
+      "Cold launch displayed the archive prompt.",
+      "Keeping the archive dismissed the prompt and preserved one active tab.",
+      "A second cold launch displayed the prompt again, proving durable archive retention.",
+      "Restoring created a two-tab session and removed the prompt."
+    ],
+    "evidence": [
+      {
+        "path": "phone-tab-expiry-prompt.jpeg",
+        "sha256": "d36f715298840ce80fc0ea555d51e8265128ccaa71d087683a648c8ed4db9492"
+      },
+      {
+        "path": "phone-tab-expiry-restored.jpeg",
+        "sha256": "b7b3ee3470a0aa9f12d658ee119aff60e85f3392a9793cbaed4d3f266b1f65d5"
+      }
+    ]
+  },
+  "saved06": {
+    "result": "passed",
+    "fixture": "Two synthetic history entries: current and eight days old; initial retention disabled.",
+    "defectFound": "The repository pruned the old entry immediately, but the open history presentation retained stale page state until relaunch.",
+    "fix": "Index.applySettings now synchronizes page state after BrowserViewModel.updateSettings completes.",
+    "observations": [
+      "Before selection, both synthetic entries were visible.",
+      "Selecting seven days retained the current entry and removed the eight-day entry without relaunch.",
+      "A cold relaunch retained the seven-day setting and current entry; the old entry remained absent."
+    ]
+  },
+  "dataRecovery": {
+    "result": "passed",
+    "snapshotFileCount": 35,
+    "snapshotBytes": 7547732,
+    "readback": "All restored files matched their pre-fixture SHA-256 values before relaunch."
+  },
+  "screenTimeout": "Temporary override restored after QA."
+}

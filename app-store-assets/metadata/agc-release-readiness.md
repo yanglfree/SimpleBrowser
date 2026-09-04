@@ -64,11 +64,12 @@ The release profile and `entry/src/main/module.json5` must contain the same perm
 
 ## Current release evidence
 
-- Full release matrix: 112 cases, 99 passed, 9 partial, 4 blocked and 0 failed as recorded in `tool/agent_harmony_tests/full-release/`.
-- CI source `607f881728ddcf1596e0c04454859d717fa3db2c`: tests and HarmonyOS build passed in run `33888200725`.
-- Specified-device release source `607f881728ddcf1596e0c04454859d717fa3db2c`: signed artifact retention and verified portal publication passed in run `33888369706`.
-- Published specified-device build: 1.0.1 (1000006), release ID `287a0e8ee829bc1aee66baf29cd9792d2f5886c19a243659eb9be9c78a8ab5a4`, HAP SHA-256 `b6c1fcbdc6c3b616611dd002ce927afd99f3257174f4ea9882f98f8cb76a3df9`.
+- Full release matrix: 112 cases, 101 passed, 7 partial, 4 blocked and 0 failed as recorded in `tool/agent_harmony_tests/full-release/`.
+- CI source `d93b8729b2cf79aa485b4d09d3e20a4a4bc34207`: tests and HarmonyOS build passed in run `33889596080`.
+- Specified-device release source `d93b8729b2cf79aa485b4d09d3e20a4a4bc34207`: signed artifact retention and verified portal publication passed in run `33889790708`.
+- Published specified-device build: 1.0.1 (1000007), release ID `72c8ed4b10f8dc922a5a49e0c6f2ab13c081fbc7514071083327e4873e55b245`, HAP SHA-256 `af0fa68b31b046d10cd7721b1dd524f9f3de6ca2399128e628dfe95be221cc46`.
 - Tablet data restore: all five article-library database files were read back byte-for-byte after restoration; the cold-launched library showed zero articles, matching the snapshot contents.
 - Tablet assets: `app-store-assets/generated/harmony-agc-tablet/{zh-Hans,en}/`, five 2732 x 2048 PNG files per locale, all below 5 MB.
+- Phone dated fixtures: expired-tab archive/keep/relaunch/restore and seven-day history retention passed on source `2f80eafecacdb1be0b6e842a49be310cb80ace8a`; the history sheet now refreshes immediately after pruning, and all 35 original data files matched their snapshot digests after restoration.
 
 These facts do not make the release submission-ready while partial and blocked cases remain. The final AppGallery `.app` path and SHA-256 are intentionally pinned after this document is committed so the package source is immutable and exact.

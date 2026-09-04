@@ -43,7 +43,7 @@
     },
     {
       "title": "Tabs, session and resource limits",
-      "status": "partial",
+      "status": "passed",
       "caseIds": [
         "tabs-01",
         "tabs-02",
@@ -56,7 +56,7 @@
         "tabs-09",
         "tabs-10"
       ],
-      "notes": "passed: 9, partial: 1"
+      "notes": "passed: 10"
     },
     {
       "title": "Content blocking and site controls",
@@ -104,7 +104,7 @@
     },
     {
       "title": "Bookmarks, history and start page",
-      "status": "partial",
+      "status": "passed",
       "caseIds": [
         "saved-01",
         "saved-02",
@@ -117,7 +117,7 @@
         "saved-09",
         "saved-10"
       ],
-      "notes": "passed: 9, partial: 1"
+      "notes": "passed: 10"
     },
     {
       "title": "Downloads and native file operations",
@@ -3860,11 +3860,11 @@
       "resolution": "2880x1920"
     },
     "appBuild": {
-      "version": "1.0.1 (1000005); b100501 product-code candidate",
-      "sourceSha": "b100501b97cf5ed5a54a0b23246a89b1a8f00512",
-      "hapPath": "specified-device release d4b41106138466ecf660ebd4c9d5a7d3ddb3795ae9217b6874fd38da9d1fc617/install.hap",
-      "sha256": "2b45fbdb809992bed729a792e8d4f70ddb5c5050403e117d50514f60fb37411a",
-      "signing": "canonical internaltesting profile; CI 33885519943; stable-manifest system installation verified"
+      "version": "Tablet release 1.0.1 (1000007); phone debug 1.0.1 (1000001)",
+      "sourceSha": "d93b8729b2cf79aa485b4d09d3e20a4a4bc34207 on tablet; 2f80eafecacdb1be0b6e842a49be310cb80ace8a on phone",
+      "hapPath": "Portal specified-device release 72c8ed4b10f8dc922a5a49e0c6f2ab13c081fbc7514071083327e4873e55b245; local rebuilt debug candidate",
+      "sha256": "af0fa68b31b046d10cd7721b1dd524f9f3de6ca2399128e628dfe95be221cc46 tablet; b3e7d545234cfc1f7e24fdfa8f10af9da8fb1ff3fb003f5f1445ac4ea51f7ee3 phone",
+      "signing": "Canonical internaltesting profile on tablet; canonical debug profile on phone"
     },
     "results": [
       {
@@ -4390,13 +4390,23 @@
       },
       {
         "caseId": "tabs-07",
-        "status": "partial",
-        "notes": "Unit coverage now verifies that keeping an expired-tab archive dismisses the current prompt without deleting the durable archive, and that restore assigns fresh identities and removes the archive. The aged-session launch and prompt still require a physical-device fixture.",
+        "status": "passed",
+        "notes": "A dated physical-phone fixture archived an eight-day normal tab at a seven-day threshold. Keeping the archive dismissed the prompt while preserving it across cold relaunch; restore returned a two-tab session and removed the prompt. The fixture used no private tabs or user content, and the original application data was restored byte-for-byte afterward.",
         "evidence": [
           {
-            "type": "command",
-            "path": "hvigorw test",
-            "summary": "The complete ArkTS suite passed with durable keep-archive and restore coverage."
+            "type": "device",
+            "path": "tool/agent_harmony_tests/full-release/evidence/phone-aged-tabs-and-history-retention.json",
+            "summary": "Recorded the dated fixture, keep/relaunch/restore observations, candidate identity and exact data-restore result."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/phone-tab-expiry-prompt.jpeg",
+            "summary": "Physical phone displayed the expired-tab archive prompt."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/phone-tab-expiry-restored.jpeg",
+            "summary": "Restore returned the synthetic expired tab and increased the active tab count to two."
           }
         ]
       },
@@ -5044,13 +5054,18 @@
       },
       {
         "caseId": "saved-06",
-        "status": "partial",
-        "notes": "Unit coverage now verifies that a seven-day retention selection removes an eight-day entry while preserving a current entry. Physical-device persistence and relaunch with a dated disposable fixture remain pending.",
+        "status": "passed",
+        "notes": "A physical-phone fixture contained current and eight-day history entries with retention initially disabled. Selecting seven days exposed a stale presentation defect: persistence was pruned immediately but the open history sheet was not. Source 2f80eaf synchronizes page state after the settings update. On the rebuilt candidate, the current entry remained and the expired entry disappeared without relaunch; a cold relaunch preserved the setting and the pruned result. All 35 original application-data files were restored with matching SHA-256 values before relaunch.",
         "evidence": [
           {
+            "type": "device",
+            "path": "tool/agent_harmony_tests/full-release/evidence/phone-aged-tabs-and-history-retention.json",
+            "summary": "Recorded the before/after/cold-launch assertions, defect fix, candidate HAP digest and exact snapshot restoration."
+          },
+          {
             "type": "command",
-            "path": "hvigorw test",
-            "summary": "The complete ArkTS suite passed with selective history-retention coverage."
+            "path": "hvigorw assembleHap",
+            "summary": "The history-refresh source compiled and signed successfully before device installation."
           }
         ]
       },
@@ -5915,31 +5930,44 @@
     ],
     "validation": [
       {
-        "command": "hvigorw test",
-        "status": "passed",
-        "summary": "Complete ArkTS suite passed for b100501, including corrected history cutoff behavior."
-      },
-      {
         "command": "hvigorw assembleHap",
         "status": "passed",
-        "summary": "Canonical local HAP built successfully for b100501."
+        "summary": "History-presentation refresh source 2f80eaf compiled and signed successfully."
       },
       {
-        "command": "GitHub CI 33885202323",
+        "command": "GitHub CI 33889596080",
         "status": "passed",
-        "summary": "CI accepted exact source b100501."
+        "summary": "CI accepted exact tablet source d93b872."
       },
       {
-        "command": "GitHub signed artifacts 33885519943",
+        "command": "GitHub signed artifacts 33889790708",
         "status": "passed",
-        "summary": "Signed store artifacts and specified-device publication passed."
+        "summary": "Signed store artifacts and specified-device publication passed for d93b872."
       },
       {
-        "command": "specified-device build 1000005",
+        "command": "specified-device build 1000007",
         "status": "passed",
-        "summary": "Live checksums, GET, HEAD, Range, system installation, cold launch and data preservation passed."
+        "summary": "Release profile, installation, cold launch and restored empty article-library state passed on the landscape tablet."
+      },
+      {
+        "command": "physical phone aged-session and history fixtures",
+        "status": "passed",
+        "summary": "Tabs-07 and saved-06 passed, including the immediate-history refresh regression and byte-exact restoration of 35 original files."
       }
     ],
-    "notes": "Physical tablet acceptance is pinned to b100501 product code. Later report-only commits do not change the executable. Remaining evidence gaps are monthly final purchase, controlled commerce outage, second-account isolation, supported UDMF cross-app drop, phone landscape rotation, aged-session/dated-history fixtures, and physical foldable posture. AGC upload and submission remain gated."
+    "notes": "Tablet acceptance is pinned to d93b872 product code and build 1000007. Phone regression acceptance is pinned to 2f80eaf product code. Remaining evidence gaps are keyboard-open and phone-landscape rotation, supported UDMF cross-app drop, monthly final purchase, controlled commerce outage, renewal or natural expiry, second-account isolation, physical foldable posture, and final AGC console declarations/materials. AGC upload and submission remain gated.",
+    "secondaryTargets": [
+      {
+        "name": "Huawei TLR-AL00",
+        "id": "USB HDC",
+        "runtime": "OpenHarmony-6.1.1.120",
+        "orientation": "portrait",
+        "resolution": "1084x2412",
+        "scope": [
+          "tabs-07",
+          "saved-06"
+        ]
+      }
+    ]
   }
 }
