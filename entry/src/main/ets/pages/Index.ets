@@ -726,6 +726,7 @@ struct Index {
       : $r('app.color.page_background'))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .focusable(true)
+    .defaultFocus(true)
     .allowDrop([
       uniformTypeDescriptor.UniformDataType.HYPERLINK,
       uniformTypeDescriptor.UniformDataType.PLAIN_TEXT
