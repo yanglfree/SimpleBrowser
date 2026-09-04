@@ -144,7 +144,7 @@
         "permissions-06",
         "permissions-07"
       ],
-      "notes": "passed: 1, partial: 1, blocked: 4, not-run: 1"
+      "notes": "passed: 5, partial: 1, not-run: 1"
     },
     {
       "title": "External entry, sharing and defaults",
@@ -2535,7 +2535,8 @@
       ],
       "sourceFiles": [
         "entry/src/main/ets/services/PrivacyService.ets",
-        "entry/src/main/ets/components/PermissionSheet.ets"
+        "entry/src/main/ets/components/PermissionSheet.ets",
+        "entry/src/main/ets/services/SitePermissionPolicy.ets"
       ],
       "preconditions": [
         "Pinned candidate installed on the recorded physical device",
@@ -2568,7 +2569,8 @@
       ],
       "sourceFiles": [
         "entry/src/main/ets/services/PrivacyService.ets",
-        "entry/src/main/ets/components/PermissionSheet.ets"
+        "entry/src/main/ets/components/PermissionSheet.ets",
+        "entry/src/main/ets/services/SitePermissionPolicy.ets"
       ],
       "preconditions": [
         "Pinned candidate installed on the recorded physical device",
@@ -2600,7 +2602,9 @@
       ],
       "sourceFiles": [
         "entry/src/main/ets/services/PrivacyService.ets",
-        "entry/src/main/ets/components/PermissionSheet.ets"
+        "entry/src/main/ets/components/PermissionSheet.ets",
+        "entry/src/main/ets/services/SitePermissionPolicy.ets",
+        "entry/src/main/module.json5"
       ],
       "preconditions": [
         "Pinned candidate installed on the recorded physical device",
@@ -2632,7 +2636,8 @@
       ],
       "sourceFiles": [
         "entry/src/main/ets/services/PrivacyService.ets",
-        "entry/src/main/ets/components/PermissionSheet.ets"
+        "entry/src/main/ets/components/PermissionSheet.ets",
+        "entry/src/main/ets/services/SitePermissionPolicy.ets"
       ],
       "preconditions": [
         "Pinned candidate installed on the recorded physical device",
@@ -3853,10 +3858,10 @@
       "runtime": "OpenHarmony-6.1.1.120"
     },
     "appBuild": {
-      "version": "1.0.1 (1000001); 96968d7 HEAD-equivalent physical-device candidate",
-      "sourceSha": "96968d7c1a64bd3b7eb1a65a6b8b77c83cf2fdb5",
+      "version": "1.0.1 (1000001); 31bcc39 physical-device candidate",
+      "sourceSha": "31bcc396ac4dca3ae851a2a4a875529b18999b13",
       "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "a91a0dd783f653f803b5dbb1bc8f76f200aa6c56e07fee7576094d784393930c",
+      "sha256": "35db6d2b01183295b842cf0ce6011177eb47447e03a218efc5bb451f5eaccd0a",
       "signing": "canonical debug profile for physical-device QA; AppGallery dis artifact remains pending"
     },
     "results": [
@@ -5036,27 +5041,101 @@
       },
       {
         "caseId": "permissions-01",
-        "status": "blocked",
-        "notes": "Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.",
-        "evidence": []
+        "status": "passed",
+        "notes": "A controlled localhost camera request showed the exact origin and remained blocked before consent. Site denial returned NotAllowedError; removing the decision restored prompting. Site allow then opened the HarmonyOS camera dialog, system allow produced a granted result, and the stream was stopped immediately without retaining media. The system permission and QA origin were revoked afterward.",
+        "evidence": [
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-camera-prompt.jpeg",
+            "summary": "The in-app site prompt displayed the controlled origin and camera capability before any native access."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-camera-denied.jpeg",
+            "summary": "Site denial returned a visible NotAllowedError without opening the camera."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-camera-system.jpeg",
+            "summary": "Site allow delegated to the HarmonyOS camera permission dialog."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-camera-granted.jpeg",
+            "summary": "The controlled page reported success after immediately stopping the granted camera stream."
+          }
+        ]
       },
       {
         "caseId": "permissions-02",
-        "status": "blocked",
-        "notes": "Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.",
-        "evidence": []
+        "status": "passed",
+        "notes": "A controlled localhost microphone request displayed the exact origin. Site denial returned NotAllowedError; deleting the site decision restored prompting. Site allow opened the HarmonyOS microphone dialog, system allow produced a granted result, and all audio tracks were stopped immediately. The system permission and QA origin were revoked afterward.",
+        "evidence": [
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-microphone-site-prompt.json",
+            "summary": "The in-app site prompt displayed the controlled origin and microphone capability."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-microphone-system-prompt.json",
+            "summary": "Site allow delegated to the HarmonyOS microphone permission dialog."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-microphone-granted.json",
+            "summary": "The controlled page reported success after immediately stopping all microphone tracks."
+          }
+        ]
       },
       {
         "caseId": "permissions-03",
-        "status": "blocked",
-        "notes": "Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Site denial prevented location access and produced a visible denial. Removing the site record restored the origin prompt. The original candidate then failed before the native dialog because it requested only precise location. Commit 31bcc39 added the required approximate-location declaration and paired native request; the rebuilt HAP opened the HarmonyOS location dialog and returned success without retaining coordinates. Precise and approximate system grants were revoked afterward.",
+        "evidence": [
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-location-site-prompt.json",
+            "summary": "The in-app prompt displayed the controlled origin and location capability."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-location-system-prompt.json",
+            "summary": "The fixed candidate reached the HarmonyOS location dialog with its declared purpose."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-location-granted.json",
+            "summary": "The controlled page reported location success without recording coordinate values."
+          }
+        ]
       },
       {
         "caseId": "permissions-04",
-        "status": "blocked",
-        "notes": "Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Deny decisions were visible in Settings and deleting the controlled origin returned every capability to prompting. An allowed location decision survived force-stop and relaunch without a repeated site prompt. The final cleanup removed the localhost site record, revoked camera, microphone, precise-location and approximate-location system grants, and closed all QA tabs while preserving the two pre-existing user tabs.",
+        "evidence": [
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-location-persisted.json",
+            "summary": "The stored site allow decision remained effective after force-stop relaunch."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-site-record-cleared.json",
+            "summary": "Settings reported that no site permission records remained after cleanup."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-system-revoked.json",
+            "summary": "The system permission surface reflected the final microphone revoke; atm dump also reported all four tested grants denied."
+          },
+          {
+            "type": "ui-tree",
+            "path": "tool/agent_harmony_tests/full-release/evidence/permission-qa-tabs-cleaned.json",
+            "summary": "Only the two pre-existing user tabs remained after controlled-fixture cleanup."
+          }
+        ]
       },
       {
         "caseId": "permissions-05",

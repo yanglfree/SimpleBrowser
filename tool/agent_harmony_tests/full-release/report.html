@@ -29,24 +29,24 @@
   <p>
     Date: 2026-09-04<br>
     Target: Huawei TLR-AL00, OpenHarmony-6.1.1.120, <code>4UQ9K25530058677</code><br>
-    App: ZhuoBrowser Full Release Acceptance <code>1.0.1 (1000001); 96968d7 HEAD-equivalent physical-device candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
+    App: ZhuoBrowser Full Release Acceptance <code>1.0.1 (1000001); 31bcc39 physical-device candidate</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
     HAP: <code>entry/build/default/outputs/default/entry-default-signed.hap</code><br>
     Auth source: none
   </p>
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>72</strong>Executed</div>
-    <div class="metric"><strong>59</strong>Passed</div>
+    <div class="metric"><strong>76</strong>Executed</div>
+    <div class="metric"><strong>63</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>13</strong>Partial</div>
-    <div class="metric"><strong>29</strong>Blocked</div>
+    <div class="metric"><strong>25</strong>Blocked</div>
     <div class="metric"><strong>11</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 72 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 76 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -106,7 +106,7 @@
         <td>Privacy data and site permissions</td>
         <td class="status-partial">partial</td>
         <td><code>permissions-01</code><br><code>permissions-02</code><br><code>permissions-03</code><br><code>permissions-04</code><br><code>permissions-05</code><br><code>permissions-06</code><br><code>permissions-07</code></td>
-        <td>passed: 1, partial: 1, blocked: 4, not-run: 1</td>
+        <td>passed: 5, partial: 1, not-run: 1</td>
       </tr>
       <tr>
         <td>External entry, sharing and defaults</td>
@@ -645,28 +645,28 @@
         <td><code>permissions-01</code></td>
         <td>p1</td>
         <td>Camera permission</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-passed">passed</td>
         <td>permissions</td>
       </tr>
       <tr>
         <td><code>permissions-02</code></td>
         <td>p1</td>
         <td>Microphone permission</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-passed">passed</td>
         <td>permissions</td>
       </tr>
       <tr>
         <td><code>permissions-03</code></td>
         <td>p1</td>
         <td>Location permission</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-passed">passed</td>
         <td>permissions</td>
       </tr>
       <tr>
         <td><code>permissions-04</code></td>
         <td>p1</td>
         <td>Persist and remove permission decisions</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-passed">passed</td>
         <td>permissions</td>
       </tr>
       <tr>
@@ -1287,24 +1287,24 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-cold-restored-records.jpeg</code><br>Completed download records survived a cold process relaunch.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/download-missing-file-feedback.jpeg</code><br>The externally removed file was reported as removed with safe record cleanup.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>permissions-01</code> <span class="status-blocked">blocked</span></h3>
-        <p>Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>permissions-01</code> <span class="status-passed">passed</span></h3>
+        <p>A controlled localhost camera request showed the exact origin and remained blocked before consent. Site denial returned NotAllowedError; removing the decision restored prompting. Site allow then opened the HarmonyOS camera dialog, system allow produced a granted result, and the stream was stopped immediately without retaining media. The system permission and QA origin were revoked afterward.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-camera-prompt.jpeg</code><br>The in-app site prompt displayed the controlled origin and camera capability before any native access.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-camera-denied.jpeg</code><br>Site denial returned a visible NotAllowedError without opening the camera.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-camera-system.jpeg</code><br>Site allow delegated to the HarmonyOS camera permission dialog.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-camera-granted.jpeg</code><br>The controlled page reported success after immediately stopping the granted camera stream.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>permissions-02</code> <span class="status-blocked">blocked</span></h3>
-        <p>Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>permissions-02</code> <span class="status-passed">passed</span></h3>
+        <p>A controlled localhost microphone request displayed the exact origin. Site denial returned NotAllowedError; deleting the site decision restored prompting. Site allow opened the HarmonyOS microphone dialog, system allow produced a granted result, and all audio tracks were stopped immediately. The system permission and QA origin were revoked afterward.</p>
+        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-microphone-site-prompt.json</code><br>The in-app site prompt displayed the controlled origin and microphone capability.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-microphone-system-prompt.json</code><br>Site allow delegated to the HarmonyOS microphone permission dialog.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-microphone-granted.json</code><br>The controlled page reported success after immediately stopping all microphone tracks.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>permissions-03</code> <span class="status-blocked">blocked</span></h3>
-        <p>Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>permissions-03</code> <span class="status-passed">passed</span></h3>
+        <p>Site denial prevented location access and produced a visible denial. Removing the site record restored the origin prompt. The original candidate then failed before the native dialog because it requested only precise location. Commit 31bcc39 added the required approximate-location declaration and paired native request; the rebuilt HAP opened the HarmonyOS location dialog and returned success without retaining coordinates. Precise and approximate system grants were revoked afterward.</p>
+        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-location-site-prompt.json</code><br>The in-app prompt displayed the controlled origin and location capability.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-location-system-prompt.json</code><br>The fixed candidate reached the HarmonyOS location dialog with its declared purpose.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-location-granted.json</code><br>The controlled page reported location success without recording coordinate values.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>permissions-04</code> <span class="status-blocked">blocked</span></h3>
-        <p>Awaiting explicit authorization for physical-device camera, microphone, or location permission testing.</p>
-        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+        <h3><code>permissions-04</code> <span class="status-passed">passed</span></h3>
+        <p>Deny decisions were visible in Settings and deleting the controlled origin returned every capability to prompting. An allowed location decision survived force-stop and relaunch without a repeated site prompt. The final cleanup removed the localhost site record, revoked camera, microphone, precise-location and approximate-location system grants, and closed all QA tabs while preserving the two pre-existing user tabs.</p>
+        <ul><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-location-persisted.json</code><br>The stored site allow decision remained effective after force-stop relaunch.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-site-record-cleared.json</code><br>Settings reported that no site permission records remained after cleanup.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-system-revoked.json</code><br>The system permission surface reflected the final microphone revoke; atm dump also reported all four tested grants denied.</li><li><strong>ui-tree</strong>: <code>tool/agent_harmony_tests/full-release/evidence/permission-qa-tabs-cleaned.json</code><br>Only the two pre-existing user tabs remained after controlled-fixture cleanup.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>permissions-05</code> <span class="status-passed">passed</span></h3>
