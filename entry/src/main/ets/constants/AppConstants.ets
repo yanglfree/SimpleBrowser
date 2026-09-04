@@ -51,6 +51,13 @@ export const TRACKER_URL_PATTERNS: string[] = [
   'pixel', 'collect?', '/stat', 'sensorsdata'
 ];
 
+export const STRICT_AD_TOKEN_PATTERN: string =
+  '(^|[\\s_-])ads?([\\s_-]|$)|advert|adsbygoogle|sponsor|promotion|banner-?ad|gg-?wrap';
+
+export function matchesStrictAdToken(id: string, className: string): boolean {
+  return new RegExp(STRICT_AD_TOKEN_PATTERN, 'i').test(`${id} ${className}`);
+}
+
 /**
  * Hides ad slots, floating overlays and cookie walls that survive the network
  * blocker, and reports what it removed so the blocking panel shows real counts.
@@ -74,7 +81,7 @@ export function contentCleanupScript(strict: boolean): string {
 
   var cookieRe = /cookie|consent|gdpr|隐私政策|隐私声明/i;
   var popupRe = /modal|popup|pop-up|overlay|interstitial|lightbox|mask-layer|open-?app|download-?app|下载app|打开app|立即下载/i;
-  var adRe = /(^|[-_])ads?([-_]|$)|advert|adsbygoogle|sponsor|promotion|banner-?ad|gg-?wrap/i;
+  var adRe = new RegExp(${JSON.stringify(STRICT_AD_TOKEN_PATTERN)}, 'i');
 
   var viewport = Math.max(1, window.innerWidth * window.innerHeight);
   var documentText = Math.max(1, (document.body.innerText || '').length);

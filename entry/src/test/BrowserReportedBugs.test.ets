@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { historyHeaderTopPadding, resolveHistoryEntryDeleteTarget } from '../main/ets/components/HistorySheet';
-import { readerApplyScript } from '../main/ets/constants/AppConstants';
+import { matchesStrictAdToken, readerApplyScript } from '../main/ets/constants/AppConstants';
 import { HistoryEntry, ReaderPaper, SavedItem, getReaderTheme } from '../main/ets/models/BrowserModels';
 import {
   SCREENSHOT_CACHE_RETENTION_MS,
@@ -37,6 +37,13 @@ export default function browserReportedBugsTest(): void {
       expect(script.includes('node.innerText || node.textContent')).assertTrue();
       expect(script.includes('paragraphText.length < 24')).assertTrue();
       expect(script.includes('wrapper.className = \'__mb-reader-body\'')).assertTrue();
+    });
+
+    it('recognizes strict ad classes when an element also has an id', 0, (): void => {
+      expect(matchesStrictAdToken('strict-ad', 'ad-banner')).assertTrue();
+      expect(matchesStrictAdToken('content', 'ad-banner')).assertTrue();
+      expect(matchesStrictAdToken('content', 'sponsored-card')).assertTrue();
+      expect(matchesStrictAdToken('shadow', 'header')).assertFalse();
     });
 
     it('positions full-screen list headers below the real status bar inset', 0, (): void => {
