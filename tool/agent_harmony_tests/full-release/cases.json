@@ -117,7 +117,7 @@
         "saved-09",
         "saved-10"
       ],
-      "notes": "passed: 2, partial: 5, not-run: 3"
+      "notes": "passed: 3, partial: 4, not-run: 3"
     },
     {
       "title": "Downloads and native file operations",
@@ -4620,8 +4620,8 @@
       },
       {
         "caseId": "saved-10",
-        "status": "partial",
-        "notes": "Built-in background off/on state changed visibly and was restored. Custom image picker cancellation remains not-run.",
+        "status": "passed",
+        "notes": "Built-in and no-background states changed visibly and were restored. The custom-image action opened the system privacy-preserving photo picker; cancelling returned to the unchanged built-in selection, and the built-in background remained active after force-stop relaunch.",
         "evidence": [
           {
             "type": "screenshot",
@@ -4632,6 +4632,16 @@
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/start-background-restored.jpeg",
             "summary": "Built-in background off/on state changed visibly and was restored."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/start-background-photo-picker.jpeg",
+            "summary": "The custom-image action opened the system privacy-preserving photo picker."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/start-background-picker-cancelled-relaunch.jpeg",
+            "summary": "Cancelling the picker left the built-in background selected after a force-stop relaunch."
           }
         ]
       },

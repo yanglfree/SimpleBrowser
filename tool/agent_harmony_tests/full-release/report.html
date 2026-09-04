@@ -37,7 +37,7 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>63</strong>Executed</div>
-    <div class="metric"><strong>35</strong>Passed</div>
+    <div class="metric"><strong>36</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
     <div class="metric"><strong>18</strong>Not run</div>
@@ -93,7 +93,7 @@
         <td>Bookmarks, history and start page</td>
         <td class="status-partial">partial</td>
         <td><code>saved-01</code><br><code>saved-02</code><br><code>saved-03</code><br><code>saved-04</code><br><code>saved-05</code><br><code>saved-06</code><br><code>saved-07</code><br><code>saved-08</code><br><code>saved-09</code><br><code>saved-10</code></td>
-        <td>passed: 2, partial: 5, not-run: 3</td>
+        <td>passed: 3, partial: 4, not-run: 3</td>
       </tr>
       <tr>
         <td>Downloads and native file operations</td>
@@ -595,7 +595,7 @@
         <td><code>saved-10</code></td>
         <td>p1</td>
         <td>Start-page background</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td>saved</td>
       </tr>
       <tr>
@@ -1252,9 +1252,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-restored.jpeg</code><br>Quick-site visibility and 6 to 4 to 6 limit changes took effect and were restored.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>saved-10</code> <span class="status-partial">partial</span></h3>
-        <p>Built-in background off/on state changed visibly and was restored. Custom image picker cancellation remains not-run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-off.jpeg</code><br>Built-in background off/on state changed visibly and was restored.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-restored.jpeg</code><br>Built-in background off/on state changed visibly and was restored.</li></ul>
+        <h3><code>saved-10</code> <span class="status-passed">passed</span></h3>
+        <p>Built-in and no-background states changed visibly and were restored. The custom-image action opened the system privacy-preserving photo picker; cancelling returned to the unchanged built-in selection, and the built-in background remained active after force-stop relaunch.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-off.jpeg</code><br>Built-in background off/on state changed visibly and was restored.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-restored.jpeg</code><br>Built-in background off/on state changed visibly and was restored.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-photo-picker.jpeg</code><br>The custom-image action opened the system privacy-preserving photo picker.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/start-background-picker-cancelled-relaunch.jpeg</code><br>Cancelling the picker left the built-in background selected after a force-stop relaunch.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>downloads-01</code> <span class="status-partial">partial</span></h3>
