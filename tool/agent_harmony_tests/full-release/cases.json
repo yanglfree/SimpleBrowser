@@ -4845,13 +4845,18 @@
       },
       {
         "caseId": "saved-09",
-        "status": "partial",
-        "notes": "Quick-site visibility and 6 to 4 to 6 limit changes took effect and were restored. Icon failure fallback was not injected.",
+        "status": "passed",
+        "notes": "Quick-site visibility and 6 to 4 to 6 limit changes took effect and were restored. A controlled local shortcut with no site icon used the readable Q initial fallback, persisted through a force-stop cold launch, and was removed afterward.",
         "evidence": [
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/start-background-restored.jpeg",
             "summary": "Quick-site visibility and 6 to 4 to 6 limit changes took effect and were restored."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/quick-site-icon-fallback-cold.jpeg",
+            "summary": "After a force-stop cold launch, the controlled no-icon shortcut remained visible with the readable Q initial fallback."
           }
         ]
       },
