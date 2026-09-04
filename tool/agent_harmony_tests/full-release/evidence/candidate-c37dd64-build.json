@@ -1,0 +1,13 @@
+{
+  "sourceSha": "c37dd64e8ab62edf088445ebdbdc7fc27f0d92ca",
+  "testCommand": "hvigorw test",
+  "testResult": "BUILD SUCCESSFUL",
+  "buildCommand": "hvigorw assembleHap",
+  "buildResult": "BUILD SUCCESSFUL",
+  "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
+  "hapSha256": "11fb5172090835b18ebc03a15240626976ceb945f86ca3169d87eaf83c976e65",
+  "canonicalSigningSelection": "passed before and after build",
+  "archiveIntegrity": "passed",
+  "physicalDeviceInstall": "in-place install passed",
+  "deviceAcceptance": "history host deletion, private blocking non-persistence, quick-site edit and gesture regression passed"
+}

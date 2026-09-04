@@ -3854,9 +3854,9 @@
     },
     "appBuild": {
       "version": "1.0.1 (1000001); HEAD-equivalent physical-device candidate",
-      "sourceSha": "3b95824815c6ca46bfdff118139483431a227e5b",
+      "sourceSha": "c37dd64e8ab62edf088445ebdbdc7fc27f0d92ca",
       "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
-      "sha256": "2f0be6c2845832303c4252c069df6278e61363680f82c66b19118852fad672a7",
+      "sha256": "11fb5172090835b18ebc03a15240626976ceb945f86ca3169d87eaf83c976e65",
       "signing": "debug profile for physical-device QA; AppGallery dis profile validated separately"
     },
     "results": [
@@ -4401,13 +4401,23 @@
       },
       {
         "caseId": "blocking-06",
-        "status": "partial",
-        "notes": "Per-site blocked count and event panel were reachable and internally consistent for the live Bing page. Private non-persistence remains not-run.",
+        "status": "passed",
+        "notes": "The live page exposed per-site counts and detailed block events. A controlled private tab showed current-page events, then closing it left the persisted localhost site total at 12 and global total at 1,294 on a zero-block normal page, proving private blocking activity was not persisted.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg",
-            "summary": "Per-site blocked count and event panel were reachable and internally consistent for the live Bing page."
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-private-events.jpeg",
+            "summary": "The private tab exposed current-page ad and tracker block events."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-private-panel.jpeg",
+            "summary": "Private activity was visible for the active page while the persisted baseline remained 12 site and 1,294 global."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/blocking-private-not-persisted.jpeg",
+            "summary": "After the private tab closed, a zero-block normal page showed the unchanged 12 site and 1,294 global totals."
           }
         ]
       },
@@ -4596,13 +4606,28 @@
       },
       {
         "caseId": "saved-05",
-        "status": "partial",
-        "notes": "History recorded the controlled visits; private browsing remained absent. Targeted entry deletion now disappears immediately after the fixed render-key update. Search and whole-host deletion were not both repeated.",
+        "status": "passed",
+        "notes": "Controlled visits appeared in history and private browsing remained absent. Targeted deletion updated immediately. Searching localhost returned all three QA records; cancel preserved them, while confirming whole-host deletion removed exactly those three and retained 127.0.0.1 and other-site history.",
         "evidence": [
           {
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg",
-            "summary": "The targeted QA Fast history entry disappeared immediately after deletion."
+            "summary": "Targeted QA history deletion updated immediately."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-delete-site-prompt.jpeg",
+            "summary": "Long press exposed the localized whole-host deletion confirmation."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-host-deleted.jpeg",
+            "summary": "Confirming deletion removed all searched localhost records."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/history-other-host-retained.jpeg",
+            "summary": "History from 127.0.0.1 and other sites remained after localhost deletion."
           }
         ]
       },
@@ -4614,13 +4639,33 @@
       },
       {
         "caseId": "saved-07",
-        "status": "partial",
-        "notes": "A controlled QA Site shortcut was added, opened the correct URL, entered edit mode through long press, and was removed. Invalid-URL recovery and editing an existing shortcut URL were not exercised.",
+        "status": "passed",
+        "notes": "A QA shortcut was added after recovering from invalid URL validation. Long press entered management without opening the editor; tapping the managed shortcut opened a prefilled edit form above the keyboard. The title and host were changed, the new URL opened, the edit survived a cold process restart, and the QA shortcut was removed.",
         "evidence": [
           {
             "type": "screenshot",
-            "path": "tool/agent_harmony_tests/full-release/evidence/quick-site-add-remove.jpeg",
-            "summary": "The controlled QA Site shortcut was visible before cleanup and opened the expected local URL."
+            "path": "tool/agent_harmony_tests/full-release/evidence/quick-site-invalid-recovery.jpeg",
+            "summary": "Invalid URL validation kept the editable form and displayed a recoverable error."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/quick-site-edit-prefilled.jpeg",
+            "summary": "The existing shortcut title and URL were prefilled and editable with the keyboard open."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/quick-site-edited-url.jpeg",
+            "summary": "The edited shortcut opened the changed 127.0.0.1 URL."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/quick-site-edit-cold-persisted.jpeg",
+            "summary": "The edited title persisted after a forced process stop and relaunch."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/quick-site-management-gesture.jpeg",
+            "summary": "Long press entered management without accidentally opening the editor."
           }
         ]
       },
@@ -5076,12 +5121,12 @@
       {
         "caseId": "release-01",
         "status": "partial",
-        "notes": "Current physical-device source is 3b95824815c6. Unit tests, canonical debug-profile assembly, archive integrity validation, and in-place install passed. Final AppGallery artifact is pending remaining QA.",
+        "notes": "Current physical-device source is c37dd64e8ab6. Unit tests, canonical debug-profile assembly, archive integrity validation, in-place install, and the latest repaired user paths passed. Final AppGallery artifact is pending remaining QA.",
         "evidence": [
           {
             "type": "command",
-            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-3b95824-build.json",
-            "summary": "The 3b95824815c6 candidate passed unit tests, canonical build checks, archive integrity, and in-place installation."
+            "path": "tool/agent_harmony_tests/full-release/evidence/candidate-c37dd64-build.json",
+            "summary": "The c37dd64e8ab6 candidate passed unit tests, canonical build checks, archive integrity, in-place installation, and current repaired-path acceptance."
           }
         ]
       },

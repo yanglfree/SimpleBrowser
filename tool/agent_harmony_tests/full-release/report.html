@@ -37,7 +37,7 @@
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
     <div class="metric"><strong>63</strong>Executed</div>
-    <div class="metric"><strong>41</strong>Passed</div>
+    <div class="metric"><strong>44</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>31</strong>Blocked</div>
     <div class="metric"><strong>18</strong>Not run</div>
@@ -75,7 +75,7 @@
         <td>Content blocking and site controls</td>
         <td class="status-partial">partial</td>
         <td><code>blocking-01</code><br><code>blocking-02</code><br><code>blocking-03</code><br><code>blocking-04</code><br><code>blocking-05</code><br><code>blocking-06</code><br><code>blocking-07</code><br><code>blocking-08</code></td>
-        <td>passed: 5, partial: 3</td>
+        <td>passed: 6, partial: 2</td>
       </tr>
       <tr>
         <td>Online reader mode</td>
@@ -93,7 +93,7 @@
         <td>Bookmarks, history and start page</td>
         <td class="status-partial">partial</td>
         <td><code>saved-01</code><br><code>saved-02</code><br><code>saved-03</code><br><code>saved-04</code><br><code>saved-05</code><br><code>saved-06</code><br><code>saved-07</code><br><code>saved-08</code><br><code>saved-09</code><br><code>saved-10</code></td>
-        <td>passed: 3, partial: 4, not-run: 3</td>
+        <td>passed: 5, partial: 2, not-run: 3</td>
       </tr>
       <tr>
         <td>Downloads and native file operations</td>
@@ -406,7 +406,7 @@
         <td><code>blocking-06</code></td>
         <td>p1</td>
         <td>Block events and statistics</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">partial</td>passed</td>
         <td>blocking</td>
       </tr>
       <tr>
@@ -560,7 +560,7 @@
         <td><code>saved-05</code></td>
         <td>p1</td>
         <td>History entry and site deletion</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">partial</td>passed</td>
         <td>saved</td>
       </tr>
       <tr>
@@ -574,7 +574,7 @@
         <td><code>saved-07</code></td>
         <td>p1</td>
         <td>Quick-site add and edit</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">partial</td>passed</td>
         <td>saved</td>
       </tr>
       <tr>
@@ -1117,9 +1117,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg</code><br>Rule update exposed busy/completion state and advanced the last-updated timestamp.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>blocking-06</code> <span class="status-partial">partial</span></h3>
-        <p>Per-site blocked count and event panel were reachable and internally consistent for the live Bing page. Private non-persistence remains not-run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/rules-update-complete.jpeg</code><br>Per-site blocked count and event panel were reachable and internally consistent for the live Bing page.</li></ul>
+        <h3><code>blocking-06</code> <span class="status-passed">passed</span></h3>
+        <p>The live page exposed per-site counts and detailed block events. A controlled private tab showed current-page events, then closing it left the persisted localhost site total at 12 and global total at 1,294 on a zero-block normal page, proving private blocking activity was not persisted.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-private-events.jpeg</code><br>The private tab exposed current-page ad and tracker block events.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-private-panel.jpeg</code><br>Private activity was visible for the active page while the persisted baseline remained 12 site and 1,294 global.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/blocking-private-not-persisted.jpeg</code><br>After the private tab closed, a zero-block normal page showed the unchanged 12 site and 1,294 global totals.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>blocking-07</code> <span class="status-partial">partial</span></h3>
@@ -1227,9 +1227,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>saved-05</code> <span class="status-partial">partial</span></h3>
-        <p>History recorded the controlled visits; private browsing remained absent. Targeted entry deletion now disappears immediately after the fixed render-key update. Search and whole-host deletion were not both repeated.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg</code><br>The targeted QA Fast history entry disappeared immediately after deletion.</li></ul>
+        <h3><code>saved-05</code> <span class="status-passed">passed</span></h3>
+        <p>Controlled visits appeared in history and private browsing remained absent. Targeted deletion updated immediately. Searching localhost returned all three QA records; cancel preserved them, while confirming whole-host deletion removed exactly those three and retained 127.0.0.1 and other-site history.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-delete-immediate-fixed.jpeg</code><br>Targeted QA history deletion updated immediately.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-delete-site-prompt.jpeg</code><br>Long press exposed the localized whole-host deletion confirmation.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-host-deleted.jpeg</code><br>Confirming deletion removed all searched localhost records.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/history-other-host-retained.jpeg</code><br>History from 127.0.0.1 and other sites remained after localhost deletion.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>saved-06</code> <span class="status-not-run">not-run</span></h3>
@@ -1237,9 +1237,9 @@
         <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
       </section>
       <section class="case-result">
-        <h3><code>saved-07</code> <span class="status-partial">partial</span></h3>
-        <p>A controlled QA Site shortcut was added, opened the correct URL, entered edit mode through long press, and was removed. Invalid-URL recovery and editing an existing shortcut URL were not exercised.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/quick-site-add-remove.jpeg</code><br>The controlled QA Site shortcut was visible before cleanup and opened the expected local URL.</li></ul>
+        <h3><code>saved-07</code> <span class="status-passed">passed</span></h3>
+        <p>A QA shortcut was added after recovering from invalid URL validation. Long press entered management without opening the editor; tapping the managed shortcut opened a prefilled edit form above the keyboard. The title and host were changed, the new URL opened, the edit survived a cold process restart, and the QA shortcut was removed.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/quick-site-invalid-recovery.jpeg</code><br>Invalid URL validation kept the editable form and displayed a recoverable error.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/quick-site-edit-prefilled.jpeg</code><br>The existing shortcut title and URL were prefilled and editable with the keyboard open.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/quick-site-edited-url.jpeg</code><br>The edited shortcut opened the changed 127.0.0.1 URL.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/quick-site-edit-cold-persisted.jpeg</code><br>The edited title persisted after a forced process stop and relaunch.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/quick-site-management-gesture.jpeg</code><br>Long press entered management without accidentally opening the editor.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>saved-08</code> <span class="status-partial">partial</span></h3>
@@ -1468,8 +1468,8 @@
       </section>
       <section class="case-result">
         <h3><code>release-01</code> <span class="status-partial">partial</span></h3>
-        <p>Current physical-device source is <code>3b95824815c6</code>. Unit tests, canonical debug-profile assembly, archive integrity validation, and in-place install passed. Final AppGallery artifact is pending remaining QA.</p>
-        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-3b95824-build.json</code><br>The <code>3b95824815c6</code> candidate passed unit tests, canonical build checks, archive integrity, and in-place installation.</li></ul>
+        <p>Current physical-device source is c37dd64e8ab6. Unit tests, canonical debug-profile assembly, archive integrity validation, in-place install, and the latest repaired user paths passed. Final AppGallery artifact is pending remaining QA.</p>
+        <ul><li><strong>command</strong>: <code>tool/agent_harmony_tests/full-release/evidence/candidate-c37dd64-build.json</code><br>The c37dd64e8ab6 candidate passed unit tests, canonical build checks, archive integrity, in-place installation, and current repaired-path acceptance.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>release-02</code> <span class="status-blocked">blocked</span></h3>
