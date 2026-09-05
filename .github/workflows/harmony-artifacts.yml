@@ -87,7 +87,7 @@ jobs:
           test -x "$HVIGOR_BIN"
           test -f "$HARMONY_SIGNING_SOURCE"
           test "$(stat -f '%OLp' "$HARMONY_SIGNING_SOURCE")" = "600"
-          df -Pk . | awk 'NR == 2 { if ($4 < 8388608) { print "At least 8 GiB free disk is required."; exit 1 } }'
+          df -Pk . | awk 'NR == 2 { if ($4 < 4194304) { print "At least 4 GiB free disk is required."; exit 1 } }'
 
       - name: Validate distribution configuration
         env:
@@ -158,6 +158,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          df -Pk . | awk 'NR == 2 { if ($4 < 8388608) exit 1 }'
+          df -Pk . | awk 'NR == 2 { if ($4 < 4194304) exit 1 }'
           node scripts/mobile_cicd/release-device.mjs publish "$RUNNER_TEMP/zhuobrowser-device-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           echo "Specified-device portal publication verified for $SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"

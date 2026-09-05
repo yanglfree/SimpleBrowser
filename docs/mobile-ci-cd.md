@@ -68,7 +68,7 @@ Runner:
   `~/Library/Huawei/CommandLineTools/current`
 - Root and `entry` dependencies are resolved independently so the local
   `iap_paywall_kit` module never depends on a stale runner checkout.
-- At least 8 GiB free disk before a job starts
+- At least 4 GiB free disk before a job starts
 
 Production Cloudflare identifiers and the download slug belong in ignored
 `cloudflare/mobile-distribution/wrangler.production.jsonc` or provider state.

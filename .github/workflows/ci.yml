@@ -66,7 +66,7 @@ jobs:
           test "$(stat -f '%OLp' "$HARMONY_SIGNING_SOURCE")" = "600"
           "$HVIGOR_BIN" --version
           ohpm --version
-          df -Pk . | awk 'NR == 2 { if ($4 < 8388608) { print "At least 8 GiB free disk is required."; exit 1 } }'
+          df -Pk . | awk 'NR == 2 { if ($4 < 4194304) { print "At least 4 GiB free disk is required."; exit 1 } }'
 
       - name: Validate CI/CD contracts
         run: |
