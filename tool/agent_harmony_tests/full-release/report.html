@@ -27,17 +27,17 @@
 <main>
   <h1>ZhuoBrowser Full Release Acceptance HarmonyOS physical-device QA Report</h1>
   <p>
-    Date: 2026-09-04<br>
-    Target: Huawei MatePad Pro WEB-W00, HarmonyOS 6.1.0, <code>192.168.43.22:43759</code><br>
-    App: ZhuoBrowser Full Release Acceptance <code>Tablet release 1.0.1 (1000007); phone release 1.0.1 (1000009); phone sandbox debug 1.0.1 (1000001)</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
-    HAP: <code>Portal specified-device releases 72c8ed4b10f8dc922a5a49e0c6f2ab13c081fbc7514071083327e4873e55b245 and 1c26afc9e881a42ba8cf23f4c4d6283f540dc8925769baf0597b25489d216cfc; local canonical debug sandbox build</code><br>
+    Date: 2026-09-05<br>
+    Target: Huawei MatePad Pro WEB-W00, OpenHarmony 6.1.1.120, <code>USB (sanitized)</code><br>
+    App: ZhuoBrowser Full Release Acceptance <code>Tablet and phone release 1.0.1 (1000010); phone sandbox debug 1.0.1 (1000001)</code>, bundle <code>com.youdroid.zhuobrowser</code><br>
+    HAP: <code>Portal specified-device release 5e134c5820ee4a3646a8e0e11973d31da45d526cf7acd12913a837bba10b6266; local canonical debug sandbox build</code><br>
     Auth source: none
   </p>
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>112</strong>Total cases</div>
-    <div class="metric"><strong>106</strong>Executed</div>
-    <div class="metric"><strong>102</strong>Passed</div>
+    <div class="metric"><strong>107</strong>Executed</div>
+    <div class="metric"><strong>103</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>4</strong>Blocked</div>
     <div class="metric"><strong>0</strong>Not run</div>
@@ -45,7 +45,7 @@
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 112 Harmony scenarios. This run executed 106 cases with fresh evidence.
+    The agent QA suite contains 112 Harmony scenarios. This run executed 107 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -61,9 +61,9 @@
       </tr>
       <tr>
         <td>Address, navigation and page tools</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td><code>navigation-01</code><br><code>navigation-02</code><br><code>navigation-03</code><br><code>navigation-04</code><br><code>navigation-05</code><br><code>navigation-06</code><br><code>navigation-07</code><br><code>navigation-08</code><br><code>navigation-09</code><br><code>navigation-10</code><br><code>navigation-11</code><br><code>navigation-12</code><br><code>navigation-13</code><br><code>navigation-14</code><br><code>navigation-15</code></td>
-        <td>passed: 14, partial: 1</td>
+        <td>passed: 15</td>
       </tr>
       <tr>
         <td>Tabs, session and resource limits</td>
@@ -992,9 +992,9 @@
         <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/system-link-share.jpeg</code><br>Clipboard paste changed the address text only; explicit submission opened the controlled target.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>navigation-06</code> <span class="status-partial">partial</span></h3>
-        <p>The selected URL was replaced with controlled text; current-host, www., .com and path shortcuts edited at the caret as designed, and Cancel returned to the unchanged page. Rotation with the software keyboard open was not exercised on this locked-orientation phone run.</p>
-        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-url-shortcuts.jpeg</code><br>The address editor composed www.example.com from the www. prefix and .com suffix shortcuts.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-current-host-shortcut.jpeg</code><br>The current-host shortcut replaced the draft with 127.0.0.1 before cancellation.</li></ul>
+        <h3><code>navigation-06</code> <span class="status-passed">passed</span></h3>
+        <p>The selected URL was replaced with controlled text; current-host, www., .com and path shortcuts edited at the caret as designed, and Cancel returned to the unchanged page. On the final 3e04088 candidate, the landscape MatePad address editor exposed all actions above the software keyboard, survived a system-driven portrait rotation with the page state preserved, and returned to the wide landscape chrome without clipping or a crash.</p>
+        <ul><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-url-shortcuts.jpeg</code><br>The address editor composed www.example.com from the www. prefix and .com suffix shortcuts.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-current-host-shortcut.jpeg</code><br>The current-host shortcut replaced the draft with 127.0.0.1 before cancellation.</li><li><strong>device-record</strong>: <code>tool/agent_harmony_tests/full-release/evidence/tablet-final-rotation-acceptance.json</code><br>The final candidate passed landscape keyboard and live orientation transition checks on the physical MatePad.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-keyboard-landscape.jpeg</code><br>The landscape address editor kept all URL shortcut actions visible above the software keyboard.</li><li><strong>screenshot</strong>: <code>tool/agent_harmony_tests/full-release/evidence/navigation-keyboard-rotated-portrait.jpeg</code><br>After rotating with the keyboard open, the page state and compact portrait browser controls remained intact.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>navigation-07</code> <span class="status-passed">passed</span></h3>
@@ -1540,11 +1540,21 @@
         <td><code>phone monthly sandbox lifecycle</code></td>
         <td class="status-passed">passed</td>
         <td>Monthly purchase, server entitlement, transaction finish, restore after data clear, and subscription cancellation passed; the original 35-file snapshot was then restored byte-for-byte.</td>
+      </tr>
+      <tr>
+        <td><code>GitHub CI 33900162662 / signed artifacts 33900319367</code></td>
+        <td class="status-passed">passed</td>
+        <td>CI, canonical signing and immutable specified-device publication passed for exact source 3e04088.</td>
+      </tr>
+      <tr>
+        <td><code>specified-device build 1000010</code></td>
+        <td class="status-passed">passed</td>
+        <td>The same final release candidate passed phone data restoration and cold launch, then passed tablet landscape keyboard, live portrait rotation, settings, article-library and paywall layout checks.</td>
       </tr></tbody>
   </table>
 
   <h2>Known Exclusions</h2>
-  <p>Tablet acceptance remains pinned to d93b872 product code and build 1000007. Phone release and commerce acceptance are pinned to 8b322e1 product code and build 1000009, with IAP sandbox execution on its canonical debug profile. Remaining evidence gaps are keyboard-open rotation, supported UDMF cross-app drop, controlled commerce outage, renewal or natural expiry, second-account isolation, physical foldable posture, and final AGC console declarations/materials. AGC upload and submission remain gated.</p>
+  <p>Tablet and phone release acceptance is pinned to 3e04088 and build 1000010, with IAP sandbox execution on its canonical debug profile. Remaining evidence gaps are supported UDMF cross-app drop, controlled commerce outage, renewal or natural expiry, second-account isolation, physical foldable posture, and final AGC console declarations/materials. AGC upload and submission remain gated.</p>
 </main>
 </body>
 </html>

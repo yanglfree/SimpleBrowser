@@ -3851,19 +3851,19 @@
     }
   ],
   "lastRun": {
-    "date": "2026-09-04",
+    "date": "2026-09-05",
     "target": {
       "name": "Huawei MatePad Pro WEB-W00",
-      "id": "192.168.43.22:43759",
-      "runtime": "HarmonyOS 6.1.0",
+      "id": "USB (sanitized)",
+      "runtime": "OpenHarmony 6.1.1.120",
       "orientation": "landscape",
       "resolution": "2880x1920"
     },
     "appBuild": {
-      "version": "Tablet release 1.0.1 (1000007); phone release 1.0.1 (1000009); phone sandbox debug 1.0.1 (1000001)",
-      "sourceSha": "d93b8729b2cf79aa485b4d09d3e20a4a4bc34207 on tablet; 8b322e1c028c90cfd4f3d7fc3eff92c503867924 on phone",
-      "hapPath": "Portal specified-device releases 72c8ed4b10f8dc922a5a49e0c6f2ab13c081fbc7514071083327e4873e55b245 and 1c26afc9e881a42ba8cf23f4c4d6283f540dc8925769baf0597b25489d216cfc; local canonical debug sandbox build",
-      "sha256": "af0fa68b31b046d10cd7721b1dd524f9f3de6ca2399128e628dfe95be221cc46 tablet; a5c451c3a65bc8180b0a79325d90b4384d4c7ee1ab42b130e236375aa1c06d72 phone release",
+      "version": "Tablet and phone release 1.0.1 (1000010); phone sandbox debug 1.0.1 (1000001)",
+      "sourceSha": "3e04088af1ff64aa5d7464968de7725031591609 on tablet and phone",
+      "hapPath": "Portal specified-device release 5e134c5820ee4a3646a8e0e11973d31da45d526cf7acd12913a837bba10b6266; local canonical debug sandbox build",
+      "sha256": "7557b1b197ca99bbccb8a00ee68e0813f4756527f2d610af46628611e1239b0 tablet and phone release",
       "signing": "Canonical internaltesting profile on tablet and phone release; canonical debug profile for phone IAP sandbox"
     },
     "results": [
@@ -4058,8 +4058,8 @@
       },
       {
         "caseId": "navigation-06",
-        "status": "partial",
-        "notes": "The selected URL was replaced with controlled text; current-host, www., .com and path shortcuts edited at the caret as designed, and Cancel returned to the unchanged page. Rotation with the software keyboard open was not exercised on this locked-orientation phone run.",
+        "status": "passed",
+        "notes": "The selected URL was replaced with controlled text; current-host, www., .com and path shortcuts edited at the caret as designed, and Cancel returned to the unchanged page. On the final 3e04088 candidate, the landscape MatePad address editor exposed all actions above the software keyboard, survived a system-driven portrait rotation with the page state preserved, and returned to the wide landscape chrome without clipping or a crash.",
         "evidence": [
           {
             "type": "screenshot",
@@ -4070,6 +4070,21 @@
             "type": "screenshot",
             "path": "tool/agent_harmony_tests/full-release/evidence/navigation-current-host-shortcut.jpeg",
             "summary": "The current-host shortcut replaced the draft with 127.0.0.1 before cancellation."
+          },
+          {
+            "type": "device-record",
+            "path": "tool/agent_harmony_tests/full-release/evidence/tablet-final-rotation-acceptance.json",
+            "summary": "The final candidate passed landscape keyboard and live orientation transition checks on the physical MatePad."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-keyboard-landscape.jpeg",
+            "summary": "The landscape address editor kept all URL shortcut actions visible above the software keyboard."
+          },
+          {
+            "type": "screenshot",
+            "path": "tool/agent_harmony_tests/full-release/evidence/navigation-keyboard-rotated-portrait.jpeg",
+            "summary": "After rotating with the keyboard open, the page state and compact portrait browser controls remained intact."
           }
         ]
       },

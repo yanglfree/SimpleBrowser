@@ -1,0 +1,27 @@
+{
+  "date": "2026-09-05",
+  "candidate": {
+    "sourceSha": "3e04088af1ff64aa5d7464968de7725031591609",
+    "version": "1.0.1",
+    "build": "1000010",
+    "signing": "canonical internaltesting profile"
+  },
+  "device": {
+    "model": "Huawei MatePad Pro WEB-W00",
+    "connection": "USB",
+    "landscapeResolution": "2880x1920",
+    "portraitResolution": "1920x2880"
+  },
+  "checks": {
+    "coldLaunchLandscape": "passed",
+    "wideTabStripAndDock": "passed",
+    "addressEditorWithSoftwareKeyboard": "passed",
+    "rotateWhileSoftwareKeyboardOpen": "passed",
+    "pageStateAfterRotation": "passed",
+    "settingsLongContentLandscape": "passed",
+    "articleLibraryLandscapeAndPortrait": "passed",
+    "paywallLandscape": "passed",
+    "restoredOriginalLandscapeOrientation": "passed"
+  },
+  "notes": "The address editor kept its page state through the landscape-to-portrait transition. The software keyboard closed during the responsive relayout, all browser controls remained reachable, and returning to landscape restored the wide tab strip without a crash or clipped action."
+}
