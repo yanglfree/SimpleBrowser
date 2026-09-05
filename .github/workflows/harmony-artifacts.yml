@@ -134,7 +134,7 @@ jobs:
             echo
             echo "- Version: \`$version ($build)\`"
             echo "- Source: \`$SOURCE_SHA\`"
-            echo "- Store package: signed HAP preserved byte-for-byte inside the retained App Pack"
+            echo "- Store package: native signed App Pack produced by assembleApp"
             echo "- Retention: immutable Cloudflare R2 objects with D1 metadata"
             echo "- Specified-device publication: separate required job in this workflow"
             echo "- AppGallery Connect upload and submission: not performed"

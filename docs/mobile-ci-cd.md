@@ -31,9 +31,9 @@ push main or manual CI
   `~/.config/zhuobrowser/signing.json` with mode `600` and is
   never committed.
 - R2 object keys use `harmony/<source-sha>/<artifact-name>` and are immutable.
-- AppGallery builds retain both the signed HAP and an `.app` wrapper. The wrapper
-  must contain the exact verified HAP bytes; specified-device builds continue to
-  use the HAP directly.
+- AppGallery builds retain both the independently signed HAP and the native
+  `assembleApp` output. The App Pack has its own verified signature and canonical
+  AppGallery profile; specified-device builds continue to use the HAP directly.
 - The Worker verifies the uploaded byte count and SHA-256 before recording D1.
 - The unified `downloads.youdroid.top` portal remains a separate presentation
   and proxy layer. Do not mark ZhuoBrowser available there before the exact HAP,
@@ -137,11 +137,11 @@ node scripts/mobile_cicd/verify_harmony_signing.mjs \
 
 The artifact script requires an AppGallery profile, validates IAP capability,
 identity, validity, and the matching certificate before building. After building,
-it verifies the HAP signature, exact embedded profile bytes, and actual signing
-certificate. It then creates the store `.app` without rewriting `pack.info` and
-checks that the embedded HAP is byte-identical to the verified source. Non-secret
-signing metadata and both artifact checksums are retained in
-`release-metadata.json`.
+it verifies the standalone HAP signature, exact embedded profile bytes, and
+actual signing certificate. AppGallery builds use the native `assembleApp`
+output, then independently verify the App Pack signature, profile, certificate,
+project-level `pack.info`, and `pac.json`. Non-secret signing metadata and both
+artifact checksums are retained in `release-metadata.json`.
 Do not point this store-retention job at the device profile: browser installation
 also needs its own signed manifest and publication step.
 

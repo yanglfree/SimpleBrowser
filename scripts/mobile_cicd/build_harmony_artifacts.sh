@@ -8,7 +8,6 @@ SIGNING_TARGET="${REPO_ROOT}/build-profile.json5"
 SIGNING_CHANNEL="${HARMONY_CHANNEL:-app_gallery}"
 HVIGOR_BIN="${HVIGOR_BIN:-hvigorw}"
 HAP_SIGN_TOOL="${HAP_SIGN_TOOL:-${HOME}/Library/Huawei/CommandLineTools/current/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar}"
-APP_PACKING_TOOL="${APP_PACKING_TOOL:-${HOME}/Library/Huawei/CommandLineTools/current/sdk/default/openharmony/toolchains/lib/app_packing_tool.jar}"
 IAP_BUILD_PROFILE="${REPO_ROOT}/iap_paywall_kit/BuildProfile.ets"
 BACKUP_DIR="$(mktemp -d)"
 
@@ -17,9 +16,6 @@ die() { echo "Harmony artifact build error: $*" >&2; exit 1; }
 [[ -n "${OUTPUT_DIR}" ]] || die "an output directory is required"
 [[ "${SIGNING_CHANNEL}" == app_gallery || "${SIGNING_CHANNEL}" == internaltesting ]] || die "unsupported distribution channel"
 [[ -f "${HAP_SIGN_TOOL}" ]] || die "HAP signature verifier is missing"
-if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
-  [[ -f "${APP_PACKING_TOOL}" ]] || die "App Pack tool is missing"
-fi
 command -v "${HVIGOR_BIN}" >/dev/null 2>&1 || [[ -x "${HVIGOR_BIN}" ]] || die "hvigorw is unavailable"
 command -v ohpm >/dev/null 2>&1 || die "ohpm is unavailable"
 
@@ -77,11 +73,20 @@ fi
   if [[ "${RUN_HARMONY_TESTS:-0}" == "1" ]]; then
     "${HVIGOR_BIN}" test
   fi
-  "${HVIGOR_BIN}" assembleHap -p buildMode=release
+  if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
+    "${HVIGOR_BIN}" assembleApp -p buildMode=release
+  else
+    "${HVIGOR_BIN}" assembleHap -p buildMode=release
+  fi
 )
 
 HAP_PATH="${REPO_ROOT}/entry/build/default/outputs/default/entry-default-signed.hap"
 [[ -f "${HAP_PATH}" ]] || die "signed HAP was not produced"
+NATIVE_APP_PATH=""
+if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
+  NATIVE_APP_PATH="${REPO_ROOT}/build/outputs/default/ZhuoBrowser-default-signed.app"
+  [[ -f "${NATIVE_APP_PATH}" ]] || die "signed App Pack was not produced"
+fi
 unzip -tq "${HAP_PATH}" >/dev/null
 java -jar "${HAP_SIGN_TOOL}" verify-app -inFile "${HAP_PATH}" \
   -outCertChain "${BACKUP_DIR}/hap-chain.cer" -outProfile "${BACKUP_DIR}/hap-profile.p7b" \
@@ -114,28 +119,35 @@ STORE_ARTIFACT_NAME=""
 STORE_SHA256=""
 if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
   STORE_ARTIFACT_NAME="ZhuoBrowser-HarmonyOS-${VERSION_NAME}+${VERSION_CODE}.app"
-  unzip -p "${DESTINATION}/${ARTIFACT_NAME}" pack.info > "${BACKUP_DIR}/pack.info"
-  HAP_ARCHIVE_NAME="$(PACK_INFO_PATH="${BACKUP_DIR}/pack.info" node <<'NODE'
+  unzip -tq "${NATIVE_APP_PATH}" >/dev/null
+  unzip -p "${NATIVE_APP_PATH}" pack.info > "${BACKUP_DIR}/pack.info"
+  HAP_ARCHIVE_NAME="$(PACK_INFO_PATH="${BACKUP_DIR}/pack.info" BUNDLE_NAME="${BUNDLE_NAME}" \
+    VERSION_NAME="${VERSION_NAME}" VERSION_CODE="${VERSION_CODE}" node <<'NODE'
 const fs = require('node:fs');
 const pack = JSON.parse(fs.readFileSync(process.env.PACK_INFO_PATH, 'utf8'));
 const packages = pack.packages;
 if (!Array.isArray(packages) || packages.length !== 1) process.exit(2);
 const name = packages[0]?.name;
 if (typeof name !== 'string' || !/^[A-Za-z0-9_.-]+$/.test(name)) process.exit(2);
+const app = pack.summary?.app;
+if (!app || app.bundleName !== process.env.BUNDLE_NAME ||
+    String(app.version?.name) !== process.env.VERSION_NAME ||
+    String(app.version?.code) !== process.env.VERSION_CODE) process.exit(2);
 process.stdout.write(`${name}.hap`);
 NODE
 )" || die "App Pack module name is invalid"
-  cp "${HAP_PATH}" "${BACKUP_DIR}/${HAP_ARCHIVE_NAME}"
-  java -jar "${APP_PACKING_TOOL}" --mode app \
-    --hap-path "${BACKUP_DIR}/${HAP_ARCHIVE_NAME}" \
-    --out-path "${DESTINATION}/${STORE_ARTIFACT_NAME}" \
-    --pack-info-path "${BACKUP_DIR}/pack.info" \
-    --replace-pack-info false --force true >/dev/null
+  cp "${NATIVE_APP_PATH}" "${DESTINATION}/${STORE_ARTIFACT_NAME}"
   unzip -tq "${DESTINATION}/${STORE_ARTIFACT_NAME}" >/dev/null
   unzip -p "${DESTINATION}/${STORE_ARTIFACT_NAME}" "${HAP_ARCHIVE_NAME}" > "${BACKUP_DIR}/embedded.hap"
-  cmp "${DESTINATION}/${ARTIFACT_NAME}" "${BACKUP_DIR}/embedded.hap" >/dev/null || die "App Pack changed the signed HAP bytes"
-  unzip -p "${DESTINATION}/${STORE_ARTIFACT_NAME}" pack.info > "${BACKUP_DIR}/embedded-pack.info"
-  cmp "${BACKUP_DIR}/pack.info" "${BACKUP_DIR}/embedded-pack.info" >/dev/null || die "App Pack metadata mismatch"
+  unzip -tq "${BACKUP_DIR}/embedded.hap" >/dev/null
+  unzip -p "${DESTINATION}/${STORE_ARTIFACT_NAME}" pac.json | node -e 'JSON.parse(require("fs").readFileSync(0, "utf8"))' || die "App Pack privacy profile is invalid"
+  java -jar "${HAP_SIGN_TOOL}" verify-app -inFile "${DESTINATION}/${STORE_ARTIFACT_NAME}" \
+    -outCertChain "${BACKUP_DIR}/app-chain.cer" -outProfile "${BACKUP_DIR}/app-profile.p7b" \
+    > "${BACKUP_DIR}/app-signature-verification.log" 2>&1 || die "App Pack signature verification failed"
+  APP_SIGNING_METADATA="$(node "${REPO_ROOT}/scripts/mobile_cicd/verify_harmony_signing.mjs" \
+    "${SIGNING_SOURCE}" "${SIGNING_CHANNEL}" "${BACKUP_DIR}/app-profile.p7b" "${BACKUP_DIR}/app-chain.cer")" \
+    || die "App Pack profile verification failed"
+  [[ "${APP_SIGNING_METADATA}" == "${SIGNING_METADATA}" ]] || die "App Pack signing identity mismatch"
   STORE_SHA256="$(shasum -a 256 "${DESTINATION}/${STORE_ARTIFACT_NAME}" | awk '{print $1}')"
 fi
 (
