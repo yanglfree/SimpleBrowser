@@ -115,13 +115,23 @@ STORE_SHA256=""
 if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
   STORE_ARTIFACT_NAME="ZhuoBrowser-HarmonyOS-${VERSION_NAME}+${VERSION_CODE}.app"
   unzip -p "${DESTINATION}/${ARTIFACT_NAME}" pack.info > "${BACKUP_DIR}/pack.info"
+  HAP_ARCHIVE_NAME="$(PACK_INFO_PATH="${BACKUP_DIR}/pack.info" node <<'NODE'
+const fs = require('node:fs');
+const pack = JSON.parse(fs.readFileSync(process.env.PACK_INFO_PATH, 'utf8'));
+const packages = pack.packages;
+if (!Array.isArray(packages) || packages.length !== 1) process.exit(2);
+const name = packages[0]?.name;
+if (typeof name !== 'string' || !/^[A-Za-z0-9_.-]+$/.test(name)) process.exit(2);
+process.stdout.write(`${name}.hap`);
+NODE
+)" || die "App Pack module name is invalid"
+  cp "${HAP_PATH}" "${BACKUP_DIR}/${HAP_ARCHIVE_NAME}"
   java -jar "${APP_PACKING_TOOL}" --mode app \
-    --hap-path "${HAP_PATH}" \
+    --hap-path "${BACKUP_DIR}/${HAP_ARCHIVE_NAME}" \
     --out-path "${DESTINATION}/${STORE_ARTIFACT_NAME}" \
     --pack-info-path "${BACKUP_DIR}/pack.info" \
     --replace-pack-info false --force true >/dev/null
   unzip -tq "${DESTINATION}/${STORE_ARTIFACT_NAME}" >/dev/null
-  HAP_ARCHIVE_NAME="$(basename "${HAP_PATH}")"
   unzip -p "${DESTINATION}/${STORE_ARTIFACT_NAME}" "${HAP_ARCHIVE_NAME}" > "${BACKUP_DIR}/embedded.hap"
   cmp "${DESTINATION}/${ARTIFACT_NAME}" "${BACKUP_DIR}/embedded.hap" >/dev/null || die "App Pack changed the signed HAP bytes"
   unzip -p "${DESTINATION}/${STORE_ARTIFACT_NAME}" pack.info > "${BACKUP_DIR}/embedded-pack.info"
