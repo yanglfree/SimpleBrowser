@@ -84,8 +84,10 @@ HAP_PATH="${REPO_ROOT}/entry/build/default/outputs/default/entry-default-signed.
 [[ -f "${HAP_PATH}" ]] || die "signed HAP was not produced"
 NATIVE_APP_PATH=""
 if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
-  NATIVE_APP_PATH="${REPO_ROOT}/build/outputs/default/ZhuoBrowser-default-signed.app"
-  [[ -f "${NATIVE_APP_PATH}" ]] || die "signed App Pack was not produced"
+  NATIVE_APP_PATHS=("${REPO_ROOT}"/build/outputs/default/*-default-signed.app)
+  [[ "${#NATIVE_APP_PATHS[@]}" -eq 1 && -f "${NATIVE_APP_PATHS[0]}" ]] \
+    || die "expected exactly one signed App Pack"
+  NATIVE_APP_PATH="${NATIVE_APP_PATHS[0]}"
 fi
 unzip -tq "${HAP_PATH}" >/dev/null
 java -jar "${HAP_SIGN_TOOL}" verify-app -inFile "${HAP_PATH}" \
