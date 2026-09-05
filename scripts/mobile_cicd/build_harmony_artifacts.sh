@@ -116,12 +116,13 @@ if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
   STORE_ARTIFACT_NAME="ZhuoBrowser-HarmonyOS-${VERSION_NAME}+${VERSION_CODE}.app"
   unzip -p "${DESTINATION}/${ARTIFACT_NAME}" pack.info > "${BACKUP_DIR}/pack.info"
   java -jar "${APP_PACKING_TOOL}" --mode app \
-    --hap-path "${DESTINATION}/${ARTIFACT_NAME}" \
+    --hap-path "${HAP_PATH}" \
     --out-path "${DESTINATION}/${STORE_ARTIFACT_NAME}" \
     --pack-info-path "${BACKUP_DIR}/pack.info" \
     --replace-pack-info false --force true >/dev/null
   unzip -tq "${DESTINATION}/${STORE_ARTIFACT_NAME}" >/dev/null
-  unzip -p "${DESTINATION}/${STORE_ARTIFACT_NAME}" "${ARTIFACT_NAME}" > "${BACKUP_DIR}/embedded.hap"
+  HAP_ARCHIVE_NAME="$(basename "${HAP_PATH}")"
+  unzip -p "${DESTINATION}/${STORE_ARTIFACT_NAME}" "${HAP_ARCHIVE_NAME}" > "${BACKUP_DIR}/embedded.hap"
   cmp "${DESTINATION}/${ARTIFACT_NAME}" "${BACKUP_DIR}/embedded.hap" >/dev/null || die "App Pack changed the signed HAP bytes"
   unzip -p "${DESTINATION}/${STORE_ARTIFACT_NAME}" pack.info > "${BACKUP_DIR}/embedded-pack.info"
   cmp "${BACKUP_DIR}/pack.info" "${BACKUP_DIR}/embedded-pack.info" >/dev/null || die "App Pack metadata mismatch"
