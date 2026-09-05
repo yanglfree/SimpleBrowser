@@ -52,7 +52,7 @@ The release profile and `entry/src/main/module.json5` must contain the same perm
 | --- | --- | --- |
 | Public privacy policy | Published and verified | Keep `https://browser.youdroid.top/privacy.html` in the AGC draft. The 2026-09-04 deployment serves the a7bc961 wording through Worker version `2cddc25e-cff1-4d55-95a8-d9713f4ac1f5`. |
 | Phone screenshots | Ready and already read back from the draft | Keep the five current 1080 x 1920 images in the verified order. |
-| Tablet screenshots | Ready locally, not saved in AGC | Five real-device promotional images are available in Chinese and English at 2732 x 2048. Upload only the locale set enabled in the draft, then read back their order. |
+| Tablet screenshots | Ready locally, not saved in AGC | Four real-device promotional images without a purchase screen are available in Chinese and English at 2730 x 1820 (3:2). Upload only the locale set enabled in the draft, then read back their order. |
 | PC/2in1 screenshots | Missing | `entry/src/main/module.json5` still declares `2in1`. Complete real-device acceptance and capture assets, or remove that device type through the product requirement workflow before submission. |
 | Privacy labels | Prepared, not saved | Enter the declarations from the matrix and read them back from AGC. |
 | Age rating | Questionnaire not completed | Complete it using the notes above and retain the calculated result. |
@@ -69,7 +69,7 @@ The release profile and `entry/src/main/module.json5` must contain the same perm
 - Specified-device release source `d93b8729b2cf79aa485b4d09d3e20a4a4bc34207`: signed artifact retention and verified portal publication passed in run `33889790708`.
 - Published specified-device build: 1.0.1 (1000007), release ID `72c8ed4b10f8dc922a5a49e0c6f2ab13c081fbc7514071083327e4873e55b245`, HAP SHA-256 `af0fa68b31b046d10cd7721b1dd524f9f3de6ca2399128e628dfe95be221cc46`.
 - Tablet data restore: all five article-library database files were read back byte-for-byte after restoration; the cold-launched library showed zero articles, matching the snapshot contents.
-- Tablet assets: `app-store-assets/generated/harmony-agc-tablet/{zh-Hans,en}/`, five 2732 x 2048 PNG files per locale, all below 5 MB.
+- Tablet assets: `app-store-assets/generated/harmony-agc-tablet/{zh-Hans,en}/`, four 2730 x 1820 (3:2) PNG files per locale, all below 5 MB. The purchase screen is intentionally excluded.
 - Phone dated fixtures: expired-tab archive/keep/relaunch/restore and seven-day history retention passed on source `2f80eafecacdb1be0b6e842a49be310cb80ace8a`; the history sheet now refreshes immediately after pruning, and all 35 original data files matched their snapshot digests after restoration.
 
 These facts do not make the release submission-ready while partial and blocked cases remain. The final AppGallery `.app` path and SHA-256 are intentionally pinned after this document is committed so the package source is immutable and exact.

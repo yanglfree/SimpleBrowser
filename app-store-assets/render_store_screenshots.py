@@ -24,7 +24,6 @@ TABLET_SLIDES = [
     ('02-search.jpeg', '搜索尽览', '结果更宽，信息更多', 'See more results', 'More context at once'),
     ('03-library-search.jpeg', '文章随查', '正文与笔记都能搜索', 'Find any article', 'Search text and notes'),
     ('04-history-control.jpeg', '隐私可控', '按类型与时间清理', 'Privacy controls', 'Clear by type and time'),
-    ('05-pro.jpeg', '解锁书房', '离线阅读与本地批注', 'Unlock your library', 'Read and annotate offline'),
 ]
 
 
@@ -54,21 +53,21 @@ def render_tablet():
             filename, title, subtitle = slide[0], slide[title_index], slide[subtitle_index]
             source_path = TABLET_SOURCE / filename
             source = Image.open(source_path).convert('RGB')
-            canvas = Image.new('RGBA', (2732, 2048), '#FEFFFB')
+            canvas = Image.new('RGBA', (2730, 1820), '#FEFFFB')
             draw = ImageDraw.Draw(canvas)
             draw.ellipse((-420, -470, 740, 650), fill='#FBF3CE')
-            draw.ellipse((2140, 1370, 3100, 2320), fill='#E9F3F0')
+            draw.ellipse((2140, 1140, 3100, 2090), fill='#E9F3F0')
             centered(draw, '卓阅浏览器' if locale == 'zh-Hans' else 'ZhuoBrowser',
-                     58, 38, '#397365', 2732)
-            centered(draw, title, 130, 104, '#142D27', 2732)
-            centered(draw, subtitle, 270, 48, '#6A746F', 2732)
-            draw.rounded_rectangle((1236, 395, 1496, 414), 9, fill='#F4DA6A')
+                     48, 38, '#397365', 2730)
+            centered(draw, title, 115, 104, '#142D27', 2730)
+            centered(draw, subtitle, 250, 48, '#6A746F', 2730)
+            draw.rounded_rectangle((1235, 365, 1495, 384), 9, fill='#F4DA6A')
 
             crop = (0, 86, source.width, source.height)
             content = source.crop(crop)
-            frame_width = 2260
+            frame_width = 2100
             frame_height = round(content.height * frame_width / content.width)
-            frame_x, frame_y = (2732-frame_width)//2, 470
+            frame_x, frame_y = (2730-frame_width)//2, 420
             shadow = Image.new('RGBA', canvas.size)
             ImageDraw.Draw(shadow).rounded_rectangle(
                 (frame_x-24, frame_y+12, frame_x+frame_width+24, frame_y+frame_height+50),
@@ -80,24 +79,24 @@ def render_tablet():
             tablet = content.resize((frame_width, frame_height), Image.Resampling.LANCZOS)
             canvas.alpha_composite(rounded_image(tablet, 34), (frame_x, frame_y))
             footer = 'HarmonyOS 平板真机界面' if locale == 'zh-Hans' else 'Real HarmonyOS tablet UI'
-            centered(ImageDraw.Draw(canvas), footer, 1990, 24, '#748078', 2732)
+            centered(ImageDraw.Draw(canvas), footer, 1770, 24, '#748078', 2730)
             path = output / f'{index:02d}.png'
             canvas.convert('RGB').save(path, optimize=True)
             assert path.stat().st_size < 5_000_000
             manifests.append({
                 'file': str(path.relative_to(ROOT)), 'source': str(source_path.relative_to(ROOT)),
                 'title': title, 'subtitle': subtitle, 'locale': locale, 'device': 'tablet',
-                'width': 2732, 'height': 2048, 'bytes': path.stat().st_size,
+                'width': 2730, 'height': 1820, 'bytes': path.stat().st_size,
                 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
                 'source_sha256': hashlib.sha256(source_path.read_bytes()).hexdigest(),
                 'template': 'spotlight-card-tablet', 'crop': crop,
                 'page_content': 'real-device-capture',
             })
-            locale_previews.append(canvas.convert('RGB').resize((546, 410), Image.Resampling.LANCZOS))
-        sheet = Image.new('RGB', (5*566+20, 470), '#E7ECE6')
+            locale_previews.append(canvas.convert('RGB').resize((546, 364), Image.Resampling.LANCZOS))
+        sheet = Image.new('RGB', (len(locale_previews)*566+20, 424), '#E7ECE6')
         for index, preview in enumerate(locale_previews):
             sheet.paste(preview, (10+index*566, 10))
-        ImageDraw.Draw(sheet).text((18, 435), 'PREVIEW ONLY - NOT FOR STORE UPLOAD',
+        ImageDraw.Draw(sheet).text((18, 389), 'PREVIEW ONLY - NOT FOR STORE UPLOAD',
                                   font=ImageFont.truetype(FONT, 18), fill='#35473F')
         preview_dir = ROOT / 'generated/previews'
         preview_dir.mkdir(parents=True, exist_ok=True)

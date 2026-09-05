@@ -1,6 +1,6 @@
 # Store Screenshot Copy
 
-Revision: V3. Template: spotlight-card. Targets: HarmonyOS AGC phone and tablet. The phone set is zh-Hans at 1080 x 1920. The tablet set is zh-Hans and English at 2732 x 2048. Every target and locale contains five PNG images under 5 MB each.
+Revision: V3. Template: spotlight-card. Targets: HarmonyOS AGC phone and tablet. The phone set is zh-Hans at 1080 x 1920. The tablet set is zh-Hans and English at 2730 x 1820. The phone target contains five PNG images and each tablet locale contains four PNG images under 5 MB each.
 
 The template was changed from focus-callout after quality feedback to make the main screenshots larger and eliminate duplicated overlays. Captures show the real installed 1.0.1 (1000001) app. Home is reused from V1; the remaining captures show user-authorized local placeholder pages. Their text is represented by neutral glyphs; app controls and numeric counters were not modified. Image 2 uses a blue-gray page, image 3 uses actual night reading paper, image 4 shows the actual site blocking panel, and image 5 uses actual sepia reading paper.
 
@@ -24,8 +24,6 @@ The tablet source set contains real landscape captures from a Huawei MatePad Pro
 | 2 | source/harmony-tablet/zh-Hans/02-search.jpeg | 搜索尽览 | 结果更宽，信息更多 | See more results | More context at once |
 | 3 | source/harmony-tablet/zh-Hans/03-library-search.jpeg | 文章随查 | 正文与笔记都能搜索 | Find any article | Search text and notes |
 | 4 | source/harmony-tablet/zh-Hans/04-history-control.jpeg | 隐私可控 | 按类型与时间清理 | Privacy controls | Clear by type and time |
-| 5 | source/harmony-tablet/zh-Hans/05-pro.jpeg | 解锁书房 | 离线阅读与本地批注 | Unlock your library | Read and annotate offline |
-
 Only final submission images are stored in the phone and tablet target folders. PC/2in1 screenshots remain unavailable because no real 2in1 device capture has been completed.
 
 ```bash
