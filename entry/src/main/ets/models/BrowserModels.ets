@@ -6,6 +6,8 @@
  * objects so that @State / @Prop observe the change.
  */
 
+import { DEFAULT_LANDSCAPE_PRESET_ID, DEFAULT_PORTRAIT_PRESET_ID } from './HomeBackgroundPresets';
+
 export enum AppearanceMode {
   System = 0,
   Light = 1,
@@ -260,6 +262,8 @@ export interface BrowserSettings {
   startPageBackgroundEnabled: boolean;
   startPageBackgroundSource: StartPageBackgroundSource;
   customStartPageBackgroundUri: string;
+  startPagePresetPortraitId: string;
+  startPagePresetLandscapeId: string;
   tabExpiryDays: TabExpiry;
   historyRetentionDays: number;
   liveWebViewLimit: number;
@@ -365,6 +369,8 @@ export function defaultBrowserSettings(): BrowserSettings {
     startPageBackgroundEnabled: true,
     startPageBackgroundSource: StartPageBackgroundSource.BuiltIn,
     customStartPageBackgroundUri: '',
+    startPagePresetPortraitId: DEFAULT_PORTRAIT_PRESET_ID,
+    startPagePresetLandscapeId: DEFAULT_LANDSCAPE_PRESET_ID,
     tabExpiryDays: TabExpiry.SevenDays,
     historyRetentionDays: 30,
     liveWebViewLimit: 4,
@@ -458,6 +464,8 @@ export function normalizeBrowserSettings(settings: BrowserSettings): BrowserSett
     startPageBackgroundEnabled: settings.startPageBackgroundEnabled,
     startPageBackgroundSource: settings.startPageBackgroundSource,
     customStartPageBackgroundUri: settings.customStartPageBackgroundUri,
+    startPagePresetPortraitId: settings.startPagePresetPortraitId ?? DEFAULT_PORTRAIT_PRESET_ID,
+    startPagePresetLandscapeId: settings.startPagePresetLandscapeId ?? DEFAULT_LANDSCAPE_PRESET_ID,
     tabExpiryDays: settings.tabExpiryDays,
     historyRetentionDays: settings.historyRetentionDays,
     liveWebViewLimit: settings.liveWebViewLimit,

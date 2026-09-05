@@ -1,4 +1,9 @@
 import { QuickSite, SiteIcon, StartPageBackgroundSource } from '../models/BrowserModels';
+import {
+  DEFAULT_LANDSCAPE_PRESET_ID,
+  DEFAULT_PORTRAIT_PRESET_ID,
+  resolvePresetResource
+} from '../models/HomeBackgroundPresets';
 import { AppIcon, IconName } from './AppIcon';
 import { QuickSiteGrid } from './QuickSiteGrid';
 
@@ -12,6 +17,8 @@ export struct StartPage {
   @Prop backgroundEnabled: boolean = true;
   @Prop backgroundSource: StartPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
   @Prop customBackgroundUri: string = '';
+  @Prop presetPortraitId: string = DEFAULT_PORTRAIT_PRESET_ID;
+  @Prop presetLandscapeId: string = DEFAULT_LANDSCAPE_PRESET_ID;
   /** Wide chrome already puts a menu at the top-right; the home gear would overlap it. */
   @Prop hidePageSettings: boolean = false;
   @Prop isWide: boolean = false;
@@ -93,9 +100,13 @@ export struct StartPage {
   }
 
   private imageSource(): ResourceStr {
-    return this.backgroundSource === StartPageBackgroundSource.Custom && this.customBackgroundUri.length > 0
-      ? this.customBackgroundUri
-      : $r('app.media.home_background');
+    if (this.backgroundSource === StartPageBackgroundSource.Custom && this.customBackgroundUri.length > 0) {
+      return this.customBackgroundUri;
+    }
+    return resolvePresetResource(
+      this.isLandscape,
+      this.isLandscape ? this.presetLandscapeId : this.presetPortraitId
+    );
   }
 
   private primaryColor(): ResourceColor {

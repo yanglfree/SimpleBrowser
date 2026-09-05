@@ -809,6 +809,8 @@ struct Index {
               backgroundEnabled: this.settings.startPageBackgroundEnabled,
               backgroundSource: this.settings.startPageBackgroundSource,
               customBackgroundUri: this.settings.customStartPageBackgroundUri,
+              presetPortraitId: this.settings.startPagePresetPortraitId,
+              presetLandscapeId: this.settings.startPagePresetLandscapeId,
               hidePageSettings: this.usesWideChrome(),
               isWide: this.usesWideChrome(),
               isLandscape: this.isLandscape(),
@@ -1675,9 +1677,14 @@ struct Index {
         backgroundEnabled: this.settings.startPageBackgroundEnabled,
         source: this.settings.startPageBackgroundSource,
         customUri: this.settings.customStartPageBackgroundUri,
+        isLandscape: this.isLandscape(),
+        isSmallScreen: this.windowMetrics.layoutClass === BrowserLayoutClass.Compact,
+        selectedPresetId: this.isLandscape()
+          ? this.settings.startPagePresetLandscapeId
+          : this.settings.startPagePresetPortraitId,
         bottomInset: this.bottomInset,
         scrimProvided: this.usesResponsivePanel(),
-        onSelectBuiltIn: (): void => { void this.selectBuiltInBackground(); },
+        onSelectPreset: (presetId: string): void => { void this.selectPresetBackground(presetId); },
         onSelectNone: (): void => { void this.selectNoBackground(); },
         onSelectCustom: (): void => { void this.selectSavedCustomBackground(); },
         onChooseCustom: (): void => { void this.chooseCustomBackground(); },
@@ -4266,6 +4273,19 @@ struct Index {
     const next: BrowserSettings = cloneSettings(this.settings);
     next.startPageBackgroundEnabled = !next.startPageBackgroundEnabled;
     await this.applySettings(next);
+  }
+
+  private async selectPresetBackground(presetId: string): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.startPageBackgroundEnabled = true;
+    next.startPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
+    if (this.isLandscape()) {
+      next.startPagePresetLandscapeId = presetId;
+    } else {
+      next.startPagePresetPortraitId = presetId;
+    }
+    await this.applySettings(next);
+    this.sheet = Overlay.None;
   }
 
   private async selectBuiltInBackground(): Promise<void> {

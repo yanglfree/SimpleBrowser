@@ -520,6 +520,10 @@ export class BrowserRepository {
         startPageBackgroundSource: parsed.startPageBackgroundSource ?? fallback.startPageBackgroundSource,
         customStartPageBackgroundUri:
           parsed.customStartPageBackgroundUri ?? fallback.customStartPageBackgroundUri,
+        startPagePresetPortraitId:
+          parsed.startPagePresetPortraitId ?? fallback.startPagePresetPortraitId,
+        startPagePresetLandscapeId:
+          parsed.startPagePresetLandscapeId ?? fallback.startPagePresetLandscapeId,
         tabExpiryDays: parsed.tabExpiryDays ?? fallback.tabExpiryDays,
         historyRetentionDays: parsed.historyRetentionDays ?? fallback.historyRetentionDays,
         liveWebViewLimit: parsed.liveWebViewLimit ?? fallback.liveWebViewLimit,

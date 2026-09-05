@@ -32,6 +32,7 @@ import longScreenshotServiceTest from './LongScreenshotService.test';
 import bookmarkTransferServiceTest from './BookmarkTransferService.test';
 import sitePermissionPolicyTest from './SitePermissionPolicy.test';
 import telemetryPolicyTest from './TelemetryPolicy.test';
+import homeBackgroundPresetsTest from './HomeBackgroundPresets.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -68,4 +69,5 @@ export default function testsuite(): void {
   bookmarkTransferServiceTest();
   sitePermissionPolicyTest();
   telemetryPolicyTest();
+  homeBackgroundPresetsTest();
 }
