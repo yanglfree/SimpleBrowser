@@ -11,7 +11,7 @@ function profile() {
   return {
     type: 'release',
     'app-distribution-type': 'internaltesting',
-    'bundle-info': { 'bundle-name': 'com.youdroid.zhuobrowser', 'app-identifier': '6917614109541548410' },
+    'bundle-info': { 'bundle-name': 'com.youdroid.browser', 'app-identifier': '6917615697859663256' },
     validity: { 'not-before': 10, 'not-after': 100 },
     'app-services-capabilities': { 'com.huawei.service.iap': {} },
     'debug-info': { 'device-ids': ['test-device'] },

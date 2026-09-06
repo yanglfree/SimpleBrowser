@@ -1,6 +1,6 @@
 {
   "app": {
-    "bundleName": "com.youdroid.zhuobrowser",
+    "bundleName": "com.youdroid.browser",
     "vendor": "onevcat",
     "versionCode": 1000015,
     "versionName": "1.0.1",

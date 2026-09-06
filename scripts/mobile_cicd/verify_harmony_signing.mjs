@@ -7,8 +7,8 @@ import { pathToFileURL } from 'node:url';
 export function validateProfile(profile, distribution, now = Date.now() / 1000) {
   assert.ok(['debug', 'app_gallery', 'internaltesting'].includes(distribution), 'Unknown signing channel');
   const bundle = profile['bundle-info'];
-  assert.equal(bundle?.['bundle-name'], 'com.youdroid.zhuobrowser', 'Wrong profile bundle');
-  assert.equal(bundle?.['app-identifier'], '6917614109541548410', 'Wrong profile app identifier');
+  assert.equal(bundle?.['bundle-name'], 'com.youdroid.browser', 'Wrong profile bundle');
+  assert.equal(bundle?.['app-identifier'], '6917615697859663256', 'Wrong profile app identifier');
   assert.equal(profile.type, distribution === 'debug' ? 'debug' : 'release', 'Wrong profile type');
   if (distribution !== 'debug') {
     assert.equal(profile['app-distribution-type'], distribution, 'Wrong distribution channel');

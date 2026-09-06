@@ -11,7 +11,7 @@ export class DefaultBrowserService {
    * the default browser application.
    */
   static async requestSetDefaultBrowser(context: common.UIAbilityContext): Promise<boolean> {
-    const bundleName: string = context.abilityInfo?.bundleName ?? 'com.youdroid.zhuobrowser';
+    const bundleName: string = context.abilityInfo?.bundleName ?? 'com.youdroid.browser';
 
     // 1. Try navigating directly to "Default Browser" settings page (default_browser_settings)
     // where the user can directly choose ZhuoBrowser from the browser list.

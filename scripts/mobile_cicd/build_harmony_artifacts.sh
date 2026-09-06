@@ -109,7 +109,7 @@ NODE
 )" || die "HAP package metadata is invalid"
 IFS=$'\t' read -r BUNDLE_NAME VERSION_NAME VERSION_CODE <<< "${PACKAGE_METADATA}"
 
-[[ "${BUNDLE_NAME}" == "com.youdroid.zhuobrowser" ]] || die "unexpected bundle name"
+[[ "${BUNDLE_NAME}" == "com.youdroid.browser" ]] || die "unexpected bundle name"
 [[ "${VERSION_NAME}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "invalid version name"
 [[ "${VERSION_CODE}" =~ ^[1-9][0-9]*$ ]] || die "invalid version code"
 

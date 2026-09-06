@@ -98,7 +98,7 @@ Source changes are not activated merely by a local commit. Before enabling:
 3. Enroll this existing product using the portal repository's operator helper:
 
    ```bash
-   node scripts/enroll-harmony.mjs zhuobrowser com.youdroid.zhuobrowser yanglfree/SimpleBrowser --apply
+   node scripts/enroll-harmony.mjs zhuobrowser com.youdroid.browser yanglfree/SimpleBrowser --apply
    ```
 
    It requires existing operator Cloudflare/GitHub authorization, creates an
