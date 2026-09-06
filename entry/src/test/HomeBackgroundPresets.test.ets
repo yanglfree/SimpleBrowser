@@ -14,6 +14,11 @@ import {
   PORTRAIT_PRESETS,
   resolvePresetResource
 } from '../main/ets/models/HomeBackgroundPresets';
+import {
+  isDailyWallpaperCacheFresh,
+  isSupportedDailyWallpaper,
+  resolveBingDailyImageUrl
+} from '../main/ets/models/BingDailyWallpaper';
 
 export default function homeBackgroundPresetsTest(): void {
   describe('HomeBackgroundPresets filtering and resolution', (): void => {
@@ -100,6 +105,30 @@ export default function homeBackgroundPresetsTest(): void {
       const normalized: BrowserSettings = normalizeBrowserSettings(settings);
       expect(normalized.startPagePresetPortraitId).assertEqual('alley');
       expect(normalized.startPagePresetLandscapeId).assertEqual('roof');
+    });
+
+    it('accepts only Bing image paths from the daily archive response', 0, (): void => {
+      const valid: string = '{"images":[{"url":"/th?id=OHR.Sample_ZH-CN123_1920x1080.jpg&pid=hp"}]}';
+      const external: string = '{"images":[{"url":"https://example.com/wallpaper.jpg"}]}';
+
+      expect(resolveBingDailyImageUrl(valid))
+        .assertEqual('https://www.bing.com/th?id=OHR.Sample_ZH-CN123_1920x1080.jpg&pid=hp');
+      expect(resolveBingDailyImageUrl(external)).assertUndefined();
+      expect(resolveBingDailyImageUrl('{invalid')).assertUndefined();
+    });
+
+    it('refreshes the daily wallpaper once per local calendar day', 0, (): void => {
+      const morning: number = new Date(2026, 8, 6, 8, 0, 0).getTime();
+      const evening: number = new Date(2026, 8, 6, 20, 0, 0).getTime();
+      const nextDay: number = new Date(2026, 8, 7, 8, 0, 0).getTime();
+
+      expect(isDailyWallpaperCacheFresh(morning, evening)).assertTrue();
+      expect(isDailyWallpaperCacheFresh(morning, nextDay)).assertFalse();
+    });
+
+    it('rejects non-JPEG responses before caching a daily wallpaper', 0, (): void => {
+      expect(isSupportedDailyWallpaper(new Uint8Array([0xFF, 0xD8, 0xFF, 0xD9]))).assertTrue();
+      expect(isSupportedDailyWallpaper(new Uint8Array([0x7B, 0x7D, 0x00, 0x00]))).assertFalse();
     });
   });
 }

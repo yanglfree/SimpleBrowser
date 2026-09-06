@@ -98,7 +98,8 @@ export function getReaderTheme(paper: ReaderPaper): ReaderTheme {
 
 export enum StartPageBackgroundSource {
   BuiltIn = 0,
-  Custom = 1
+  Custom = 1,
+  Daily = 2
 }
 
 export const QUICK_SITE_LIMIT_MIN: number = 4;

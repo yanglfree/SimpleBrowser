@@ -17,6 +17,7 @@ export struct StartPage {
   @Prop backgroundEnabled: boolean = true;
   @Prop backgroundSource: StartPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
   @Prop customBackgroundUri: string = '';
+  @Prop dailyBackgroundUri: string = '';
   @Prop presetPortraitId: string = DEFAULT_PORTRAIT_PRESET_ID;
   @Prop presetLandscapeId: string = DEFAULT_LANDSCAPE_PRESET_ID;
   /** Wide chrome already puts a menu at the top-right; the home gear would overlap it. */
@@ -102,6 +103,9 @@ export struct StartPage {
   private imageSource(): ResourceStr {
     if (this.backgroundSource === StartPageBackgroundSource.Custom && this.customBackgroundUri.length > 0) {
       return this.customBackgroundUri;
+    }
+    if (this.backgroundSource === StartPageBackgroundSource.Daily && this.dailyBackgroundUri.length > 0) {
+      return this.dailyBackgroundUri;
     }
     return resolvePresetResource(
       this.isLandscape,

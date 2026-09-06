@@ -75,6 +75,8 @@
     { "name": "home_background_nature", "value": "自然" },
     { "name": "home_background_none", "value": "无背景" },
     { "name": "home_background_custom", "value": "自选" },
+    { "name": "home_background_daily", "value": "每日美图" },
+    { "name": "home_background_daily_unavailable", "value": "每日美图加载失败，已使用内置背景" },
     { "name": "home_background_choose_photo", "value": "从图库选择图片" },
     { "name": "home_background_preset_mountain", "value": "雾山" },
     { "name": "home_background_preset_alley", "value": "巷影" },

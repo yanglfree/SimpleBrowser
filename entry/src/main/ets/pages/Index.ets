@@ -376,6 +376,7 @@ struct Index {
   @State private foldMetrics: BrowserFoldMetrics = emptyFoldMetrics();
   private splitDragStartRatio: number = 0.5;
   @State private settings: BrowserSettings = defaultBrowserSettings();
+  @State private dailyBackgroundUri: string = '';
   @State private sheet: Overlay = Overlay.None;
   @State private isCapsuleHidden: boolean = false;
   @State private isAddressMenuVisible: boolean = false;
@@ -517,6 +518,10 @@ struct Index {
         this.viewModel.settings.privacyConsentAccepted && this.viewModel.settings.telemetryEnabled);
       await FaviconService.initialize(this.appContext());
       this.syncState();
+      if (this.settings.startPageBackgroundEnabled &&
+        this.settings.startPageBackgroundSource === StartPageBackgroundSource.Daily) {
+        void this.refreshDailyBackground();
+      }
       this.rulesLastUpdatedAt = this.viewModel.adsBlockService.lastUpdatedAt;
       this.liveTabIds = this.initialLiveTabIds();
       MemoryPressureService.register((level: number): void => {
@@ -809,6 +814,7 @@ struct Index {
               backgroundEnabled: this.settings.startPageBackgroundEnabled,
               backgroundSource: this.settings.startPageBackgroundSource,
               customBackgroundUri: this.settings.customStartPageBackgroundUri,
+              dailyBackgroundUri: this.dailyBackgroundUri,
               presetPortraitId: this.settings.startPagePresetPortraitId,
               presetLandscapeId: this.settings.startPagePresetLandscapeId,
               hidePageSettings: this.usesWideChrome(),
@@ -1677,6 +1683,7 @@ struct Index {
         backgroundEnabled: this.settings.startPageBackgroundEnabled,
         source: this.settings.startPageBackgroundSource,
         customUri: this.settings.customStartPageBackgroundUri,
+        dailyUri: this.dailyBackgroundUri,
         isLandscape: this.isLandscape(),
         isSmallScreen: this.windowMetrics.layoutClass === BrowserLayoutClass.Compact,
         selectedPresetId: this.isLandscape()
@@ -1687,6 +1694,7 @@ struct Index {
         onSelectPreset: (presetId: string): void => { void this.selectPresetBackground(presetId); },
         onSelectNone: (): void => { void this.selectNoBackground(); },
         onSelectCustom: (): void => { void this.selectSavedCustomBackground(); },
+        onSelectDaily: (): void => { void this.selectDailyBackground(); },
         onChooseCustom: (): void => { void this.chooseCustomBackground(); },
         onDismiss: (): void => { this.sheet = Overlay.None; }
       })
@@ -4313,6 +4321,24 @@ struct Index {
     next.startPageBackgroundSource = StartPageBackgroundSource.Custom;
     await this.applySettings(next);
     this.sheet = Overlay.None;
+  }
+
+  private async selectDailyBackground(): Promise<void> {
+    const next: BrowserSettings = cloneSettings(this.settings);
+    next.startPageBackgroundEnabled = true;
+    next.startPageBackgroundSource = StartPageBackgroundSource.Daily;
+    await this.applySettings(next);
+    this.sheet = Overlay.None;
+    await this.refreshDailyBackground();
+  }
+
+  private async refreshDailyBackground(): Promise<void> {
+    const uri: string = await HomeBackgroundService.dailyImage(this.appContext());
+    if (uri.length > 0) {
+      this.dailyBackgroundUri = uri;
+      return;
+    }
+    this.showToast($r('app.string.home_background_daily_unavailable'));
   }
 
   private async chooseCustomBackground(): Promise<void> {

@@ -3,7 +3,8 @@ import {
   DEFAULT_LANDSCAPE_PRESET_ID,
   DEFAULT_PORTRAIT_PRESET_ID,
   getAvailablePresets,
-  HomeBackgroundPreset
+  HomeBackgroundPreset,
+  resolvePresetResource
 } from '../models/HomeBackgroundPresets';
 import { AppIcon, IconName } from './AppIcon';
 
@@ -14,6 +15,7 @@ export struct HomeBackgroundPicker {
   @Prop backgroundEnabled: boolean = true;
   @Prop source: StartPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
   @Prop customUri: string = '';
+  @Prop dailyUri: string = '';
   @Prop isLandscape: boolean = false;
   @Prop isSmallScreen: boolean = true;
   @Prop selectedPresetId: string = '';
@@ -23,6 +25,7 @@ export struct HomeBackgroundPicker {
   onSelectPreset: (presetId: string) => void = (_id: string): void => {};
   onSelectNone: () => void = (): void => {};
   onSelectCustom: () => void = (): void => {};
+  onSelectDaily: () => void = (): void => {};
   onChooseCustom: () => void = (): void => {};
   onDismiss: () => void = (): void => {};
 
@@ -59,6 +62,7 @@ export struct HomeBackgroundPicker {
 
         Scroll() {
           Row({ space: 14 }) {
+            this.DailyOption()
             ForEach(
               getAvailablePresets(this.isLandscape, this.isSmallScreen),
               (preset: HomeBackgroundPreset) => {
@@ -101,6 +105,37 @@ export struct HomeBackgroundPicker {
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder
+  private DailyOption() {
+    Column({ space: 8 }) {
+      Stack({ alignContent: Alignment.Center }) {
+        Image(this.dailyUri.length > 0
+          ? this.dailyUri
+          : resolvePresetResource(this.isLandscape))
+          .width(PICKER_THUMBNAIL_SIZE)
+          .height(PICKER_THUMBNAIL_SIZE)
+          .objectFit(ImageFit.Cover)
+          .syncLoad(true)
+        if (this.isDailySelected()) {
+          this.SelectionBadge()
+        }
+      }
+      .borderRadius(18)
+      .clip(true)
+      .border({
+        width: this.isDailySelected() ? 2 : 1,
+        color: this.isDailySelected()
+          ? $r('app.color.home_text_primary')
+          : $r('app.color.home_panel_border')
+      })
+
+      Text($r('app.string.home_background_daily'))
+        .fontSize(12.5)
+        .fontColor($r('app.color.home_text_primary'))
+    }
+    .onClick(() => this.onSelectDaily())
   }
 
   @Builder
@@ -230,5 +265,9 @@ export struct HomeBackgroundPicker {
 
   private isCustomSelected(): boolean {
     return this.backgroundEnabled && this.source === StartPageBackgroundSource.Custom;
+  }
+
+  private isDailySelected(): boolean {
+    return this.backgroundEnabled && this.source === StartPageBackgroundSource.Daily;
   }
 }
