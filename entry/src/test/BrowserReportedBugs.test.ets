@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { historyHeaderTopPadding, resolveHistoryEntryDeleteTarget } from '../main/ets/components/HistorySheet';
-import { matchesStrictAdToken, readerApplyScript } from '../main/ets/constants/AppConstants';
+import { BLOCKED_LINK_GUARD_SCRIPT, matchesStrictAdToken, readerApplyScript } from '../main/ets/constants/AppConstants';
 import { HistoryEntry, ReaderPaper, SavedItem, getReaderTheme } from '../main/ets/models/BrowserModels';
 import {
   SCREENSHOT_CACHE_RETENTION_MS,
@@ -107,6 +107,30 @@ export default function browserReportedBugsTest(): void {
         visitCount: 0
       };
       expect(resolveHistoryEntryDeleteTarget(savedSearchEntry, false, savedItems)).assertEqual('fav-456');
+    });
+
+    it('allows dummy javascript links to trigger DOM handlers while blocking non-dummy javascript', 0, (): void => {
+      const script: string = BLOCKED_LINK_GUARD_SCRIPT;
+      expect(script.includes('dummyJs')).assertTrue();
+      expect(script.includes('event.stopImmediatePropagation()')).assertTrue();
+      expect(script.includes('!dummyJs.test(href)')).assertTrue();
+      expect(script.includes('decodeURIComponent')).assertTrue();
+      expect(script.includes('extractUrl')).assertTrue();
+    });
+
+    it('provides window.open fallback navigation when webview multi-window is disabled', 0, (): void => {
+      const script: string = BLOCKED_LINK_GUARD_SCRIPT;
+      expect(script.includes('window.open = function')).assertTrue();
+      expect(script.includes('window.location.href = u')).assertTrue();
+    });
+
+    it('provides touch and pointer hover dropdown toggle with data-zhuo-dropdown state', 0, (): void => {
+      const script: string = BLOCKED_LINK_GUARD_SCRIPT;
+      expect(script.includes('data-zhuo-dropdown')).assertTrue();
+      expect(script.includes('header-lang[data-zhuo-dropdown="open"]')).assertTrue();
+      expect(script.includes('header-lang[data-zhuo-dropdown="closed"]')).assertTrue();
+      expect(script.includes('handleDropdownClick')).assertTrue();
+      expect(script.includes('document.activeElement.blur()')).assertTrue();
     });
   });
 }

@@ -33,6 +33,7 @@ import bookmarkTransferServiceTest from './BookmarkTransferService.test';
 import sitePermissionPolicyTest from './SitePermissionPolicy.test';
 import telemetryPolicyTest from './TelemetryPolicy.test';
 import homeBackgroundPresetsTest from './HomeBackgroundPresets.test';
+import feedbackServiceTest from './FeedbackService.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -70,4 +71,5 @@ export default function testsuite(): void {
   sitePermissionPolicyTest();
   telemetryPolicyTest();
   homeBackgroundPresetsTest();
+  feedbackServiceTest();
 }

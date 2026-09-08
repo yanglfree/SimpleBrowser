@@ -12,6 +12,7 @@ import {
 } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 import { AppSwitch } from './AppSwitch';
+import { FeedbackSheet } from './FeedbackSheet';
 import { SearchTemplateSheet } from './SearchTemplateSheet';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { Logger } from '../utils/Logger';
@@ -230,6 +231,7 @@ export struct SettingsPage {
   @State private clearDataRange: ClearDataRange = ClearDataRange.All;
   @State private searchQuery: string = '';
   @State private isAboutDialogVisible: boolean = false;
+  @State private isFeedbackSheetVisible: boolean = false;
 
   aboutToAppear(): void {
     this.syncViewSettings();
@@ -514,6 +516,7 @@ export struct SettingsPage {
               () => this.onOpenPro()
             )
             this.ValueRowText($r('app.string.about_app'), () => this.appVersionLabel(), true, () => this.showAbout())
+            this.ActionRow($r('app.string.about_feedback'), true, () => this.showFeedback())
             this.ValueRowText($r('app.string.about_icp_label'), () => $r('app.string.about_icp_value'), false, () => {
               void this.copyIcpNumber();
             })
@@ -547,6 +550,13 @@ export struct SettingsPage {
       }
       if (this.isAboutDialogVisible) {
         this.AboutDialog()
+      }
+      if (this.isFeedbackSheetVisible) {
+        FeedbackSheet({
+          isWide: this.isWide,
+          appVersion: this.appVersion,
+          onDismiss: (): void => { this.isFeedbackSheetVisible = false; }
+        })
       }
     }
     .width('100%')
@@ -800,6 +810,12 @@ export struct SettingsPage {
         label: $r('app.string.about_app'),
         keywords: '关于 版本 应用 备案号 ICP',
         action: () => this.showAbout()
+      },
+      {
+        key: 'feedback',
+        label: $r('app.string.about_feedback'),
+        keywords: '反馈 用户反馈 意见 问题 建议 联系',
+        action: () => this.showFeedback()
       },
       {
         key: 'icp',
@@ -1755,5 +1771,9 @@ export struct SettingsPage {
 
   private showAbout(): void {
     this.isAboutDialogVisible = true;
+  }
+
+  private showFeedback(): void {
+    this.isFeedbackSheetVisible = true;
   }
 }

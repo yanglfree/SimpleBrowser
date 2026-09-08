@@ -15,7 +15,7 @@ export struct StartPage {
   @Prop quickSitesEnabled: boolean = true;
   @Prop quickSiteLimit: number = 6;
   @Prop backgroundEnabled: boolean = true;
-  @Prop backgroundSource: StartPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
+  @Prop backgroundSource: StartPageBackgroundSource = StartPageBackgroundSource.Daily;
   @Prop customBackgroundUri: string = '';
   @Prop dailyBackgroundUri: string = '';
   @Prop presetPortraitId: string = DEFAULT_PORTRAIT_PRESET_ID;

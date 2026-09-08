@@ -520,7 +520,7 @@ struct Index {
       this.syncState();
       if (this.settings.startPageBackgroundEnabled &&
         this.settings.startPageBackgroundSource === StartPageBackgroundSource.Daily) {
-        void this.refreshDailyBackground();
+        void this.refreshDailyBackground(false);
       }
       this.rulesLastUpdatedAt = this.viewModel.adsBlockService.lastUpdatedAt;
       this.liveTabIds = this.initialLiveTabIds();
@@ -4339,16 +4339,18 @@ struct Index {
     next.startPageBackgroundSource = StartPageBackgroundSource.Daily;
     await this.applySettings(next);
     this.sheet = Overlay.None;
-    await this.refreshDailyBackground();
+    await this.refreshDailyBackground(true);
   }
 
-  private async refreshDailyBackground(): Promise<void> {
+  private async refreshDailyBackground(showToastOnFailure: boolean = false): Promise<void> {
     const uri: string = await HomeBackgroundService.dailyImage(this.appContext());
     if (uri.length > 0) {
       this.dailyBackgroundUri = uri;
       return;
     }
-    this.showToast($r('app.string.home_background_daily_unavailable'));
+    if (showToastOnFailure) {
+      this.showToast($r('app.string.home_background_daily_unavailable'));
+    }
   }
 
   private async chooseCustomBackground(): Promise<void> {

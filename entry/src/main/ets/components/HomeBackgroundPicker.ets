@@ -13,7 +13,7 @@ const PICKER_THUMBNAIL_SIZE: number = 84;
 @Component
 export struct HomeBackgroundPicker {
   @Prop backgroundEnabled: boolean = true;
-  @Prop source: StartPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
+  @Prop source: StartPageBackgroundSource = StartPageBackgroundSource.Daily;
   @Prop customUri: string = '';
   @Prop dailyUri: string = '';
   @Prop isLandscape: boolean = false;

@@ -3,7 +3,8 @@ import {
   BrowserSettings,
   cloneSettings,
   defaultBrowserSettings,
-  normalizeBrowserSettings
+  normalizeBrowserSettings,
+  StartPageBackgroundSource
 } from '../main/ets/models/BrowserModels';
 import {
   DEFAULT_LANDSCAPE_PRESET_ID,
@@ -105,6 +106,18 @@ export default function homeBackgroundPresetsTest(): void {
       const normalized: BrowserSettings = normalizeBrowserSettings(settings);
       expect(normalized.startPagePresetPortraitId).assertEqual('alley');
       expect(normalized.startPagePresetLandscapeId).assertEqual('roof');
+    });
+
+    it('defaults start-page background source to daily wallpaper', 0, (): void => {
+      const settings: BrowserSettings = defaultBrowserSettings();
+      expect(settings.startPageBackgroundSource).assertEqual(StartPageBackgroundSource.Daily);
+
+      const cloned: BrowserSettings = cloneSettings(settings);
+      expect(cloned.startPageBackgroundSource).assertEqual(StartPageBackgroundSource.Daily);
+
+      settings.startPageBackgroundSource = StartPageBackgroundSource.BuiltIn;
+      const normalizedBuiltIn: BrowserSettings = normalizeBrowserSettings(settings);
+      expect(normalizedBuiltIn.startPageBackgroundSource).assertEqual(StartPageBackgroundSource.BuiltIn);
     });
 
     it('accepts only Bing image paths from the daily archive response', 0, (): void => {
