@@ -320,7 +320,7 @@ export struct PrivacyConsentDialog {
           .layoutWeight(1)
           .height(46)
           .borderRadius(14)
-          .border({ width: 1, color: $r('app.color.border') })
+          .border({ width: 1, color: $r('app.color.border'), radius: 14 })
           .fontSize(15)
           .fontWeight(FontWeight.Medium)
           .backgroundColor(Color.Transparent)
