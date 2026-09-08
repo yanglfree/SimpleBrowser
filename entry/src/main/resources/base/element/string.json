@@ -566,6 +566,7 @@
     { "name": "privacy_dialog_tab_privacy", "value": "隐私协议" },
     { "name": "privacy_dialog_open_web", "value": "打开网页版" },
     { "name": "privacy_dialog_agree_checkbox", "value": "我已阅读并同意《用户协议》和《隐私协议》" },
+    { "name": "privacy_dialog_decline_button", "value": "不同意并退出" },
     { "name": "privacy_dialog_agree_button", "value": "同意并继续" },
     { "name": "privacy_dialog_terms_title", "value": "卓阅浏览器用户协议" },
     { "name": "privacy_dialog_privacy_title", "value": "卓阅浏览器隐私政策" },

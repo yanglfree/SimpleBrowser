@@ -80,6 +80,7 @@ export struct PrivacyConsentDialog {
   @State private isAgreed: boolean = false;
   @State private selectedTab: number = 0;
   onAccept: () => void = (): void => {};
+  onDecline: () => void = (): void => {};
   onOpenUrl: (url: string) => void = (_url: string): void => {};
 
   build() {
@@ -314,22 +315,41 @@ export struct PrivacyConsentDialog {
         this.isAgreed = !this.isAgreed;
       })
 
-      // Agree button
-      Button($r('app.string.privacy_dialog_agree_button'), { type: ButtonType.Normal })
-        .width('100%')
-        .height(46)
-        .borderRadius(14)
-        .fontSize(15)
-        .fontWeight(FontWeight.Bold)
-        .backgroundColor(this.isAgreed ? $r('app.color.accent') : $r('app.color.surface_subtle'))
-        .fontColor(this.isAgreed ? $r('app.color.accent_foreground') : $r('app.color.text_secondary'))
-        .id('privacy-consent-accept')
-        .enabled(this.isAgreed && !this.isSaving)
-        .onClick(() => {
-          if (this.isAgreed && !this.isSaving) {
-            this.onAccept();
-          }
-        })
+      Row({ space: 10 }) {
+        Button($r('app.string.privacy_dialog_decline_button'), { type: ButtonType.Normal })
+          .layoutWeight(1)
+          .height(46)
+          .borderRadius(14)
+          .border({ width: 1, color: $r('app.color.border') })
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .backgroundColor(Color.Transparent)
+          .fontColor($r('app.color.text_primary'))
+          .id('privacy-consent-decline')
+          .enabled(!this.isSaving)
+          .onClick(() => {
+            if (!this.isSaving) {
+              this.onDecline();
+            }
+          })
+
+        Button($r('app.string.privacy_dialog_agree_button'), { type: ButtonType.Normal })
+          .layoutWeight(1)
+          .height(46)
+          .borderRadius(14)
+          .fontSize(15)
+          .fontWeight(FontWeight.Bold)
+          .backgroundColor(this.isAgreed ? $r('app.color.accent') : $r('app.color.surface_subtle'))
+          .fontColor(this.isAgreed ? $r('app.color.accent_foreground') : $r('app.color.text_secondary'))
+          .id('privacy-consent-accept')
+          .enabled(this.isAgreed && !this.isSaving)
+          .onClick(() => {
+            if (this.isAgreed && !this.isSaving) {
+              this.onAccept();
+            }
+          })
+      }
+      .width('100%')
     }
     .width('100%')
     .alignItems(HorizontalAlign.Center)

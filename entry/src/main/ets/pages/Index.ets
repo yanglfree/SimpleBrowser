@@ -1959,6 +1959,7 @@ struct Index {
       PrivacyConsentDialog({
         isSaving: this.isAcceptingPrivacyConsent,
         onAccept: (): void => { void this.acceptPrivacyConsent(); },
+        onDecline: (): void => { this.declinePrivacyConsent(); },
         onOpenUrl: (url: string): void => { void this.openExternalWebUrl(url); }
       })
     } else if (this.sheet === Overlay.Onboarding) {
@@ -4228,6 +4229,15 @@ struct Index {
     } finally {
       this.isAcceptingPrivacyConsent = false;
     }
+  }
+
+  private declinePrivacyConsent(): void {
+    if (this.isAcceptingPrivacyConsent) {
+      return;
+    }
+    this.appContext().terminateSelf().catch((error: Object): void => {
+      Logger.warn(TAG, `App could not exit after privacy consent was declined: ${String(error)}`);
+    });
   }
 
   private async openExternalWebUrl(url: string): Promise<void> {
