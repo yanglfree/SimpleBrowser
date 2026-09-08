@@ -1,0 +1,181 @@
+{
+  "runner": {
+    "appName": "ZhuoBrowser Privacy Consent Decline",
+    "platformName": "HarmonyOS Real-device QA",
+    "bundleId": "com.youdroid.browser"
+  },
+  "coverageAreas": [
+    {
+      "title": "First-launch privacy choice",
+      "status": "passed",
+      "caseIds": [
+        "privacy-choice-visible",
+        "privacy-decline-exits",
+        "privacy-decline-persists"
+      ],
+      "notes": "The review bundle exposes an explicit decline path, exits the visible ability, and keeps consent unresolved after relaunch."
+    }
+  ],
+  "cases": [
+    {
+      "id": "privacy-choice-visible",
+      "title": "Show explicit accept and decline choices on first launch",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "startup",
+        "privacy",
+        "review"
+      ],
+      "preconditions": [
+        "Fresh installation of the exact committed HAP",
+        "No persisted privacy consent"
+      ],
+      "steps": [
+        "Launch EntryAbility",
+        "Inspect the visible dialog and UI tree"
+      ],
+      "assertions": [
+        "Decline is visible and enabled",
+        "Accept is visible and disabled until the agreement checkbox is selected"
+      ],
+      "failureSignals": [
+        "Only one action is visible",
+        "Accept is enabled without explicit agreement"
+      ]
+    },
+    {
+      "id": "privacy-decline-exits",
+      "title": "Exit the visible app when privacy consent is declined",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "startup",
+        "privacy",
+        "decline"
+      ],
+      "preconditions": [
+        "First-launch privacy dialog is visible"
+      ],
+      "steps": [
+        "Tap Different and Exit",
+        "Inspect the foreground ability and UI tree"
+      ],
+      "assertions": [
+        "ZhuoBrowser no longer owns the visible foreground ability",
+        "The previous app becomes visible"
+      ],
+      "failureSignals": [
+        "Browser remains visible",
+        "Decline dismisses the gate and exposes browser UI"
+      ]
+    },
+    {
+      "id": "privacy-decline-persists",
+      "title": "Keep consent unresolved after decline and relaunch",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "startup",
+        "privacy",
+        "persistence"
+      ],
+      "preconditions": [
+        "Privacy consent was declined in the previous launch"
+      ],
+      "steps": [
+        "Launch EntryAbility again",
+        "Inspect the privacy action states"
+      ],
+      "assertions": [
+        "Privacy gate appears again",
+        "Decline remains enabled",
+        "Accept remains disabled"
+      ],
+      "failureSignals": [
+        "Browser content appears without consent",
+        "Consent is treated as accepted"
+      ]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-09-08",
+    "target": {
+      "name": "TLR-AL00",
+      "runtime": "HarmonyOS 6.1.0.135(SP9C00E120R7P5), API 24",
+      "id": "192.168.91.79:41325"
+    },
+    "appBuild": {
+      "version": "1.0.1 (1000016)",
+      "sourceSha": "e317f8d0535fe4dd7e65faae4a133eeed610391c",
+      "signing": "Canonical debug profile, IAP enabled",
+      "hapPath": "/tmp/zhuobrowser-privacy-qa.5g8Fhv/entry/build/default/outputs/default/entry-default-signed.hap",
+      "sha256": "8ab0ec04ba4b96e569eda2f7cf7fa0f8e5bf4609c669e1754aa3d859ca71b2f0"
+    },
+    "authSource": "No account required",
+    "results": [
+      {
+        "caseId": "privacy-choice-visible",
+        "status": "passed",
+        "notes": "UI tree showed privacy-consent-decline as visible/enabled at [117,2025][527,2163] and privacy-consent-accept as visible/disabled at [557,2025][967,2163].",
+        "evidence": [
+          {
+            "type": "real-device UI tree and screenshot",
+            "summary": "Both actions were legible and fully inside the 1084 x 2412 display."
+          }
+        ]
+      },
+      {
+        "caseId": "privacy-decline-exits",
+        "status": "passed",
+        "notes": "After tapping the center of privacy-consent-decline, com.youdroid.browser left the foreground and the prior app became visible. The process remained cached in BACKGROUND without a visible ability.",
+        "evidence": [
+          {
+            "type": "AbilityManager and UI tree",
+            "summary": "The post-decline UI tree contained no com.youdroid.browser window."
+          }
+        ]
+      },
+      {
+        "caseId": "privacy-decline-persists",
+        "status": "passed",
+        "notes": "Relaunch showed the same unresolved privacy gate with decline enabled and accept disabled, proving that decline did not persist acceptance.",
+        "evidence": [
+          {
+            "type": "real-device UI tree and screenshot",
+            "summary": "The app was intentionally left at the unresolved privacy gate after verification."
+          }
+        ]
+      }
+    ],
+    "validation": [
+      {
+        "command": "node scripts/mobile_cicd/signing-source.mjs sync-local debug",
+        "status": "passed",
+        "summary": "Canonical profile and certificate validated; IAP capability enabled."
+      },
+      {
+        "command": "ohpm install && hvigorw assembleHap",
+        "status": "passed",
+        "summary": "Exact commit built and signed successfully in an isolated worktree."
+      },
+      {
+        "command": "hdc uninstall/install and aa start",
+        "status": "passed",
+        "summary": "Fresh installation and launch of com.youdroid.browser succeeded."
+      },
+      {
+        "command": "uitest dumpLayout and uiInput click",
+        "status": "passed",
+        "summary": "Visible control states, decline exit, and relaunch persistence were verified."
+      }
+    ],
+    "notes": "The historical com.youdroid.zhuobrowser debug package was cleared and removed. The canonical review build installs as com.youdroid.browser. No accept action was performed, so the device remains at the first-launch privacy gate."
+  }
+}

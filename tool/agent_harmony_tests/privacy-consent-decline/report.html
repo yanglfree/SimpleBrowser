@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZhuoBrowser Privacy Consent Decline HarmonyOS Real-device QA Report</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; }
+    body { margin: 0; padding: 32px; background: Canvas; color: CanvasText; }
+    main { max-width: 1120px; margin: 0 auto; }
+    h1, h2, h3 { line-height: 1.2; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 28px; }
+    th, td { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: color-mix(in srgb, CanvasText 8%, transparent); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.94em; }
+    .status-passed { color: #027a48; font-weight: 700; }
+    .status-failed { color: #b42318; font-weight: 700; }
+    .status-blocked, .status-partial { color: #b54708; font-weight: 700; }
+    .status-not-run, .status-pending { color: #667085; font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin: 20px 0 28px; }
+    .metric { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 8px; padding: 14px 16px; }
+    .metric strong { display: block; font-size: 1.6rem; }
+    .case-result { border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent); padding-top: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ZhuoBrowser Privacy Consent Decline HarmonyOS Real-device QA Report</h1>
+  <p>
+    Date: 2026-09-08<br>
+    Target: TLR-AL00, HarmonyOS 6.1.0.135(SP9C00E120R7P5), API 24, <code>192.168.91.79:41325</code><br>
+    App: ZhuoBrowser Privacy Consent Decline <code>1.0.1 (1000016)</code>, bundle <code>com.youdroid.browser</code><br>
+    HAP: <code>/tmp/zhuobrowser-privacy-qa.5g8Fhv/entry/build/default/outputs/default/entry-default-signed.hap</code><br>
+    Auth source: No account required
+  </p>
+
+  <section class="summary" aria-label="Run summary">
+    <div class="metric"><strong>3</strong>Total cases</div>
+    <div class="metric"><strong>3</strong>Executed</div>
+    <div class="metric"><strong>3</strong>Passed</div>
+    <div class="metric"><strong>0</strong>Failed</div>
+    <div class="metric"><strong>0</strong>Blocked</div>
+    <div class="metric"><strong>0</strong>Not run</div>
+  </section>
+
+  <h2>Executive Summary</h2>
+  <p>
+    The agent QA suite contains 3 Harmony scenarios. This run executed 3 cases with fresh evidence.
+    Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
+  </p>
+
+  <h2>Coverage Matrix</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>Cases</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>First-launch privacy choice</td>
+        <td class="status-passed">passed</td>
+        <td><code>privacy-choice-visible</code><br><code>privacy-decline-exits</code><br><code>privacy-decline-persists</code></td>
+        <td>The review bundle exposes an explicit decline path, exits the visible ability, and keeps consent unresolved after relaunch.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Case Catalog</h2>
+  <table>
+    <thead><tr><th>Case</th><th>Priority</th><th>Title</th><th>Latest Status</th><th>Tags</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>privacy-choice-visible</code></td>
+        <td>p0</td>
+        <td>Show explicit accept and decline choices on first launch</td>
+        <td class="status-passed">passed</td>
+        <td>startup, privacy, review</td>
+      </tr>
+      <tr>
+        <td><code>privacy-decline-exits</code></td>
+        <td>p0</td>
+        <td>Exit the visible app when privacy consent is declined</td>
+        <td class="status-passed">passed</td>
+        <td>startup, privacy, decline</td>
+      </tr>
+      <tr>
+        <td><code>privacy-decline-persists</code></td>
+        <td>p0</td>
+        <td>Keep consent unresolved after decline and relaunch</td>
+        <td class="status-passed">passed</td>
+        <td>startup, privacy, persistence</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Latest Run Evidence</h2>
+  
+      <section class="case-result">
+        <h3><code>privacy-choice-visible</code> <span class="status-passed">passed</span></h3>
+        <p>UI tree showed privacy-consent-decline as visible/enabled at [117,2025][527,2163] and privacy-consent-accept as visible/disabled at [557,2025][967,2163].</p>
+        <ul><li><strong>real-device UI tree and screenshot</strong><br>Both actions were legible and fully inside the 1084 x 2412 display.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>privacy-decline-exits</code> <span class="status-passed">passed</span></h3>
+        <p>After tapping the center of privacy-consent-decline, com.youdroid.browser left the foreground and the prior app became visible. The process remained cached in BACKGROUND without a visible ability.</p>
+        <ul><li><strong>AbilityManager and UI tree</strong><br>The post-decline UI tree contained no com.youdroid.browser window.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>privacy-decline-persists</code> <span class="status-passed">passed</span></h3>
+        <p>Relaunch showed the same unresolved privacy gate with decline enabled and accept disabled, proving that decline did not persist acceptance.</p>
+        <ul><li><strong>real-device UI tree and screenshot</strong><br>The app was intentionally left at the unresolved privacy gate after verification.</li></ul>
+      </section>
+
+  <h2>Validation</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>node scripts/mobile_cicd/signing-source.mjs sync-local debug</code></td>
+        <td class="status-passed">passed</td>
+        <td>Canonical profile and certificate validated; IAP capability enabled.</td>
+      </tr>
+      <tr>
+        <td><code>ohpm install &amp;&amp; hvigorw assembleHap</code></td>
+        <td class="status-passed">passed</td>
+        <td>Exact commit built and signed successfully in an isolated worktree.</td>
+      </tr>
+      <tr>
+        <td><code>hdc uninstall/install and aa start</code></td>
+        <td class="status-passed">passed</td>
+        <td>Fresh installation and launch of com.youdroid.browser succeeded.</td>
+      </tr>
+      <tr>
+        <td><code>uitest dumpLayout and uiInput click</code></td>
+        <td class="status-passed">passed</td>
+        <td>Visible control states, decline exit, and relaunch persistence were verified.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Known Exclusions</h2>
+  <p>The historical com.youdroid.zhuobrowser debug package was cleared and removed. The canonical review build installs as com.youdroid.browser. No accept action was performed, so the device remains at the first-launch privacy gate.</p>
+</main>
+</body>
+</html>
