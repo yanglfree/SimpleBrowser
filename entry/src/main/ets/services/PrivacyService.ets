@@ -4,6 +4,40 @@ import { Logger } from '../utils/Logger';
 const TAG: string = 'PrivacyService';
 
 export class PrivacyService {
+  private static webEngineReady: boolean = false;
+  private static pendingCookieClear: boolean = false;
+  private static pendingPrivateClear: boolean = false;
+
+  // Only an attached Web component proves native initialization has completed.
+  // Constructing a controller does not make CookieManager safe to call.
+  static onWebControllerAttached(): void {
+    PrivacyService.webEngineReady = true;
+    if (PrivacyService.pendingCookieClear) {
+      PrivacyService.pendingCookieClear = false;
+      PrivacyService.clearCookies();
+    }
+    if (PrivacyService.pendingPrivateClear) {
+      PrivacyService.pendingPrivateClear = false;
+      PrivacyService.clearPrivateSiteData([]);
+    }
+  }
+
+  static clearCookiesWhenReady(): void {
+    if (!PrivacyService.webEngineReady) {
+      PrivacyService.pendingCookieClear = true;
+      return;
+    }
+    PrivacyService.clearCookies();
+  }
+
+  static clearPrivateSiteDataWhenReady(controllers: webview.WebviewController[]): void {
+    if (!PrivacyService.webEngineReady) {
+      PrivacyService.pendingPrivateClear = true;
+      return;
+    }
+    PrivacyService.clearPrivateSiteData(controllers);
+  }
+
   /**
    * ArkWeb writes cookies to disk every ~30s; a session cookie set by a login
    * can be lost when a tab closes or the process dies before the next flush.
@@ -11,6 +45,11 @@ export class PrivacyService {
    * and relaunch — the async cousin can race with engine shutdown.
    */
   static flushCookies(): void {
+    // A cold homepage has no new cookies to persist. Never initialize ArkWeb
+    // from lifecycle cleanup: native initialization failures bypass try/catch.
+    if (!PrivacyService.webEngineReady) {
+      return;
+    }
     try {
       webview.WebCookieManager.saveCookieSync();
     } catch (error) {

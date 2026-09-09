@@ -619,7 +619,7 @@ struct Index {
     DownloadService.unsubscribe(this.downloadListener);
     ExternalOpenRouter.unsubscribe(this.windowToken);
     MemoryPressureService.unregister();
-    PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
+    PrivacyService.clearPrivateSiteDataWhenReady(this.privateControllers(this.tabs));
     PrivacyService.flushCookies();
     if (this.articleSavedToastTimer !== -1) {
       clearTimeout(this.articleSavedToastTimer);
@@ -2724,14 +2724,8 @@ struct Index {
         .slice(0, RECENTLY_CLOSED_TAB_LIMIT);
     }
     if (tab.isPrivate) {
-      PrivacyService.clearPrivateSiteData(this.privateControllers([tab]));
+      PrivacyService.clearPrivateSiteDataWhenReady(this.privateControllers([tab]));
     } else {
-      // ArkWeb cookie store must be warm before saveCookieSync commits.
-      try {
-        webview.WebCookieManager.configCookieSync(tab.url, 'dpkeep=1; Max-Age=86400');
-      } catch (e) {
-        // Non-fatal; the sync below still writes whatever cookies exist.
-      }
       PrivacyService.flushCookies();
     }
     this.viewModel.closeTab(id);
@@ -2745,7 +2739,7 @@ struct Index {
     this.liveTabIds = this.liveTabIds.filter((tabId: string) => tabId !== id);
     this.thumbnails = this.thumbnails.filter((item: TabThumbnail) => item.id !== id);
     if (this.settings.clearCookiesOnTabClose) {
-      PrivacyService.clearCookies();
+      PrivacyService.clearCookiesWhenReady();
     }
     this.syncState();
     if (this.sheet === Overlay.Tabs && this.tabs.length <= 1 && isHomeUrl(this.activeTab()?.url ?? '')) {
@@ -2865,7 +2859,7 @@ struct Index {
   }
   private closeAllTabs(): void {
     void this.captureScrollPosition(this.activeTabId);
-    PrivacyService.clearPrivateSiteData(this.privateControllers(this.tabs));
+    PrivacyService.clearPrivateSiteDataWhenReady(this.privateControllers(this.tabs));
     PrivacyService.flushCookies();
     this.viewModel.closeAllTabs();
     // Warm a controller for the fresh home tab before nuking every existing one.
@@ -2874,7 +2868,7 @@ struct Index {
     this.liveTabIds = [];
     this.thumbnails = [];
     if (this.settings.clearCookiesOnTabClose) {
-      PrivacyService.clearCookies();
+      PrivacyService.clearCookiesWhenReady();
     }
     this.sheet = Overlay.None;
     this.syncState();

@@ -1,3 +1,4 @@
+import { PrivacyService } from '../services/PrivacyService';
 import { webview } from '@kit.ArkWeb';
 import { ArticleHighlight } from '../models/ArticleLibraryModels';
 import { decodeArticleScriptResult } from '../models/ArticleCaptureModels';
@@ -44,7 +45,11 @@ export struct OfflineArticleReader {
         .domStorageAccess(false)
         .databaseAccess(false)
         .blockNetwork(true)
-        .onControllerAttached((): void => { this.attached = true; this.loadDocument(); })
+        .onControllerAttached((): void => {
+          PrivacyService.onWebControllerAttached();
+          this.attached = true;
+          this.loadDocument();
+        })
         .onPageEnd((): void => { void this.documentReady(); })
         .onLoadIntercept((event: OnLoadInterceptEvent): boolean => {
           const url: string = event.data.getRequestUrl();

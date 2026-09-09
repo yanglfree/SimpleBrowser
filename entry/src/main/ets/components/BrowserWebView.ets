@@ -1,3 +1,4 @@
+import { PrivacyService } from '../services/PrivacyService';
 import { webview } from '@kit.ArkWeb';
 import { BLOCKED_LINK_GUARD_SCRIPT, scrolledFromTopScript } from '../constants/AppConstants';
 import { BrowserTab, WebDarkModePreference } from '../models/BrowserModels';
@@ -85,6 +86,7 @@ export struct BrowserWebView {
       .height('100%')
       .onKeyEvent((event: KeyEvent): boolean => this.onShortcut(event))
       .onControllerAttached(() => {
+        PrivacyService.onWebControllerAttached();
         this.adsBlockService.configure(this.controller, this.blockAds);
         WebKernelService.applyUserAgent(this.controller, this.tab.isDesktop);
         this.registerSecurityBridge();
