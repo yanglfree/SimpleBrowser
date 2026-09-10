@@ -10,15 +10,18 @@ import {
   QUICK_SITE_PHONE_ADD_GLYPH_SIZE,
   QUICK_SITE_PHONE_COLUMN_GAP, QUICK_SITE_PHONE_ITEM_GAP, QUICK_SITE_PHONE_MAX_WIDTH,
   QUICK_SITE_PHONE_ROW_EXTRA, QUICK_SITE_PHONE_ROW_GAP, QUICK_SITE_PHONE_TILE_FONT_SIZE,
+  QUICK_SITE_PHONE_TILE_ICON_SIZE,
   QUICK_SITE_PHONE_TILE_RADIUS, QUICK_SITE_PHONE_TILE_SIZE, QUICK_SITE_PHONE_TITLE_FONT_SIZE,
   QUICK_SITE_REMOVE_GLYPH_SIZE, QUICK_SITE_TOUCH_TARGET, QUICK_SITE_WIDE_ADD_GLYPH_SIZE,
   QUICK_SITE_WIDE_COLUMN_GAP, QUICK_SITE_WIDE_ITEM_GAP, QUICK_SITE_WIDE_MAX_WIDTH,
   QUICK_SITE_WIDE_ROW_EXTRA, QUICK_SITE_WIDE_ROW_GAP, QUICK_SITE_WIDE_TILE_FONT_SIZE,
+  QUICK_SITE_WIDE_TILE_ICON_SIZE,
   QUICK_SITE_WIDE_TILE_RADIUS, QUICK_SITE_WIDE_TILE_SIZE, QUICK_SITE_WIDE_TITLE_FONT_SIZE,
   QUICK_SITE_WIGGLE_ANGLE, QUICK_SITE_WIGGLE_TICK_MS,
   QUICK_SITE_WIGGLE_STEP, QUICK_SITE_WIGGLE_PHASE_OFFSET,
   QUICK_SITE_WIGGLE_ENTER_DURATION, QUICK_SITE_WIGGLE_EXIT_DURATION
 } from './QuickSiteTokens';
+import { matchSemanticSiteIcon, monogramTileBackground, SemanticSiteTheme } from './QuickSiteSemantic';
 
 const TILE_BACKGROUNDS: Resource[] = [
   $r('app.color.site_tile_bg_1'), $r('app.color.site_tile_bg_2'), $r('app.color.site_tile_bg_3'),
@@ -48,6 +51,7 @@ export struct QuickSiteGrid {
   @State private dragBadge: string = '';
   @State private dragColorIndex: number = 0;
   @State private dragIconSource: PixelMap | ResourceStr | undefined = undefined;
+  @State private dragSemanticTheme: SemanticSiteTheme | undefined = undefined;
   /** Hosts whose cached file would not decode; they fall back to the letter tile. */
   @State private brokenIconHosts: string[] = [];
   private wiggleTimer: number = -1;
@@ -109,6 +113,7 @@ export struct QuickSiteGrid {
           this.dragBadge = site.badge;
           this.dragColorIndex = site.colorIndex;
           this.dragIconSource = this.iconSource(site);
+          this.dragSemanticTheme = this.semanticTheme(site);
           this.enterEditing();
           return this.DragPreview();
         }
@@ -132,6 +137,8 @@ export struct QuickSiteGrid {
       Stack({ alignContent: Alignment.TopEnd }) {
         if (this.iconSource(site) !== undefined) {
           this.IconTile(site)
+        } else if (this.semanticTheme(site) !== undefined) {
+          this.SemanticTile(site)
         } else {
           this.TextTile(site)
         }
@@ -200,20 +207,36 @@ export struct QuickSiteGrid {
   }
 
   @Builder
+  private SemanticTile(site: QuickSite) {
+    Column() {
+      AppIcon({
+        name: this.semanticTheme(site)?.icon ?? IconName.Download,
+        glyphSize: this.isWide ? QUICK_SITE_WIDE_TILE_ICON_SIZE : QUICK_SITE_PHONE_TILE_ICON_SIZE,
+        color: this.semanticTheme(site)?.foreground ?? Color.White,
+        strokeWidth: 2.2
+      })
+    }
+    .width(this.tileSize()).height(this.tileSize())
+    .justifyContent(FlexAlign.Center)
+    .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
+    .backgroundColor(this.semanticTheme(site)?.background ?? '#1D4ED8')
+    .clip(true)
+  }
+
+  @Builder
   private TextTile(site: QuickSite) {
     Column() {
       Text(site.badge)
         .fontSize(this.isWide ? QUICK_SITE_WIDE_TILE_FONT_SIZE : QUICK_SITE_PHONE_TILE_FONT_SIZE)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.backgroundEnabled
-          ? $r('app.color.home_text_primary') : tileColor(TILE_FOREGROUNDS, site.colorIndex))
+        .fontWeight(FontWeight.Bold)
+        .fontColor(Color.White)
         .textAlign(TextAlign.Center)
     }
     .width(this.tileSize()).height(this.tileSize())
     .justifyContent(FlexAlign.Center)
     .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
-    .backgroundColor(this.backgroundEnabled
-      ? $r('app.color.home_tile_background') : tileColor(TILE_BACKGROUNDS, site.colorIndex))
+    .backgroundColor(monogramTileBackground(site.colorIndex))
+    .clip(true)
   }
 
   @Builder
@@ -266,26 +289,46 @@ export struct QuickSiteGrid {
         color: $r('app.color.shadow_soft'),
         offsetY: QUICK_SITE_DRAG_SHADOW_OFFSET_Y
       })
+    } else if (this.dragSemanticTheme !== undefined) {
+      Column() {
+        AppIcon({
+          name: this.dragSemanticTheme.icon,
+          glyphSize: this.isWide ? QUICK_SITE_WIDE_TILE_ICON_SIZE : QUICK_SITE_PHONE_TILE_ICON_SIZE,
+          color: this.dragSemanticTheme.foreground,
+          strokeWidth: 2.2
+        })
+      }
+      .width(this.tileSize()).height(this.tileSize())
+      .justifyContent(FlexAlign.Center)
+      .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
+      .backgroundColor(this.dragSemanticTheme.background)
+      .shadow({
+        radius: QUICK_SITE_DRAG_SHADOW_RADIUS,
+        color: $r('app.color.shadow_soft'),
+        offsetY: QUICK_SITE_DRAG_SHADOW_OFFSET_Y
+      })
     } else {
       Column() {
         Text(this.dragBadge)
           .fontSize(this.isWide ? QUICK_SITE_WIDE_TILE_FONT_SIZE : QUICK_SITE_PHONE_TILE_FONT_SIZE)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.backgroundEnabled
-            ? $r('app.color.home_text_primary') : tileColor(TILE_FOREGROUNDS, this.dragColorIndex))
+          .fontWeight(FontWeight.Bold)
+          .fontColor(Color.White)
           .textAlign(TextAlign.Center)
       }
       .width(this.tileSize()).height(this.tileSize())
       .justifyContent(FlexAlign.Center)
       .borderRadius(this.isWide ? QUICK_SITE_WIDE_TILE_RADIUS : QUICK_SITE_PHONE_TILE_RADIUS)
-      .backgroundColor(this.backgroundEnabled
-        ? $r('app.color.home_tile_background') : tileColor(TILE_BACKGROUNDS, this.dragColorIndex))
+      .backgroundColor(monogramTileBackground(this.dragColorIndex))
       .shadow({
         radius: QUICK_SITE_DRAG_SHADOW_RADIUS,
         color: $r('app.color.shadow_soft'),
         offsetY: QUICK_SITE_DRAG_SHADOW_OFFSET_Y
       })
     }
+  }
+
+  private semanticTheme(site: QuickSite): SemanticSiteTheme | undefined {
+    return matchSemanticSiteIcon(site.title, site.url);
   }
 
   private visibleSites(): QuickSite[] {
