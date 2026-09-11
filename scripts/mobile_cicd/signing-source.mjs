@@ -54,16 +54,24 @@ export function fingerprint(channel) {
   const certificateFileSha256 = createHash('sha256').update(readFileSync(signer.material.certpath)).digest('hex');
   return createHash('sha256').update(JSON.stringify({ channel, profileSha256, certificateFileSha256 })).digest('hex');
 }
+export function releaseDigest() {
+  return createHash('sha256').update(fingerprint('internaltesting') + fingerprint('app_gallery')).digest('hex');
+}
 export async function changed(sourceSha) {
   const validation = mkdtempSync(join(tmpdir(), 'zhuobrowser-profile-check-'));
-  try { snapshot('internaltesting', validation); } finally { rmSync(validation, { recursive: true, force: true }); }
+  try {
+    snapshot('internaltesting', join(validation, 'internaltesting'));
+    snapshot('app_gallery', join(validation, 'app_gallery'));
+  } finally {
+    rmSync(validation, { recursive: true, force: true });
+  }
   const source = readSource();
   assert.ok(source.portalBase?.startsWith('https://'), 'Portal base URL is missing');
   const response = await fetch(`${source.portalBase}/release.json`, { redirect: 'error', signal: AbortSignal.timeout(30000) });
   assert.ok(response.ok, 'Cannot inspect current portal release');
   const current = await response.json();
   if (current?.automation_paused) return false;
-  return current?.source_sha !== sourceSha || current?.input_digest !== fingerprint('internaltesting');
+  return current?.source_sha !== sourceSha || current?.input_digest !== releaseDigest();
 }
 export function assertSelected() {
   const actual = JSON.parse(readFileSync(join(root, 'build-profile.json5'), 'utf8'));
@@ -96,6 +104,8 @@ async function main() {
     console.log(JSON.stringify(verifySigning(target, channel)));
   } else if (command === 'fingerprint') {
     console.log(fingerprint(channel));
+  } else if (command === 'release-digest') {
+    console.log(releaseDigest());
   } else if (command === 'changed') {
     const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
     console.log(await changed(sha) ? 'true' : 'false');

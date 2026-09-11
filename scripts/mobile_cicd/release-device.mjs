@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
+import { requestBytes } from './transport.mjs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { root, readSource, snapshot, fingerprint } from './signing-source.mjs';
+import { root, readSource, snapshot, fingerprint, releaseDigest } from './signing-source.mjs';
 
-const files = ['install.hap', 'icon.png', 'manifest.json5', 'release-metadata.json'];
+const files = ['install.hap', 'icon.png', 'manifest.json5', 'release-metadata.json', 'store.app'];
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const save = (path, data) => writeFileSync(path, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
 const source = readSource();
@@ -20,7 +21,7 @@ assert.match(sourceSha, /^[a-f0-9]{40}$/);
 
 async function api(path, method = 'GET', body, headers = {}) {
   assert.ok(token?.length >= 32, 'Product-scoped portal token is required');
-  const response = await fetch(`${origin}/api/v1/harmony/${path}`, {
+  const response = await requestBytes(`${origin}/api/v1/harmony/${path}`, {
     method, redirect: 'error', signal: AbortSignal.timeout(120000),
     headers: { authorization: `Bearer ${token}`, ...(body ? { 'content-type': 'application/json' } : {}), ...headers },
     body: body instanceof Buffer ? body : body ? JSON.stringify(body) : undefined,
@@ -30,13 +31,13 @@ async function api(path, method = 'GET', body, headers = {}) {
 }
 
 async function verifyResource(url, bytes) {
-  const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(120000) });
+  const response = await requestBytes(url, { redirect: 'error', signal: AbortSignal.timeout(120000) });
   assert.equal(response.status, 200, 'Artifact GET failed');
   assert.equal(hash(Buffer.from(await response.arrayBuffer())), hash(bytes), 'Live artifact checksum mismatch');
-  const head = await fetch(url, { method: 'HEAD', redirect: 'error', signal: AbortSignal.timeout(30000) });
+  const head = await requestBytes(url, { method: 'HEAD', redirect: 'error', signal: AbortSignal.timeout(30000) });
   assert.equal(head.status, 200, 'Artifact HEAD failed');
   assert.equal(Number(head.headers.get('content-length')), bytes.length, 'Artifact length mismatch');
-  const range = await fetch(url, { headers: { range: 'bytes=0-0' }, redirect: 'error', signal: AbortSignal.timeout(30000) });
+  const range = await requestBytes(url, { headers: { range: 'bytes=0-0' }, redirect: 'error', signal: AbortSignal.timeout(30000) });
   assert.equal(range.status, 206, 'Artifact Range failed');
   assert.equal(range.headers.get('content-range'), `bytes 0-0/${bytes.length}`, 'Artifact Range length mismatch');
   assert.deepEqual(Buffer.from(await range.arrayBuffer()), bytes.subarray(0, 1), 'Artifact Range bytes mismatch');
@@ -60,7 +61,7 @@ async function main() {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const temporary = mkdtempSync(join(tmpdir(), 'zhuobrowser-device-signing-'));
   try {
-    const inputDigest = fingerprint('internaltesting');
+    const inputDigest = releaseDigest();
     const signing = snapshot('internaltesting', join(temporary, 'snapshot'));
     const app = JSON.parse(readFileSync(join(root, 'AppScope/app.json5'), 'utf8')).app;
     const inputs = { sourceSha, inputDigest, profileSha256: signing.profileSha256,
@@ -85,7 +86,7 @@ async function main() {
         const artifact = recorded.artifacts.find(item => item.name === name);
         assert.ok(artifact, 'Published artifact is missing');
         const url = `${portalBase}/builds/${allocated.id}/${name}`;
-        const live = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(120000) });
+        const live = await requestBytes(url, { redirect: 'error', signal: AbortSignal.timeout(120000) });
         assert.equal(live.status, 200);
         const bytes = Buffer.from(await live.arrayBuffer());
         assert.equal(hash(bytes), artifact.sha256, 'Published artifact checksum changed');
@@ -102,7 +103,7 @@ async function main() {
     });
     assert.equal(build.status, 0, 'Device HAP build failed');
     const built = JSON.parse(readFileSync(join(buildOutput, 'release-metadata.json'), 'utf8'));
-    assert.equal(built.inputDigest, inputDigest, 'Build used different signing inputs');
+    assert.equal(built.inputDigest, fingerprint('internaltesting'), 'Build used different signing inputs');
     assert.equal(built.signing.profileSha256, signing.profileSha256);
     assert.equal(built.versionCode, Number(allocated.build));
     copyFileSync(join(buildOutput, built.artifact), join(directory, 'install.hap'));
@@ -124,10 +125,22 @@ async function main() {
     const unsignedPath = join(temporary, 'unsigned.json5');
     save(unsignedPath, manifest);
     signManifest(signing.path, unsignedPath, join(directory, 'manifest.json5'));
+    const storeOutput = join(temporary, 'store');
+    const storeBuild = spawnSync('bash', [join(root, 'scripts/mobile_cicd/build_harmony_artifacts.sh'), storeOutput], {
+      cwd: root, stdio: 'inherit', env: { ...process.env, HARMONY_CHANNEL: 'app_gallery',
+        HARMONY_BUILD_NUMBER: allocated.build, SOURCE_SHA: sourceSha },
+    });
+    assert.equal(storeBuild.status, 0, 'AGC App Pack build failed');
+    const store = JSON.parse(readFileSync(join(storeOutput, 'release-metadata.json'), 'utf8'));
+    assert.equal(store.versionCode, built.versionCode);
+    assert.equal(store.versionName, built.versionName);
+    assert.equal(store.signing.distribution, 'app_gallery');
+    copyFileSync(join(storeOutput, store.storeArtifact), join(directory, 'store.app'));
     const metadata = { ...inputs, releaseId: allocated.id, versionCode: built.versionCode,
-      iapEnabled: true, distribution: 'internaltesting', hapSha256: hapHash };
+      iapEnabled: true, distribution: 'internaltesting', hapSha256: hapHash,
+      storeSha256: hash(readFileSync(join(directory, 'store.app'))), storeSigning: store.signing };
     save(join(directory, 'release-metadata.json'), metadata);
-    assert.equal(fingerprint('internaltesting'), inputDigest, 'Profile changed before publication');
+    assert.equal(releaseDigest(), inputDigest, 'Profile changed before publication');
     if (command === 'build-only') {
       console.log(`DEVICE_RELEASE_BUILT_ONLY output=${directory}`);
       return;
@@ -140,7 +153,7 @@ async function main() {
         { 'content-length': String(bytes.length), 'x-artifact-sha256': hashes[name] });
       await verifyResource(`${assetBase}/${name}`, bytes);
     }
-    assert.equal(fingerprint('internaltesting'), inputDigest, 'Profile changed during upload');
+    assert.equal(releaseDigest(), inputDigest, 'Profile changed during upload');
     const current = await api('current');
     await api(`releases/${allocated.id}/publish`, 'POST', {
       expectedCurrent: current?.id ?? null, reason: `Accepted CI ${ciRunId}`, verified: true, hashes,

@@ -31,7 +31,7 @@ push main / manual CI / scheduled device-profile fingerprint check
   -> CI accepts an exact source SHA
   -> store artifacts retained with run/attempt-qualified immutable filenames
   -> product-scoped portal API reserves a new device release/build number
-  -> device HAP + official signed manifest + icon + verification metadata
+  -> device HAP + official signed manifest + icon + verification metadata + store App Pack
   -> upload -> full GET/hash + HEAD/length + Range verification
   -> recheck signing-source fingerprint
   -> atomic compare-and-swap publication -> live stable-manifest verification

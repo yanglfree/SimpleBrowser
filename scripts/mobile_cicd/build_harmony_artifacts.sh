@@ -46,7 +46,6 @@ node "${REPO_ROOT}/scripts/mobile_cicd/signing-source.mjs" snapshot "${SIGNING_C
 SIGNING_SOURCE="${BACKUP_DIR}/signing/build-profile.json5"
 cp "${SIGNING_SOURCE}" "${SIGNING_TARGET}"
 if [[ -n "${HARMONY_BUILD_NUMBER:-}" ]]; then
-  [[ "${SIGNING_CHANNEL}" == internaltesting ]] || die "build allocation is only for device releases"
   cp "${REPO_ROOT}/AppScope/app.json5" "${BACKUP_DIR}/app.json5"
   APP_SCOPE="${REPO_ROOT}/AppScope/app.json5" node <<'NODE'
 const fs = require('node:fs');

@@ -1,5 +1,6 @@
 .hvigor/
 .idea/
+/build/
 entry/build/
 oh_modules/
 oh-package-lock.json5
