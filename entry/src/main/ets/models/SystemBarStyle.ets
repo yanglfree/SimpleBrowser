@@ -34,3 +34,11 @@ export function resolveSystemBarStyle(
     wallpaper: false
   };
 }
+
+export function resolveStatusBarBackdropHeight(topInset: number, wallpaper: boolean): number {
+  if (topInset <= 0) {
+    return 0;
+  }
+  return topInset + (wallpaper ? STATUS_SCRIM_FADE_HEIGHT : 0);
+}
+

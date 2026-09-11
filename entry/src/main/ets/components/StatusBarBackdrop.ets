@@ -1,11 +1,18 @@
 import {
-  BrowserSystemBarStyle, HOME_STATUS_SCRIM, STATUS_SCRIM_FADE_HEIGHT
+  BrowserSystemBarStyle,
+  HOME_STATUS_SCRIM,
+  STATUS_SCRIM_FADE_HEIGHT,
+  resolveStatusBarBackdropHeight
 } from '../models/SystemBarStyle';
 
 @Component
 export struct StatusBarBackdrop {
   @Prop topInset: number = 0;
   @Prop style: BrowserSystemBarStyle = { background: '#FAF9F7', content: '#1A1A18', wallpaper: false };
+
+  private backdropHeight(): number {
+    return resolveStatusBarBackdropHeight(this.topInset, this.style.wallpaper);
+  }
 
   build() {
     Column() {
@@ -21,6 +28,8 @@ export struct StatusBarBackdrop {
       }
     }
     .width('100%')
+    .height(this.backdropHeight())
+    .position({ x: 0, y: 0 })
     .hitTestBehavior(HitTestMode.None)
     .accessibilityLevel('no')
   }

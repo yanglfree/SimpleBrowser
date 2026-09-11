@@ -125,7 +125,11 @@ import { ShareService, ShareOutcome } from '../services/ShareService';
 import { LongScreenshotService } from '../services/LongScreenshotService';
 import { HomeBackgroundService } from '../services/HomeBackgroundService';
 import { ThemeService } from '../services/ThemeService';
-import { BrowserSystemBarStyle, resolveSystemBarStyle } from '../models/SystemBarStyle';
+import {
+  BrowserSystemBarStyle,
+  resolveStatusBarBackdropHeight,
+  resolveSystemBarStyle
+} from '../models/SystemBarStyle';
 import { StatusBarBackdrop } from '../components/StatusBarBackdrop';
 import { TelemetryService } from '../services/TelemetryService';
 import { WebHistoryEntry, WebKernelService, WebLongPressTarget } from '../services/WebKernelService';
@@ -794,7 +798,10 @@ struct Index {
       }
       if (this.topInset > 0) {
         StatusBarBackdrop({ topInset: this.topInset, style: this.systemBarStyle })
-          .align(Alignment.Top)
+          .width('100%')
+          .height(this.statusBarBackdropHeight())
+          .position({ x: 0, y: 0 })
+          .hitTestBehavior(HitTestMode.None)
       }
     }
     .width('100%')
@@ -1640,6 +1647,10 @@ struct Index {
       return Math.max(28, resolved);
     }
     return resolved;
+  }
+
+  private statusBarBackdropHeight(): number {
+    return resolveStatusBarBackdropHeight(this.topInset, this.systemBarStyle.wallpaper);
   }
 
   // --------------------------------------------------------------- overlays

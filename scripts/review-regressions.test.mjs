@@ -26,7 +26,7 @@ const readerSource = between(read('entry/src/main/ets/models/BrowserModels.ets')
 const getReaderTheme = evaluate(`${readerSource.replace(/export /g, '')}\ngetReaderTheme;`, {
   ReaderPaper: { White: 0, Sepia: 1, Night: 2 }
 });
-const styles = evaluate(`${styleSource}\n({ resolveSystemBarStyle, HOME_STATUS_SCRIM });`, { getReaderTheme });
+const styles = evaluate(`${styleSource}\n({ resolveSystemBarStyle, resolveStatusBarBackdropHeight, HOME_STATUS_SCRIM, STATUS_SCRIM_FADE_HEIGHT });`, { getReaderTheme });
 function luminance(rgb) {
   const linear = rgb.map(value => value / 255).map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
   return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
@@ -49,6 +49,21 @@ test('status backdrop meets contrast on white wallpaper, light/dark pages and re
       }
     }
   }
+});
+
+test('status bar backdrop stays pinned to the top, bounds its height and never intercepts hit testing', () => {
+  assert.equal(styles.resolveStatusBarBackdropHeight(0, true), 0);
+  assert.equal(styles.resolveStatusBarBackdropHeight(36, false), 36);
+  assert.equal(styles.resolveStatusBarBackdropHeight(36, true), 36 + styles.STATUS_SCRIM_FADE_HEIGHT);
+
+  const backdropSource = read('entry/src/main/ets/components/StatusBarBackdrop.ets');
+  assert.match(backdropSource, /\.position\(\{\s*x:\s*0,\s*y:\s*0\s*\}\)/);
+  assert.match(backdropSource, /\.hitTestBehavior\(HitTestMode\.None\)/);
+
+  const indexBackdropBlock = between(pageSource, 'if (this.topInset > 0) {', '\n    }\n    .width(\'100%\')');
+  assert.match(indexBackdropBlock, /\.position\(\{\s*x:\s*0,\s*y:\s*0\s*\}\)/);
+  assert.match(indexBackdropBlock, /\.hitTestBehavior\(HitTestMode\.None\)/);
+  assert.doesNotMatch(indexBackdropBlock, /\.align\(Alignment\.Top\)/);
 });
 
 test('settings refresh preserves modal bar styling and skips repeated native calls', () => {
