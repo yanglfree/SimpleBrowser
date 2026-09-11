@@ -41,4 +41,3 @@ export function resolveStatusBarBackdropHeight(topInset: number, wallpaper: bool
   }
   return topInset + (wallpaper ? STATUS_SCRIM_FADE_HEIGHT : 0);
 }
-
