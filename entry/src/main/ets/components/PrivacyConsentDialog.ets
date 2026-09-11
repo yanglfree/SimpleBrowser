@@ -77,6 +77,8 @@ const PRIVACY_SECTIONS: LegalSection[] = [
 @Component
 export struct PrivacyConsentDialog {
   @Prop isSaving: boolean = false;
+  @Prop topInset: number = 0;
+  @Prop bottomInset: number = 0;
   @State private isAgreed: boolean = false;
   @State private selectedTab: number = 0;
   onAccept: () => void = (): void => {};
@@ -104,7 +106,10 @@ export struct PrivacyConsentDialog {
         this.BottomActions()
       }
       .width('90%')
-      .constraintSize({ maxWidth: 560, maxHeight: 680 })
+      .constraintSize({
+        maxWidth: 560,
+        maxHeight: Math.max(340, 680 - Math.max(this.bottomInset, 28) - Math.max(this.topInset, 28))
+      })
       .backgroundColor($r('app.color.surface_panel'))
       .borderRadius(24)
       .border({ width: 1, color: $r('app.color.border') })
@@ -114,11 +119,17 @@ export struct PrivacyConsentDialog {
         top: 24,
         left: 20,
         right: 20,
-        bottom: 20
+        bottom: 24
       })
     }
     .width('100%')
     .height('100%')
+    .padding({
+      top: Math.max(this.topInset, 28) + 12,
+      bottom: Math.max(this.bottomInset, 28) + 16,
+      left: 16,
+      right: 16
+    })
   }
 
   @Builder

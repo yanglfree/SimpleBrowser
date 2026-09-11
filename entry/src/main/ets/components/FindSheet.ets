@@ -15,6 +15,7 @@ export struct FindSheet {
     Column() {
       Row({ space: 8 }) {
         TextInput({ text: this.query, placeholder: $r('app.string.find_placeholder') })
+          .id('find-query-input')
           .layoutWeight(1)
           .height(44)
           .padding({ left: 12, right: 12 })
@@ -23,6 +24,12 @@ export struct FindSheet {
           .placeholderColor($r('app.color.text_secondary'))
           .backgroundColor($r('app.color.surface_subtle'))
           .borderRadius(12)
+          .focusable(true)
+          .enableKeyboardOnFocus(true)
+          .defaultFocus(true)
+          .onAppear(() => {
+            focusControl.requestFocus('find-query-input');
+          })
           .onChange((value: string): void => this.onQueryChange(value))
         Text(`${this.current}/${this.total}`)
           .fontSize(12)

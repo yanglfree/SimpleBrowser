@@ -205,6 +205,12 @@ export struct QuickSiteEditor {
           .placeholderColor($r('app.color.text_secondary'))
           .backgroundColor($r('app.color.surface_subtle'))
           .borderRadius(QUICK_SITE_EDITOR_INPUT_RADIUS)
+          .focusable(true)
+          .enableKeyboardOnFocus(true)
+          .defaultFocus(true)
+          .onAppear(() => {
+            focusControl.requestFocus('quick-site-name-input');
+          })
           .enterKeyType(EnterKeyType.Next)
           .accessibilityText($r('app.string.quick_site_name'))
           .onSubmit((): void => {
@@ -232,6 +238,8 @@ export struct QuickSiteEditor {
           .placeholderColor($r('app.color.text_secondary'))
           .backgroundColor($r('app.color.surface_subtle'))
           .borderRadius(QUICK_SITE_EDITOR_INPUT_RADIUS)
+          .focusable(true)
+          .enableKeyboardOnFocus(true)
           .type(InputType.URL)
           .enterKeyType(EnterKeyType.Go)
           .accessibilityText($r('app.string.quick_site_url'))

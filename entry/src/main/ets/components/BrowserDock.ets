@@ -72,6 +72,7 @@ export struct BrowserDock {
   @Prop isPrivate: boolean = false;
   /** Drives the history button's active tint while its panel owns the screen. */
   @Prop historyOpen: boolean = false;
+  @Prop hasOverlay: boolean = false;
   onOpenAddress: () => void = (): void => {};
   onBack: () => void = (): void => {};
   onForward: () => void = (): void => {};
@@ -263,12 +264,12 @@ export struct BrowserDock {
           : (this.usesHomeColors() ? $r('app.color.home_control_border') : $r('app.color.border'))
       })
       .focusable(true)
-      .defaultFocus(this.wide)
+      .defaultFocus(this.wide && !this.hasOverlay)
       .focusOnTouch(true)
       .hoverEffect(HoverEffect.Auto)
       .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.995 })
       .onAppear(() => {
-        if (this.wide) {
+        if (this.wide && !this.hasOverlay && !this.addressMenuVisible) {
           focusControl.requestFocus('browser-address');
         }
       })

@@ -43,12 +43,13 @@ export class ThemeService {
     isHome: boolean,
     homeBackgroundEnabled: boolean,
     isReader: boolean = false,
-    readerPaper: ReaderPaper = ReaderPaper.Sepia
+    readerPaper: ReaderPaper = ReaderPaper.Sepia,
+    hasModalOverlay: boolean = false
   ): void {
     ThemeService.applySystemBars(
       context,
       ThemeService.isDark(context, appearance),
-      isHome && homeBackgroundEnabled,
+      isHome && homeBackgroundEnabled && !hasModalOverlay,
       isReader,
       readerPaper
     );

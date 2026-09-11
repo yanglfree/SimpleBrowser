@@ -130,8 +130,15 @@ export struct ArticleLibrarySheet {
     if (this.importVisible) {
       Row({ space: 8 }) {
         TextInput({ text: this.importUrl, placeholder: $r('app.string.article_link_placeholder') })
+          .id('article-import-url-input')
           .layoutWeight(1)
           .height(42)
+          .focusable(true)
+          .enableKeyboardOnFocus(true)
+          .defaultFocus(true)
+          .onAppear(() => {
+            focusControl.requestFocus('article-import-url-input');
+          })
           .onChange((value: string): void => { this.importUrl = value; this.importInvalid = false; })
         Button($r('app.string.article_save'))
           .height(42)
@@ -152,6 +159,7 @@ export struct ArticleLibrarySheet {
     }
 
     TextInput({ text: this.query, placeholder: $r('app.string.article_search_placeholder') })
+      .id('article-search-input')
       .width('90%')
       .height(42)
       .margin({ left: 24, right: 24, bottom: 10 })
@@ -161,6 +169,8 @@ export struct ArticleLibrarySheet {
       .placeholderColor($r('app.color.text_secondary'))
       .backgroundColor($r('app.color.surface_subtle'))
       .borderRadius(10)
+      .focusable(true)
+      .enableKeyboardOnFocus(true)
       .onChange((value: string): void => {
         this.query = value;
         this.onSearch(value);

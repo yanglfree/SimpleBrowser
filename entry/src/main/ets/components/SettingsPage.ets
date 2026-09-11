@@ -259,6 +259,7 @@ export struct SettingsPage {
           .width('100%')
 
           TextInput({ text: this.searchQuery, placeholder: $r('app.string.settings_search_placeholder') })
+            .id('settings-search-input')
             .width('100%')
             .height(46)
             .margin({ top: 16 })
@@ -268,6 +269,8 @@ export struct SettingsPage {
             .placeholderColor($r('app.color.text_secondary'))
             .backgroundColor($r('app.color.surface_subtle'))
             .borderRadius(12)
+            .focusable(true)
+            .enableKeyboardOnFocus(true)
             .accessibilityText($r('app.string.settings_search_placeholder'))
             .onChange((value: string): void => { this.searchQuery = value; })
 

@@ -1040,11 +1040,14 @@ export class BrowserViewModel {
   }
 
   async updateSettings(settings: BrowserSettings): Promise<void> {
+    const previousRetention: number = this.settings.historyRetentionDays;
     this.settings = cloneSettings(settings);
     await this.repository.saveSettings(this.settings);
     DownloadService.setConcurrencyLimit(this.settings.downloadConcurrency);
-    await this.repository.applyHistoryRetention(this.settings.historyRetentionDays);
-    this.history = this.repository.getHistory();
+    if (previousRetention !== this.settings.historyRetentionDays) {
+      await this.repository.applyHistoryRetention(this.settings.historyRetentionDays);
+      this.history = this.repository.getHistory();
+    }
     Logger.info(TAG, 'Browser settings updated');
   }
 

@@ -67,6 +67,12 @@ export struct FeedbackSheet {
           .maxLength(FEEDBACK_MESSAGE_MAX_LENGTH)
           .showCounter(true)
           .enabled(!this.isSubmitting)
+          .focusable(true)
+          .enableKeyboardOnFocus(true)
+          .defaultFocus(true)
+          .onAppear(() => {
+            focusControl.requestFocus('feedback-message-input');
+          })
           .onChange((value: string): void => {
             this.message = value;
             if (this.errorMessage !== '') {
@@ -86,6 +92,8 @@ export struct FeedbackSheet {
           .borderRadius(12)
           .caretColor($r('app.color.accent'))
           .enabled(!this.isSubmitting)
+          .focusable(true)
+          .enableKeyboardOnFocus(true)
           .onChange((value: string): void => {
             this.contact = value;
           })

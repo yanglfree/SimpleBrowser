@@ -39,6 +39,7 @@ export struct SearchTemplateSheet {
           .fontColor($r('app.color.text_secondary'))
 
         TextInput({ text: this.text, placeholder: 'https://example.com/search?q=%s' })
+          .id('custom-search-template-input')
           .width('100%')
           .height(48)
           .fontSize(15)
@@ -46,6 +47,12 @@ export struct SearchTemplateSheet {
           .placeholderColor($r('app.color.text_secondary'))
           .backgroundColor($r('app.color.surface_subtle'))
           .borderRadius(12)
+          .focusable(true)
+          .enableKeyboardOnFocus(true)
+          .defaultFocus(true)
+          .onAppear(() => {
+            focusControl.requestFocus('custom-search-template-input');
+          })
           .onChange((value: string): void => { this.text = value; })
 
         Row({ space: 20 }) {

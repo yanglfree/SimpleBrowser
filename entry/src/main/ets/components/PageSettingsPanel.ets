@@ -2,6 +2,13 @@ import { AppSwitch } from './AppSwitch';
 import { AppIcon, IconName } from './AppIcon';
 import { QUICK_SITE_LIMIT_MAX, QUICK_SITE_LIMIT_MIN } from '../models/BrowserModels';
 
+interface PageToggleRowParams {
+  label: Resource;
+  checked: boolean;
+  divided: boolean;
+  onToggle: () => void;
+}
+
 @Component
 export struct PageSettingsPanel {
   @Prop quickSitesEnabled: boolean = true;
@@ -34,10 +41,18 @@ export struct PageSettingsPanel {
           .fontColor($r('app.color.home_text_primary'))
 
         Column() {
-          this.ToggleRow($r('app.string.page_shortcuts'), this.quickSitesEnabled, true,
-            this.onToggleQuickSites)
-          this.ToggleRow($r('app.string.page_background'), this.backgroundEnabled, true,
-            this.onToggleBackground)
+          this.ToggleRow({
+            label: $r('app.string.page_shortcuts'),
+            checked: this.quickSitesEnabled,
+            divided: true,
+            onToggle: this.onToggleQuickSites
+          })
+          this.ToggleRow({
+            label: $r('app.string.page_background'),
+            checked: this.backgroundEnabled,
+            divided: true,
+            onToggle: this.onToggleBackground
+          })
           this.QuickSiteLimitRow()
         }
         .width('100%')
@@ -87,17 +102,20 @@ export struct PageSettingsPanel {
   }
 
   @Builder
-  private ToggleRow(label: Resource, checked: boolean, divided: boolean, onToggle: () => void) {
+  private ToggleRow($$: PageToggleRowParams) {
     Row() {
-      Text(label)
+      Text($$.label)
         .layoutWeight(1)
         .fontSize(14)
         .fontColor($r('app.color.home_text_primary'))
-      AppSwitch({ checked: checked, accessibilityLabel: label, onToggle: onToggle })
+      AppSwitch({ checked: $$.checked, accessibilityLabel: $$.label, onToggle: $$.onToggle })
     }
     .width('100%')
     .height(50)
-    .border(divided
+    .focusable(true)
+    .hoverEffect(HoverEffect.Auto)
+    .onClick(() => $$.onToggle())
+    .border($$.divided
       ? { width: { bottom: 1 }, color: $r('app.color.home_panel_divider') }
       : { width: 0 })
   }

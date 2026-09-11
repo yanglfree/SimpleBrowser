@@ -377,7 +377,7 @@ struct Index {
   private splitDragStartRatio: number = 0.5;
   @State private settings: BrowserSettings = defaultBrowserSettings();
   @State private dailyBackgroundUri: string = '';
-  @State private sheet: Overlay = Overlay.None;
+  @State @Watch('onSheetChanged') private sheet: Overlay = Overlay.None;
   @State private isCapsuleHidden: boolean = false;
   @State private isAddressMenuVisible: boolean = false;
   @State private suggestions: Suggestion[] = [];
@@ -561,13 +561,27 @@ struct Index {
     }
     this.consentServicesStarted = true;
     TelemetryService.setEnabled(this.settings.telemetryEnabled);
-    this.refreshSiteIcons();
-    void this.viewModel.adsBlockService.updateRulesIfNeeded();
-    void this.syncProEntitlement('app_start');
-    this.promptExpiredTabs();
     ExternalOpenRouter.subscribe(this.windowToken, (request: ExternalOpenRequest): void => {
       void this.promptExternalOpen(request);
     });
+    setTimeout((): void => {
+      this.refreshSiteIcons();
+      void this.viewModel.adsBlockService.updateRulesIfNeeded();
+      void this.syncProEntitlement('app_start');
+      this.promptExpiredTabs();
+    }, 600);
+  }
+
+  private onSheetChanged(): void {
+    ThemeService.applySurface(
+      this.appContext(),
+      this.settings.appearance,
+      this.isActiveHome(),
+      this.settings.startPageBackgroundEnabled,
+      this.isActiveReader(),
+      this.settings.readerPaper,
+      this.sheet !== Overlay.None
+    );
   }
 
   private decodeTransferredTab(): BrowserTab | undefined {
@@ -735,7 +749,6 @@ struct Index {
       : $r('app.color.page_background'))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .focusable(true)
-    .defaultFocus(true)
     .allowDrop([
       uniformTypeDescriptor.UniformDataType.HYPERLINK,
       uniformTypeDescriptor.UniformDataType.PLAIN_TEXT
@@ -1260,6 +1273,7 @@ struct Index {
       isBookmarked: this.isActiveBookmarked,
       isPrivate: this.activeTab()?.isPrivate === true,
       historyOpen: this.sidebarPanel === SidebarPanel.History || this.sheet === Overlay.History,
+      hasOverlay: this.sheet !== Overlay.None,
       onOpenAddress: (): void => this.openAddress(),
       onBack: (): void => { void this.performAction('back'); },
       onForward: (): void => { void this.performAction('forward'); },
@@ -1555,15 +1569,22 @@ struct Index {
   }
 
   private compactDockBottomPadding(): number {
+    if (this.usesWideChrome()) {
+      return 0;
+    }
     const opticalOffset: number = compactDockOpticalOffset(
       this.bottomInset,
       this.usesWideChrome(),
       this.isDockCollapsed()
     );
-    return Math.max(
+    const resolved: number = Math.max(
       0,
       resolveDockBottomPadding(this.usesWideChrome(), this.bottomInset) - opticalOffset
     );
+    if (this.bottomInset > 0) {
+      return Math.max(28, resolved);
+    }
+    return resolved;
   }
 
   // --------------------------------------------------------------- overlays
@@ -1958,6 +1979,8 @@ struct Index {
     } else if (this.sheet === Overlay.PrivacyConsent) {
       PrivacyConsentDialog({
         isSaving: this.isAcceptingPrivacyConsent,
+        topInset: this.topInset,
+        bottomInset: this.bottomInset,
         onAccept: (): void => { void this.acceptPrivacyConsent(); },
         onDecline: (): void => { this.declinePrivacyConsent(); },
         onOpenUrl: (url: string): void => { void this.openExternalWebUrl(url); }
@@ -4212,17 +4235,15 @@ struct Index {
     this.isAcceptingPrivacyConsent = true;
     const next: BrowserSettings = cloneSettings(this.settings);
     next.privacyConsentAccepted = true;
-    try {
-      await this.viewModel.updateSettings(next);
-      this.settings = cloneSettings(next);
-      this.sheet = Overlay.None;
-      this.resumeConsentedStartup();
-    } catch (error) {
+    this.settings = cloneSettings(next);
+    this.sheet = Overlay.None;
+    this.resumeConsentedStartup();
+    this.viewModel.updateSettings(next).catch((error: Error): void => {
       Logger.warn(TAG, `Privacy consent could not be saved: ${String(error)}`);
       this.showToast($r('app.string.privacy_consent_save_failed'));
-    } finally {
+    }).finally((): void => {
       this.isAcceptingPrivacyConsent = false;
-    }
+    });
   }
 
   private declinePrivacyConsent(): void {
@@ -4250,10 +4271,12 @@ struct Index {
   private async finishOnboarding(): Promise<void> {
     const next: BrowserSettings = cloneSettings(this.settings);
     next.onboardingCompleted = true;
-    await this.viewModel.updateSettings(next);
     this.settings = cloneSettings(next);
     this.sheet = Overlay.None;
     this.resumeConsentedStartup();
+    void this.viewModel.updateSettings(next).catch((error: Error): void => {
+      Logger.warn(TAG, `Onboarding state could not be saved: ${String(error)}`);
+    });
   }
 
   private async exportBookmarks(): Promise<void> {

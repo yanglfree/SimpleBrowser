@@ -54,6 +54,8 @@ export struct ArticleAnnotationPanel {
         .placeholderColor($r('app.color.text_secondary'))
         .backgroundColor($r('app.color.surface_subtle'))
         .borderRadius(10)
+        .focusable(true)
+        .enableKeyboardOnFocus(true)
         .onSubmit((): void => {
           void this.perform(async (): Promise<void> => {
             await this.onAddTopic(this.topicName);
@@ -93,6 +95,8 @@ export struct ArticleAnnotationPanel {
         .placeholderColor($r('app.color.text_secondary'))
         .backgroundColor($r('app.color.surface_subtle'))
         .borderRadius(10)
+        .focusable(true)
+        .enableKeyboardOnFocus(true)
         .onSubmit((): void => {
           const tag: string = this.tagName.trim();
           if (tag.length > 0 && !this.tags.includes(tag)) {
@@ -116,6 +120,8 @@ export struct ArticleAnnotationPanel {
         .placeholderColor($r('app.color.text_secondary'))
         .backgroundColor($r('app.color.surface_subtle'))
         .borderRadius(10)
+        .focusable(true)
+        .enableKeyboardOnFocus(true)
         .onChange((value: string): void => { this.noteBody = value; })
       Row({ space: 8 }) {
         Button($r('app.string.article_annotation_save')).fontSize(13).height(36)
