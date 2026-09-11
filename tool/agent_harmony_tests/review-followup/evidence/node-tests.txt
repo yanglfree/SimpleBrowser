@@ -1,0 +1,64 @@
+(node:92839) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ manual update joins a pending automatic refresh without reporting failure (66.833084ms)
+✔ concurrent failures preserve current rules and release the next retry (2.384125ms)
+✔ a completed update releases the pending task for a later forced update (1.8755ms)
+✔ repeated settings taps stay busy and show only the final success (7.782042ms)
+✔ settings joins automatic refresh and shows a single failure before allowing retry (5.827542ms)
+(node:92840) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ new downloads provide an immediate entry and update it through completion exactly once (1.254792ms)
+✔ dismissed progress stays dismissed until completion or failure requires attention (0.119042ms)
+✔ removing a task clears its quick entry without replaying old completed tasks (0.084167ms)
+✔ download errors distinguish storage, network and expired links (0.086542ms)
+(node:92841) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ phone downloads use the authorized directory without the unsupported environment API (119.306542ms)
+✔ concurrent same-name downloads reserve distinct paths and share directory authorization (6.415542ms)
+✔ resume does not depend on pause mutating an earlier native callback snapshot (7.995333ms)
+✔ a progress snapshot cannot replace the before-download handle used to select the destination (5.987625ms)
+✔ pause uses the latest callback item and a late progress callback cannot resume it (4.073042ms)
+✔ retry restores the failed native snapshot instead of the original before-download item (4.783291ms)
+✔ removing an active task cancels native work and releases its queue slot (4.079792ms)
+✔ picker failure does not leave an invisible native download running (3.812ms)
+✔ cancel while choosing a directory cannot start the removed task later (3.603459ms)
+(node:92842) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/liang/Documents/AI_CODE/ZhuoBrowser/iap_paywall_kit/src/main/ets/models/PendingPurchaseRecovery.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/liang/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ pending recovery retries failures and returns success exactly once (3.807542ms)
+✔ pending recovery stops after its retry budget (4.408959ms)
+✔ leaving the page suppresses a late successful response (0.490208ms)
+✔ cancelling a retry delay releases the waiter without another request (5.992041ms)
+(node:92843) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cold homepage close and background flush never access native cookies (73.560542ms)
+✔ deferred cleanup runs once when a Web controller attaches (2.432542ms)
+✔ initialized browser retains cookie persistence and private isolation (0.99275ms)
+✔ explicit user clearing remains immediate before browsing (0.779417ms)
+✔ tab close cannot inject a warm-up cookie and both Web hosts signal readiness (4.823ms)
+(node:92844) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ unresolved consent never starts background services or delivers an external link (100.402625ms)
+✔ onboarding keeps external entry queued after acceptance (3.488625ms)
+✔ accepted returning users start services once with the stored telemetry choice (2.376917ms)
+✔ failed consent persistence leaves the dialog and all network services blocked (1.128333ms)
+✔ duplicate acceptance waits for one persistence operation (0.933708ms)
+(node:92845) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ status backdrop meets contrast on white wallpaper, light/dark pages and reader sheets (9.516416ms)
+✔ settings refresh preserves modal bar styling and skips repeated native calls (2.746667ms)
+✔ native window resolution cannot apply a stale style after a newer request (2.074458ms)
+✔ failed consent flush restores both settings snapshots and the Preferences cache, then permits retry (3.045083ms)
+✔ settings cannot succeed before storage initialization (1.082208ms)
+✔ ordinary settings changes skip history cleanup and preserve queued ordering (1.198541ms)
+✔ privacy card fits phone, landscape and floating heights with system clearance (2.220834ms)
+✔ launcher icon has one unambiguous 1024px PNG resource (1.202417ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 264.873834

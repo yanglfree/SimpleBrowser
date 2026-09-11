@@ -1,0 +1,323 @@
+{
+  "schemaVersion": 1,
+  "project": "ZhuoBrowser",
+  "runner": {
+    "platformName": "HarmonyOS physical-device QA"
+  },
+  "coverageAreas": [
+    {
+      "title": "System bars and safe areas",
+      "status": "partial",
+      "caseIds": [
+        "ordinary-page",
+        "wallpaper-overlay",
+        "privacy-layout"
+      ],
+      "notes": "Code and contrast regressions pass; final device matrix is pending."
+    },
+    {
+      "title": "Settings and input",
+      "status": "partial",
+      "caseIds": [
+        "settings-flush",
+        "toggles-input",
+        "click-performance"
+      ],
+      "notes": "Persistence failure/retry tests pass; UI input paused when device foreground changed."
+    },
+    {
+      "title": "Build and icon",
+      "status": "passed",
+      "caseIds": [
+        "build-icon"
+      ],
+      "notes": "Canonical debug signing and native HAP signature verified."
+    }
+  ],
+  "cases": [
+    {
+      "id": "ordinary-page",
+      "title": "Launch and ordinary webpage",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "review"
+      ],
+      "preconditions": [
+        "Use the task-owned candidate and retain existing user data."
+      ],
+      "steps": [
+        "Launch and ordinary webpage"
+      ],
+      "assertions": [
+        "The installed 1000024 candidate retained the existing tabs and displayed an ordinary webpage with dark status content on a light background. Final optimization and cold-transition acceptance remain pending."
+      ],
+      "failureSignals": [
+        "Unexpected UI, persistence or build regression."
+      ]
+    },
+    {
+      "id": "wallpaper-overlay",
+      "title": "Wallpaper contrast and modal/settings refresh",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "review"
+      ],
+      "preconditions": [
+        "Use the task-owned candidate and retain existing user data."
+      ],
+      "steps": [
+        "Wallpaper contrast and modal/settings refresh"
+      ],
+      "assertions": [
+        "Production style tests cover white wallpaper and real reader themes; fresh physical wallpaper and modal checks await exclusive device access."
+      ],
+      "failureSignals": [
+        "Unexpected UI, persistence or build regression."
+      ]
+    },
+    {
+      "id": "privacy-layout",
+      "title": "Privacy card clears system areas across window heights",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "review"
+      ],
+      "preconditions": [
+        "Use the task-owned candidate and retain existing user data."
+      ],
+      "steps": [
+        "Privacy card clears system areas across window heights"
+      ],
+      "assertions": [
+        "Layout function verified at 360/480/800/1000vp heights. No fresh first-install physical acceptance."
+      ],
+      "failureSignals": [
+        "Unexpected UI, persistence or build regression."
+      ]
+    },
+    {
+      "id": "settings-flush",
+      "title": "Consent persistence failure and retry",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "review"
+      ],
+      "preconditions": [
+        "Use the task-owned candidate and retain existing user data."
+      ],
+      "steps": [
+        "Consent persistence failure and retry"
+      ],
+      "assertions": [
+        "Production repository/view-model methods tested for failed flush rollback, uninitialized storage and retry; ordinary settings skip retention work."
+      ],
+      "failureSignals": [
+        "Unexpected UI, persistence or build regression."
+      ]
+    },
+    {
+      "id": "toggles-input",
+      "title": "Both home switches and text entry",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "review"
+      ],
+      "preconditions": [
+        "Use the task-owned candidate and retain existing user data."
+      ],
+      "steps": [
+        "Both home switches and text entry"
+      ],
+      "assertions": [
+        "Earlier review saw immediate switch updates on build 1000023; that is not counted as fresh acceptance of this final candidate."
+      ],
+      "failureSignals": [
+        "Unexpected UI, persistence or build regression."
+      ]
+    },
+    {
+      "id": "click-performance",
+      "title": "Reviewer click completion performance",
+      "priority": "p1",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "review"
+      ],
+      "preconditions": [
+        "Use the task-owned candidate and retain existing user data."
+      ],
+      "steps": [
+        "Reviewer click completion performance"
+      ],
+      "assertions": [
+        "Removed synchronous home wallpaper loading, skipped redundant window layout calls and retained conditional history cleanup. Matching reviewer scenario and timing trace remain required."
+      ],
+      "failureSignals": [
+        "Unexpected UI, persistence or build regression."
+      ]
+    },
+    {
+      "id": "build-icon",
+      "title": "Build, signing and launcher icon resource",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "review"
+      ],
+      "preconditions": [
+        "Use the task-owned candidate and retain existing user data."
+      ],
+      "steps": [
+        "Build, signing and launcher icon resource"
+      ],
+      "assertions": [
+        "One AppScope 1024x1024 PNG source; no same-name entry PNG/SVG conflict. Native tooling processes the packaged icon to 512x512. Source and package checks are separate from AppGallery review."
+      ],
+      "failureSignals": [
+        "Unexpected UI, persistence or build regression."
+      ]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-09-11T14:34:28.903946+08:00",
+    "target": {
+      "id": "4UQ9K25530058677",
+      "model": "TLR-AL00",
+      "platform": "HarmonyOS",
+      "notes": "Pura 80 Pro+, Mate X5 and MateBook Pro are not available."
+    },
+    "appBuild": {
+      "bundleId": "com.youdroid.browser",
+      "versionName": "1.0.1",
+      "versionCode": 1000024,
+      "hapPath": "entry/build/default/outputs/default/entry-default-signed.hap",
+      "sha256": "bb31182f5d8ebadd6fffd0c2554719f14efc740b3fcdcaf759963e8af61bf37a",
+      "distribution": "debug"
+    },
+    "results": [
+      {
+        "caseId": "ordinary-page",
+        "status": "blocked",
+        "notes": "Early 1000024 candidate retained tabs and visibly rendered an ordinary webpage. Final candidate UI acceptance was paused when the phone changed to WeChat; the screenshot is supporting evidence only.",
+        "evidence": [
+          {
+            "type": "artifact",
+            "path": "evidence/ordinary-page.jpeg",
+            "summary": "The installed 1000024 candidate retained the existing tabs and displayed an ordinary webpage with dark status content on a light background. Final optimization and cold-transition acceptance remain pending."
+          }
+        ]
+      },
+      {
+        "caseId": "wallpaper-overlay",
+        "status": "blocked",
+        "notes": "Production style tests cover white wallpaper and real reader themes; fresh physical wallpaper and modal checks await exclusive device access.",
+        "evidence": []
+      },
+      {
+        "caseId": "privacy-layout",
+        "status": "not-run",
+        "notes": "Layout function verified at 360/480/800/1000vp heights. No fresh first-install physical acceptance.",
+        "evidence": []
+      },
+      {
+        "caseId": "settings-flush",
+        "status": "not-run",
+        "notes": "Production repository/view-model fault-injection tests passed for rollback and retry (see validation). Physical-device fault injection was not performed on retained user data.",
+        "evidence": [
+          {
+            "type": "artifact",
+            "path": "evidence/node-tests.txt",
+            "summary": "Production repository/view-model methods tested for failed flush rollback, uninitialized storage and retry; ordinary settings skip retention work."
+          }
+        ]
+      },
+      {
+        "caseId": "toggles-input",
+        "status": "blocked",
+        "notes": "Earlier review saw immediate switch updates on build 1000023; that is not counted as fresh acceptance of this final candidate.",
+        "evidence": []
+      },
+      {
+        "caseId": "click-performance",
+        "status": "not-run",
+        "notes": "Removed synchronous home wallpaper loading, skipped redundant window layout calls and retained conditional history cleanup. Matching reviewer scenario and timing trace remain required.",
+        "evidence": []
+      },
+      {
+        "caseId": "build-icon",
+        "status": "passed",
+        "notes": "One AppScope 1024x1024 PNG source; no same-name entry PNG/SVG conflict. Native tooling processes the packaged icon to 512x512. Source and package checks are separate from AppGallery review.",
+        "evidence": [
+          {
+            "type": "artifact",
+            "path": "evidence/artifact.json",
+            "summary": "One AppScope 1024x1024 PNG source; no same-name entry PNG/SVG conflict. Native tooling processes the packaged icon to 512x512. Source and package checks are separate from AppGallery review."
+          }
+        ]
+      }
+    ],
+    "validation": [
+      {
+        "command": "node --test scripts/*.test.mjs",
+        "status": "passed",
+        "summary": "40 passed, 0 failed. Includes 8 review regressions and repaired privacy startup tests."
+      },
+      {
+        "command": "hvigorw assembleHap",
+        "status": "passed",
+        "summary": "Final candidate compiled and signed; existing deprecated-API warnings remain."
+      },
+      {
+        "command": "node scripts/mobile_cicd/signing-source.mjs assert-selected",
+        "status": "passed",
+        "summary": "Selected inputs match the canonical signing source."
+      },
+      {
+        "command": "hap-sign-tool.jar verify-app; verify_harmony_signing.mjs",
+        "status": "passed",
+        "summary": "Native HAP signature, embedded profile, certificate and IAP capability verified for debug distribution."
+      },
+      {
+        "command": "hvigorw test; hvigorw --mode module -p module=entry@default test",
+        "status": "blocked",
+        "summary": "ArkTS compiled; runner stalled without fresh result files. Only this run's processes were terminated; pre-existing Previewers were left alone."
+      },
+      {
+        "command": "actionlint -color; python3 scripts/mobile_cicd/check_ci_cost_contract.py",
+        "status": "passed",
+        "summary": "Workflow lint and CI cost contract passed."
+      },
+      {
+        "command": "git diff --check",
+        "status": "passed",
+        "summary": "No whitespace errors."
+      }
+    ],
+    "notes": "The 1000024 candidate installed with retained data and launched. The last native fullscreen-call optimization was built after UI testing paused; the final archive hash is not claimed as device-accepted. No push, portal promotion, AGC upload or review submission."
+  },
+  "knownExclusions": [
+    "Physical UI paused because the foreground switched to WeChat; requested exclusive test time and did not continue tapping.",
+    "No fresh first-install consent UI test: retained device data was not erased.",
+    "No matching Pura/Mate X5/MateBook reviewer-device performance capture; 2683ms review result is not claimed resolved.",
+    "An old local HAP/installed build mismatch was resolved by raising source versionCode to 1000024; final device acceptance remains separate."
+  ]
+}

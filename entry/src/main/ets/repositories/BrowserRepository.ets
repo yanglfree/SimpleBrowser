@@ -288,8 +288,33 @@ export class BrowserRepository {
   }
 
   async saveSettings(settings: BrowserSettings): Promise<void> {
-    this.settings = cloneSettings(settings);
-    await this.save(SETTINGS_KEY, JSON.stringify(this.settings));
+    const store: preferences.Preferences | undefined = this.store;
+    if (store === undefined) {
+      throw new Error('Settings storage is not initialized');
+    }
+    const next: BrowserSettings = cloneSettings(settings);
+    const queued: Promise<void> = this.saveQueue.then(async (): Promise<void> => {
+      const previous: string = JSON.stringify(this.settings);
+      try {
+        await store.put(SETTINGS_KEY, JSON.stringify(next));
+        await store.flush();
+        this.settings = next;
+      } catch (error) {
+        // A failed flush can leave the new consent in the Preferences cache.
+        // Restore it before an unrelated queued save can flush that cache.
+        try {
+          await store.put(SETTINGS_KEY, previous);
+          await store.flush();
+        } catch (rollbackError) {
+          Logger.error(TAG, `Failed to restore settings cache: ${String(rollbackError)}`);
+        }
+        throw new Error(String(error));
+      }
+    });
+    this.saveQueue = queued.catch((error: Error): void => {
+      Logger.error(TAG, `Failed to save settings: ${String(error)}`);
+    });
+    await queued;
   }
 
   getSiteStats(host: string): BlockStats {

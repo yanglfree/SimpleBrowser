@@ -125,6 +125,8 @@ import { ShareService, ShareOutcome } from '../services/ShareService';
 import { LongScreenshotService } from '../services/LongScreenshotService';
 import { HomeBackgroundService } from '../services/HomeBackgroundService';
 import { ThemeService } from '../services/ThemeService';
+import { BrowserSystemBarStyle, resolveSystemBarStyle } from '../models/SystemBarStyle';
+import { StatusBarBackdrop } from '../components/StatusBarBackdrop';
 import { TelemetryService } from '../services/TelemetryService';
 import { WebHistoryEntry, WebKernelService, WebLongPressTarget } from '../services/WebKernelService';
 import { AppContext } from '../utils/AppContext';
@@ -364,6 +366,11 @@ struct Index {
   @State private hasError: boolean = false;
   @State private isAcceptingPrivacyConsent: boolean = false;
   private consentServicesStarted: boolean = false;
+  private consentStartupTimer: number = -1;
+  @State private systemBarStyle: BrowserSystemBarStyle = {
+    background: '#FAF9F7', content: '#1A1A18', wallpaper: false
+  };
+  private systemBarStyleKey: string = '';
   @State private tabs: BrowserTab[] = [];
   @State private recentTabs: BrowserTab[] = [];
   @State private activeTabId: string = '';
@@ -497,6 +504,7 @@ struct Index {
             this.closeSplitView();
           }
           if (previousClass !== metrics.layoutClass) {
+            this.refreshSystemBarStyle();
             Logger.debug(TAG, `Browser layout class changed to ${metrics.layoutClass}`);
           }
         }
@@ -564,7 +572,8 @@ struct Index {
     ExternalOpenRouter.subscribe(this.windowToken, (request: ExternalOpenRequest): void => {
       void this.promptExternalOpen(request);
     });
-    setTimeout((): void => {
+    this.consentStartupTimer = setTimeout((): void => {
+      this.consentStartupTimer = -1;
       this.refreshSiteIcons();
       void this.viewModel.adsBlockService.updateRulesIfNeeded();
       void this.syncProEntitlement('app_start');
@@ -573,15 +582,29 @@ struct Index {
   }
 
   private onSheetChanged(): void {
-    ThemeService.applySurface(
-      this.appContext(),
-      this.settings.appearance,
-      this.isActiveHome(),
-      this.settings.startPageBackgroundEnabled,
+    this.refreshSystemBarStyle();
+  }
+
+  private refreshSystemBarStyle(): void {
+    const style: BrowserSystemBarStyle = resolveSystemBarStyle(
+      ThemeService.isDark(this.appContext(), this.settings.appearance),
+      this.isActiveHome() && this.settings.startPageBackgroundEnabled && !this.usesWideChrome(),
       this.isActiveReader(),
       this.settings.readerPaper,
       this.sheet !== Overlay.None
     );
+    const key: string = `${style.background}:${style.content}:${style.wallpaper}`;
+    if (key === this.systemBarStyleKey) {
+      return;
+    }
+    this.systemBarStyle = style;
+    this.systemBarStyleKey = key;
+    void ThemeService.applySurface(this.appContext(), style).catch((): void => {
+      // ThemeService logs the failure; leave the next UI event able to retry.
+      if (this.systemBarStyleKey === key) {
+        this.systemBarStyleKey = '';
+      }
+    });
   }
 
   private decodeTransferredTab(): BrowserTab | undefined {
@@ -600,6 +623,29 @@ struct Index {
    * Fullscreen surfaces (the tab overview) sit behind the status bar, so they
    * need its height to keep their header clear of the clock and indicators.
    */
+  private insetWindow: window.Window | undefined = undefined;
+  private avoidAreaListener: (data: window.AvoidAreaOptions) => void = (data: window.AvoidAreaOptions): void => {
+    if (data.type === window.AvoidAreaType.TYPE_KEYBOARD) {
+      this.keyboardInset = px2vp(data.area.bottomRect.height);
+      return;
+    }
+    const mainWindow: window.Window | undefined = this.insetWindow;
+    if (mainWindow === undefined) {
+      return;
+    }
+    try {
+      const systemArea: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+      const gestureArea: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM_GESTURE);
+      const indicatorArea: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
+      this.topInset = px2vp(systemArea.topRect.height);
+      this.bottomInset = resolveBottomAvoidAreaHeight(
+        px2vp(systemArea.bottomRect.height), px2vp(gestureArea.bottomRect.height), px2vp(indicatorArea.bottomRect.height)
+      );
+    } catch (error) {
+      Logger.warn(TAG, `Failed to refresh system insets: ${String(error)}`);
+    }
+  };
+
   private async measureSystemInsets(): Promise<void> {
     try {
       const mainWindow: window.Window = await window.getLastWindow(this.appContext());
@@ -616,17 +662,22 @@ struct Index {
       );
       const keyboardArea: window.AvoidArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_KEYBOARD);
       this.keyboardInset = px2vp(keyboardArea.bottomRect.height);
-      mainWindow.on('avoidAreaChange', (data: window.AvoidAreaOptions): void => {
-        if (data.type === window.AvoidAreaType.TYPE_KEYBOARD) {
-          this.keyboardInset = px2vp(data.area.bottomRect.height);
-        }
-      });
+      this.insetWindow = mainWindow;
+      mainWindow.on('avoidAreaChange', this.avoidAreaListener);
     } catch (error) {
       Logger.warn(TAG, `Failed to read the system bar height: ${String(error)}`);
     }
   }
 
   aboutToDisappear(): void {
+    if (this.insetWindow !== undefined) {
+      this.insetWindow.off('avoidAreaChange', this.avoidAreaListener);
+      this.insetWindow = undefined;
+    }
+    if (this.consentStartupTimer !== -1) {
+      clearTimeout(this.consentStartupTimer);
+      this.consentStartupTimer = -1;
+    }
     void this.persistArticleReadingPosition();
     this.windowMetricsService.stop();
     this.foldStateService.stop();
@@ -740,6 +791,10 @@ struct Index {
         if (this.isGeneratingScreenshot) {
           this.ScreenshotLoadingLayer()
         }
+      }
+      if (this.topInset > 0) {
+        StatusBarBackdrop({ topInset: this.topInset, style: this.systemBarStyle })
+          .align(Alignment.Top)
       }
     }
     .width('100%')
@@ -1979,6 +2034,7 @@ struct Index {
     } else if (this.sheet === Overlay.PrivacyConsent) {
       PrivacyConsentDialog({
         isSaving: this.isAcceptingPrivacyConsent,
+        availableHeight: this.windowMetrics.heightVp,
         topInset: this.topInset,
         bottomInset: this.bottomInset,
         onAccept: (): void => { void this.acceptPrivacyConsent(); },
@@ -3846,7 +3902,14 @@ struct Index {
     // settings page showing the previous value).
     this.settings = cloneSettings(normalized);
     TelemetryService.setEnabled(normalized.privacyConsentAccepted && normalized.telemetryEnabled);
-    await this.viewModel.updateSettings(normalized);
+    try {
+      await this.viewModel.updateSettings(normalized);
+    } catch (error) {
+      Logger.warn(TAG, `Settings could not be saved: ${String(error)}`);
+      this.syncState();
+      this.showToast($r('app.string.settings_save_failed'));
+      return;
+    }
     this.syncState();
     DownloadService.configurePolicy(
       normalized.largeDownloadThresholdMb,
@@ -3856,14 +3919,7 @@ struct Index {
     if (appearanceChanged) {
       ThemeService.apply(this.appContext(), normalized.appearance);
     }
-    ThemeService.applySurface(
-      this.appContext(),
-      normalized.appearance,
-      this.isActiveHome(),
-      normalized.startPageBackgroundEnabled,
-      this.isActiveReader(),
-      normalized.readerPaper
-    );
+    this.refreshSystemBarStyle();
     await this.enforceLiveWebViewLimit(this.liveWebViewLimit());
     this.reconfigureBlocking();
   }
@@ -4235,15 +4291,17 @@ struct Index {
     this.isAcceptingPrivacyConsent = true;
     const next: BrowserSettings = cloneSettings(this.settings);
     next.privacyConsentAccepted = true;
-    this.settings = cloneSettings(next);
-    this.sheet = Overlay.None;
-    this.resumeConsentedStartup();
-    this.viewModel.updateSettings(next).catch((error: Error): void => {
+    try {
+      await this.viewModel.updateSettings(next);
+      this.settings = cloneSettings(next);
+      this.sheet = Overlay.None;
+      this.resumeConsentedStartup();
+    } catch (error) {
       Logger.warn(TAG, `Privacy consent could not be saved: ${String(error)}`);
       this.showToast($r('app.string.privacy_consent_save_failed'));
-    }).finally((): void => {
+    } finally {
       this.isAcceptingPrivacyConsent = false;
-    });
+    }
   }
 
   private declinePrivacyConsent(): void {
@@ -5316,14 +5374,7 @@ struct Index {
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
     this.refreshSiteIcons();
     this.repairPaneReferences();
-    ThemeService.applySurface(
-      this.appContext(),
-      this.settings.appearance,
-      isHomeUrl(url),
-      this.settings.startPageBackgroundEnabled,
-      this.isActiveReader(),
-      this.settings.readerPaper
-    );
+    this.refreshSystemBarStyle();
   }
 
   /**

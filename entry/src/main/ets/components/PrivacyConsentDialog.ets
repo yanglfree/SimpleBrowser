@@ -74,11 +74,16 @@ const PRIVACY_SECTIONS: LegalSection[] = [
   }
 ];
 
+export function privacyDialogHeight(height: number, topInset: number, bottomInset: number): number {
+  return Math.max(0, Math.min(680, height - Math.max(topInset, 28) - Math.max(bottomInset, 28) - 28));
+}
+
 @Component
 export struct PrivacyConsentDialog {
   @Prop isSaving: boolean = false;
   @Prop topInset: number = 0;
   @Prop bottomInset: number = 0;
+  @Prop availableHeight: number = 800;
   @State private isAgreed: boolean = false;
   @State private selectedTab: number = 0;
   onAccept: () => void = (): void => {};
@@ -106,10 +111,9 @@ export struct PrivacyConsentDialog {
         this.BottomActions()
       }
       .width('90%')
-      .constraintSize({
-        maxWidth: 560,
-        maxHeight: Math.max(340, 680 - Math.max(this.bottomInset, 28) - Math.max(this.topInset, 28))
-      })
+      .constraintSize({ maxWidth: 560 })
+      .height(privacyDialogHeight(this.availableHeight, this.topInset, this.bottomInset))
+      .translate({ y: (Math.max(this.topInset, 28) - Math.max(this.bottomInset, 28) - 4) / 2 })
       .backgroundColor($r('app.color.surface_panel'))
       .borderRadius(24)
       .border({ width: 1, color: $r('app.color.border') })
@@ -124,12 +128,6 @@ export struct PrivacyConsentDialog {
     }
     .width('100%')
     .height('100%')
-    .padding({
-      top: Math.max(this.topInset, 28) + 12,
-      bottom: Math.max(this.bottomInset, 28) + 16,
-      left: 16,
-      right: 16
-    })
   }
 
   @Builder

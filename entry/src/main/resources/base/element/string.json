@@ -580,6 +580,7 @@
     { "name": "privacy_dialog_agree_button", "value": "同意并继续" },
     { "name": "privacy_dialog_terms_title", "value": "卓阅浏览器用户协议" },
     { "name": "privacy_dialog_privacy_title", "value": "卓阅浏览器隐私政策" },
+    { "name": "settings_save_failed", "value": "未能保存设置，请重试" },
     { "name": "privacy_consent_save_failed", "value": "未能保存同意状态，请重试" },
     { "name": "about_icp_copy_failed", "value": "复制备案号失败，请重试" }
   ]

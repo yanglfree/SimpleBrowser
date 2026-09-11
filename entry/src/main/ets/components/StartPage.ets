@@ -39,7 +39,6 @@ export struct StartPage {
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
-          .syncLoad(true)
         Column()
           .width('100%')
           .height('100%')

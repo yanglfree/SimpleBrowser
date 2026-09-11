@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>App HarmonyOS physical-device QA Report</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; }
+    body { margin: 0; padding: 32px; background: Canvas; color: CanvasText; }
+    main { max-width: 1120px; margin: 0 auto; }
+    h1, h2, h3 { line-height: 1.2; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 28px; }
+    th, td { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: color-mix(in srgb, CanvasText 8%, transparent); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.94em; }
+    .status-passed { color: #027a48; font-weight: 700; }
+    .status-failed { color: #b42318; font-weight: 700; }
+    .status-blocked, .status-partial { color: #b54708; font-weight: 700; }
+    .status-not-run, .status-pending { color: #667085; font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin: 20px 0 28px; }
+    .metric { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 8px; padding: 14px 16px; }
+    .metric strong { display: block; font-size: 1.6rem; }
+    .case-result { border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent); padding-top: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>App HarmonyOS physical-device QA Report</h1>
+  <p>
+    Date: 2026-09-11T14:34:28.903946+08:00<br>
+    Target: none, unknown runtime, <code>4UQ9K25530058677</code><br>
+    App:  <code>unknown</code>, bundle <code></code><br>
+    HAP: <code>entry/build/default/outputs/default/entry-default-signed.hap</code><br>
+    Auth source: none
+  </p>
+
+  <section class="summary" aria-label="Run summary">
+    <div class="metric"><strong>7</strong>Total cases</div>
+    <div class="metric"><strong>4</strong>Executed</div>
+    <div class="metric"><strong>1</strong>Passed</div>
+    <div class="metric"><strong>0</strong>Failed</div>
+    <div class="metric"><strong>3</strong>Blocked</div>
+    <div class="metric"><strong>3</strong>Not run</div>
+  </section>
+
+  <h2>Executive Summary</h2>
+  <p>
+    The agent QA suite contains 7 Harmony scenarios. This run executed 4 cases with fresh evidence.
+    Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
+  </p>
+
+  <h2>Coverage Matrix</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>Cases</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>System bars and safe areas</td>
+        <td class="status-partial">partial</td>
+        <td><code>ordinary-page</code><br><code>wallpaper-overlay</code><br><code>privacy-layout</code></td>
+        <td>Code and contrast regressions pass; final device matrix is pending.</td>
+      </tr>
+      <tr>
+        <td>Settings and input</td>
+        <td class="status-partial">partial</td>
+        <td><code>settings-flush</code><br><code>toggles-input</code><br><code>click-performance</code></td>
+        <td>Persistence failure/retry tests pass; UI input paused when device foreground changed.</td>
+      </tr>
+      <tr>
+        <td>Build and icon</td>
+        <td class="status-passed">passed</td>
+        <td><code>build-icon</code></td>
+        <td>Canonical debug signing and native HAP signature verified.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Case Catalog</h2>
+  <table>
+    <thead><tr><th>Case</th><th>Priority</th><th>Title</th><th>Latest Status</th><th>Tags</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>ordinary-page</code></td>
+        <td>p0</td>
+        <td>Launch and ordinary webpage</td>
+        <td class="status-blocked">blocked</td>
+        <td>review</td>
+      </tr>
+      <tr>
+        <td><code>wallpaper-overlay</code></td>
+        <td>p1</td>
+        <td>Wallpaper contrast and modal/settings refresh</td>
+        <td class="status-blocked">blocked</td>
+        <td>review</td>
+      </tr>
+      <tr>
+        <td><code>privacy-layout</code></td>
+        <td>p1</td>
+        <td>Privacy card clears system areas across window heights</td>
+        <td class="status-not-run">not-run</td>
+        <td>review</td>
+      </tr>
+      <tr>
+        <td><code>settings-flush</code></td>
+        <td>p0</td>
+        <td>Consent persistence failure and retry</td>
+        <td class="status-not-run">not-run</td>
+        <td>review</td>
+      </tr>
+      <tr>
+        <td><code>toggles-input</code></td>
+        <td>p1</td>
+        <td>Both home switches and text entry</td>
+        <td class="status-blocked">blocked</td>
+        <td>review</td>
+      </tr>
+      <tr>
+        <td><code>click-performance</code></td>
+        <td>p1</td>
+        <td>Reviewer click completion performance</td>
+        <td class="status-not-run">not-run</td>
+        <td>review</td>
+      </tr>
+      <tr>
+        <td><code>build-icon</code></td>
+        <td>p0</td>
+        <td>Build, signing and launcher icon resource</td>
+        <td class="status-passed">passed</td>
+        <td>review</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Latest Run Evidence</h2>
+  
+      <section class="case-result">
+        <h3><code>ordinary-page</code> <span class="status-blocked">blocked</span></h3>
+        <p>Early 1000024 candidate retained tabs and visibly rendered an ordinary webpage. Final candidate UI acceptance was paused when the phone changed to WeChat; the screenshot is supporting evidence only.</p>
+        <ul><li><strong>artifact</strong>: <code>evidence/ordinary-page.jpeg</code><br>The installed 1000024 candidate retained the existing tabs and displayed an ordinary webpage with dark status content on a light background. Final optimization and cold-transition acceptance remain pending.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>wallpaper-overlay</code> <span class="status-blocked">blocked</span></h3>
+        <p>Production style tests cover white wallpaper and real reader themes; fresh physical wallpaper and modal checks await exclusive device access.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>privacy-layout</code> <span class="status-not-run">not-run</span></h3>
+        <p>Layout function verified at 360/480/800/1000vp heights. No fresh first-install physical acceptance.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>settings-flush</code> <span class="status-not-run">not-run</span></h3>
+        <p>Production repository/view-model fault-injection tests passed for rollback and retry (see validation). Physical-device fault injection was not performed on retained user data.</p>
+        <ul><li><strong>artifact</strong>: <code>evidence/node-tests.txt</code><br>Production repository/view-model methods tested for failed flush rollback, uninitialized storage and retry; ordinary settings skip retention work.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>toggles-input</code> <span class="status-blocked">blocked</span></h3>
+        <p>Earlier review saw immediate switch updates on build 1000023; that is not counted as fresh acceptance of this final candidate.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>click-performance</code> <span class="status-not-run">not-run</span></h3>
+        <p>Removed synchronous home wallpaper loading, skipped redundant window layout calls and retained conditional history cleanup. Matching reviewer scenario and timing trace remain required.</p>
+        <p>No fresh HarmonyOS physical-device QA evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>build-icon</code> <span class="status-passed">passed</span></h3>
+        <p>One AppScope 1024x1024 PNG source; no same-name entry PNG/SVG conflict. Native tooling processes the packaged icon to 512x512. Source and package checks are separate from AppGallery review.</p>
+        <ul><li><strong>artifact</strong>: <code>evidence/artifact.json</code><br>One AppScope 1024x1024 PNG source; no same-name entry PNG/SVG conflict. Native tooling processes the packaged icon to 512x512. Source and package checks are separate from AppGallery review.</li></ul>
+      </section>
+
+  <h2>Validation</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>node --test scripts/*.test.mjs</code></td>
+        <td class="status-passed">passed</td>
+        <td>40 passed, 0 failed. Includes 8 review regressions and repaired privacy startup tests.</td>
+      </tr>
+      <tr>
+        <td><code>hvigorw assembleHap</code></td>
+        <td class="status-passed">passed</td>
+        <td>Final candidate compiled and signed; existing deprecated-API warnings remain.</td>
+      </tr>
+      <tr>
+        <td><code>node scripts/mobile_cicd/signing-source.mjs assert-selected</code></td>
+        <td class="status-passed">passed</td>
+        <td>Selected inputs match the canonical signing source.</td>
+      </tr>
+      <tr>
+        <td><code>hap-sign-tool.jar verify-app; verify_harmony_signing.mjs</code></td>
+        <td class="status-passed">passed</td>
+        <td>Native HAP signature, embedded profile, certificate and IAP capability verified for debug distribution.</td>
+      </tr>
+      <tr>
+        <td><code>hvigorw test; hvigorw --mode module -p module=entry@default test</code></td>
+        <td class="status-blocked">blocked</td>
+        <td>ArkTS compiled; runner stalled without fresh result files. Only this run's processes were terminated; pre-existing Previewers were left alone.</td>
+      </tr>
+      <tr>
+        <td><code>actionlint -color; python3 scripts/mobile_cicd/check_ci_cost_contract.py</code></td>
+        <td class="status-passed">passed</td>
+        <td>Workflow lint and CI cost contract passed.</td>
+      </tr>
+      <tr>
+        <td><code>git diff --check</code></td>
+        <td class="status-passed">passed</td>
+        <td>No whitespace errors.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Known Exclusions</h2>
+  <p>The 1000024 candidate installed with retained data and launched. The last native fullscreen-call optimization was built after UI testing paused; the final archive hash is not claimed as device-accepted. No push, portal promotion, AGC upload or review submission.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "bundleId": "com.youdroid.browser",
+  "versionCode": 1000024,
+  "buildMode": "debug",
+  "hapSha256": "bb31182f5d8ebadd6fffd0c2554719f14efc740b3fcdcaf759963e8af61bf37a",
+  "iconResources": [
+    "resources/base/media/app_icon.png"
+  ],
+  "sourceIconSize": [
+    1024,
+    1024
+  ],
+  "processedIconSize": [
+    512,
+    512
+  ],
+  "signing": {
+    "signingConfig": "default",
+    "profileUuid": "d26017ae-d3f4-4c43-be17-d6edf1dc7af2",
+    "profileSha256": "79b2561ef820db4f3f446ab51aaa206b5efdd9d991b29b31904b4c4a73704a46",
+    "profileExpiresAt": 1791079373,
+    "distribution": "debug",
+    "certificateSha256": "8F:25:02:A2:C1:FE:74:7D:A3:9F:E1:88:EF:89:02:B9:49:F2:90:0A:17:04:67:BC:C2:2D:40:7C:1E:2C:36:F0",
+    "iapEnabled": true
+  }
+}

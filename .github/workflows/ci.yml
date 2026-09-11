@@ -77,6 +77,9 @@ jobs:
           for script in scripts/mobile_cicd/*.sh; do bash -n "$script"; done
           git log -1 --check --format=
 
+      - name: Run browser regression tests
+        run: node --test scripts/*.test.mjs
+
       - name: Validate mobile distribution Worker
         working-directory: cloudflare/mobile-distribution
         run: |

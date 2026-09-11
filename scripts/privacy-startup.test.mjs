@@ -14,12 +14,14 @@ function method(start, end) {
 
 function fixture(settings = {}) {
   const calls = [];
+  const timers = [];
   const Page = runInNewContext(stripTypeScriptTypes(`class Page {
     ${method('resumeConsentedStartup()', 'decodeTransferredTab()')}
     ${method('async acceptPrivacyConsent()', 'async openExternalWebUrl(')}
     ${method('async finishOnboarding()', 'async exportBookmarks()')}
   }\nPage;`), {
     TAG: 'PrivacyStartupTest',
+    setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; },
     Overlay: { None: 0, PrivacyConsent: 26, Onboarding: 1 },
     cloneSettings: value => ({ ...value }),
     TelemetryService: { setEnabled: value => calls.push(['telemetry', value]) },
@@ -40,7 +42,7 @@ function fixture(settings = {}) {
     updateSettings: async () => calls.push(['persist']),
     adsBlockService: { updateRulesIfNeeded: async () => calls.push(['rules']) }
   };
-  return { page, calls };
+  return { page, calls, timers, runTimers: () => timers.splice(0).forEach(timer => timer.callback()) };
 }
 
 test('unresolved consent never starts background services or delivers an external link', () => {
@@ -51,20 +53,24 @@ test('unresolved consent never starts background services or delivers an externa
 });
 
 test('onboarding keeps external entry queued after acceptance', async () => {
-  const { page, calls } = fixture();
+  const { page, calls, runTimers } = fixture();
   await page.acceptPrivacyConsent();
   assert.equal(page.settings.privacyConsentAccepted, true);
   assert.equal(page.sheet, 1);
   assert.deepEqual(calls, [['persist']]);
   await page.finishOnboarding();
   assert.equal(page.sheet, 0);
-  assert.deepEqual(calls.map(call => call[0]), ['persist', 'persist', 'telemetry', 'icons', 'rules', 'entitlement', 'expired', 'external']);
+  assert.deepEqual(calls.map(call => call[0]), ['persist', 'telemetry', 'external', 'persist']);
+  runTimers();
+  assert.deepEqual(calls.slice(-4).map(call => call[0]), ['icons', 'rules', 'entitlement', 'expired']);
 });
 
 test('accepted returning users start services once with the stored telemetry choice', async () => {
-  const { page, calls } = fixture({ onboardingCompleted: true });
+  const { page, calls, runTimers } = fixture({ onboardingCompleted: true });
   await page.acceptPrivacyConsent();
   page.resumeConsentedStartup();
+  assert.equal(calls.filter(call => call[0] === 'entitlement').length, 0);
+  runTimers();
   assert.equal(page.sheet, 0);
   assert.equal(calls.filter(call => call[0] === 'entitlement').length, 1);
   assert.equal(calls.filter(call => call[0] === 'external').length, 1);
@@ -83,7 +89,7 @@ test('failed consent persistence leaves the dialog and all network services bloc
 });
 
 test('duplicate acceptance waits for one persistence operation', async () => {
-  const { page, calls } = fixture({ onboardingCompleted: true });
+  const { page, calls, runTimers } = fixture({ onboardingCompleted: true });
   let complete;
   page.viewModel.updateSettings = () => new Promise(resolve => { complete = resolve; });
   const pending = page.acceptPrivacyConsent();
@@ -92,6 +98,7 @@ test('duplicate acceptance waits for one persistence operation', async () => {
   assert.deepEqual(calls, []);
   complete();
   await pending;
+  runTimers();
   assert.equal(page.isAcceptingPrivacyConsent, false);
   assert.equal(calls.filter(call => call[0] === 'entitlement').length, 1);
 });
