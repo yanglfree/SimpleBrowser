@@ -30,14 +30,19 @@ data class BrowserTab(
 
 data class BrowserSettings(
     val searchEngine: SearchEngine = SearchEngine.Bing,
-    val blockAds: Boolean = true
+    val blockAds: Boolean = true,
+    val searchSuggestionsEnabled: Boolean = true
 )
+
+enum class LibraryTab { Bookmarks, History }
 
 object SessionPolicy {
     const val MAX_TAB_COUNT = 100
     const val LIVE_WEBVIEW_LIMIT = 4
 
     fun persistableTabs(tabs: List<BrowserTab>): List<BrowserTab> = tabs.filter { !it.isPrivate }
+
+    fun shouldRecordHistory(isPrivate: Boolean): Boolean = !isPrivate
 
     fun liveTabIds(tabs: List<BrowserTab>, activeTabId: String, limit: Int): List<String> {
         val bounded = limit.coerceAtLeast(1)

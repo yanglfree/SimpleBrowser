@@ -43,3 +43,11 @@ write those records. Per-site allow-list uses exact `rawHost` matching, same as
 Harmony: blocking is skipped for listed hosts and restored when the host is
 removed. Camera, microphone, and location use an in-app confirmation first,
 then the system permission prompt; private tabs do not persist those decisions.
+
+Sync Android scripts and compact `{host,path}` network rules with
+`android/Scripts/sync-core.sh` (not Safari JSON). The Compose shell now has
+native home, tabs, private tabs, background `shouldInterceptRequest` blocking,
+per-site allow-list, bookmarks, history, omni suggestions from the shared
+`core` library policy, and `Intent.ACTION_SEND` sharing. Private tabs never
+write those records. Reader, find-in-page, desktop UA, downloads, and site
+permissions are still ahead of this shell.

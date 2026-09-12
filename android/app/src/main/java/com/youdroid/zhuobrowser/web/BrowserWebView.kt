@@ -74,9 +74,10 @@ private fun createWebView(session: BrowserSession, tab: BrowserTab): WebView {
         }
 
         override fun onPageFinished(view: WebView, url: String?) {
-            if (url != null && !UrlPolicy.isHomeUrl(url)) {
-                session.updateTab(tab.id, title = view.title, url = url, loading = false)
-            }
+            if (url == null || UrlPolicy.isHomeUrl(url)) return
+            if (url != view.url) return
+            session.updateTab(tab.id, title = view.title, url = url, loading = false)
+            session.recordVisit(tab.id)
         }
     }
     webView.webChromeClient = object : WebChromeClient() {

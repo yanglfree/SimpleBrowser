@@ -1,5 +1,6 @@
 package com.youdroid.zhuobrowser.ui
 
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,14 +18,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -45,6 +48,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,9 +59,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.youdroid.zhuobrowser.policy.SearchEngine
 import com.youdroid.zhuobrowser.policy.UrlPolicy
+import com.youdroid.zhuobrowser.session.AddressSuggestion
 import com.youdroid.zhuobrowser.session.AllowListPolicy
 import com.youdroid.zhuobrowser.session.BrowserSession
 import com.youdroid.zhuobrowser.session.BrowserTab
+import com.youdroid.zhuobrowser.session.HistoryEntry
+import com.youdroid.zhuobrowser.session.LibraryTab
+import com.youdroid.zhuobrowser.session.SavedItem
+import com.youdroid.zhuobrowser.session.SuggestionKind
 import com.youdroid.zhuobrowser.web.BrowserWebView
 import kotlinx.coroutines.delay
 
@@ -64,11 +75,16 @@ import kotlinx.coroutines.delay
 fun BrowserScreen(session: BrowserSession) {
     val state by session.state.collectAsStateWithLifecycle()
     val tab = state.activeTab
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     var address by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
+    var addressFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(tab?.id, tab?.url) {
-        if (tab != null) address = if (UrlPolicy.isHomeUrl(tab.url)) "" else tab.url
+        if (tab != null && !addressFocused) {
+            address = if (UrlPolicy.isHomeUrl(tab.url)) "" else tab.url
+        }
     }
     LaunchedEffect(state.notice) {
         if (state.notice != null) {
@@ -77,8 +93,29 @@ fun BrowserScreen(session: BrowserSession) {
         }
     }
 
-    BackHandler(enabled = tab != null && !UrlPolicy.isHomeUrl(tab.url)) {
-        session.goBackToHomeIfNeeded(tab!!.id)
+    val overlayOpen = state.showsSettings || state.showsLibrary || state.showsOverview
+    BackHandler(enabled = overlayOpen || (tab != null && !UrlPolicy.isHomeUrl(tab.url))) {
+        when {
+            state.showsLibrary -> session.setShowsLibrary(false)
+            state.showsSettings -> session.setShowsSettings(false)
+            state.showsOverview -> session.toggleOverview()
+            else -> tab?.let { session.goBackToHomeIfNeeded(it.id) }
+        }
+    }
+
+    fun dismissKeyboard() {
+        addressFocused = false
+        focusManager.clearFocus()
+    }
+
+    fun shareCurrentPage() {
+        val payload = session.sharePayload() ?: return
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, payload.first)
+            putExtra(Intent.EXTRA_TEXT, payload.second)
+        }
+        context.startActivity(Intent.createChooser(send, "分享"))
     }
 
     Column(
@@ -89,29 +126,60 @@ fun BrowserScreen(session: BrowserSession) {
         AddressBar(
             address = address,
             onAddressChange = { address = it },
+            onAddressFocusChange = { addressFocused = it },
             tabCount = state.tabs.size,
             isPrivate = tab?.isPrivate == true,
             canGoBack = tab != null && !UrlPolicy.isHomeUrl(tab.url),
             browsing = tab != null && !UrlPolicy.isHomeUrl(tab.url),
             menuOpen = menuOpen,
             onMenuChange = { menuOpen = it },
-            onSubmit = { session.openInActiveTab(address) },
+            onSubmit = {
+                dismissKeyboard()
+                session.openInActiveTab(address)
+            },
             onBack = { tab?.let { session.goBackToHomeIfNeeded(it.id) } },
-            onOverview = { session.toggleOverview() },
+            onOverview = {
+                dismissKeyboard()
+                session.toggleOverview()
+            },
             onNewPrivate = { session.createTab(true) },
             onAllowSite = { session.toggleCurrentHostAllowed() },
-            onSettings = { session.setShowsSettings(true) },
-            siteAllowed = tab != null && AllowListPolicy.isHostAllowed(state.allowedHosts, UrlPolicy.rawHost(tab.url))
+            onBookmark = { session.toggleSaved() },
+            onLibrary = {
+                dismissKeyboard()
+                session.openLibrary(LibraryTab.Bookmarks)
+            },
+            onShare = { shareCurrentPage() },
+            onSettings = {
+                dismissKeyboard()
+                session.setShowsSettings(true)
+            },
+            siteAllowed = tab != null && AllowListPolicy.isHostAllowed(state.allowedHosts, UrlPolicy.rawHost(tab.url)),
+            pageSaved = session.isCurrentPageSaved()
         )
         Box(modifier = Modifier.weight(1f)) {
             when {
                 state.showsSettings -> SettingsPane(session)
+                state.showsLibrary -> LibraryPane(session)
                 state.showsOverview -> TabOverview(session)
                 tab == null || UrlPolicy.isHomeUrl(tab.url) -> NativeHome(
                     onOpen = { session.openInActiveTab(it) },
-                    onSettings = { session.setShowsSettings(true) }
+                    onSettings = { session.setShowsSettings(true) },
+                    onBookmarks = { session.openLibrary(LibraryTab.Bookmarks) },
+                    onHistory = { session.openLibrary(LibraryTab.History) }
                 )
                 else -> BrowserWebView(tab = tab, session = session, modifier = Modifier.fillMaxSize())
+            }
+            val suggestions = if (addressFocused && !overlayOpen) session.suggestions(address) else emptyList()
+            if (suggestions.isNotEmpty()) {
+                SuggestionList(
+                    suggestions = suggestions,
+                    onSelect = { item ->
+                        dismissKeyboard()
+                        address = if (UrlPolicy.isHomeUrl(item.url)) "" else item.url
+                        session.openInActiveTab(item.url)
+                    }
+                )
             }
             state.notice?.let { notice ->
                 Text(
@@ -134,6 +202,7 @@ fun BrowserScreen(session: BrowserSession) {
 private fun AddressBar(
     address: String,
     onAddressChange: (String) -> Unit,
+    onAddressFocusChange: (Boolean) -> Unit,
     tabCount: Int,
     isPrivate: Boolean,
     canGoBack: Boolean,
@@ -145,8 +214,12 @@ private fun AddressBar(
     onOverview: () -> Unit,
     onNewPrivate: () -> Unit,
     onAllowSite: () -> Unit,
+    onBookmark: () -> Unit,
+    onLibrary: () -> Unit,
+    onShare: () -> Unit,
     onSettings: () -> Unit,
-    siteAllowed: Boolean
+    siteAllowed: Boolean,
+    pageSaved: Boolean
 ) {
     Column(modifier = Modifier.background(if (isPrivate) Tokens.surfaceSubtle else Tokens.surfacePanel)) {
         Row(
@@ -166,7 +239,9 @@ private fun AddressBar(
             OutlinedTextField(
                 value = address,
                 onValueChange = onAddressChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { onAddressFocusChange(it.isFocused) },
                 singleLine = true,
                 placeholder = { Text(if (isPrivate) "无痕搜索或输入网址" else "搜索或输入网址") },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
@@ -194,6 +269,20 @@ private fun AddressBar(
                         onClick = { onMenuChange(false); onAllowSite() }
                     )
                     DropdownMenuItem(
+                        text = { Text(if (pageSaved) "取消书签" else "加入书签") },
+                        enabled = browsing,
+                        onClick = { onMenuChange(false); onBookmark() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("书签与历史") },
+                        onClick = { onMenuChange(false); onLibrary() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("分享") },
+                        enabled = browsing,
+                        onClick = { onMenuChange(false); onShare() }
+                    )
+                    DropdownMenuItem(
                         text = { Text("设置") },
                         onClick = { onMenuChange(false); onSettings() }
                     )
@@ -214,7 +303,63 @@ private fun AddressBar(
 }
 
 @Composable
-private fun NativeHome(onOpen: (String) -> Unit, onSettings: () -> Unit) {
+private fun SuggestionList(
+    suggestions: List<AddressSuggestion>,
+    onSelect: (AddressSuggestion) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Tokens.surfacePanel)
+            .padding(vertical = 4.dp)
+    ) {
+        suggestions.forEach { item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelect(item) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = when (item.kind) {
+                        SuggestionKind.History -> "历史"
+                        SuggestionKind.Bookmark -> "书签"
+                        SuggestionKind.Search -> "搜索"
+                    },
+                    fontSize = 12.sp,
+                    color = Tokens.accent,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.title,
+                        color = Tokens.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (item.subtitle.isNotEmpty()) {
+                        Text(
+                            text = item.subtitle,
+                            fontSize = 12.sp,
+                            color = Tokens.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NativeHome(
+    onOpen: (String) -> Unit,
+    onSettings: () -> Unit,
+    onBookmarks: () -> Unit,
+    onHistory: () -> Unit
+) {
     data class Site(val id: String, val title: String, val url: String, val badge: String, val color: androidx.compose.ui.graphics.Color)
     val sites = listOf(
         Site("zhihu", "知乎", "https://www.zhihu.com", "知", androidx.compose.ui.graphics.Color(0xFF2563EB)),
@@ -230,6 +375,8 @@ private fun NativeHome(onOpen: (String) -> Unit, onSettings: () -> Unit) {
                 Text("卓阅", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = Tokens.textPrimary)
                 Text("干净、克制的阅读浏览器", fontSize = 15.sp, color = Tokens.textSecondary)
             }
+            Text("书签", color = Tokens.textPrimary, modifier = Modifier.clickable(onClick = onBookmarks).padding(8.dp))
+            Text("历史", color = Tokens.textPrimary, modifier = Modifier.clickable(onClick = onHistory).padding(8.dp))
             Text("设置", color = Tokens.textPrimary, modifier = Modifier.clickable(onClick = onSettings).padding(8.dp))
         }
         Spacer(Modifier.height(24.dp))
@@ -328,9 +475,138 @@ private fun TabCard(tab: BrowserTab, selected: Boolean, onOpen: () -> Unit, onCl
 }
 
 @Composable
+private fun LibraryPane(session: BrowserSession) {
+    val state by session.state.collectAsStateWithLifecycle()
+    Column(modifier = Modifier.fillMaxSize().background(Tokens.pageBackground).padding(20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("书签与历史", fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Tokens.textPrimary, modifier = Modifier.weight(1f))
+            TextButton(onClick = { session.setShowsLibrary(false) }) { Text("完成", color = Tokens.accent) }
+        }
+        Row(modifier = Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(
+                text = "书签",
+                fontWeight = if (state.libraryTab == LibraryTab.Bookmarks) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (state.libraryTab == LibraryTab.Bookmarks) Tokens.accent else Tokens.textSecondary,
+                modifier = Modifier.clickable { session.setLibraryTab(LibraryTab.Bookmarks) }.padding(vertical = 8.dp)
+            )
+            Text(
+                text = "历史",
+                fontWeight = if (state.libraryTab == LibraryTab.History) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (state.libraryTab == LibraryTab.History) Tokens.accent else Tokens.textSecondary,
+                modifier = Modifier.clickable { session.setLibraryTab(LibraryTab.History) }.padding(vertical = 8.dp)
+            )
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            if (state.libraryTab == LibraryTab.Bookmarks) {
+                BookmarkList(
+                    items = state.savedItems,
+                    onOpen = { url ->
+                        session.setShowsLibrary(false)
+                        session.openInActiveTab(url)
+                    },
+                    onRemove = { session.removeSavedItem(it) }
+                )
+            } else {
+                HistoryList(
+                    items = state.history,
+                    onOpen = { url ->
+                        session.setShowsLibrary(false)
+                        session.openInActiveTab(url)
+                    },
+                    onRemove = { session.removeHistory(it) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BookmarkList(
+    items: List<SavedItem>,
+    onOpen: (String) -> Unit,
+    onRemove: (String) -> Unit
+) {
+    if (items.isEmpty()) {
+        Text("还没有书签", color = Tokens.textSecondary, modifier = Modifier.padding(top = 24.dp))
+        return
+    }
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        items(items, key = { it.id }) { item ->
+            LibraryRow(
+                title = item.title,
+                url = item.url,
+                onOpen = { onOpen(item.url) },
+                onRemove = { onRemove(item.id) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun HistoryList(
+    items: List<HistoryEntry>,
+    onOpen: (String) -> Unit,
+    onRemove: (String) -> Unit
+) {
+    if (items.isEmpty()) {
+        Text("还没有历史记录", color = Tokens.textSecondary, modifier = Modifier.padding(top = 24.dp))
+        return
+    }
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        items(items, key = { it.id }) { entry ->
+            LibraryRow(
+                title = entry.title,
+                url = entry.url,
+                onOpen = { onOpen(entry.url) },
+                onRemove = { onRemove(entry.id) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun LibraryRow(
+    title: String,
+    url: String,
+    onOpen: () -> Unit,
+    onRemove: () -> Unit
+) {
+    val host = UrlPolicy.displayHost(url)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title.ifEmpty { host },
+                color = Tokens.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = host,
+                fontSize = 12.sp,
+                color = Tokens.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Text("×", color = Tokens.textSecondary, modifier = Modifier.clickable(onClick = onRemove).padding(8.dp))
+    }
+}
+
+@Composable
 private fun SettingsPane(session: BrowserSession) {
     val state by session.state.collectAsStateWithLifecycle()
-    Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("设置", fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Tokens.textPrimary, modifier = Modifier.weight(1f))
             TextButton(onClick = { session.setShowsSettings(false) }) { Text("完成", color = Tokens.accent) }
@@ -353,8 +629,26 @@ private fun SettingsPane(session: BrowserSession) {
                 colors = SwitchDefaults.colors(checkedTrackColor = Tokens.accent)
             )
         }
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("显示搜索建议", modifier = Modifier.weight(1f), color = Tokens.textPrimary)
+            Switch(
+                checked = state.settings.searchSuggestionsEnabled,
+                onCheckedChange = { session.setSearchSuggestionsEnabled(it) },
+                colors = SwitchDefaults.colors(checkedTrackColor = Tokens.accent)
+            )
+        }
+        HorizontalDivider(color = Tokens.border)
+        Text(
+            text = "书签与历史",
+            color = Tokens.textPrimary,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { session.openLibrary(LibraryTab.Bookmarks) }
+                .padding(vertical = 12.dp)
+        )
         if (state.allowedHosts.isNotEmpty()) {
-            Text("已允许的站点", color = Tokens.textSecondary, fontSize = 13.sp)
+            HorizontalDivider(color = Tokens.border)
+            Text("已允许的站点", color = Tokens.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp))
             state.allowedHosts.forEach { host ->
                 Text(host, color = Tokens.textPrimary, modifier = Modifier.padding(vertical = 8.dp))
             }

@@ -5,9 +5,10 @@ source of truth in `../ohos`. Shared scripts and network rules live in `../core`
 
 Phone V1 on this shell: native `browser://home`, tabs (including private),
 address bar, EasyList network blocking on a background `shouldInterceptRequest`,
-search-engine settings, and a per-site allow-list. Private tabs skip session
-restore; cookie isolation uses AndroidX WebView profiles when the WebView
-provider supports them, otherwise history is still not recorded.
+search-engine settings, a per-site allow-list, bookmarks, history, omni
+suggestions, and system share. Private tabs skip session restore and never
+write history or bookmarks; cookie isolation uses AndroidX WebView profiles
+when the WebView provider supports them.
 
 Do not rewrite the HarmonyOS client in Flutter.
 
@@ -28,3 +29,10 @@ platform 35.
 `shouldInterceptRequest` matches precompiled `{host,path}` rules from
 `core/rules/android-network.json`. It does not run EasyList on the UI thread.
 Allow-listed page hosts skip blocking for that tab, matching Harmony `rawHost`.
+
+## Library
+
+Bookmarks, history, and address-bar suggestions follow `core/src/library-policy.mjs`.
+Private tabs never record visits or persist session. Share uses
+`Intent.ACTION_SEND`. Reader, find-in-page, desktop UA, downloads, and site
+permissions are not in this shell yet.
