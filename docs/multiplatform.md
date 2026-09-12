@@ -1,0 +1,35 @@
+# Multi-platform architecture
+
+Zhuoyue Browser is a HarmonyOS NEXT product on ArkWeb. iOS and Android are
+native shells that share scripts, rules, and contracts through `core/`.
+Harmony is not rewritten in Flutter.
+
+See `core/README.md` for the portable package and `core/spec/kernel.md` for
+the kernel method table.
+
+## Decision
+
+- Keep the shipping ArkTS client as the product source of truth.
+- Implement iOS with SwiftUI + `WKWebView`.
+- Implement Android with Jetpack Compose + system `WebView`.
+- Share injected JavaScript, EasyList compilation, design tokens, and model
+  JSON keys. Do not share UI widgets.
+
+Flutter-OH remains the right stack for other youdroid apps. It is the wrong
+stack for a browser kernel: `AdsBlockManager`, live-webview hibernation,
+multi-window, and downloads do not survive a PlatformView rewrite.
+
+## Phone V1 vs later
+
+The living matrix is `core/spec/phone-v1.json`. FEATURES.md labels the same
+buckets in prose. Harmony-only items (AdsBlockManager, specified windows,
+AGC IAP, HAP signing) stay in this repository's existing pipelines.
+
+## Sync rule
+
+`entry/src/main/ets/constants/AppConstants.ets` owns injected scripts.
+`cd core && npm run export-js:check` fails CI if `core/js/` drifts.
+Change the ArkTS constants, then regenerate the snapshot.
+
+The iOS shell is the sibling directory `../ZhuoBrowser-iOS`. Sync scripts with
+`./Scripts/sync-core.sh` there. Android is not scaffolded yet.

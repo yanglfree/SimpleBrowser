@@ -1,0 +1,11 @@
+{
+  "name": "zhuobrowser-core",
+  "private": true,
+  "type": "module",
+  "description": "Portable ZhuoBrowser scripts, rule compiler, and policy contracts. Harmony remains the product source of truth.",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "export-js": "node src/export-js.mjs",
+    "export-js:check": "node src/export-js.mjs --check"
+  }
+}

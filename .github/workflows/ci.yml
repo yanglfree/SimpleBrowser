@@ -78,7 +78,11 @@ jobs:
           git log -1 --check --format=
 
       - name: Run browser regression tests
-        run: node --test scripts/*.test.mjs
+        run: |
+          set -euo pipefail
+          node --test scripts/*.test.mjs
+          node --test core/test/*.test.mjs
+          node core/src/export-js.mjs --check
 
       - name: Validate mobile distribution Worker
         working-directory: cloudflare/mobile-distribution

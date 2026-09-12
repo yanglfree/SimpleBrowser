@@ -10,6 +10,21 @@ Organized by user-facing domain; each entry names the primary implementation
 location. See `DESIGN.md` for the interaction/visual contract of chrome components
 and `README.md` for the V1 scope boundary.
 
+## Multi-platform scope
+
+HarmonyOS remains the shipping client. iOS and Android are separate native
+shells that consume `core/` (scripts, rule compilation, model keys). They do
+not share UI. Machine-readable buckets live in `core/spec/phone-v1.json`.
+
+| Bucket | Meaning | Examples |
+|---|---|---|
+| **Phone V1** | Compact browsing chrome every new client must match | Tabs, private tabs, live-webview budget, omni-bar, start page, blocking + cosmetic hide, reader, find-in-page, downloads, bookmarks, history, settings, site permissions |
+| **Deferred** | Exists on Harmony; port after Phone V1 | Split panes, specified multi-window, fold crease, desktop tab strip, sidebar, default-browser, IAP / article library |
+| **Harmony-only** | Tied to ArkWeb, AGC, or this repo's signing pipeline | `AdsBlockManager`, specified `windowToken` windows, Harmony IAPKit, HAP signing, specified-device delivery |
+
+Account sync, extensions, VPN/DNS filtering, and a signed EasyList subscription
+service stay out of scope on every platform (`README.md`).
+
 ## 1. Tabs & sessions
 
 - Multiple tabs, each with its own `webview.WebviewController`; only a bounded

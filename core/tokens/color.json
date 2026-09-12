@@ -1,0 +1,25 @@
+{
+  "source": "DESIGN.md plus entry/src/main/resources/{base,dark}/element/color.json",
+  "light": {
+    "page_background": "#FAF9F7",
+    "surface_panel": "#FFFFFF",
+    "surface_subtle": "#F1EFEA",
+    "text_primary": "#1A1A18",
+    "text_secondary": "#8B877F",
+    "border": "#E5E2DB",
+    "accent": "#2E6B5C",
+    "accent_strong": "#2E6B5C",
+    "danger": "#B3483B"
+  },
+  "dark": {
+    "page_background": "#131311",
+    "surface_panel": "#1D1D1A",
+    "surface_subtle": "#26251F",
+    "text_primary": "#F5F3EE",
+    "text_secondary": "#8B877F",
+    "border": "#26251F",
+    "accent": "#2E6B5C",
+    "accent_strong": "#84A794",
+    "danger": "#B3483B"
+  }
+}

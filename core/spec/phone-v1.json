@@ -1,0 +1,42 @@
+{
+  "phoneV1": [
+    "tabs",
+    "privateTabs",
+    "tabOverview",
+    "liveWebViewBudget",
+    "omniBar",
+    "addressSheet",
+    "searchEngines",
+    "startPage",
+    "blocking",
+    "cosmeticHiding",
+    "reader",
+    "findInPage",
+    "downloads",
+    "bookmarks",
+    "history",
+    "settings",
+    "sitePermissions",
+    "share",
+    "errorPages"
+  ],
+  "deferred": [
+    "splitPanes",
+    "multiWindow",
+    "foldCrease",
+    "desktopTabStrip",
+    "browserSidebar",
+    "defaultBrowser",
+    "iap",
+    "articleLibrary",
+    "accountSync",
+    "extensions"
+  ],
+  "harmonyOnly": [
+    "adsBlockManager",
+    "specifiedWindows",
+    "agcIap",
+    "hapSigning",
+    "specifiedDeviceDelivery"
+  ]
+}
