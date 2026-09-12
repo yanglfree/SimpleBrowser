@@ -10,6 +10,7 @@ struct QuickSite: Identifiable {
 
 struct NativeHomeView: View {
     let onOpen: (String) -> Void
+    var onSettings: () -> Void = {}
 
     private let sites: [QuickSite] = [
         QuickSite(id: "zhihu", title: "知乎", url: "https://www.zhihu.com", badge: "知", color: Color(red: 0.15, green: 0.39, blue: 0.92)),
@@ -22,13 +23,23 @@ struct NativeHomeView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("卓阅")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(DesignTokens.textPrimary)
-                Text("干净、克制的阅读浏览器")
-                    .font(.system(size: 15))
-                    .foregroundStyle(DesignTokens.textSecondary)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("卓阅")
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(DesignTokens.textPrimary)
+                    Text("干净、克制的阅读浏览器")
+                        .font(.system(size: 15))
+                        .foregroundStyle(DesignTokens.textSecondary)
+                }
+                Spacer()
+                Button(action: onSettings) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(DesignTokens.textPrimary)
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityIdentifier("home-settings")
             }
             .padding(.horizontal, 24)
             .padding(.top, 32)

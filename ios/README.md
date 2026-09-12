@@ -30,5 +30,7 @@ In:
 - Document-start/end scripts from `core/js`
 - Reader mode (shared extraction core), find-in-page, desktop UA
 
-Out until later milestones: downloads, IAP, default-browser entitlement,
-per-site allow-list UI.
+- Settings (search engine, blocking toggle, clear site data)
+- Share the current page and download attachments via `WKDownload`
+
+Out until later milestones: IAP, default-browser entitlement, per-site allow-list UI.

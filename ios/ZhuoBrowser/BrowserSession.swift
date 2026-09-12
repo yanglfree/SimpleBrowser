@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import SwiftUI
 import WebKit
@@ -12,9 +13,16 @@ final class BrowserSession: ObservableObject {
     @Published var findTotal = 0
     @Published var readerSettings = ReaderSettings()
     @Published var notice: String?
+    @Published var settings = BrowserSettings()
+    @Published var showsSettings = false
+    @Published var showsDownloads = false
+    @Published var showsShare = false
+    @Published var shareItems: [Any] = []
+    let downloads = DownloadStore()
 
     private var controllers: [String: TabController] = [:]
     private var privateStore = WKWebsiteDataStore.nonPersistent()
+    private var cancellables: Set<AnyCancellable> = []
     private let defaultsKey = "browser_session"
 
     var activeTab: BrowserTab? {
@@ -39,6 +47,13 @@ final class BrowserSession: ObservableObject {
         }
         ContentBlocker.shared.prepare()
         readerSettings = Self.loadReaderSettings()
+        settings = Self.loadSettings()
+        downloads.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
         ensureLive(activeTabID)
     }
 
@@ -54,7 +69,7 @@ final class BrowserSession: ObservableObject {
     }
 
     func openInActiveTab(_ raw: String) {
-        let address = URLPolicy.normalizeAddress(raw)
+        let address = URLPolicy.normalizeAddress(raw, engine: settings.searchEngine)
         update(tabID: activeTabID) { tab in
             tab.url = address
             tab.lastVisitedAt = Date().timeIntervalSince1970
@@ -263,6 +278,52 @@ final class BrowserSession: ObservableObject {
         findTotal = 0
     }
 
+    func setSearchEngine(_ engine: SearchEngine) {
+        settings.searchEngine = engine
+        persistSettings()
+    }
+
+    func setBlockAds(_ enabled: Bool) {
+        settings.blockAds = enabled
+        persistSettings()
+        controllers.values.forEach { $0.applyContentBlocker() }
+    }
+
+    func shareCurrentPage() {
+        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url) else {
+            return
+        }
+        var items: [Any] = []
+        if let url = URL(string: tab.url) {
+            items.append(url)
+        } else {
+            items.append(tab.url)
+        }
+        if !tab.title.isEmpty {
+            items.insert(tab.title, at: 0)
+        }
+        shareItems = items
+        showsShare = true
+    }
+
+    func clearBrowsingData() {
+        let store = WKWebsiteDataStore.default()
+        store.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
+            store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), for: records) {
+                DispatchQueue.main.async {
+                    self.flash("已清除浏览数据")
+                }
+            }
+        }
+        privateStore = WKWebsiteDataStore.nonPersistent()
+    }
+
+    func persistSettings() {
+        if let data = try? JSONEncoder().encode(settings) {
+            UserDefaults.standard.set(data, forKey: "browser_settings")
+        }
+    }
+
     func flash(_ message: String) {
         notice = message
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
@@ -279,6 +340,7 @@ final class BrowserSession: ObservableObject {
     }
 
     func persist() {
+        persistSettings()
         persistReaderSettings()
         let persistable = SessionPolicy.persistableTabs(tabs).map { tab -> BrowserTab in
             var copy = tab
@@ -345,6 +407,14 @@ final class BrowserSession: ObservableObject {
         }
         let active = tabs.contains(where: { $0.id == payload.activeTabID }) ? payload.activeTabID : tabs[0].id
         return (tabs, active)
+    }
+
+    private static func loadSettings() -> BrowserSettings {
+        guard let data = UserDefaults.standard.data(forKey: "browser_settings"),
+              let settings = try? JSONDecoder().decode(BrowserSettings.self, from: data) else {
+            return BrowserSettings()
+        }
+        return settings
     }
 
     private static func loadReaderSettings() -> ReaderSettings {

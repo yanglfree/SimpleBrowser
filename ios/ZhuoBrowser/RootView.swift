@@ -38,6 +38,17 @@ struct RootView: View {
         }
         .background(pageBackground)
         .environmentObject(session)
+        .sheet(isPresented: $session.showsSettings) {
+            SettingsSheet()
+                .environmentObject(session)
+        }
+        .sheet(isPresented: $session.showsDownloads) {
+            DownloadSheet()
+                .environmentObject(session)
+        }
+        .sheet(isPresented: $session.showsShare) {
+            ShareSheet(items: session.shareItems)
+        }
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
         }
@@ -59,9 +70,14 @@ struct RootView: View {
     @ViewBuilder
     private var pageBody: some View {
         if URLPolicy.isHomeURL(session.activeTab?.url ?? URLPolicy.homeURL) {
-            NativeHomeView { url in
-                session.openInActiveTab(url)
-            }
+            NativeHomeView(
+                onOpen: { url in
+                    session.openInActiveTab(url)
+                },
+                onSettings: {
+                    session.showsSettings = true
+                }
+            )
         } else if let controller = session.activeController {
             BrowserWebView(webView: controller.webView)
         } else {
@@ -148,13 +164,22 @@ struct RootView: View {
                 session.toggleDesktop()
             }
             .disabled(!browsing)
+            Button("分享") {
+                session.shareCurrentPage()
+            }
+            .disabled(!browsing)
+            Button("下载") {
+                session.showsDownloads = true
+            }
+            Button("设置") {
+                session.showsSettings = true
+            }
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(browsing ? DesignTokens.textPrimary : DesignTokens.textSecondary)
+                .foregroundStyle(DesignTokens.textPrimary)
                 .frame(width: 32, height: 36)
         }
-        .disabled(!browsing)
         .accessibilityIdentifier("page-actions")
     }
 

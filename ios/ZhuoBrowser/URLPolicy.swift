@@ -1,6 +1,6 @@
 import Foundation
 
-enum SearchEngine: Int {
+enum SearchEngine: Int, Codable {
     case bing = 0
     case baidu = 1
     case google = 2

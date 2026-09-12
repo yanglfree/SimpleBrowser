@@ -36,4 +36,5 @@ Layout: `ohos/` Harmony client, `ios/` SwiftUI shell, `android/` placeholder,
 `ios/Scripts/sync-core.sh`. iOS Phone V1 now compiles `core/rules` into
 `WKContentRuleList`, keeps private tabs on a non-persistent data store, and
 hibernates webviews beyond the live-tab budget. Reader mode, find-in-page, and
-desktop UA are available from the address-bar action menu.
+desktop UA are available from the address-bar action menu. Settings, sharing,
+and `WKDownload` attachments are in this shell as well.

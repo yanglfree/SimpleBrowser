@@ -11,7 +11,11 @@ final class TabController: NSObject, WKNavigationDelegate {
     init(tab: BrowserTab, session: BrowserSession, dataStore: WKWebsiteDataStore) {
         self.id = tab.id
         self.isPrivate = tab.isPrivate
-        let configuration = WebKernel.makeConfiguration(isPrivate: tab.isPrivate, dataStore: dataStore)
+        let configuration = WebKernel.makeConfiguration(
+            isPrivate: tab.isPrivate,
+            dataStore: dataStore,
+            blockAds: session.settings.blockAds
+        )
         self.installedRuleLists = WebKernel.installedRuleLists(from: configuration)
         self.webView = WKWebView(frame: .zero, configuration: configuration)
         self.session = session
@@ -26,7 +30,7 @@ final class TabController: NSObject, WKNavigationDelegate {
     }
 
     func load(_ raw: String, rewriteDesktop: Bool = true) {
-        var address = URLPolicy.normalizeAddress(raw)
+        var address = URLPolicy.normalizeAddress(raw, engine: session?.settings.searchEngine ?? .bing)
         let desktop = session?.tab(id)?.isDesktop == true
         if rewriteDesktop && desktop {
             address = URLPolicy.desktopURL(for: address)
@@ -134,8 +138,15 @@ final class TabController: NSObject, WKNavigationDelegate {
     }
 
     func applyContentBlocker() {
+        let controller = webView.configuration.userContentController
+        if session?.settings.blockAds != true {
+            controller.removeAllContentRuleLists()
+            installedRuleLists = []
+            WebKernel.storeInstalledRuleLists([], on: webView.configuration)
+            return
+        }
         var installed = installedRuleLists
-        ContentBlocker.shared.install(on: webView.configuration.userContentController, installed: &installed)
+        ContentBlocker.shared.install(on: controller, installed: &installed)
         installedRuleLists = installed
         WebKernel.storeInstalledRuleLists(installed, on: webView.configuration)
     }
@@ -156,6 +167,28 @@ final class TabController: NSObject, WKNavigationDelegate {
             }
         }
         decisionHandler(.allow)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationResponse: WKNavigationResponse,
+        decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
+    ) {
+        if Self.shouldDownload(navigationResponse) {
+            decisionHandler(.download)
+            return
+        }
+        decisionHandler(.allow)
+    }
+
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        session?.downloads.begin(download, sourceURL: navigationResponse.response.url?.absoluteString ?? "")
+        session?.flash("已开始下载")
+    }
+
+    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+        session?.downloads.begin(download, sourceURL: navigationAction.request.url?.absoluteString ?? "")
+        session?.flash("已开始下载")
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -204,6 +237,17 @@ final class TabController: NSObject, WKNavigationDelegate {
         session?.update(tabID: id) { tab in
             tab.isLoading = false
         }
+    }
+
+    private static func shouldDownload(_ response: WKNavigationResponse) -> Bool {
+        if !response.canShowMIMEType {
+            return true
+        }
+        guard let http = response.response as? HTTPURLResponse else {
+            return false
+        }
+        let disposition = http.value(forHTTPHeaderField: "Content-Disposition")?.lowercased() ?? ""
+        return disposition.contains("attachment")
     }
 
     private static func jsonObject(from result: Any?) -> [String: Any]? {

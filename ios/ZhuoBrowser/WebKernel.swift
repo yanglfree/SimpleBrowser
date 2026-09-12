@@ -17,7 +17,7 @@ enum WebKernel {
         "force-zoom"
     ]
 
-    static func makeConfiguration(isPrivate: Bool, dataStore: WKWebsiteDataStore) -> WKWebViewConfiguration {
+    static func makeConfiguration(isPrivate: Bool, dataStore: WKWebsiteDataStore, blockAds: Bool) -> WKWebViewConfiguration {
         let configuration = WKWebViewConfiguration()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.websiteDataStore = isPrivate ? dataStore : .default()
@@ -38,7 +38,9 @@ enum WebKernel {
             }
         }
         var installed = Set<String>()
-        ContentBlocker.shared.install(on: controller, installed: &installed)
+        if blockAds {
+            ContentBlocker.shared.install(on: controller, installed: &installed)
+        }
         objc_setAssociatedObject(
             configuration,
             &AssociatedKeys.installedRuleLists,
