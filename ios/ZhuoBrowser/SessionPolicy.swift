@@ -8,6 +8,10 @@ enum SessionPolicy {
         tabs.filter { !$0.isPrivate }
     }
 
+    static func shouldRecordHistory(_ isPrivate: Bool) -> Bool {
+        isPrivate != true
+    }
+
     static func liveTabIDs(tabs: [BrowserTab], activeTabID: String, limit: Int) -> [String] {
         let bounded = max(1, limit)
         var ids: [String] = []

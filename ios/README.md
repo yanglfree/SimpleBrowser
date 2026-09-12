@@ -32,5 +32,6 @@ In:
 
 - Settings (search engine, blocking toggle, clear site data)
 - Share the current page and download attachments via `WKDownload`
+- Bookmarks, history, and address-bar suggestions (private tabs never record)
 
 Out until later milestones: IAP, default-browser entitlement, per-site allow-list UI.

@@ -6,6 +6,9 @@ export const DESKTOP_USER_AGENT =
   '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 export const MAX_TAB_COUNT = 100;
+export const MAX_HISTORY_COUNT = 300;
+export const MAX_BOOKMARK_COUNT = 200;
+export const MAX_SUGGESTION_COUNT = 6;
 export const LIVE_WEBVIEW_LIMIT_DEFAULT = 4;
 
 export const SearchEngine = Object.freeze({

@@ -34,6 +34,24 @@ struct SettingsSheet: View {
                     .accessibilityIdentifier("settings-block-ads")
                 }
 
+                Section("地址栏") {
+                    Toggle(isOn: searchSuggestionsBinding) {
+                        Text("显示搜索建议")
+                    }
+                    .tint(DesignTokens.accent)
+                    .accessibilityIdentifier("settings-search-suggestions")
+                }
+
+                Section("书签与历史") {
+                    Button("书签与历史") {
+                        session.showsSettings = false
+                        DispatchQueue.main.async {
+                            session.openLibrary(.bookmarks)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-library")
+                }
+
                 Section("下载") {
                     Button("下载内容") {
                         session.showsSettings = false
@@ -63,6 +81,13 @@ struct SettingsSheet: View {
             }
         }
         .accessibilityIdentifier("settings-sheet")
+    }
+
+    private var searchSuggestionsBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.searchSuggestionsEnabled },
+            set: { session.setSearchSuggestionsEnabled($0) }
+        )
     }
 
     private var blockAdsBinding: Binding<Bool> {

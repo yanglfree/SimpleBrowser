@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @StateObject private var session = BrowserSession()
     @State private var addressText = ""
+    @FocusState private var addressFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -15,6 +16,13 @@ struct RootView: View {
             }
             ZStack {
                 pageBody
+                if addressFocused && !session.showsOverview {
+                    SuggestionList(suggestions: session.suggestions(for: addressText)) { item in
+                        addressFocused = false
+                        addressText = displayAddress(item.url)
+                        session.openInActiveTab(item.url)
+                    }
+                }
                 if session.showsOverview {
                     TabOverview()
                 }
@@ -49,6 +57,10 @@ struct RootView: View {
         .sheet(isPresented: $session.showsShare) {
             ShareSheet(items: session.shareItems)
         }
+        .sheet(isPresented: $session.showsLibrary) {
+            LibrarySheet()
+                .environmentObject(session)
+        }
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
         }
@@ -56,7 +68,9 @@ struct RootView: View {
             addressText = displayAddress(session.activeTab?.url ?? "")
         }
         .onChange(of: session.activeTab?.url) { _, newValue in
-            addressText = displayAddress(newValue ?? "")
+            if !addressFocused {
+                addressText = displayAddress(newValue ?? "")
+            }
         }
     }
 
@@ -76,6 +90,12 @@ struct RootView: View {
                 },
                 onSettings: {
                     session.showsSettings = true
+                },
+                onBookmarks: {
+                    session.openLibrary(.bookmarks)
+                },
+                onHistory: {
+                    session.openLibrary(.history)
                 }
             )
         } else if let controller = session.activeController {
@@ -107,8 +127,10 @@ struct RootView: View {
                 .padding(.horizontal, 12)
                 .frame(height: 36)
                 .background(DesignTokens.surfaceSubtle, in: Capsule())
+                .focused($addressFocused)
                 .accessibilityIdentifier("omni-field")
                 .onSubmit {
+                    addressFocused = false
                     session.openInActiveTab(addressText)
                 }
 
@@ -164,6 +186,13 @@ struct RootView: View {
                 session.toggleDesktop()
             }
             .disabled(!browsing)
+            Button(session.isCurrentPageSaved() ? "取消书签" : "加入书签") {
+                session.toggleSaved()
+            }
+            .disabled(!browsing)
+            Button("书签与历史") {
+                session.openLibrary(.bookmarks)
+            }
             Button("分享") {
                 session.shareCurrentPage()
             }

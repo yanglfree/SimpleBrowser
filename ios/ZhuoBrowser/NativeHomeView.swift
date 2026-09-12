@@ -11,6 +11,8 @@ struct QuickSite: Identifiable {
 struct NativeHomeView: View {
     let onOpen: (String) -> Void
     var onSettings: () -> Void = {}
+    var onBookmarks: () -> Void = {}
+    var onHistory: () -> Void = {}
 
     private let sites: [QuickSite] = [
         QuickSite(id: "zhihu", title: "知乎", url: "https://www.zhihu.com", badge: "知", color: Color(red: 0.15, green: 0.39, blue: 0.92)),
@@ -33,13 +35,29 @@ struct NativeHomeView: View {
                         .foregroundStyle(DesignTokens.textSecondary)
                 }
                 Spacer()
-                Button(action: onSettings) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(DesignTokens.textPrimary)
-                        .frame(width: 44, height: 44)
+                HStack(spacing: 4) {
+                    Button(action: onBookmarks) {
+                        Image(systemName: "bookmark")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(DesignTokens.textPrimary)
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityIdentifier("home-bookmarks")
+                    Button(action: onHistory) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(DesignTokens.textPrimary)
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityIdentifier("home-history")
+                    Button(action: onSettings) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(DesignTokens.textPrimary)
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityIdentifier("home-settings")
                 }
-                .accessibilityIdentifier("home-settings")
             }
             .padding(.horizontal, 24)
             .padding(.top, 32)

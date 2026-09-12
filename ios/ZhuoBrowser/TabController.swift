@@ -224,6 +224,9 @@ final class TabController: NSObject, WKNavigationDelegate {
                 }
             }
         }
+        if let tab = session?.tab(id) {
+            session?.recordVisit(of: tab)
+        }
         session?.persist()
     }
 

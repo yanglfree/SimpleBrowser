@@ -91,7 +91,7 @@ enum URLPolicy {
         return searchEndpoints[0]
     }
 
-    private static func searchURL(_ query: String, engine: SearchEngine) -> String {
+    static func searchURL(_ query: String, engine: SearchEngine) -> String {
         let value = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let parts = value.split { $0.isWhitespace }.map(String.init)
         var resolved = engine

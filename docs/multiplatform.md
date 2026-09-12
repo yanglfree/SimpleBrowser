@@ -37,4 +37,6 @@ Layout: `ohos/` Harmony client, `ios/` SwiftUI shell, `android/` placeholder,
 `WKContentRuleList`, keeps private tabs on a non-persistent data store, and
 hibernates webviews beyond the live-tab budget. Reader mode, find-in-page, and
 desktop UA are available from the address-bar action menu. Settings, sharing,
-and `WKDownload` attachments are in this shell as well.
+and `WKDownload` attachments are in this shell as well. Bookmarks, history, and
+omni suggestions follow the shared `core` library policy; private tabs never
+write those records.

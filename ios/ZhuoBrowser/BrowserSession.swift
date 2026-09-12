@@ -18,6 +18,10 @@ final class BrowserSession: ObservableObject {
     @Published var showsDownloads = false
     @Published var showsShare = false
     @Published var shareItems: [Any] = []
+    @Published var showsLibrary = false
+    @Published var libraryTab: LibraryTab = .bookmarks
+    @Published var history: [HistoryEntry] = []
+    @Published var savedItems: [SavedItem] = []
     let downloads = DownloadStore()
 
     private var controllers: [String: TabController] = [:]
@@ -48,6 +52,8 @@ final class BrowserSession: ObservableObject {
         ContentBlocker.shared.prepare()
         readerSettings = Self.loadReaderSettings()
         settings = Self.loadSettings()
+        history = Self.loadHistory()
+        savedItems = Self.loadSavedItems()
         downloads.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -87,6 +93,82 @@ final class BrowserSession: ObservableObject {
             trimLive()
         }
         persist()
+    }
+
+    func recordVisit(of tab: BrowserTab) {
+        guard SessionPolicy.shouldRecordHistory(tab.isPrivate), !URLPolicy.isHomeURL(tab.url) else {
+            return
+        }
+        let title = tab.title.isEmpty ? URLPolicy.displayHost(tab.url) : tab.title
+        history = LibraryPolicy.recordHistory(
+            history,
+            entry: HistoryEntry(
+                id: "history-\(Int(Date().timeIntervalSince1970 * 1000))",
+                title: title,
+                url: tab.url,
+                visitedAt: Date().timeIntervalSince1970,
+                visitCount: 0
+            )
+        )
+        persistLibrary()
+    }
+
+    func isCurrentPageSaved() -> Bool {
+        guard let tab = activeTab else {
+            return false
+        }
+        return LibraryPolicy.isSaved(savedItems, url: tab.url)
+    }
+
+    func toggleSaved() {
+        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url) else {
+            return
+        }
+        if let existing = savedItems.first(where: { $0.url == tab.url }) {
+            savedItems = LibraryPolicy.removeSavedItem(savedItems, id: existing.id)
+            flash("已取消书签")
+        } else {
+            let now = Date().timeIntervalSince1970
+            let title = tab.title.isEmpty ? URLPolicy.displayHost(tab.url) : tab.title
+            savedItems = LibraryPolicy.addSavedItem(
+                savedItems,
+                item: SavedItem(
+                    id: "saved-\(Int(now * 1000))",
+                    title: title,
+                    url: tab.url,
+                    createdAt: now,
+                    updatedAt: now
+                )
+            )
+            flash("已加入书签")
+        }
+        persistLibrary()
+    }
+
+    func removeSavedItems(at offsets: IndexSet) {
+        let ids = offsets.compactMap { savedItems.indices.contains($0) ? savedItems[$0].id : nil }
+        savedItems = savedItems.filter { !ids.contains($0.id) }
+        persistLibrary()
+    }
+
+    func removeHistory(at offsets: IndexSet) {
+        let ids = offsets.compactMap { history.indices.contains($0) ? history[$0].id : nil }
+        history = history.filter { !ids.contains($0.id) }
+        persistLibrary()
+    }
+
+    func suggestions(for query: String) -> [AddressSuggestion] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let search = URLPolicy.looksLikeURL(trimmed)
+            ? ""
+            : URLPolicy.searchURL(trimmed, engine: settings.searchEngine)
+        return LibraryPolicy.suggestions(
+            query: query,
+            history: history,
+            savedItems: savedItems,
+            searchSuggestionsEnabled: settings.searchSuggestionsEnabled && !URLPolicy.looksLikeURL(trimmed),
+            searchURL: search
+        )
     }
 
     func goBack() {
@@ -283,6 +365,16 @@ final class BrowserSession: ObservableObject {
         persistSettings()
     }
 
+    func openLibrary(_ tab: LibraryTab) {
+        libraryTab = tab
+        showsLibrary = true
+    }
+
+    func setSearchSuggestionsEnabled(_ enabled: Bool) {
+        settings.searchSuggestionsEnabled = enabled
+        persistSettings()
+    }
+
     func setBlockAds(_ enabled: Bool) {
         settings.blockAds = enabled
         persistSettings()
@@ -316,6 +408,8 @@ final class BrowserSession: ObservableObject {
             }
         }
         privateStore = WKWebsiteDataStore.nonPersistent()
+        history = []
+        persistLibrary()
     }
 
     func persistSettings() {
@@ -339,9 +433,19 @@ final class BrowserSession: ObservableObject {
         }
     }
 
+    func persistLibrary() {
+        if let historyData = try? JSONEncoder().encode(history) {
+            UserDefaults.standard.set(historyData, forKey: "browser_history")
+        }
+        if let savedData = try? JSONEncoder().encode(savedItems) {
+            UserDefaults.standard.set(savedData, forKey: "browser_saved_items")
+        }
+    }
+
     func persist() {
         persistSettings()
         persistReaderSettings()
+        persistLibrary()
         let persistable = SessionPolicy.persistableTabs(tabs).map { tab -> BrowserTab in
             var copy = tab
             copy.isLoading = false
@@ -407,6 +511,22 @@ final class BrowserSession: ObservableObject {
         }
         let active = tabs.contains(where: { $0.id == payload.activeTabID }) ? payload.activeTabID : tabs[0].id
         return (tabs, active)
+    }
+
+    private static func loadHistory() -> [HistoryEntry] {
+        guard let data = UserDefaults.standard.data(forKey: "browser_history"),
+              let items = try? JSONDecoder().decode([HistoryEntry].self, from: data) else {
+            return []
+        }
+        return items
+    }
+
+    private static func loadSavedItems() -> [SavedItem] {
+        guard let data = UserDefaults.standard.data(forKey: "browser_saved_items"),
+              let items = try? JSONDecoder().decode([SavedItem].self, from: data) else {
+            return []
+        }
+        return items
     }
 
     private static func loadSettings() -> BrowserSettings {
