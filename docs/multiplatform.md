@@ -51,5 +51,6 @@ per-site allow-list, bookmarks, history, omni suggestions from the shared
 `core` library policy, and `Intent.ACTION_SEND` sharing. Private tabs never
 write those records. Reader mode, find-in-page, and desktop UA are available
 from the address-bar action menu. Attachment downloads use `DownloadListener`
-and app-private storage with `FileProvider` sharing. Site permissions are
-still ahead of this shell.
+and app-private storage with `FileProvider` sharing. Camera, microphone, and
+location use an in-app confirmation first, then the system permission prompt;
+private tabs do not persist those decisions.

@@ -2,6 +2,8 @@ package com.youdroid.zhuobrowser.ui
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -48,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -70,9 +73,12 @@ import com.youdroid.zhuobrowser.session.DownloadStatus
 import com.youdroid.zhuobrowser.session.DownloadTask
 import com.youdroid.zhuobrowser.session.HistoryEntry
 import com.youdroid.zhuobrowser.session.LibraryTab
+import com.youdroid.zhuobrowser.session.PermissionPrompt
 import com.youdroid.zhuobrowser.session.ReaderPaper
 import com.youdroid.zhuobrowser.session.ReaderTheme
 import com.youdroid.zhuobrowser.session.SavedItem
+import com.youdroid.zhuobrowser.session.SitePermission
+import com.youdroid.zhuobrowser.session.SitePermissionPolicy
 import com.youdroid.zhuobrowser.session.SuggestionKind
 import com.youdroid.zhuobrowser.web.BrowserWebView
 import kotlinx.coroutines.delay
@@ -100,9 +106,25 @@ fun BrowserScreen(session: BrowserSession) {
         }
     }
 
+    val osPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        session.onOsPermissionResult(grants)
+    }
+    LaunchedEffect(state.osPermissionsToRequest) {
+        val permissions = state.osPermissionsToRequest
+        if (permissions.isNotEmpty()) {
+            osPermissionLauncher.launch(permissions.toTypedArray())
+        }
+    }
+
     val overlayOpen = state.showsSettings || state.showsLibrary || state.showsOverview || state.showsDownloads
-    BackHandler(enabled = state.showsFind || overlayOpen || (tab != null && !UrlPolicy.isHomeUrl(tab.url))) {
+    BackHandler(
+        enabled = state.permissionPrompt != null || state.showsFind || overlayOpen ||
+            (tab != null && !UrlPolicy.isHomeUrl(tab.url))
+    ) {
         when {
+            state.permissionPrompt != null -> session.denyPermission()
             state.showsFind -> session.endFind()
             state.showsDownloads -> session.setShowsDownloads(false)
             state.showsLibrary -> session.setShowsLibrary(false)
@@ -237,6 +259,13 @@ fun BrowserScreen(session: BrowserSession) {
                         .clip(RoundedCornerShape(20.dp))
                         .background(Tokens.surfacePanel)
                         .padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+            }
+            state.permissionPrompt?.let { prompt ->
+                PermissionDialog(
+                    prompt = prompt,
+                    onAllow = { session.allowPermission() },
+                    onDeny = { session.denyPermission() }
                 )
             }
         }
@@ -872,6 +901,13 @@ private fun SettingsPane(session: BrowserSession) {
                 colors = SwitchDefaults.colors(checkedTrackColor = Tokens.accent)
             )
         }
+        if (state.sitePermissions.isNotEmpty()) {
+            HorizontalDivider(color = Tokens.border)
+            Text("网站权限", color = Tokens.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp))
+            state.sitePermissions.forEach { entry ->
+                SitePermissionRow(entry = entry, onRemove = { session.removeSitePermission(entry.origin) })
+            }
+        }
         HorizontalDivider(color = Tokens.border)
         Text(
             text = "书签与历史",
@@ -894,6 +930,98 @@ private fun SettingsPane(session: BrowserSession) {
             Text("已允许的站点", color = Tokens.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp))
             state.allowedHosts.forEach { host ->
                 Text(host, color = Tokens.textPrimary, modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SitePermissionRow(entry: SitePermission, onRemove: () -> Unit) {
+    val summary = SitePermissionPolicy.summary(entry)
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(entry.origin, color = Tokens.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (summary.isNotEmpty()) {
+                Text(summary, fontSize = 12.sp, color = Tokens.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Text("×", color = Tokens.textSecondary, modifier = Modifier.clickable(onClick = onRemove).padding(8.dp))
+    }
+}
+
+@Composable
+private fun PermissionDialog(
+    prompt: PermissionPrompt,
+    onAllow: () -> Unit,
+    onDeny: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x52000000))
+            .clickable(onClick = onDeny),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Tokens.surfacePanel)
+                .clickable(onClick = {})
+                .padding(20.dp)
+        ) {
+            Text("网站权限", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = Tokens.textPrimary)
+            Text(
+                text = prompt.origin,
+                fontSize = 14.sp,
+                color = Tokens.accent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            Text(
+                text = "该网站想使用下列功能。允许后才会向系统申请相应权限。",
+                fontSize = 14.sp,
+                color = Tokens.textSecondary,
+                modifier = Modifier.padding(top = 14.dp)
+            )
+            prompt.kinds.forEach { kind ->
+                Text(
+                    text = kind.label,
+                    fontSize = 15.sp,
+                    color = Tokens.textPrimary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .padding(bottom = 12.dp)
+                )
+                HorizontalDivider(color = Tokens.border)
+            }
+            Row(
+                modifier = Modifier.padding(top = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = onDeny,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Tokens.surfaceSubtle,
+                        contentColor = Tokens.textPrimary
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) { Text("拒绝") }
+                Button(
+                    onClick = onAllow,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Tokens.accent,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) { Text("允许") }
             }
         }
     }

@@ -10,7 +10,9 @@ suggestions, system share, reader mode (shared extraction core), find-in-page,
 and a desktop user-agent toggle, and attachment downloads into the app-private
 Downloads folder. Private tabs skip session restore and never
 write history or bookmarks; cookie isolation uses AndroidX WebView profiles
-when the WebView provider supports them.
+when the WebView provider supports them. Camera, microphone, and location use
+an in-app confirmation first, then the system permission prompt; private tabs
+do not persist those decisions.
 
 Do not rewrite the HarmonyOS client in Flutter.
 
@@ -39,5 +41,6 @@ Private tabs never record visits or persist session. Share uses
 `Intent.ACTION_SEND`. Reader mode injects `reader-extraction-core.js`; find uses
 the system `WebView` find APIs; desktop UA matches `core` `DESKTOP_USER_AGENT`
 and rewrites `m.weibo.cn`. `WebView` `DownloadListener` saves attachments into
-app-private storage and lists them for share via `FileProvider`. Site
-permissions are not in this shell yet.
+app-private storage and lists them for share via `FileProvider`. Per-origin
+camera, microphone, and location decisions (Prompt / Allow / Deny) match
+`core` site-permission policy.

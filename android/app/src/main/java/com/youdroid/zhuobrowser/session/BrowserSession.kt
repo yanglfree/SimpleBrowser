@@ -1,8 +1,11 @@
 package com.youdroid.zhuobrowser.session
 
+import android.Manifest
 import android.app.Application
 import android.content.Context
+import android.content.pm.PackageManager
 import android.webkit.WebView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.youdroid.zhuobrowser.policy.SearchEngine
@@ -35,6 +38,9 @@ data class BrowserUiState(
     val findCurrent: Int = 0,
     val findTotal: Int = 0,
     val showsDownloads: Boolean = false,
+    val sitePermissions: List<SitePermission> = emptyList(),
+    val permissionPrompt: PermissionPrompt? = null,
+    val osPermissionsToRequest: List<String> = emptyList(),
     val notice: String? = null
 ) {
     val activeTab: BrowserTab?
@@ -46,6 +52,7 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
     val downloads = DownloadStore(application)
     private val prefs = application.getSharedPreferences("zhuo", Context.MODE_PRIVATE)
     private val webViews = mutableMapOf<String, WebView>()
+    private var permissionReply: ((Boolean) -> Unit)? = null
     private val _state = MutableStateFlow(BrowserUiState())
     val state: StateFlow<BrowserUiState> = _state
 
@@ -70,6 +77,7 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
 
     fun detachWebView(id: String, webView: WebView) {
         if (webViews[id] !== webView) return
+        denyPermissionIfPending()
         webViews.remove(id)
         webView.stopLoading()
         webView.destroy()
@@ -144,6 +152,71 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
                 showsLibrary = false
             )
         }
+    }
+
+    fun requestSitePermission(
+        origin: String,
+        kinds: List<SitePermissionKind>,
+        persist: Boolean,
+        completion: (Boolean) -> Unit
+    ) {
+        if (origin.isEmpty() || kinds.isEmpty()) {
+            completion(false)
+            return
+        }
+        if (permissionReply != null) {
+            completion(false)
+            return
+        }
+        val stored = if (persist) _state.value.sitePermissions.firstOrNull { it.origin == origin } else null
+        when (SitePermissionPolicy.decision(stored, kinds)) {
+            SitePermissionDecision.Allow -> deliverPermission(kinds, completion)
+            SitePermissionDecision.Deny -> completion(false)
+            SitePermissionDecision.Prompt -> {
+                permissionReply = completion
+                _state.update {
+                    it.copy(permissionPrompt = PermissionPrompt(origin = origin, kinds = kinds, persist = persist))
+                }
+            }
+        }
+    }
+
+    fun allowPermission() {
+        completePermission(true)
+    }
+
+    fun denyPermission() {
+        completePermission(false)
+    }
+
+    fun denyPermissionIfPending() {
+        if (permissionReply != null) completePermission(false)
+    }
+
+    fun consumeOsPermissionRequest() {
+        _state.update { it.copy(osPermissionsToRequest = emptyList()) }
+    }
+
+    fun onOsPermissionResult(grants: Map<String, Boolean>) {
+        val cameraOk = grants[Manifest.permission.CAMERA] != false
+        val micOk = grants[Manifest.permission.RECORD_AUDIO] != false
+        val askedLocation = grants.containsKey(Manifest.permission.ACCESS_FINE_LOCATION) ||
+            grants.containsKey(Manifest.permission.ACCESS_COARSE_LOCATION)
+        val locationOk = if (!askedLocation) {
+            true
+        } else {
+            grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        }
+        val reply = permissionReply
+        permissionReply = null
+        _state.update { it.copy(osPermissionsToRequest = emptyList()) }
+        reply?.invoke(cameraOk && micOk && locationOk)
+    }
+
+    fun removeSitePermission(origin: String) {
+        _state.update { it.copy(sitePermissions = SitePermissionPolicy.remove(it.sitePermissions, origin)) }
+        persistSitePermissions()
     }
 
     fun beginDownload(url: String, userAgent: String, contentDisposition: String, mimeType: String) {
@@ -432,6 +505,81 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(notice = null) }
     }
 
+    private fun completePermission(allowed: Boolean) {
+        val prompt = _state.value.permissionPrompt ?: return
+        if (prompt.persist) {
+            _state.update {
+                it.copy(
+                    sitePermissions = SitePermissionPolicy.apply(
+                        it.sitePermissions,
+                        prompt.origin,
+                        prompt.kinds,
+                        if (allowed) SitePermissionDecision.Allow else SitePermissionDecision.Deny
+                    ),
+                    permissionPrompt = null
+                )
+            }
+            persistSitePermissions()
+        } else {
+            _state.update { it.copy(permissionPrompt = null) }
+        }
+        if (allowed) {
+            deliverPermission(prompt.kinds, permissionReply ?: return)
+        } else {
+            val reply = permissionReply
+            permissionReply = null
+            reply?.invoke(false)
+        }
+    }
+
+    private fun deliverPermission(kinds: List<SitePermissionKind>, completion: (Boolean) -> Unit) {
+        if (hasOsPermissions(kinds)) {
+            permissionReply = null
+            completion(true)
+            return
+        }
+        permissionReply = completion
+        _state.update { it.copy(osPermissionsToRequest = missingOsPermissions(kinds)) }
+    }
+
+    private fun hasOsPermissions(kinds: List<SitePermissionKind>): Boolean {
+        val app = getApplication<Application>()
+        fun granted(permission: String): Boolean =
+            ContextCompat.checkSelfPermission(app, permission) == PackageManager.PERMISSION_GRANTED
+        for (kind in kinds) {
+            val ok = when (kind) {
+                SitePermissionKind.Camera -> granted(Manifest.permission.CAMERA)
+                SitePermissionKind.Microphone -> granted(Manifest.permission.RECORD_AUDIO)
+                SitePermissionKind.Location ->
+                    granted(Manifest.permission.ACCESS_FINE_LOCATION) ||
+                        granted(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
+            if (!ok) return false
+        }
+        return true
+    }
+
+    private fun missingOsPermissions(kinds: List<SitePermissionKind>): List<String> {
+        val app = getApplication<Application>()
+        fun granted(permission: String): Boolean =
+            ContextCompat.checkSelfPermission(app, permission) == PackageManager.PERMISSION_GRANTED
+        val needed = mutableListOf<String>()
+        if (SitePermissionKind.Camera in kinds && !granted(Manifest.permission.CAMERA)) {
+            needed.add(Manifest.permission.CAMERA)
+        }
+        if (SitePermissionKind.Microphone in kinds && !granted(Manifest.permission.RECORD_AUDIO)) {
+            needed.add(Manifest.permission.RECORD_AUDIO)
+        }
+        if (SitePermissionKind.Location in kinds &&
+            !granted(Manifest.permission.ACCESS_FINE_LOCATION) &&
+            !granted(Manifest.permission.ACCESS_COARSE_LOCATION)
+        ) {
+            needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            needed.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+        return needed
+    }
+
     private fun updateActive(mutate: (BrowserTab) -> BrowserTab) {
         _state.update { current ->
             current.copy(
@@ -452,6 +600,7 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        denyPermissionIfPending()
         webViews.keys.toList().forEach { destroyWebView(it) }
         downloads.close()
         super.onCleared()
@@ -462,6 +611,7 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
         persistAllowList()
         persistLibrary()
         persistReaderSettings()
+        persistSitePermissions()
         val persistable = SessionPolicy.persistableTabs(_state.value.tabs)
         val active = if (persistable.any { it.id == _state.value.activeTabId }) {
             _state.value.activeTabId
@@ -500,6 +650,20 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
             .putInt("readerLineHeightIndex", settings.lineHeightIndex)
             .putInt("readerPaper", settings.paper.raw)
             .apply()
+    }
+
+    private fun persistSitePermissions() {
+        val array = JSONArray()
+        _state.value.sitePermissions.forEach { entry ->
+            array.put(
+                JSONObject()
+                    .put("origin", entry.origin)
+                    .put("camera", entry.camera.raw)
+                    .put("microphone", entry.microphone.raw)
+                    .put("location", entry.location.raw)
+            )
+        }
+        prefs.edit().putString("sitePermissions", array.toString()).apply()
     }
 
     private fun persistAllowList() {
@@ -548,6 +712,22 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
             lineHeightIndex = prefs.getInt("readerLineHeightIndex", 1),
             paper = ReaderPaper.fromRaw(prefs.getInt("readerPaper", ReaderPaper.Sepia.raw))
         )
+        val sitePermissions = runCatching {
+            val array = JSONArray(prefs.getString("sitePermissions", "[]"))
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    add(
+                        SitePermission(
+                            origin = obj.getString("origin"),
+                            camera = SitePermissionDecision.fromRaw(obj.optInt("camera")),
+                            microphone = SitePermissionDecision.fromRaw(obj.optInt("microphone")),
+                            location = SitePermissionDecision.fromRaw(obj.optInt("location"))
+                        )
+                    )
+                }
+            }
+        }.getOrDefault(emptyList())
         val allowed = runCatching {
             val array = JSONArray(prefs.getString("allowedHosts", "[]"))
             buildList {
@@ -612,6 +792,7 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
             activeTabId = prefs.getString("activeTabId", resolved.first().id) ?: resolved.first().id,
             settings = settings,
             allowedHosts = allowed,
+            sitePermissions = sitePermissions,
             history = history,
             savedItems = savedItems,
             readerSettings = readerSettings

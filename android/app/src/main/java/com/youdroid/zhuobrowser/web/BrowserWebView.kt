@@ -2,6 +2,8 @@ package com.youdroid.zhuobrowser.web
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.webkit.GeolocationPermissions
+import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -18,6 +20,8 @@ import androidx.webkit.WebViewFeature
 import com.youdroid.zhuobrowser.policy.UrlPolicy
 import com.youdroid.zhuobrowser.session.BrowserSession
 import com.youdroid.zhuobrowser.session.BrowserTab
+import com.youdroid.zhuobrowser.session.SitePermissionKind
+import com.youdroid.zhuobrowser.session.SitePermissionPolicy
 import java.io.ByteArrayInputStream
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -52,6 +56,7 @@ private fun createWebView(session: BrowserSession, tab: BrowserTab): WebView {
     webView.settings.domStorageEnabled = !tab.isPrivate
     webView.settings.cacheMode = if (tab.isPrivate) WebSettings.LOAD_NO_CACHE else WebSettings.LOAD_DEFAULT
     webView.settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+    webView.settings.setGeolocationEnabled(true)
     WebKernel.applyUserAgent(webView, tab.isDesktop)
     injectDocumentStartScripts(webView, assets)
     webView.setFindListener { active, total, done ->
@@ -112,6 +117,63 @@ private fun createWebView(session: BrowserSession, tab: BrowserTab): WebView {
     webView.webChromeClient = object : WebChromeClient() {
         override fun onReceivedTitle(view: WebView?, title: String?) {
             if (!title.isNullOrEmpty()) session.updateTab(tab.id, title = title)
+        }
+
+        override fun onPermissionRequest(request: PermissionRequest) {
+            val originUri = request.origin
+            val origin = SitePermissionPolicy.origin(
+                originUri?.scheme.orEmpty(),
+                originUri?.host.orEmpty(),
+                originUri?.port?.coerceAtLeast(0) ?: 0
+            )
+            val kinds = mutableListOf<SitePermissionKind>()
+            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE in request.resources) {
+                kinds.add(SitePermissionKind.Camera)
+            }
+            if (PermissionRequest.RESOURCE_AUDIO_CAPTURE in request.resources) {
+                kinds.add(SitePermissionKind.Microphone)
+            }
+            if (kinds.isEmpty()) {
+                request.deny()
+                return
+            }
+            session.requestSitePermission(origin, kinds, persist = !tab.isPrivate) { allowed ->
+                webView.post {
+                    if (!allowed) {
+                        request.deny()
+                        return@post
+                    }
+                    val granted = request.resources.filter { resource ->
+                        resource == PermissionRequest.RESOURCE_VIDEO_CAPTURE ||
+                            resource == PermissionRequest.RESOURCE_AUDIO_CAPTURE
+                    }
+                    if (granted.isEmpty()) request.deny() else request.grant(granted.toTypedArray())
+                }
+            }
+        }
+
+        override fun onPermissionRequestCanceled(request: PermissionRequest) {
+            session.denyPermissionIfPending()
+        }
+
+        override fun onGeolocationPermissionsShowPrompt(
+            origin: String,
+            callback: GeolocationPermissions.Callback
+        ) {
+            val resolved = SitePermissionPolicy.originFromUrl(origin).ifEmpty {
+                SitePermissionPolicy.originFromUrl(tab.url)
+            }
+            session.requestSitePermission(
+                resolved,
+                listOf(SitePermissionKind.Location),
+                persist = !tab.isPrivate
+            ) { allowed ->
+                webView.post { callback.invoke(origin, allowed, false) }
+            }
+        }
+
+        override fun onGeolocationPermissionsHidePrompt() {
+            session.denyPermissionIfPending()
         }
     }
     if (!UrlPolicy.isHomeUrl(tab.url)) {
