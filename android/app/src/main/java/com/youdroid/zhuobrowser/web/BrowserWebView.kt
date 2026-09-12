@@ -57,6 +57,9 @@ private fun createWebView(session: BrowserSession, tab: BrowserTab): WebView {
     webView.setFindListener { active, total, done ->
         if (done) session.onFindResult(active, total)
     }
+    webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
+        session.beginDownload(url, userAgent.orEmpty(), contentDisposition.orEmpty(), mimeType.orEmpty())
+    }
     webView.webViewClient = object : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val url = request.url.toString()

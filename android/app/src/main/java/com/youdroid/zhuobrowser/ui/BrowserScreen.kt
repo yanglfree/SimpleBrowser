@@ -66,6 +66,8 @@ import com.youdroid.zhuobrowser.session.AddressSuggestion
 import com.youdroid.zhuobrowser.session.AllowListPolicy
 import com.youdroid.zhuobrowser.session.BrowserSession
 import com.youdroid.zhuobrowser.session.BrowserTab
+import com.youdroid.zhuobrowser.session.DownloadStatus
+import com.youdroid.zhuobrowser.session.DownloadTask
 import com.youdroid.zhuobrowser.session.HistoryEntry
 import com.youdroid.zhuobrowser.session.LibraryTab
 import com.youdroid.zhuobrowser.session.ReaderPaper
@@ -98,10 +100,11 @@ fun BrowserScreen(session: BrowserSession) {
         }
     }
 
-    val overlayOpen = state.showsSettings || state.showsLibrary || state.showsOverview
+    val overlayOpen = state.showsSettings || state.showsLibrary || state.showsOverview || state.showsDownloads
     BackHandler(enabled = state.showsFind || overlayOpen || (tab != null && !UrlPolicy.isHomeUrl(tab.url))) {
         when {
             state.showsFind -> session.endFind()
+            state.showsDownloads -> session.setShowsDownloads(false)
             state.showsLibrary -> session.setShowsLibrary(false)
             state.showsSettings -> session.setShowsSettings(false)
             state.showsOverview -> session.toggleOverview()
@@ -122,6 +125,18 @@ fun BrowserScreen(session: BrowserSession) {
             putExtra(Intent.EXTRA_TEXT, payload.second)
         }
         context.startActivity(Intent.createChooser(send, "分享"))
+    }
+
+    fun shareDownload(task: DownloadTask) {
+        val uri = session.downloads.fileUri(task) ?: return
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = session.downloads.mimeType(task)
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooser = Intent.createChooser(send, "分享")
+        chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(chooser)
     }
 
     val pageBackground = if (tab?.isReader == true && !overlayOpen) {
@@ -172,6 +187,10 @@ fun BrowserScreen(session: BrowserSession) {
                 session.beginFind()
             },
             onDesktop = { session.toggleDesktop() },
+            onDownloads = {
+                dismissKeyboard()
+                session.openDownloads()
+            },
             siteAllowed = tab != null && AllowListPolicy.isHostAllowed(state.allowedHosts, UrlPolicy.rawHost(tab.url)),
             pageSaved = session.isCurrentPageSaved(),
             isReader = tab?.isReader == true,
@@ -186,6 +205,7 @@ fun BrowserScreen(session: BrowserSession) {
         Box(modifier = Modifier.weight(1f)) {
             when {
                 state.showsSettings -> SettingsPane(session)
+                state.showsDownloads -> DownloadsPane(session, onShare = { shareDownload(it) })
                 state.showsLibrary -> LibraryPane(session)
                 state.showsOverview -> TabOverview(session)
                 tab == null || UrlPolicy.isHomeUrl(tab.url) -> NativeHome(
@@ -247,6 +267,7 @@ private fun AddressBar(
     onReader: () -> Unit,
     onFind: () -> Unit,
     onDesktop: () -> Unit,
+    onDownloads: () -> Unit,
     siteAllowed: Boolean,
     pageSaved: Boolean,
     isReader: Boolean,
@@ -327,6 +348,10 @@ private fun AddressBar(
                         text = { Text("分享") },
                         enabled = browsing,
                         onClick = { onMenuChange(false); onShare() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("下载") },
+                        onClick = { onMenuChange(false); onDownloads() }
                     )
                     DropdownMenuItem(
                         text = { Text("设置") },
@@ -765,6 +790,50 @@ private fun LibraryRow(
 }
 
 @Composable
+private fun DownloadsPane(session: BrowserSession, onShare: (DownloadTask) -> Unit) {
+    val tasks by session.downloads.tasks.collectAsStateWithLifecycle()
+    Column(modifier = Modifier.fillMaxSize().background(Tokens.pageBackground).padding(20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("下载", fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Tokens.textPrimary, modifier = Modifier.weight(1f))
+            TextButton(onClick = { session.setShowsDownloads(false) }) { Text("完成", color = Tokens.accent) }
+        }
+        if (tasks.isEmpty()) {
+            Text("暂无下载", color = Tokens.textSecondary, modifier = Modifier.padding(top = 24.dp))
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
+                items(tasks, key = { it.id }) { task ->
+                    val enabled = task.status == DownloadStatus.Completed && session.downloads.fileUri(task) != null
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = enabled) { onShare(task) }
+                            .padding(vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = task.fileName,
+                            color = Tokens.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = when (task.status) {
+                                DownloadStatus.Downloading -> "下载中"
+                                DownloadStatus.Completed -> "已完成，点按分享或打开"
+                                DownloadStatus.Failed -> task.error.ifEmpty { "失败" }
+                            },
+                            fontSize = 12.sp,
+                            color = Tokens.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SettingsPane(session: BrowserSession) {
     val state by session.state.collectAsStateWithLifecycle()
     Column(
@@ -810,6 +879,14 @@ private fun SettingsPane(session: BrowserSession) {
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { session.openLibrary(LibraryTab.Bookmarks) }
+                .padding(vertical = 12.dp)
+        )
+        Text(
+            text = "下载内容",
+            color = Tokens.textPrimary,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { session.openDownloads() }
                 .padding(vertical = 12.dp)
         )
         if (state.allowedHosts.isNotEmpty()) {

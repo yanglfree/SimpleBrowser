@@ -34,6 +34,7 @@ data class BrowserUiState(
     val findQuery: String = "",
     val findCurrent: Int = 0,
     val findTotal: Int = 0,
+    val showsDownloads: Boolean = false,
     val notice: String? = null
 ) {
     val activeTab: BrowserTab?
@@ -42,6 +43,7 @@ data class BrowserUiState(
 
 class BrowserSession(application: Application) : AndroidViewModel(application) {
     val blocker = NetworkBlocker()
+    val downloads = DownloadStore(application)
     private val prefs = application.getSharedPreferences("zhuo", Context.MODE_PRIVATE)
     private val webViews = mutableMapOf<String, WebView>()
     private val _state = MutableStateFlow(BrowserUiState())
@@ -129,13 +131,37 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(showsLibrary = visible) }
     }
 
+    fun setShowsDownloads(visible: Boolean) {
+        _state.update { it.copy(showsDownloads = visible) }
+    }
+
+    fun openDownloads() {
+        _state.update {
+            it.copy(
+                showsDownloads = true,
+                showsSettings = false,
+                showsOverview = false,
+                showsLibrary = false
+            )
+        }
+    }
+
+    fun beginDownload(url: String, userAgent: String, contentDisposition: String, mimeType: String) {
+        if (downloads.start(url, userAgent, contentDisposition, mimeType)) {
+            flash("已开始下载")
+        } else {
+            flash("无法下载此文件")
+        }
+    }
+
     fun openLibrary(tab: LibraryTab) {
         _state.update {
             it.copy(
                 libraryTab = tab,
                 showsLibrary = true,
                 showsSettings = false,
-                showsOverview = false
+                showsOverview = false,
+                showsDownloads = false
             )
         }
     }
@@ -427,6 +453,7 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         webViews.keys.toList().forEach { destroyWebView(it) }
+        downloads.close()
         super.onCleared()
     }
 

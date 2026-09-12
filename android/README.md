@@ -7,7 +7,8 @@ Phone V1 on this shell: native `browser://home`, tabs (including private),
 address bar, EasyList network blocking on a background `shouldInterceptRequest`,
 search-engine settings, a per-site allow-list, bookmarks, history, omni
 suggestions, system share, reader mode (shared extraction core), find-in-page,
-and a desktop user-agent toggle. Private tabs skip session restore and never
+and a desktop user-agent toggle, and attachment downloads into the app-private
+Downloads folder. Private tabs skip session restore and never
 write history or bookmarks; cookie isolation uses AndroidX WebView profiles
 when the WebView provider supports them.
 
@@ -37,5 +38,6 @@ Bookmarks, history, and address-bar suggestions follow `core/src/library-policy.
 Private tabs never record visits or persist session. Share uses
 `Intent.ACTION_SEND`. Reader mode injects `reader-extraction-core.js`; find uses
 the system `WebView` find APIs; desktop UA matches `core` `DESKTOP_USER_AGENT`
-and rewrites `m.weibo.cn`. Downloads and site permissions are not in this
-shell yet.
+and rewrites `m.weibo.cn`. `WebView` `DownloadListener` saves attachments into
+app-private storage and lists them for share via `FileProvider`. Site
+permissions are not in this shell yet.
