@@ -18,6 +18,8 @@ xcodegen generate
 xed .
 ```
 
+From the repo root, `./run_release.sh ios -s` builds the Simulator destination and launches `com.youdroid.zhuobrowser`. Physical devices need a signing team (`DEVELOPMENT_TEAM`).
+
 Re-run `sync-core.sh` after Harmony script or filter-list changes.
 
 ## Scope

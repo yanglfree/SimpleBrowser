@@ -16,8 +16,8 @@ before touching chrome, and update it when a component's contract changes.
 
 ## Commands
 
-`hvigorw` is **not** vendored in the repo; use DevEco's copy (what `ohos/run_release.sh` resolves to).
-Run Hvigor from `ohos/`, or use the root wrapper:
+`hvigorw` is **not** vendored in the repo; use DevEco's copy (what `./run_release.sh` resolves to).
+Run Hvigor from `ohos/`, or use the root runner:
 
 ```bash
 HV=/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw
@@ -25,8 +25,10 @@ HV=/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw
 cd ohos && $HV test --no-daemon            # unit tests (host-side, no device needed)
 cd ohos && $HV assembleHap --no-daemon     # debug HAP
 cd ohos && $HV clean --no-daemon           # if the daemon serves stale build state
-./run_release.sh                           # release build + sign + hdc install + launch
+./run_release.sh                           # detect Harmony / iOS / Android and install
+./run_release.sh ohos                      # Harmony release HAP + hdc install + launch
 ./run_release.sh -d <device-id>            # pick a device (else it prompts)
+./run_release.sh --dry-run                 # validate tools and the selected device only
 ```
 
 `hdc` lives at `/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc`.

@@ -44,7 +44,9 @@ With Hvigor available on `PATH`:
 
 ```bash
 cd ohos && hvigorw assembleHap
-./run_release.sh                 # wrapper around ohos/run_release.sh
+./run_release.sh                 # Harmony / iOS / Android device install
+./run_release.sh ohos            # HarmonyOS only
+./run_release.sh -d <device-id>
 ```
 
 

@@ -25,6 +25,8 @@ cd ../android
 ./gradlew :app:assembleDebug
 ```
 
+From the repo root, `./run_release.sh android` builds that APK, installs it with `adb`, and launches `MainActivity`.
+
 `ANDROID_HOME` or `android/local.properties` must point at an Android SDK with
 platform 35.
 
