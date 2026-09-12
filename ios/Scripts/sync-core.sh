@@ -12,6 +12,6 @@ fi
 mkdir -p "$js_target" "$rules_target"
 rsync -a --delete "$js_source/" "$js_target/"
 if [ -d "$rules_source" ]; then
-  rsync -a --delete --exclude README.md "$rules_source/" "$rules_target/"
+  rsync -a --delete --exclude README.md --exclude android-network.json "$rules_source/" "$rules_target/"
 fi
 echo "copied core/js and core/rules into ZhuoBrowser/Resources"

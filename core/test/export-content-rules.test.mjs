@@ -26,6 +26,12 @@ test('exported content rules include the MSN supplement and stay within WK limit
   }
   const china = JSON.parse(await readFile(path.join(root, 'core/rules/easylistchina.json'), 'utf8'));
   assert.ok(china.length > 1000);
+  const androidNetwork = JSON.parse(
+    await readFile(path.join(root, 'core/rules/android-network.json'), 'utf8')
+  );
+  assert.ok(androidNetwork.some((rule) => rule.host === 'assets.msn.com'));
+  assert.ok(androidNetwork.length > 1000);
+  assert.ok(androidNetwork.length <= 50000);
   const drift = await checkExportedRules();
   assert.deepEqual(drift, []);
 });

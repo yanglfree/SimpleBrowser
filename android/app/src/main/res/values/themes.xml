@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.ZhuoBrowser" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#FAF9F7</item>
+        <item name="android:navigationBarColor">#FAF9F7</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

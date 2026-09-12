@@ -37,3 +37,8 @@ node_modules/
 ios/ZhuoBrowser.xcodeproj/
 ios/DerivedData/
 ios/build/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/

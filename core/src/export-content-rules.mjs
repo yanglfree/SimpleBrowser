@@ -25,6 +25,7 @@ function sha256(bytes) {
 export async function exportedSnapshot() {
   const files = {};
   const manifestLists = [];
+  const androidNetwork = [];
   for (const list of LISTS) {
     const source = await readFile(path.join(adsDirectory, list.file), 'utf8');
     const compiled = compileContentRules(source, { maxRules: list.maxRules });
@@ -41,10 +42,23 @@ export async function exportedSnapshot() {
       cosmetic: compiled.parsed.cosmetic.length,
       skipped: compiled.parsed.skipped.length
     });
+    for (const rule of compiled.parsed.network) {
+      if (androidNetwork.length >= 50000) {
+        break;
+      }
+      androidNetwork.push({ host: rule.host, path: rule.path });
+    }
   }
+  const androidJson = `${JSON.stringify(androidNetwork)}\n`;
+  files['android-network.json'] = androidJson;
   files['manifest.json'] = `${JSON.stringify({
     source: 'ohos/entry/src/main/resources/rawfile/ads',
-    lists: manifestLists
+    lists: manifestLists,
+    androidNetwork: {
+      file: 'android-network.json',
+      sha256: sha256(androidJson),
+      count: androidNetwork.length
+    }
   }, null, 2)}\n`;
   return files;
 }
