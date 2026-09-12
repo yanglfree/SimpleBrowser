@@ -35,4 +35,5 @@ Layout: `ohos/` Harmony client, `ios/` SwiftUI shell, `android/` placeholder,
 `web/` marketing site. Sync iOS scripts and compiled content rules with
 `ios/Scripts/sync-core.sh`. iOS Phone V1 now compiles `core/rules` into
 `WKContentRuleList`, keeps private tabs on a non-persistent data store, and
-hibernates webviews beyond the live-tab budget.
+hibernates webviews beyond the live-tab budget. Reader mode, find-in-page, and
+desktop UA are available from the address-bar action menu.

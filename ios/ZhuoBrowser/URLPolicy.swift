@@ -44,6 +44,23 @@ enum URLPolicy {
         return searchURL(value, engine: engine)
     }
 
+    static func desktopURL(for url: String) -> String {
+        guard let match = url.range(of: "^(https?)://([^/?#]+)(.*)$", options: [.regularExpression, .caseInsensitive]) else {
+            return url
+        }
+        let full = String(url[match])
+        guard let schemeEnd = full.range(of: "://") else {
+            return url
+        }
+        let rest = full[schemeEnd.upperBound...]
+        let hostEnd = rest.firstIndex(where: { $0 == "/" || $0 == "?" || $0 == "#" }) ?? rest.endIndex
+        let host = String(rest[..<hostEnd]).split(separator: ":").first.map(String.init)?.lowercased() ?? ""
+        if host != "m.weibo.cn" {
+            return url
+        }
+        return "https://weibo.com" + String(rest[hostEnd...])
+    }
+
     static func displayHost(_ url: String) -> String {
         if isHomeURL(url) {
             return ""

@@ -9,6 +9,8 @@ struct BrowserTab: Identifiable, Equatable, Codable {
     var progress: Double
     var canGoBack: Bool
     var lastVisitedAt: TimeInterval
+    var isReader: Bool
+    var isDesktop: Bool
 
     static func home(isPrivate: Bool) -> BrowserTab {
         BrowserTab(
@@ -19,7 +21,9 @@ struct BrowserTab: Identifiable, Equatable, Codable {
             isLoading: false,
             progress: 0,
             canGoBack: false,
-            lastVisitedAt: Date().timeIntervalSince1970
+            lastVisitedAt: Date().timeIntervalSince1970,
+            isReader: false,
+            isDesktop: false
         )
     }
 
@@ -29,6 +33,62 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         }
         let host = URLPolicy.displayHost(url)
         return host.isEmpty ? (isPrivate ? "无痕" : "新标签页") : host
+    }
+
+    init(
+        id: String,
+        url: String,
+        title: String,
+        isPrivate: Bool,
+        isLoading: Bool,
+        progress: Double,
+        canGoBack: Bool,
+        lastVisitedAt: TimeInterval,
+        isReader: Bool,
+        isDesktop: Bool
+    ) {
+        self.id = id
+        self.url = url
+        self.title = title
+        self.isPrivate = isPrivate
+        self.isLoading = isLoading
+        self.progress = progress
+        self.canGoBack = canGoBack
+        self.lastVisitedAt = lastVisitedAt
+        self.isReader = isReader
+        self.isDesktop = isDesktop
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, url, title, isPrivate, isLoading, progress, canGoBack, lastVisitedAt, isReader, isDesktop
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        url = try container.decode(String.self, forKey: .url)
+        title = try container.decode(String.self, forKey: .title)
+        isPrivate = try container.decode(Bool.self, forKey: .isPrivate)
+        isLoading = try container.decodeIfPresent(Bool.self, forKey: .isLoading) ?? false
+        progress = try container.decodeIfPresent(Double.self, forKey: .progress) ?? 0
+        canGoBack = try container.decodeIfPresent(Bool.self, forKey: .canGoBack) ?? false
+        lastVisitedAt = try container.decode(TimeInterval.self, forKey: .lastVisitedAt)
+        isReader = try container.decodeIfPresent(Bool.self, forKey: .isReader) ?? false
+        isDesktop = try container.decodeIfPresent(Bool.self, forKey: .isDesktop) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(url, forKey: .url)
+        try container.encode(title, forKey: .title)
+        try container.encode(isPrivate, forKey: .isPrivate)
+        try container.encode(isLoading, forKey: .isLoading)
+        try container.encode(progress, forKey: .progress)
+        try container.encode(canGoBack, forKey: .canGoBack)
+        try container.encode(lastVisitedAt, forKey: .lastVisitedAt)
+        try container.encode(isReader, forKey: .isReader)
+        try container.encode(isDesktop, forKey: .isDesktop)
     }
 }
 

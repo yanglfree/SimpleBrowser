@@ -6,6 +6,12 @@ final class BrowserSession: ObservableObject {
     @Published var tabs: [BrowserTab]
     @Published var activeTabID: String
     @Published var showsOverview = false
+    @Published var showsFind = false
+    @Published var findQuery = ""
+    @Published var findCurrent = 0
+    @Published var findTotal = 0
+    @Published var readerSettings = ReaderSettings()
+    @Published var notice: String?
 
     private var controllers: [String: TabController] = [:]
     private var privateStore = WKWebsiteDataStore.nonPersistent()
@@ -32,6 +38,7 @@ final class BrowserSession: ObservableObject {
             self?.controllers.values.forEach { $0.applyContentBlocker() }
         }
         ContentBlocker.shared.prepare()
+        readerSettings = Self.loadReaderSettings()
         ensureLive(activeTabID)
     }
 
@@ -110,6 +117,7 @@ final class BrowserSession: ObservableObject {
             tab.lastVisitedAt = Date().timeIntervalSince1970
         }
         showsOverview = false
+        endFind()
         ensureLive(id)
         persist()
     }
@@ -138,7 +146,140 @@ final class BrowserSession: ObservableObject {
         persist()
     }
 
+    func toggleReader() {
+        guard let current = activeTab, !URLPolicy.isHomeURL(current.url) else {
+            return
+        }
+        if current.isReader {
+            activeController?.exitReader()
+            update(tabID: current.id) { tab in
+                tab.isReader = false
+            }
+            persist()
+            return
+        }
+        ensureLive(current.id)
+        activeController?.applyReader(settings: readerSettings) { [weak self] ok in
+            DispatchQueue.main.async {
+                guard let self else {
+                    return
+                }
+                if !ok {
+                    self.flash("无法提取正文")
+                    return
+                }
+                self.update(tabID: current.id) { tab in
+                    tab.isReader = true
+                }
+                self.persist()
+            }
+        }
+    }
+
+    func refreshReader() {
+        guard activeTab?.isReader == true else {
+            return
+        }
+        persistReaderSettings()
+        activeController?.applyReader(settings: readerSettings) { _ in }
+    }
+
+    func toggleDesktop() {
+        guard let current = activeTab, !URLPolicy.isHomeURL(current.url) else {
+            return
+        }
+        let next = !current.isDesktop
+        update(tabID: current.id) { tab in
+            tab.isDesktop = next
+            tab.isReader = false
+        }
+        ensureLive(current.id)
+        activeController?.applyUserAgent(isDesktop: next)
+        let target = next ? URLPolicy.desktopURL(for: current.url) : current.url
+        activeController?.load(target, rewriteDesktop: next)
+        persist()
+    }
+
+    func beginFind() {
+        guard let current = activeTab, !URLPolicy.isHomeURL(current.url) else {
+            return
+        }
+        showsFind = true
+    }
+
+    func updateFindQuery(_ query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            findCurrent = 0
+            findTotal = 0
+            return
+        }
+        ensureLive(activeTabID)
+        activeController?.countMatches(trimmed) { [weak self] total in
+            guard let self else {
+                return
+            }
+            self.findTotal = total
+            if total == 0 {
+                self.findCurrent = 0
+                return
+            }
+            self.activeController?.find(trimmed, backwards: false) { found in
+                self.findCurrent = found ? 1 : 0
+            }
+        }
+    }
+
+    func findNext() {
+        let trimmed = findQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard findTotal > 0, !trimmed.isEmpty else {
+            return
+        }
+        activeController?.find(trimmed, backwards: false) { [weak self] found in
+            guard let self, found else {
+                return
+            }
+            self.findCurrent = self.findCurrent >= self.findTotal ? 1 : self.findCurrent + 1
+        }
+    }
+
+    func findPrevious() {
+        let trimmed = findQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard findTotal > 0, !trimmed.isEmpty else {
+            return
+        }
+        activeController?.find(trimmed, backwards: true) { [weak self] found in
+            guard let self, found else {
+                return
+            }
+            self.findCurrent = self.findCurrent <= 1 ? self.findTotal : self.findCurrent - 1
+        }
+    }
+
+    func endFind() {
+        showsFind = false
+        findQuery = ""
+        findCurrent = 0
+        findTotal = 0
+    }
+
+    func flash(_ message: String) {
+        notice = message
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            if self?.notice == message {
+                self?.notice = nil
+            }
+        }
+    }
+
+    func persistReaderSettings() {
+        if let data = try? JSONEncoder().encode(readerSettings) {
+            UserDefaults.standard.set(data, forKey: "reader_settings")
+        }
+    }
+
     func persist() {
+        persistReaderSettings()
         let persistable = SessionPolicy.persistableTabs(tabs).map { tab -> BrowserTab in
             var copy = tab
             copy.isLoading = false
@@ -204,5 +345,13 @@ final class BrowserSession: ObservableObject {
         }
         let active = tabs.contains(where: { $0.id == payload.activeTabID }) ? payload.activeTabID : tabs[0].id
         return (tabs, active)
+    }
+
+    private static func loadReaderSettings() -> ReaderSettings {
+        guard let data = UserDefaults.standard.data(forKey: "reader_settings"),
+              let settings = try? JSONDecoder().decode(ReaderSettings.self, from: data) else {
+            return ReaderSettings()
+        }
+        return settings
     }
 }
