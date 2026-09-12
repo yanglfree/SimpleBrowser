@@ -22,6 +22,7 @@ final class BrowserSession: ObservableObject {
     @Published var libraryTab: LibraryTab = .bookmarks
     @Published var history: [HistoryEntry] = []
     @Published var savedItems: [SavedItem] = []
+    @Published var allowedHosts: [String] = []
     let downloads = DownloadStore()
 
     private var controllers: [String: TabController] = [:]
@@ -54,6 +55,7 @@ final class BrowserSession: ObservableObject {
         settings = Self.loadSettings()
         history = Self.loadHistory()
         savedItems = Self.loadSavedItems()
+        allowedHosts = Self.loadAllowedHosts()
         downloads.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -375,6 +377,39 @@ final class BrowserSession: ObservableObject {
         persistSettings()
     }
 
+    func adsBlockEnabled(for url: String) -> Bool {
+        AllowListPolicy.adsBlockEnabled(for: url, hosts: allowedHosts, blockAds: settings.blockAds)
+    }
+
+    func isCurrentHostAllowed() -> Bool {
+        guard let tab = activeTab else {
+            return false
+        }
+        return AllowListPolicy.isHostAllowed(allowedHosts, URLPolicy.rawHost(tab.url))
+    }
+
+    func toggleCurrentHostAllowed() {
+        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url) else {
+            return
+        }
+        let host = URLPolicy.rawHost(tab.url)
+        let allowed = !AllowListPolicy.isHostAllowed(allowedHosts, host)
+        allowedHosts = AllowListPolicy.setHostAllowed(allowedHosts, host: host, allowed: allowed)
+        persistAllowList()
+        controllers.values.forEach { $0.applyContentBlocker() }
+        activeController?.reload()
+        flash(allowed ? "已允许此站点加载广告" : "已对此站点恢复拦截")
+    }
+
+    func removeAllowedHost(_ host: String) {
+        allowedHosts = AllowListPolicy.setHostAllowed(allowedHosts, host: host, allowed: false)
+        persistAllowList()
+        controllers.values.forEach { $0.applyContentBlocker() }
+        if let tab = activeTab, URLPolicy.rawHost(tab.url) == host {
+            activeController?.reload()
+        }
+    }
+
     func setBlockAds(_ enabled: Bool) {
         settings.blockAds = enabled
         persistSettings()
@@ -433,6 +468,12 @@ final class BrowserSession: ObservableObject {
         }
     }
 
+    func persistAllowList() {
+        if let data = try? JSONEncoder().encode(allowedHosts) {
+            UserDefaults.standard.set(data, forKey: "allowed_hosts")
+        }
+    }
+
     func persistLibrary() {
         if let historyData = try? JSONEncoder().encode(history) {
             UserDefaults.standard.set(historyData, forKey: "browser_history")
@@ -446,6 +487,7 @@ final class BrowserSession: ObservableObject {
         persistSettings()
         persistReaderSettings()
         persistLibrary()
+        persistAllowList()
         let persistable = SessionPolicy.persistableTabs(tabs).map { tab -> BrowserTab in
             var copy = tab
             copy.isLoading = false
@@ -511,6 +553,14 @@ final class BrowserSession: ObservableObject {
         }
         let active = tabs.contains(where: { $0.id == payload.activeTabID }) ? payload.activeTabID : tabs[0].id
         return (tabs, active)
+    }
+
+    private static func loadAllowedHosts() -> [String] {
+        guard let data = UserDefaults.standard.data(forKey: "allowed_hosts"),
+              let hosts = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return hosts
     }
 
     private static func loadHistory() -> [HistoryEntry] {

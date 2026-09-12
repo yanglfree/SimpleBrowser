@@ -14,7 +14,7 @@ final class TabController: NSObject, WKNavigationDelegate {
         let configuration = WebKernel.makeConfiguration(
             isPrivate: tab.isPrivate,
             dataStore: dataStore,
-            blockAds: session.settings.blockAds
+            blockAds: session.adsBlockEnabled(for: tab.url)
         )
         self.installedRuleLists = WebKernel.installedRuleLists(from: configuration)
         self.webView = WKWebView(frame: .zero, configuration: configuration)
@@ -137,9 +137,10 @@ final class TabController: NSObject, WKNavigationDelegate {
         }
     }
 
-    func applyContentBlocker() {
+    func applyContentBlocker(for url: String? = nil) {
         let controller = webView.configuration.userContentController
-        if session?.settings.blockAds != true {
+        let target = url ?? session?.tab(id)?.url ?? ""
+        if session?.adsBlockEnabled(for: target) != true {
             controller.removeAllContentRuleLists()
             installedRuleLists = []
             WebKernel.storeInstalledRuleLists([], on: webView.configuration)
@@ -156,13 +157,18 @@ final class TabController: NSObject, WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
-        if navigationAction.targetFrame?.isMainFrame == true && navigationAction.navigationType != .reload {
-            switch navigationAction.navigationType {
-            case .other:
-                break
-            default:
-                session?.update(tabID: id) { tab in
-                    tab.isReader = false
+        if navigationAction.targetFrame?.isMainFrame == true {
+            if let url = navigationAction.request.url?.absoluteString {
+                applyContentBlocker(for: url)
+            }
+            if navigationAction.navigationType != .reload {
+                switch navigationAction.navigationType {
+                case .other:
+                    break
+                default:
+                    session?.update(tabID: id) { tab in
+                        tab.isReader = false
+                    }
                 }
             }
         }

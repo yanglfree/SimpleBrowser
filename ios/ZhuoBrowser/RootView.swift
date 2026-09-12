@@ -186,6 +186,10 @@ struct RootView: View {
                 session.toggleDesktop()
             }
             .disabled(!browsing)
+            Button(session.isCurrentHostAllowed() ? "对此站点恢复拦截" : "允许此站点加载广告") {
+                session.toggleCurrentHostAllowed()
+            }
+            .disabled(!browsing)
             Button(session.isCurrentPageSaved() ? "取消书签" : "加入书签") {
                 session.toggleSaved()
             }

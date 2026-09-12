@@ -39,4 +39,6 @@ hibernates webviews beyond the live-tab budget. Reader mode, find-in-page, and
 desktop UA are available from the address-bar action menu. Settings, sharing,
 and `WKDownload` attachments are in this shell as well. Bookmarks, history, and
 omni suggestions follow the shared `core` library policy; private tabs never
-write those records.
+write those records. Per-site allow-list uses exact `rawHost` matching, same as
+Harmony: blocking is skipped for listed hosts and restored when the host is
+removed.

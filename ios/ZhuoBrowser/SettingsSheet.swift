@@ -32,6 +32,21 @@ struct SettingsSheet: View {
                     }
                     .tint(DesignTokens.accent)
                     .accessibilityIdentifier("settings-block-ads")
+                    if !session.allowedHosts.isEmpty {
+                        ForEach(session.allowedHosts, id: \.self) { host in
+                            HStack {
+                                Text(host)
+                                    .foregroundStyle(DesignTokens.textPrimary)
+                                Spacer()
+                                Button("恢复拦截") {
+                                    session.removeAllowedHost(host)
+                                }
+                                .font(.system(size: 13))
+                                .foregroundStyle(DesignTokens.accent)
+                            }
+                            .accessibilityIdentifier("allowed-host-\(host)")
+                        }
+                    }
                 }
 
                 Section("地址栏") {

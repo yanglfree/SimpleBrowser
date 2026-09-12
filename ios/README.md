@@ -34,4 +34,6 @@ In:
 - Share the current page and download attachments via `WKDownload`
 - Bookmarks, history, and address-bar suggestions (private tabs never record)
 
-Out until later milestones: IAP, default-browser entitlement, per-site allow-list UI.
+- Per-site allow-list that turns off `WKContentRuleList` for that host
+
+Out until later milestones: IAP, default-browser entitlement.
