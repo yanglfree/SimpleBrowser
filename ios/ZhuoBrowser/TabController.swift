@@ -1,7 +1,7 @@
 import Foundation
 import WebKit
 
-final class TabController: NSObject, WKNavigationDelegate {
+final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     let id: String
     let isPrivate: Bool
     let webView: WKWebView
@@ -21,6 +21,7 @@ final class TabController: NSObject, WKNavigationDelegate {
         self.session = session
         super.init()
         webView.navigationDelegate = self
+        webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
         applyUserAgent(isDesktop: tab.isDesktop)
         if !URLPolicy.isHomeURL(tab.url) {
@@ -154,6 +155,41 @@ final class TabController: NSObject, WKNavigationDelegate {
 
     func webView(
         _ webView: WKWebView,
+        requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        type: WKMediaCaptureType,
+        decisionHandler: @escaping (WKPermissionDecision) -> Void
+    ) {
+        var kinds: [SitePermissionKind] = []
+        switch type {
+        case .camera:
+            kinds = [.camera]
+        case .microphone:
+            kinds = [.microphone]
+        case .cameraAndMicrophone:
+            kinds = [.camera, .microphone]
+        @unknown default:
+            decisionHandler(.deny)
+            return
+        }
+        session?.requestSitePermission(origin: Self.originString(origin), kinds: kinds, persist: !isPrivate) { allowed in
+            decisionHandler(allowed ? .grant : .deny)
+        }
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        requestGeolocationPermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        decisionHandler: @escaping (WKPermissionDecision) -> Void
+    ) {
+        session?.requestSitePermission(origin: Self.originString(origin), kinds: [.location], persist: !isPrivate) { allowed in
+            decisionHandler(allowed ? .grant : .deny)
+        }
+    }
+
+    func webView(
+        _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
@@ -246,6 +282,10 @@ final class TabController: NSObject, WKNavigationDelegate {
         session?.update(tabID: id) { tab in
             tab.isLoading = false
         }
+    }
+
+    private static func originString(_ origin: WKSecurityOrigin) -> String {
+        SitePermissionPolicy.origin(protocol: origin.protocol, host: origin.host, port: Int(origin.port))
     }
 
     private static func shouldDownload(_ response: WKNavigationResponse) -> Bool {

@@ -61,6 +61,16 @@ struct RootView: View {
             LibrarySheet()
                 .environmentObject(session)
         }
+        .sheet(item: $session.permissionPrompt, onDismiss: {
+            session.denyPermissionIfPending()
+        }) { prompt in
+            PermissionSheet(
+                prompt: prompt,
+                onAllow: { session.allowPermission() },
+                onDeny: { session.denyPermission() }
+            )
+            .presentationDetents([.medium])
+        }
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
         }

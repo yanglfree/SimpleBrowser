@@ -37,5 +37,11 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>访问的网站在你允许后可以使用相机，例如视频通话。卓阅不会保存或上传拍摄内容。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>访问的网站在你允许后可以使用麦克风，例如语音通话。卓阅不会保存或上传录音。</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>访问的网站在你允许后可以使用位置，例如地图。卓阅不会保存或上传坐标。</string>
 </dict>
 </plist>

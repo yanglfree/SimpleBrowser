@@ -23,7 +23,10 @@ final class BrowserSession: ObservableObject {
     @Published var history: [HistoryEntry] = []
     @Published var savedItems: [SavedItem] = []
     @Published var allowedHosts: [String] = []
+    @Published var sitePermissions: [SitePermission] = []
+    @Published var permissionPrompt: PermissionPrompt?
     let downloads = DownloadStore()
+    private var permissionReply: ((Bool) -> Void)?
 
     private var controllers: [String: TabController] = [:]
     private var privateStore = WKWebsiteDataStore.nonPersistent()
@@ -56,6 +59,7 @@ final class BrowserSession: ObservableObject {
         history = Self.loadHistory()
         savedItems = Self.loadSavedItems()
         allowedHosts = Self.loadAllowedHosts()
+        sitePermissions = Self.loadSitePermissions()
         downloads.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -377,6 +381,51 @@ final class BrowserSession: ObservableObject {
         persistSettings()
     }
 
+    func requestSitePermission(
+        origin: String,
+        kinds: [SitePermissionKind],
+        persist: Bool,
+        completion: @escaping (Bool) -> Void
+    ) {
+        if origin.isEmpty || kinds.isEmpty {
+            completion(false)
+            return
+        }
+        if permissionReply != nil {
+            completion(false)
+            return
+        }
+        let stored = persist ? sitePermissions.first(where: { $0.origin == origin }) : nil
+        switch SitePermissionPolicy.decision(stored: stored, kinds: kinds) {
+        case .allow:
+            completion(true)
+        case .deny:
+            completion(false)
+        case .prompt:
+            permissionReply = completion
+            permissionPrompt = PermissionPrompt(origin: origin, kinds: kinds, persist: persist)
+        }
+    }
+
+    func allowPermission() {
+        completePermission(true)
+    }
+
+    func denyPermission() {
+        completePermission(false)
+    }
+
+    func denyPermissionIfPending() {
+        if permissionReply != nil {
+            completePermission(false)
+        }
+    }
+
+    func removeSitePermission(_ origin: String) {
+        sitePermissions.removeAll { $0.origin == origin }
+        persistSitePermissions()
+    }
+
     func adsBlockEnabled(for url: String) -> Bool {
         AllowListPolicy.adsBlockEnabled(for: url, hosts: allowedHosts, blockAds: settings.blockAds)
     }
@@ -468,6 +517,31 @@ final class BrowserSession: ObservableObject {
         }
     }
 
+    private func completePermission(_ allowed: Bool) {
+        guard let prompt = permissionPrompt else {
+            return
+        }
+        let reply = permissionReply
+        permissionReply = nil
+        permissionPrompt = nil
+        if prompt.persist {
+            sitePermissions = SitePermissionPolicy.apply(
+                sitePermissions,
+                origin: prompt.origin,
+                kinds: prompt.kinds,
+                decision: allowed ? .allow : .deny
+            )
+            persistSitePermissions()
+        }
+        reply?(allowed)
+    }
+
+    func persistSitePermissions() {
+        if let data = try? JSONEncoder().encode(sitePermissions) {
+            UserDefaults.standard.set(data, forKey: "site_permissions")
+        }
+    }
+
     func persistAllowList() {
         if let data = try? JSONEncoder().encode(allowedHosts) {
             UserDefaults.standard.set(data, forKey: "allowed_hosts")
@@ -488,6 +562,7 @@ final class BrowserSession: ObservableObject {
         persistReaderSettings()
         persistLibrary()
         persistAllowList()
+        persistSitePermissions()
         let persistable = SessionPolicy.persistableTabs(tabs).map { tab -> BrowserTab in
             var copy = tab
             copy.isLoading = false
@@ -553,6 +628,14 @@ final class BrowserSession: ObservableObject {
         }
         let active = tabs.contains(where: { $0.id == payload.activeTabID }) ? payload.activeTabID : tabs[0].id
         return (tabs, active)
+    }
+
+    private static func loadSitePermissions() -> [SitePermission] {
+        guard let data = UserDefaults.standard.data(forKey: "site_permissions"),
+              let items = try? JSONDecoder().decode([SitePermission].self, from: data) else {
+            return []
+        }
+        return items
     }
 
     private static func loadAllowedHosts() -> [String] {

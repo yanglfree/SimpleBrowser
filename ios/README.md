@@ -36,4 +36,6 @@ In:
 
 - Per-site allow-list that turns off `WKContentRuleList` for that host
 
+- Per-origin camera, microphone, and location decisions (Prompt / Allow / Deny)
+
 Out until later milestones: IAP, default-browser entitlement.

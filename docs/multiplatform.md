@@ -41,4 +41,5 @@ and `WKDownload` attachments are in this shell as well. Bookmarks, history, and
 omni suggestions follow the shared `core` library policy; private tabs never
 write those records. Per-site allow-list uses exact `rawHost` matching, same as
 Harmony: blocking is skipped for listed hosts and restored when the host is
-removed.
+removed. Camera, microphone, and location use an in-app confirmation first,
+then the system permission prompt; private tabs do not persist those decisions.

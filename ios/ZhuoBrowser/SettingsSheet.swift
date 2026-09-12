@@ -32,6 +32,25 @@ struct SettingsSheet: View {
                     }
                     .tint(DesignTokens.accent)
                     .accessibilityIdentifier("settings-block-ads")
+                    if !session.sitePermissions.isEmpty {
+                        ForEach(session.sitePermissions) { entry in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(entry.origin)
+                                    .foregroundStyle(DesignTokens.textPrimary)
+                                    .lineLimit(1)
+                                Text(permissionSummary(entry))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(DesignTokens.textSecondary)
+                            }
+                            .accessibilityIdentifier("site-permission-\(entry.origin)")
+                        }
+                        .onDelete { offsets in
+                            let origins = offsets.compactMap {
+                                session.sitePermissions.indices.contains($0) ? session.sitePermissions[$0].origin : nil
+                            }
+                            origins.forEach { session.removeSitePermission($0) }
+                        }
+                    }
                     if !session.allowedHosts.isEmpty {
                         ForEach(session.allowedHosts, id: \.self) { host in
                             HStack {
@@ -96,6 +115,16 @@ struct SettingsSheet: View {
             }
         }
         .accessibilityIdentifier("settings-sheet")
+    }
+
+    private func permissionSummary(_ entry: SitePermission) -> String {
+        SitePermissionKind.allCases.compactMap { kind in
+            let decision = entry.decision(for: kind)
+            guard decision != .prompt else {
+                return nil
+            }
+            return "\(kind.label)\(decision == .allow ? "允许" : "拒绝")"
+        }.joined(separator: " · ")
     }
 
     private var searchSuggestionsBinding: Binding<Bool> {
