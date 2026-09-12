@@ -1805,6 +1805,7 @@ struct Index {
       AddressSheet({
         topInset: this.topInset,
         keyboardInset: this.keyboardInset,
+        bottomInset: this.bottomInset,
         suggestions: this.suggestions,
         currentHost: displayHost(this.activeTab()?.url ?? ''),
         initialText: this.isActiveHome() ? '' : (this.activeTab()?.url ?? ''),

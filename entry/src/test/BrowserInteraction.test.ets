@@ -26,6 +26,10 @@ import {
   OmniboxShortcutKind
 } from '../main/ets/utils/OmniboxInput';
 import { quickSiteEditorPanelHeight } from '../main/ets/components/QuickSiteEditor';
+import {
+  isAddressCompletionRow,
+  resolveAddressSheetBottomInset
+} from '../main/ets/components/AddressSheet';
 import { looksLikeUrl, normalizeAddress, normalizeUrlInput } from '../main/ets/utils/UrlUtils';
 
 export default function browserInteractionTest(): void {
@@ -69,6 +73,14 @@ export default function browserInteractionTest(): void {
       expect(applyOmniboxShortcut('openai.com', 10, 10, suffix).text).assertEqual('openai.com');
       expect(applyOmniboxShortcut('openai.com/', 11, 11, path).text).assertEqual('openai.com/');
       expect(applyOmniboxShortcut('https://openai.com', 0, 18, path).text).assertEqual('https://openai.com/');
+    });
+
+    it('keeps the address sheet above the keyboard without double-counting the IME', 0, (): void => {
+      expect(resolveAddressSheetBottomInset(320, 34)).assertEqual(320);
+      expect(resolveAddressSheetBottomInset(0, 34)).assertEqual(34);
+      expect(resolveAddressSheetBottomInset(-12, 0)).assertEqual(0);
+      expect(isAddressCompletionRow(0)).assertTrue();
+      expect(isAddressCompletionRow(1)).assertFalse();
     });
 
     it('keeps the shortcut editor inside the keyboard-safe window height', 0, (): void => {

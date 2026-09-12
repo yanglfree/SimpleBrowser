@@ -107,6 +107,19 @@ viewport reserves a 96vp bottom inset so the dock never obscures live page conte
   larger windows and remains edge-to-edge on phones.
 - **Motion**: 180ms opacity entry; no decorative card motion.
 
+### Address sheet
+
+- **Structure**: the search field is pinned under the status bar, suggestions
+  fill the remaining keyboard-safe height, and domain shortcut chips sit on the
+  IME. Cancel remains visible beside the field.
+- **Keyboard**: the page does not offset or resize when the field is focused.
+  The sheet pads by the measured keyboard inset (falling back to the home
+  indicator) so history is never compressed into the status-bar gap.
+- **Suggestions**: most relevant first, against the field. A completion control
+  sits on the best match. Tapping the unused remainder or Cancel dismisses.
+- **Motion**: the existing bottom-edge opacity entry is unchanged; the field
+  does not travel with the keyboard.
+
 ### Address-bar tab indicator
 
 - **Structure**: a compact row on the address capsule's lower edge; the active tab

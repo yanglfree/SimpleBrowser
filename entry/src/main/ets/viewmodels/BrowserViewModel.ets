@@ -1119,8 +1119,8 @@ export class BrowserViewModel {
   }
 
   /**
-   * Address-bar suggestions, most relevant first. The sheet renders them bottom
-   * -up so the best match sits against the input, closest to the thumb.
+   * Address-bar suggestions, most relevant first. The sheet pins the field
+   * under the status bar and keeps the best match against it.
    */
   getSuggestions(query: string): Suggestion[] {
     const trimmed: string = query.trim();
