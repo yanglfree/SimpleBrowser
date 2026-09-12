@@ -83,6 +83,7 @@ jobs:
           node --test scripts/*.test.mjs
           node --test core/test/*.test.mjs
           node core/src/export-js.mjs --check
+          node core/src/export-content-rules.mjs --check
 
       - name: Validate mobile distribution Worker
         working-directory: cloudflare/mobile-distribution

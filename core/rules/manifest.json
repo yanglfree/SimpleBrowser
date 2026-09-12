@@ -1,0 +1,35 @@
+{
+  "source": "ohos/entry/src/main/resources/rawfile/ads",
+  "lists": [
+    {
+      "id": "supplement",
+      "file": "supplement.json",
+      "sha256": "eca5567c62cd9eb048fb58ba9eccb15b2df69ff7aef271cdd2bde75af60b8fe3",
+      "count": 5,
+      "truncated": false,
+      "network": 1,
+      "cosmetic": 4,
+      "skipped": 0
+    },
+    {
+      "id": "easylistchina",
+      "file": "easylistchina.json",
+      "sha256": "398734ce333fc20a92990748a61b882b2c0870b064fed1824522cf29bd0733fd",
+      "count": 11690,
+      "truncated": false,
+      "network": 6093,
+      "cosmetic": 5597,
+      "skipped": 7666
+    },
+    {
+      "id": "easylist",
+      "file": "easylist.json",
+      "sha256": "733c453905cb237979b0652de4d5a18acfd44543f85641465862ef5a79749802",
+      "count": 50000,
+      "truncated": true,
+      "network": 52901,
+      "cosmetic": 10218,
+      "skipped": 23367
+    }
+  ]
+}

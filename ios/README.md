@@ -3,28 +3,30 @@
 Native SwiftUI + `WKWebView` shell. HarmonyOS remains the product source of
 truth in `../ohos`. Shared scripts and contracts live in `../core`.
 
-This is the Phone V1 starting point: one tab, native `browser://home`, address
-bar, and document-start scripts. Content blockers, private tabs, and session
-restore are not in this scaffold.
+Phone V1 now includes native home, multi-tab, private tabs with a non-persistent
+data store, live-webview hibernation, session restore for non-private tabs, and
+`WKContentRuleList` compiled from `core/rules`.
 
 ## Setup
 
 ```bash
+cd ../core && npm run export-js && npm run export-rules
+cd ../ios
 ./Scripts/sync-core.sh
 xcodegen generate
 xed .
 ```
 
-`sync-core.sh` copies `../core/js` into the app bundle. Re-run it after
-Harmony script changes.
+Re-run `sync-core.sh` after Harmony script or filter-list changes.
 
 ## Scope
 
 In:
 
 - Native start page (never handed to `WKWebView`)
-- HTTPS navigation through `WKWebView`
-- Document-start guards from `core/js`
+- Tabs, private tabs, live-webview budget (4)
+- `WKContentRuleList` from supplement + EasyList China + capped EasyList
+- Document-start/end scripts from `core/js`
 
-Out until later milestones: `WKContentRuleList`, tab hibernation, downloads,
-reader chrome, IAP, default-browser entitlement.
+Out until later milestones: downloads, reader chrome, IAP, default-browser
+entitlement, per-site allow-list UI.

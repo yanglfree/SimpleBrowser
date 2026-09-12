@@ -32,4 +32,7 @@ AGC IAP, HAP signing) stay in this repository's existing pipelines.
 Change the ArkTS constants, then regenerate the snapshot.
 
 Layout: `ohos/` Harmony client, `ios/` SwiftUI shell, `android/` placeholder,
-`web/` marketing site. Sync iOS scripts with `ios/Scripts/sync-core.sh`.
+`web/` marketing site. Sync iOS scripts and compiled content rules with
+`ios/Scripts/sync-core.sh`. iOS Phone V1 now compiles `core/rules` into
+`WKContentRuleList`, keeps private tabs on a non-persistent data store, and
+hibernates webviews beyond the live-tab budget.

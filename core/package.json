@@ -6,6 +6,8 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "export-js": "node src/export-js.mjs",
-    "export-js:check": "node src/export-js.mjs --check"
+    "export-js:check": "node src/export-js.mjs --check",
+    "export-rules": "node src/export-content-rules.mjs",
+    "export-rules:check": "node src/export-content-rules.mjs --check"
   }
 }
