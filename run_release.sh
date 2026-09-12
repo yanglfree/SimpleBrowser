@@ -1,9 +1,9 @@
 #!/usr/bin/env zsh
 
 # Zhuoyue Browser — local device runner.
-# Style follows MarkBuy/run_release.sh: zsh, fail-fast, dry-run, explicit device
-# selection. Harmony uses the canonical signing source; iOS and Android install
-# the native shells onto a connected device or simulator.
+# Style follows MarkBuy/run_release.sh: zsh, fail-fast, dry-run. Harmony uses
+# the canonical signing source; iOS and Android install the native shells.
+# Multiple connected devices prompt for a numbered choice on a TTY.
 
 set -euo pipefail
 
@@ -51,7 +51,7 @@ Environment overrides:
   DEVELOPMENT_TEAM   Apple team id for physical iOS installs.
 
 Examples:
-  ./run_release.sh
+  ./run_release.sh                 # prompt when more than one device is connected
   ./run_release.sh ohos
   ./run_release.sh -d <hdc-id>
   ./run_release.sh ios -s
@@ -324,13 +324,27 @@ choose_device() {
     return 0
   fi
 
-  print -u2 -- "Multiple devices are connected. Use --device to select one:"
+  print -- "Multiple devices are connected. Choose one:"
+  local i=1
   local entry
   for entry in "${filtered[@]}"; do
     IFS=$'\t' read -r plat id name detail <<< "$entry"
-    print -u2 -- "$name ($plat) $id"
+    print -- "[$i] $name ($plat) $id"
+    i=$((i + 1))
   done
-  exit 1
+
+  if [[ ! -t 0 ]]; then
+    fail "Stdin is not a TTY. Re-run with --device <id>."
+  fi
+
+  local choice
+  printf 'Select 1-%d (or q to quit): ' "$count"
+  read -r choice
+  [[ "$choice" == [qQ] ]] && exit 0
+  [[ "$choice" =~ ^[0-9]+$ ]] || fail "Invalid selection: $choice"
+  (( choice >= 1 && choice <= count )) || fail "Invalid selection: $choice"
+  IFS=$'\t' read -r DEVICE_TYPE DEVICE_ID name detail <<< "${filtered[choice]}"
+  print -- "Using $name [$DEVICE_TYPE] $DEVICE_ID"
 }
 
 sync_core() {
