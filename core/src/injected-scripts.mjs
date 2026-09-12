@@ -6,7 +6,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = path.resolve(here, '../..');
 export const constantsPath = path.join(
   repositoryRoot,
-  'entry/src/main/ets/constants/AppConstants.ets'
+  'ohos/entry/src/main/ets/constants/AppConstants.ets'
 );
 
 /** Static template literals exported from AppConstants.ets. */

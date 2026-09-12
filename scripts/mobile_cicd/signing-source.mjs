@@ -9,6 +9,7 @@ import { mkdtempSync } from 'node:fs';
 import { verifySigning } from './verify_harmony_signing.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+export const ohosRoot = join(root, 'ohos');
 export const sourcePath = process.env.HARMONY_SIGNING_SOURCE ?? join(homedir(), '.config/zhuobrowser/signing.json');
 const channels = { debug: 'default', app_gallery: 'dis', internaltesting: 'device' };
 export function readSource() {
@@ -19,7 +20,7 @@ export function readSource() {
 }
 export function makeConfig(source, channel) {
   assert.ok(Object.hasOwn(channels, channel), 'Unknown signing channel');
-  const config = JSON.parse(readFileSync(join(root, 'config/harmony-build-profile.json'), 'utf8'));
+  const config = JSON.parse(readFileSync(join(ohosRoot, 'config/harmony-build-profile.json'), 'utf8'));
   const matches = source.signingConfigs.filter(item => item.name === channels[channel]);
   assert.equal(matches.length, 1, 'Signing channel must have exactly one source');
   const signer = matches[0];
@@ -74,7 +75,7 @@ export async function changed(sourceSha) {
   return current?.source_sha !== sourceSha || current?.input_digest !== releaseDigest();
 }
 export function assertSelected() {
-  const actual = JSON.parse(readFileSync(join(root, 'build-profile.json5'), 'utf8'));
+  const actual = JSON.parse(readFileSync(join(ohosRoot, 'build-profile.json5'), 'utf8'));
   const selected = actual.app.products.find(p => p.name === 'default')?.signingConfig;
   const channel = Object.keys(channels).find(key => channels[key] === selected);
   assert.ok(channel, 'Selected signing channel is not canonical');
@@ -88,7 +89,7 @@ export function assertSelected() {
       assert.ok(expected[key] === material[key], 'Generated signing identity drifted; run sync-local');
     }
   }
-  verifySigning(join(root, 'build-profile.json5'), channel);
+  verifySigning(join(ohosRoot, 'build-profile.json5'), channel);
 }
 async function main() {
   const [command, channel = 'debug', destination] = process.argv.slice(2);
@@ -99,7 +100,7 @@ async function main() {
     console.log(JSON.stringify(snapshot(channel, resolve(destination))));
   } else if (command === 'sync-local') {
     const config = makeConfig(readSource(), channel);
-    const target = join(root, 'build-profile.json5');
+    const target = join(ohosRoot, 'build-profile.json5');
     save(target, config);
     console.log(JSON.stringify(verifySigning(target, channel)));
   } else if (command === 'fingerprint') {

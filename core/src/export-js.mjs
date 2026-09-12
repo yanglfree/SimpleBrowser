@@ -16,7 +16,7 @@ export async function exportedSnapshot() {
     files[fileName] = `${body.trim()}\n`;
   }
   files['manifest.json'] = `${JSON.stringify({
-    source: 'entry/src/main/ets/constants/AppConstants.ets',
+    source: 'ohos/entry/src/main/ets/constants/AppConstants.ets',
     files: Object.values(FILE_NAMES)
   }, null, 2)}\n`;
   return files;

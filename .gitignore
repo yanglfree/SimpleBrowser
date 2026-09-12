@@ -1,22 +1,25 @@
 .hvigor/
 .idea/
 /build/
-entry/build/
+ohos/.hvigor/
+ohos/.idea/
+ohos/build/
+ohos/entry/build/
 oh_modules/
 oh-package-lock.json5
 *.hap
 *.p7b
 *.p12
 # Carries the local signing material (cert/profile paths and key passwords),
-# which DevEco rewrites per machine. Anchored to the root so the entry module's
-# own build-profile.json5 stays in version control.
-/build-profile.json5
+# which DevEco rewrites per machine. Anchored so the entry module's own
+# build-profile.json5 stays in version control.
+/ohos/build-profile.json5
 
 .omo/
 output/
-entry/.test/
-iap_paywall_kit/build/
-iap_paywall_kit/.test/
+ohos/entry/.test/
+ohos/iap_paywall_kit/build/
+ohos/iap_paywall_kit/.test/
 .DS_Store
 node_modules/
 .playwright-cli/
@@ -29,3 +32,8 @@ node_modules/
 # Mobile distribution production bindings and local dependencies.
 /cloudflare/mobile-distribution/wrangler.production.jsonc
 /cloudflare/mobile-distribution/node_modules/
+
+# Generated Xcode project; recreate with `xcodegen generate` in ios/.
+ios/ZhuoBrowser.xcodeproj/
+ios/DerivedData/
+ios/build/

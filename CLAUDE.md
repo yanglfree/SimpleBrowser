@@ -4,8 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Dolphin Browser (极简浏览器) — a HarmonyOS NEXT browser built on ArkWeb. ArkTS/ArkUI, stage model,
-one module (`entry`), bundle `com.youdroid.dolphin`. Targets SDK 6.0.0 (API 20), compatible 5.0.3 (API 15).
+Dolphin Browser (极简浏览器) — a HarmonyOS NEXT browser built on ArkWeb, plus
+native iOS/Android shells. The HarmonyOS DevEco project lives in `ohos/`
+(ArkTS/ArkUI, stage model, one module `entry`, bundle `com.youdroid.dolphin`).
+Targets SDK 6.0.0 (API 20), compatible 5.0.3 (API 15).
 UI copy is Chinese (via resource tokens); code, comments and commit messages are English.
 
 `README.md` states the feature scope and the V1 exclusions. `DESIGN.md` is the binding design system
@@ -14,14 +16,15 @@ before touching chrome, and update it when a component's contract changes.
 
 ## Commands
 
-`hvigorw` is **not** vendored in the repo; use DevEco's copy (what `run_release.sh` resolves to):
+`hvigorw` is **not** vendored in the repo; use DevEco's copy (what `ohos/run_release.sh` resolves to).
+Run Hvigor from `ohos/`, or use the root wrapper:
 
 ```bash
 HV=/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw
 
-$HV test --no-daemon                       # unit tests (host-side, no device needed)
-$HV assembleHap --no-daemon                # debug HAP
-$HV clean --no-daemon                      # if the daemon serves stale build state
+cd ohos && $HV test --no-daemon            # unit tests (host-side, no device needed)
+cd ohos && $HV assembleHap --no-daemon     # debug HAP
+cd ohos && $HV clean --no-daemon           # if the daemon serves stale build state
 ./run_release.sh                           # release build + sign + hdc install + launch
 ./run_release.sh -d <device-id>            # pick a device (else it prompts)
 ```
@@ -34,10 +37,10 @@ For on-device checks: `hdc list targets`, `hdc shell hilog | grep <TAG>`, `hdc s
 
 - **`hvigorw test` prints `BUILD SUCCESSFUL` and exits 0 even when assertions fail.** The only
   trustworthy verdict is the generated report:
-  `entry/.test/default/intermediates/test/coverage_data/test_result.txt` — check the
+  `ohos/entry/.test/default/intermediates/test/coverage_data/test_result.txt` — check the
   `Tests run: N, Failure: 0, Error: 0` summary line. Failing assertions do show up as red `ERROR:` lines
   in stdout, so grep for those too. A compile error, by contrast, fails the build with exit 255.
-- Every suite must be registered in `entry/src/test/List.test.ets` or it silently never runs.
+- Every suite must be registered in `ohos/entry/src/test/List.test.ets` or it silently never runs.
   There is no test-name filter — to run one suite, temporarily comment out the others there.
 - Tests are host-side hypium (`@ohos/hypium`) and cannot touch ArkUI `@Component`s, ArkWeb, or
   `preferences`. Testable logic therefore lives in `viewmodels/`, `models/`, and pure exported helpers

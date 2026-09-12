@@ -3,12 +3,13 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+OHOS_ROOT="${REPO_ROOT}/ohos"
 OUTPUT_DIR="${1:-}"
-SIGNING_TARGET="${REPO_ROOT}/build-profile.json5"
+SIGNING_TARGET="${OHOS_ROOT}/build-profile.json5"
 SIGNING_CHANNEL="${HARMONY_CHANNEL:-app_gallery}"
 HVIGOR_BIN="${HVIGOR_BIN:-hvigorw}"
 HAP_SIGN_TOOL="${HAP_SIGN_TOOL:-${HOME}/Library/Huawei/CommandLineTools/current/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar}"
-IAP_BUILD_PROFILE="${REPO_ROOT}/iap_paywall_kit/BuildProfile.ets"
+IAP_BUILD_PROFILE="${OHOS_ROOT}/iap_paywall_kit/BuildProfile.ets"
 BACKUP_DIR="$(mktemp -d)"
 
 die() { echo "Harmony artifact build error: $*" >&2; exit 1; }
@@ -21,7 +22,7 @@ command -v ohpm >/dev/null 2>&1 || die "ohpm is unavailable"
 
 restore_profile() {
   if [[ -f "${BACKUP_DIR}/app.json5" ]]; then
-    cp "${BACKUP_DIR}/app.json5" "${REPO_ROOT}/AppScope/app.json5"
+    cp "${BACKUP_DIR}/app.json5" "${OHOS_ROOT}/AppScope/app.json5"
   fi
   if [[ -f "${BACKUP_DIR}/build-profile.json5" ]]; then
     cp "${BACKUP_DIR}/build-profile.json5" "${SIGNING_TARGET}"
@@ -46,8 +47,8 @@ node "${REPO_ROOT}/scripts/mobile_cicd/signing-source.mjs" snapshot "${SIGNING_C
 SIGNING_SOURCE="${BACKUP_DIR}/signing/build-profile.json5"
 cp "${SIGNING_SOURCE}" "${SIGNING_TARGET}"
 if [[ -n "${HARMONY_BUILD_NUMBER:-}" ]]; then
-  cp "${REPO_ROOT}/AppScope/app.json5" "${BACKUP_DIR}/app.json5"
-  APP_SCOPE="${REPO_ROOT}/AppScope/app.json5" node <<'NODE'
+  cp "${OHOS_ROOT}/AppScope/app.json5" "${BACKUP_DIR}/app.json5"
+  APP_SCOPE="${OHOS_ROOT}/AppScope/app.json5" node <<'NODE'
 const fs = require('node:fs');
 const build = Number(process.env.HARMONY_BUILD_NUMBER);
 if (!Number.isSafeInteger(build) || build < 1 || build >= 2147483647) throw new Error('Invalid build allocation');
@@ -59,16 +60,16 @@ NODE
 fi
 
 (
-  cd "${REPO_ROOT}"
+  cd "${OHOS_ROOT}"
   ohpm install --all
 )
 (
-  cd "${REPO_ROOT}/entry"
+  cd "${OHOS_ROOT}/entry"
   ohpm install
 )
 
 (
-  cd "${REPO_ROOT}"
+  cd "${OHOS_ROOT}"
   if [[ "${RUN_HARMONY_TESTS:-0}" == "1" ]]; then
     "${HVIGOR_BIN}" test
   fi
@@ -79,11 +80,11 @@ fi
   fi
 )
 
-HAP_PATH="${REPO_ROOT}/entry/build/default/outputs/default/entry-default-signed.hap"
+HAP_PATH="${OHOS_ROOT}/entry/build/default/outputs/default/entry-default-signed.hap"
 [[ -f "${HAP_PATH}" ]] || die "signed HAP was not produced"
 NATIVE_APP_PATH=""
 if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
-  NATIVE_APP_PATHS=("${REPO_ROOT}"/build/outputs/default/*-default-signed.app)
+  NATIVE_APP_PATHS=("${OHOS_ROOT}"/build/outputs/default/*-default-signed.app)
   [[ "${#NATIVE_APP_PATHS[@]}" -eq 1 && -f "${NATIVE_APP_PATHS[0]}" ]] \
     || die "expected exactly one signed App Pack"
   NATIVE_APP_PATH="${NATIVE_APP_PATHS[0]}"

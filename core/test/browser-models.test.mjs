@@ -21,7 +21,7 @@ function settingsFields(source, marker) {
 }
 
 test('BrowserSettings keys stay aligned between Harmony and the TypeScript spec', async () => {
-  const harmony = await readFile(path.join(root, 'entry/src/main/ets/models/BrowserModels.ets'), 'utf8');
+  const harmony = await readFile(path.join(root, 'ohos/entry/src/main/ets/models/BrowserModels.ets'), 'utf8');
   const spec = await readFile(path.join(root, 'core/spec/browser-models.ts'), 'utf8');
   const harmonyFields = settingsFields(harmony, 'export interface BrowserSettings {');
   const specFields = settingsFields(spec, 'export interface BrowserSettings {');

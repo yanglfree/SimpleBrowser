@@ -12,7 +12,7 @@ There are two different authorities, not a Profile file on the portal:
    It can reference only a verified immutable release. The portal never signs
    HAPs or reads files from the maintainer Mac.
 
-`config/harmony-build-profile.json` owns non-secret SDK/module configuration.
+`ohos/config/harmony-build-profile.json` owns non-secret SDK/module configuration.
 `signing-source.mjs` derives the project signing configuration and freezes the
 profile/certificate bytes for each build. Hvigor rejects selections that differ
 from the canonical source. The keystore remains at its canonical location so

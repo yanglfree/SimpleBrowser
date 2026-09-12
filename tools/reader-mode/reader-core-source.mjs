@@ -7,7 +7,7 @@ export const toolDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = path.resolve(toolDirectory, '../..');
 
 async function constantsSource() {
-  const constantsPath = path.join(repositoryRoot, 'entry/src/main/ets/constants/AppConstants.ets');
+  const constantsPath = path.join(repositoryRoot, 'ohos/entry/src/main/ets/constants/AppConstants.ets');
   return readFile(constantsPath, 'utf8');
 }
 

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PendingPurchaseRecovery, PurchaseRecoveryResult } from '../iap_paywall_kit/src/main/ets/models/PendingPurchaseRecovery.ts';
+import { PendingPurchaseRecovery, PurchaseRecoveryResult } from '../ohos/iap_paywall_kit/src/main/ets/models/PendingPurchaseRecovery.ts';
 
 test('pending recovery retries failures and returns success exactly once', async () => {
   let attempts = 0;

@@ -27,9 +27,9 @@ AGC IAP, HAP signing) stay in this repository's existing pipelines.
 
 ## Sync rule
 
-`entry/src/main/ets/constants/AppConstants.ets` owns injected scripts.
+`ohos/entry/src/main/ets/constants/AppConstants.ets` owns injected scripts.
 `cd core && npm run export-js:check` fails CI if `core/js/` drifts.
 Change the ArkTS constants, then regenerate the snapshot.
 
-The iOS shell is the sibling directory `../ZhuoBrowser-iOS`. Sync scripts with
-`./Scripts/sync-core.sh` there. Android is not scaffolded yet.
+Layout: `ohos/` Harmony client, `ios/` SwiftUI shell, `android/` placeholder,
+`web/` marketing site. Sync iOS scripts with `ios/Scripts/sync-core.sh`.

@@ -8,7 +8,7 @@ import { compileContentRules, parseFilterList } from '../src/content-rules.mjs';
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const supplementPath = path.join(
   repositoryRoot,
-  'entry/src/main/resources/rawfile/ads/dolphin-supplement.txt'
+  'ohos/entry/src/main/resources/rawfile/ads/dolphin-supplement.txt'
 );
 
 test('parses dolphin-supplement network and cosmetic rules', async () => {

@@ -3,9 +3,11 @@
 - The private runner file `~/.config/zhuobrowser/signing.json` is the only
   editable signing source. Each channel has exactly one profile/certificate
   selection. Project build profiles are generated, never independent authorities.
-- Use `scripts/mobile_cicd/signing-source.mjs` to select, validate, snapshot,
-  or replace signing inputs. Direct DevEco/Hvigor builds must pass the same
-  canonical-source check. Never silently fall back to cached `.ohos` profiles.
+- The HarmonyOS DevEco project lives in `ohos/`. Open that folder, not the
+  repository root. Generated `ohos/build-profile.json5` must still come from
+  `scripts/mobile_cicd/signing-source.mjs`. Direct DevEco/Hvigor builds must
+  pass the same canonical-source check. Never silently fall back to cached
+  `.ohos` profiles.
 - Specified-device delivery is part of the accepted CI workflow. A successful
   AppGallery artifact upload alone does not complete portal delivery.
 - Build only the accepted CI source SHA. Bind the device release to its signing

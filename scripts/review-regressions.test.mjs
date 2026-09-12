@@ -5,9 +5,9 @@ import { stripTypeScriptTypes } from 'node:module';
 import { runInNewContext } from 'node:vm';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
-const pageSource = read('entry/src/main/ets/pages/Index.ets');
-const repositorySource = read('entry/src/main/ets/repositories/BrowserRepository.ets');
-const viewModelSource = read('entry/src/main/ets/viewmodels/BrowserViewModel.ets');
+const pageSource = read('ohos/entry/src/main/ets/pages/Index.ets');
+const repositorySource = read('ohos/entry/src/main/ets/repositories/BrowserRepository.ets');
+const viewModelSource = read('ohos/entry/src/main/ets/viewmodels/BrowserViewModel.ets');
 const cloneSettings = value => ({ ...value });
 const Logger = { warn() {}, error() {}, info() {} };
 function between(source, start, end) {
@@ -19,9 +19,9 @@ function between(source, start, end) {
 function evaluate(source, context = {}) {
   return runInNewContext(stripTypeScriptTypes(source), { Logger, cloneSettings, ...context });
 }
-const styleSource = read('entry/src/main/ets/models/SystemBarStyle.ets')
+const styleSource = read('ohos/entry/src/main/ets/models/SystemBarStyle.ets')
   .replace(/^import .*;\n/gm, '').replace(/export /g, '');
-const readerSource = between(read('entry/src/main/ets/models/BrowserModels.ets'),
+const readerSource = between(read('ohos/entry/src/main/ets/models/BrowserModels.ets'),
   'export function getReaderTheme', 'export enum');
 const getReaderTheme = evaluate(`${readerSource.replace(/export /g, '')}\ngetReaderTheme;`, {
   ReaderPaper: { White: 0, Sepia: 1, Night: 2 }
@@ -56,7 +56,7 @@ test('status bar backdrop stays pinned to the top, bounds its height and never i
   assert.equal(styles.resolveStatusBarBackdropHeight(36, false), 36);
   assert.equal(styles.resolveStatusBarBackdropHeight(36, true), 36 + styles.STATUS_SCRIM_FADE_HEIGHT);
 
-  const backdropSource = read('entry/src/main/ets/components/StatusBarBackdrop.ets');
+  const backdropSource = read('ohos/entry/src/main/ets/components/StatusBarBackdrop.ets');
   assert.match(backdropSource, /\.position\(\{\s*x:\s*0,\s*y:\s*0\s*\}\)/);
   assert.match(backdropSource, /\.hitTestBehavior\(HitTestMode\.None\)/);
 
@@ -106,7 +106,7 @@ test('native window resolution cannot apply a stale style after a newer request'
     setWindowBackgroundColor: () => {},
     setWindowSystemBarProperties: async properties => calls.push(properties)
   };
-  const source = read('entry/src/main/ets/services/ThemeService.ets')
+  const source = read('ohos/entry/src/main/ets/services/ThemeService.ets')
     .replace(/^import .*;\n/gm, '').replace(/export /g, '');
   const ThemeService = evaluate(`${source}\nThemeService;`, {
     window: { getLastWindow: () => ++count === 1 ? new Promise(resolve => { oldResolve = resolve; }) : Promise.resolve(mainWindow) }
@@ -185,7 +185,7 @@ test('ordinary settings changes skip history cleanup and preserve queued orderin
 });
 
 test('privacy card fits phone, landscape and floating heights with system clearance', () => {
-  const source = read('entry/src/main/ets/components/PrivacyConsentDialog.ets');
+  const source = read('ohos/entry/src/main/ets/components/PrivacyConsentDialog.ets');
   const fn = evaluate(`${between(source, 'export function privacyDialogHeight', '@Component').replace('export ', '')}\nprivacyDialogHeight;`);
   for (const height of [360, 480, 800, 1000]) {
     for (const bottom of [0, 24, 40]) {
@@ -200,10 +200,10 @@ test('privacy card fits phone, landscape and floating heights with system cleara
 });
 
 test('launcher icon has one unambiguous 1024px PNG resource', () => {
-  const roots = ['AppScope/resources/base/media', 'entry/src/main/resources/base/media'];
+  const roots = ['ohos/AppScope/resources/base/media', 'ohos/entry/src/main/resources/base/media'];
   const matches = roots.flatMap(root => readdirSync(new URL(`../${root}`, import.meta.url))
     .filter(name => /^app_icon\./.test(name)).map(name => `${root}/${name}`));
-  assert.deepEqual(matches, ['AppScope/resources/base/media/app_icon.png']);
+  assert.deepEqual(matches, ['ohos/AppScope/resources/base/media/app_icon.png']);
   const png = readFileSync(new URL(`../${matches[0]}`, import.meta.url));
   assert.equal(png.readUInt32BE(16), 1024);
   assert.equal(png.readUInt32BE(20), 1024);

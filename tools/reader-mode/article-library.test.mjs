@@ -4,10 +4,10 @@ import { chromium } from 'playwright';
 import { productionCaptureScript } from './reader-core-source.mjs';
 import { loadEts } from './ets-module.mjs';
 
-const models = loadEts('entry/src/main/ets/models/ArticleCaptureModels.ets');
-const navigation = loadEts('entry/src/main/ets/services/OfflineArticleNavigation.ets');
-const scripts = loadEts('entry/src/main/ets/services/ArticleReaderScripts.ets');
-const exporting = loadEts('entry/src/main/ets/services/ArticleExportService.ets', {
+const models = loadEts('ohos/entry/src/main/ets/models/ArticleCaptureModels.ets');
+const navigation = loadEts('ohos/entry/src/main/ets/services/OfflineArticleNavigation.ets');
+const scripts = loadEts('ohos/entry/src/main/ets/services/ArticleReaderScripts.ets');
+const exporting = loadEts('ohos/entry/src/main/ets/services/ArticleExportService.ets', {
   '@kit.AbilityKit': {}, '@kit.ArkTS': {}, '@ohos.file.fs': {}, '@ohos.file.picker': {}
 }).ArticleExportService;
 const article = { id:'article-1-1', title:'Offline test', sourceUrl:'https://example.test/article',
@@ -76,7 +76,7 @@ test('offline document renders images and preserves selection/highlight across i
 });
 
 test('Markdown and HTML embed saved assets without retaining private image paths', async () => {
-  const service = loadEts('entry/src/main/ets/services/ArticleExportService.ets', {
+  const service = loadEts('ohos/entry/src/main/ets/services/ArticleExportService.ets', {
     '@kit.AbilityKit': {}, '@kit.ArkTS': {util:{Base64Helper:class {encodeToStringSync(){return 'AQID';}}}},
     '@ohos.file.fs': {OpenMode:{READ_ONLY:1},statSync:()=>({size:3}),openSync:()=>({fd:1}),readSync:()=>3,closeSync(){}},
     '@ohos.file.picker': {}
@@ -87,7 +87,7 @@ test('Markdown and HTML embed saved assets without retaining private image paths
 
 test('image limits and denied image requests are counted as incomplete saves', async () => {
   let status = 200;
-  const store = loadEts('entry/src/main/ets/services/ArticleImageStore.ets', {
+  const store = loadEts('ohos/entry/src/main/ets/services/ArticleImageStore.ets', {
     '@kit.NetworkKit': {http:{RequestMethod:{GET:0},HttpDataType:{ARRAY_BUFFER:0},
       createHttp:()=>({request:async()=>({responseCode:status,result:new Uint8Array([1,2,3]).buffer}),destroy(){}})}},
     '@ohos.file.fs':{OpenMode:{CREATE:1,READ_WRITE:2,TRUNC:4},open:async()=>({fd:1}),write:async()=>3,close:async()=>{}}
@@ -101,7 +101,7 @@ test('image limits and denied image requests are counted as incomplete saves', a
 });
 
 test('capture waits for delayed content and a stable snapshot', async () => {
-  const service=loadEts('entry/src/main/ets/services/ArticleCaptureService.ets',{
+  const service=loadEts('ohos/entry/src/main/ets/services/ArticleCaptureService.ets',{
     '@kit.ArkWeb':{},'../constants/AppConstants':{ARTICLE_CAPTURE_SCRIPT:'capture'}
   }).ArticleCaptureService;
   let calls=0;
@@ -113,7 +113,7 @@ test('capture waits for delayed content and a stable snapshot', async () => {
 });
 
 test('a stalled ArkWeb evaluation fails within the bounded capture timeout', async () => {
-  const service=loadEts('entry/src/main/ets/services/ArticleCaptureService.ets',{
+  const service=loadEts('ohos/entry/src/main/ets/services/ArticleCaptureService.ets',{
     '@kit.ArkWeb':{},'../constants/AppConstants':{ARTICLE_CAPTURE_SCRIPT:'capture'}
   }).ArticleCaptureService;
   await assert.rejects(service.capture({runJavaScript:()=>new Promise(()=>{})}), /timed out/);

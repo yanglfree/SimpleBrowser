@@ -1,6 +1,19 @@
 # Zhuoyue Browser
 
-Zhuoyue Browser (卓阅浏览器) is a HarmonyOS NEXT browser built on ArkWeb. It focuses on a clean, private browsing surface rather than a system-wide browser extension.
+Zhuoyue Browser (卓阅浏览器) is a HarmonyOS NEXT browser built on ArkWeb, with
+native iOS and Android shells sharing scripts and contracts through `core/`.
+HarmonyOS is not rewritten in Flutter.
+
+```
+ohos/      HarmonyOS ArkTS/ArkWeb client (DevEco project)
+ios/       SwiftUI + WKWebView shell
+android/   Kotlin + Compose shell (not started)
+web/       Public marketing site
+core/      Injected scripts, rule compiler, model contracts
+docs/      Architecture, signing, CI
+tools/     Shared quality gates (reader-mode)
+```
+
 
 ## Features
 
@@ -14,30 +27,36 @@ Zhuoyue Browser (卓阅浏览器) is a HarmonyOS NEXT browser built on ArkWeb. I
 
 ## Build
 
-The project targets HarmonyOS SDK 6.0.0 (API 20) with compatibility for 5.0.3 (API 15).
+The HarmonyOS project lives in `ohos/` and targets SDK 6.0.0 (API 20) with
+compatibility for 5.0.3 (API 15). Open **that folder** in DevEco Studio.
 
-`build-profile.json5` is not in version control — DevEco writes the signing certificate paths and key passwords of whichever machine opened the project into it. Start from the template:
-
-```bash
-cp build-profile.json5.example build-profile.json5
-```
-
-Then open the project in DevEco Studio once and let it fill in the signing profile (File → Project Structure → Signing Configs → Automatically generate signature). With Hvigor available on `PATH`:
+`ohos/build-profile.json5` is not in version control — DevEco writes the signing
+certificate paths and key passwords of whichever machine opened the project into
+it. Start from the template:
 
 ```bash
-hvigorw assembleHap
+cp ohos/build-profile.json5.example ohos/build-profile.json5
 ```
+
+Then open `ohos/` in DevEco Studio once and let it fill in the signing profile
+(File → Project Structure → Signing Configs → Automatically generate signature).
+With Hvigor available on `PATH`:
+
+```bash
+cd ohos && hvigorw assembleHap
+./run_release.sh                 # wrapper around ohos/run_release.sh
+```
+
 
 Connect a HarmonyOS device or simulator before installing the HAP for manual UI verification.
 
 ## Scope boundary
 
-AI page assistance, sync, extension distribution, VPN/DNS filtering, and a full remote EasyList update service are intentionally outside this V1 implementation. The bundled rule file (`entry/src/main/resources/rawfile/ads/easylist.txt`) is a small, auditable starter set; production distribution should replace it with a verified subscription and an update signature policy.
+AI page assistance, sync, extension distribution, VPN/DNS filtering, and a full remote EasyList update service are intentionally outside this V1 implementation. The bundled rule file (`ohos/entry/src/main/resources/rawfile/ads/easylist.txt`) is a small, auditable starter set; production distribution should replace it with a verified subscription and an update signature policy.
 
-See [DESIGN.md](DESIGN.md) for the design system that governs the UI.
-iOS and Android are native shells that share scripts and contracts through
-[`core/`](core/README.md); HarmonyOS is not rewritten in Flutter.
-See [docs/multiplatform.md](docs/multiplatform.md).
+See [DESIGN.md](DESIGN.md) for the design system that governs the UI,
+[`core/`](core/README.md) for the portable contracts, and
+[docs/multiplatform.md](docs/multiplatform.md) for the native-shell plan.
 
 Mobile build orchestration, signed artifact retention, and the manual store
 boundary are documented in [docs/mobile-ci-cd.md](docs/mobile-ci-cd.md).

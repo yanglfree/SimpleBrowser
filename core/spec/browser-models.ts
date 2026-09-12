@@ -1,6 +1,6 @@
 /**
  * Contract for tab, session, and settings fields.
- * Harmony owns the runtime types in `entry/src/main/ets/models/BrowserModels.ets`.
+ * Harmony owns the runtime types in `ohos/entry/src/main/ets/models/BrowserModels.ets`.
  * Other clients must persist the same JSON keys. Adding a settings field still
  * requires the Harmony four-file set (interface, default, clone/normalize, decoder)
  * plus this spec.

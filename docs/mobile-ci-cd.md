@@ -115,7 +115,7 @@ paths rather than stale copies:
 
 | Configuration | Selected signer | Profile | Purpose |
 | --- | --- | --- | --- |
-| Project `build-profile.json5` | `default` | `~/browser_debugDebug.p7b` | Local debugging |
+| Project `ohos/build-profile.json5` | `default` | `~/browser_debugDebug.p7b` | Local debugging |
 | `~/.config/zhuobrowser/build-profile.release.json5` | `dis` | `~/browser_disRelease.p7b` | AppGallery artifact retention |
 | `~/.config/zhuobrowser/build-profile.device.json5` | `device` | `~/browser_deviceRelease.p7b` | Specified-device signing |
 
@@ -128,7 +128,7 @@ private keys outside Git, and keep each configuration at mode `600`.
 Validate a selection without exposing signing secrets:
 
 ```bash
-node scripts/mobile_cicd/verify_harmony_signing.mjs build-profile.json5 debug
+node scripts/mobile_cicd/verify_harmony_signing.mjs ohos/build-profile.json5 debug
 node scripts/mobile_cicd/verify_harmony_signing.mjs \
   "$HOME/.config/zhuobrowser/build-profile.release.json5" app_gallery
 node scripts/mobile_cicd/verify_harmony_signing.mjs \

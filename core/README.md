@@ -12,7 +12,7 @@ replace that client. It extracts the pieces other platforms can share:
 
 ## Source of truth
 
-Injected scripts still live in `entry/src/main/ets/constants/AppConstants.ets`.
+Injected scripts still live in `ohos/entry/src/main/ets/constants/AppConstants.ets`.
 `src/injected-scripts.mjs` parses that file the same way `tools/reader-mode`
 already does. `core/js/` is a generated snapshot for native bundling.
 
@@ -35,6 +35,6 @@ tokens/  light/dark color tokens from DESIGN.md
 test/    Node tests
 ```
 
-The iOS shell is the sibling directory `../ZhuoBrowser-iOS`. Copy `js/` into that
-app bundle with `ZhuoBrowser-iOS/Scripts/sync-core.sh`. Chrome is native against
-`spec/kernel.md`; do not share UI widgets.
+The iOS shell is `ios/`. Copy `js/` into that app bundle with
+`ios/Scripts/sync-core.sh`. Chrome is native against `spec/kernel.md`; do not
+share UI widgets.

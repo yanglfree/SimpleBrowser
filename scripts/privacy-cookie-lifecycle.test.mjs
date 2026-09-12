@@ -6,7 +6,7 @@ import { runInNewContext } from 'node:vm';
 
 function fixture() {
   const calls = [];
-  const source = readFileSync(new URL('../entry/src/main/ets/services/PrivacyService.ets', import.meta.url), 'utf8')
+  const source = readFileSync(new URL('../ohos/entry/src/main/ets/services/PrivacyService.ets', import.meta.url), 'utf8')
     .replace(/^import .*;\n/gm, '').replace('export class', 'class');
   const service = runInNewContext(stripTypeScriptTypes(`${source}\nPrivacyService;`), {
     Logger: { warn: () => calls.push('warning') },
@@ -55,12 +55,12 @@ test('explicit user clearing remains immediate before browsing', () => {
 });
 
 test('tab close cannot inject a warm-up cookie and both Web hosts signal readiness', () => {
-  const page = readFileSync(new URL('../entry/src/main/ets/pages/Index.ets', import.meta.url), 'utf8');
+  const page = readFileSync(new URL('../ohos/entry/src/main/ets/pages/Index.ets', import.meta.url), 'utf8');
   assert.doesNotMatch(page, /configCookieSync|dpkeep/);
   assert.match(page, /PrivacyService\.clearCookiesWhenReady\(\)/);
   assert.match(page, /PrivacyService\.clearPrivateSiteDataWhenReady\(/);
   for (const name of ['BrowserWebView', 'OfflineArticleReader']) {
-    const source = readFileSync(new URL(`../entry/src/main/ets/components/${name}.ets`, import.meta.url), 'utf8');
+    const source = readFileSync(new URL(`../ohos/entry/src/main/ets/components/${name}.ets`, import.meta.url), 'utf8');
     assert.match(source, /\.onControllerAttached\([^]*?PrivacyService\.onWebControllerAttached\(\)/);
   }
 });

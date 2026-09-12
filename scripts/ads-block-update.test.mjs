@@ -15,7 +15,7 @@ function deferred() {
 }
 
 function createService() {
-  const source = readFileSync(new URL('../entry/src/main/ets/services/AdsBlockService.ets', import.meta.url), 'utf8')
+  const source = readFileSync(new URL('../ohos/entry/src/main/ets/services/AdsBlockService.ets', import.meta.url), 'utf8')
     .replace(/^import .*;\n/gm, '')
     .replace(/^export /gm, '');
   const installed = [];
@@ -48,7 +48,7 @@ function createService() {
 }
 
 function createPage(service) {
-  const source = readFileSync(new URL('../entry/src/main/ets/pages/Index.ets', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../ohos/entry/src/main/ets/pages/Index.ets', import.meta.url), 'utf8');
   const start = source.indexOf('  private async updateRules(): Promise<void> {');
   const end = source.indexOf('  private async setDefaultBrowser()', start);
   assert.ok(start >= 0 && end > start);

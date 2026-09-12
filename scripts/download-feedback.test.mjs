@@ -5,9 +5,9 @@ import { stripTypeScriptTypes } from 'node:module';
 import { runInNewContext } from 'node:vm';
 
 const states = { Pending: 0, Downloading: 1, Paused: 2, Completed: 3, Failed: 4, Canceled: 5 };
-const presentation = readFileSync(new URL('../entry/src/main/ets/services/DownloadPresentation.ets', import.meta.url), 'utf8')
+const presentation = readFileSync(new URL('../ohos/entry/src/main/ets/services/DownloadPresentation.ets', import.meta.url), 'utf8')
   .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
-const index = readFileSync(new URL('../entry/src/main/ets/pages/Index.ets', import.meta.url), 'utf8');
+const index = readFileSync(new URL('../ohos/entry/src/main/ets/pages/Index.ets', import.meta.url), 'utf8');
 const start = index.indexOf('  private downloadListener:');
 const end = index.indexOf('  async aboutToAppear()', start);
 assert.ok(start >= 0 && end > start);

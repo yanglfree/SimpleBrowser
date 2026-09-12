@@ -1,7 +1,7 @@
 # BrowserKernel
 
 Cross-platform method table. Harmony implements this in
-`entry/src/main/ets/services/WebKernelService.ets`. iOS and Android each
+`ohos/entry/src/main/ets/services/WebKernelService.ets`. iOS and Android each
 provide a native port. Policy helpers that do not touch a controller live in
 `core/src/kernel-policy.mjs` and must stay behavior-identical.
 

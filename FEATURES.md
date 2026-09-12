@@ -1,7 +1,7 @@
 # Zhuoyue Browser — Feature Inventory
 
 Baseline reference for what the app currently does, derived from the source tree
-(`entry/src/main/ets/`) rather than from intent. Use this to scope new work and to
+(`ohos/entry/src/main/ets/`) rather than from intent. Use this to scope new work and to
 recognize when a change is extending an existing feature versus adding a new one.
 When code and this document disagree, the code is correct — update this file in
 the same change that changes behavior.
@@ -221,7 +221,7 @@ Two independent systems, deliberately not unified (see `CLAUDE.md`):
 - Declared OS permissions: INTERNET, GET_NETWORK_INFO, CAMERA, MICROPHONE,
   LOCATION, READ_WRITE_DOWNLOAD_DIRECTORY (`module.json5`); camera/mic/location
   are additionally gated per-site through the in-app permission model (§3).
-- Public marketing site (`website/`) sharing the in-app design tokens, not a
+- Public marketing site (`web/`) sharing the in-app design tokens, not a
   separate theme — out of scope for app feature work but maintained alongside it.
 
 ## Explicitly out of scope (V1)

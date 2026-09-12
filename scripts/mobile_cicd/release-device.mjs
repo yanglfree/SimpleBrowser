@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { root, readSource, snapshot, fingerprint, releaseDigest } from './signing-source.mjs';
+import { root, ohosRoot, readSource, snapshot, fingerprint, releaseDigest } from './signing-source.mjs';
 
 const files = ['install.hap', 'icon.png', 'manifest.json5', 'release-metadata.json', 'store.app'];
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -63,7 +63,7 @@ async function main() {
   try {
     const inputDigest = releaseDigest();
     const signing = snapshot('internaltesting', join(temporary, 'snapshot'));
-    const app = JSON.parse(readFileSync(join(root, 'AppScope/app.json5'), 'utf8')).app;
+    const app = JSON.parse(readFileSync(join(ohosRoot, 'AppScope/app.json5'), 'utf8')).app;
     const inputs = { sourceSha, inputDigest, profileSha256: signing.profileSha256,
       certificateSha256: signing.certificateSha256.replaceAll(':', '').toLowerCase(),
       profileUuid: signing.profileUuid, profileExpiresAt: signing.profileExpiresAt,
@@ -73,7 +73,7 @@ async function main() {
       assert.ok(Number.isSafeInteger(ciRunId) && ciRunId > 0, 'Accepted CI identity is required');
       const actual = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
       assert.equal(actual, sourceSha, 'Checkout does not match accepted source');
-      execFileSync('git', ['diff', '--quiet', 'HEAD', '--', ':!iap_paywall_kit/BuildProfile.ets'], { cwd: root });
+      execFileSync('git', ['diff', '--quiet', 'HEAD', '--', ':!ohos/iap_paywall_kit/BuildProfile.ets'], { cwd: root });
     }
     const allocated = command === 'publish' ? await api('releases', 'POST', inputs) : {
       id: hash(`${sourceSha}\n${inputDigest}\noffline-verification`), build: String(app.versionCode + 1), status: 'uploaded',
@@ -107,7 +107,7 @@ async function main() {
     assert.equal(built.signing.profileSha256, signing.profileSha256);
     assert.equal(built.versionCode, Number(allocated.build));
     copyFileSync(join(buildOutput, built.artifact), join(directory, 'install.hap'));
-    copyFileSync(join(root, 'config/harmony-install-icon.png'), join(directory, 'icon.png'));
+    copyFileSync(join(ohosRoot, 'config/harmony-install-icon.png'), join(directory, 'icon.png'));
     const hapHash = hash(readFileSync(join(directory, 'install.hap')));
     const config = JSON.parse(readFileSync(signing.path, 'utf8'));
     const pack = JSON.parse(execFileSync('unzip', ['-p', join(directory, 'install.hap'), 'pack.info'], { encoding: 'utf8' }));

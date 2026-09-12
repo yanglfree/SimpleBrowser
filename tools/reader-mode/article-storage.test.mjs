@@ -51,16 +51,16 @@ function environment() {
     readText:async p=>{if(!files.has(p))throw new Error('Missing content');return files.get(p);},
     rmdir:async p=>{for(const key of files.keys())if(key===p||key.startsWith(p+'/'))files.delete(key);}
   };
-  const repoType = loadEts('entry/src/main/ets/repositories/ArticleLibraryRepository.ets', {
+  const repoType = loadEts('ohos/entry/src/main/ets/repositories/ArticleLibraryRepository.ets', {
     '@kit.AbilityKit':{},'@kit.CoreFileKit':{fileIo},
     '@ohos.data.relationalStore':{getRdbStore:async()=>store,SecurityLevel:{S1:1},RdbPredicates:Predicates,
       ConflictResolution:{ON_CONFLICT_REPLACE:1}},
     '../services/ArticleImageStore':{ArticleImageStore:{persist:async images=>({savedCount:images.length,failedCount:0})}}
   }).ArticleLibraryRepository;
-  const vmPath='entry/src/main/ets/viewmodels/BrowserViewModel.ets';
+  const vmPath='ohos/entry/src/main/ets/viewmodels/BrowserViewModel.ets';
   const adapters=Object.fromEntries([...fs.readFileSync(path.join(repositoryRoot,vmPath),'utf8')
     .matchAll(/from '([^']+)'/g)].map(match=>[match[1],{}]));
-  adapters['../models/ArticleLibraryModels']=loadEts('entry/src/main/ets/models/ArticleLibraryModels.ets');
+  adapters['../models/ArticleLibraryModels']=loadEts('ohos/entry/src/main/ets/models/ArticleLibraryModels.ets');
   adapters['../utils/UrlUtils']={displayHost:url=>new URL(url).hostname};
   const ViewModel=loadEts(vmPath,adapters).BrowserViewModel;
   const viewModel=Object.create(ViewModel.prototype);

@@ -8,7 +8,7 @@ const states = { IN_PROGRESS: 0, COMPLETED: 1, CANCELED: 2, INTERRUPTED: 3, PEND
 const tick = () => new Promise(setImmediate);
 
 function fixture({ pickerFailure = false } = {}) {
-  const source = readFileSync(new URL('../entry/src/main/ets/services/DownloadService.ets', import.meta.url), 'utf8')
+  const source = readFileSync(new URL('../ohos/entry/src/main/ets/services/DownloadService.ets', import.meta.url), 'utf8')
     .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
   const callbacks = {};
   const resumptions = [];
