@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -48,6 +49,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -65,6 +68,8 @@ import com.youdroid.zhuobrowser.session.BrowserSession
 import com.youdroid.zhuobrowser.session.BrowserTab
 import com.youdroid.zhuobrowser.session.HistoryEntry
 import com.youdroid.zhuobrowser.session.LibraryTab
+import com.youdroid.zhuobrowser.session.ReaderPaper
+import com.youdroid.zhuobrowser.session.ReaderTheme
 import com.youdroid.zhuobrowser.session.SavedItem
 import com.youdroid.zhuobrowser.session.SuggestionKind
 import com.youdroid.zhuobrowser.web.BrowserWebView
@@ -94,8 +99,9 @@ fun BrowserScreen(session: BrowserSession) {
     }
 
     val overlayOpen = state.showsSettings || state.showsLibrary || state.showsOverview
-    BackHandler(enabled = overlayOpen || (tab != null && !UrlPolicy.isHomeUrl(tab.url))) {
+    BackHandler(enabled = state.showsFind || overlayOpen || (tab != null && !UrlPolicy.isHomeUrl(tab.url))) {
         when {
+            state.showsFind -> session.endFind()
             state.showsLibrary -> session.setShowsLibrary(false)
             state.showsSettings -> session.setShowsSettings(false)
             state.showsOverview -> session.toggleOverview()
@@ -118,10 +124,16 @@ fun BrowserScreen(session: BrowserSession) {
         context.startActivity(Intent.createChooser(send, "分享"))
     }
 
+    val pageBackground = if (tab?.isReader == true && !overlayOpen) {
+        colorFromHex(ReaderTheme.theme(state.readerSettings.paper).background)
+    } else {
+        Tokens.pageBackground
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Tokens.pageBackground)
+            .background(pageBackground)
     ) {
         AddressBar(
             address = address,
@@ -154,9 +166,23 @@ fun BrowserScreen(session: BrowserSession) {
                 dismissKeyboard()
                 session.setShowsSettings(true)
             },
+            onReader = { session.toggleReader() },
+            onFind = {
+                dismissKeyboard()
+                session.beginFind()
+            },
+            onDesktop = { session.toggleDesktop() },
             siteAllowed = tab != null && AllowListPolicy.isHostAllowed(state.allowedHosts, UrlPolicy.rawHost(tab.url)),
-            pageSaved = session.isCurrentPageSaved()
+            pageSaved = session.isCurrentPageSaved(),
+            isReader = tab?.isReader == true,
+            isDesktop = tab?.isDesktop == true
         )
+        if (state.showsFind) {
+            FindBar(session)
+        }
+        if (tab?.isReader == true && !overlayOpen) {
+            ReaderBar(session)
+        }
         Box(modifier = Modifier.weight(1f)) {
             when {
                 state.showsSettings -> SettingsPane(session)
@@ -218,8 +244,13 @@ private fun AddressBar(
     onLibrary: () -> Unit,
     onShare: () -> Unit,
     onSettings: () -> Unit,
+    onReader: () -> Unit,
+    onFind: () -> Unit,
+    onDesktop: () -> Unit,
     siteAllowed: Boolean,
-    pageSaved: Boolean
+    pageSaved: Boolean,
+    isReader: Boolean,
+    isDesktop: Boolean
 ) {
     Column(modifier = Modifier.background(if (isPrivate) Tokens.surfaceSubtle else Tokens.surfacePanel)) {
         Row(
@@ -264,6 +295,21 @@ private fun AddressBar(
                 )
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { onMenuChange(false) }) {
                     DropdownMenuItem(
+                        text = { Text(if (isReader) "退出阅读模式" else "阅读模式") },
+                        enabled = browsing,
+                        onClick = { onMenuChange(false); onReader() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("在页面中查找") },
+                        enabled = browsing,
+                        onClick = { onMenuChange(false); onFind() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (isDesktop) "移动版网站" else "桌面版网站") },
+                        enabled = browsing,
+                        onClick = { onMenuChange(false); onDesktop() }
+                    )
+                    DropdownMenuItem(
                         text = { Text(if (siteAllowed) "对此站点恢复拦截" else "允许此站点加载广告") },
                         enabled = browsing,
                         onClick = { onMenuChange(false); onAllowSite() }
@@ -299,6 +345,126 @@ private fun AddressBar(
             )
         }
         HorizontalDivider(color = Tokens.border)
+    }
+}
+
+@Composable
+private fun FindBar(session: BrowserSession) {
+    val state by session.state.collectAsStateWithLifecycle()
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Tokens.surfacePanel)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedTextField(
+            value = state.findQuery,
+            onValueChange = { session.setFindQuery(it) },
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(focusRequester),
+            singleLine = true,
+            placeholder = { Text("查找") },
+            shape = RoundedCornerShape(12.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Tokens.surfaceSubtle,
+                unfocusedContainerColor = Tokens.surfaceSubtle,
+                focusedIndicatorColor = Tokens.border,
+                unfocusedIndicatorColor = Tokens.border
+            )
+        )
+        Text(
+            text = "${state.findCurrent}/${state.findTotal}",
+            fontSize = 12.sp,
+            color = Tokens.textSecondary,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+        Text(
+            text = "‹",
+            fontSize = 20.sp,
+            color = if (state.findTotal == 0) Tokens.textSecondary else Tokens.textPrimary,
+            modifier = Modifier
+                .clickable(enabled = state.findTotal > 0) { session.findPrevious() }
+                .padding(8.dp)
+        )
+        Text(
+            text = "›",
+            fontSize = 20.sp,
+            color = if (state.findTotal == 0) Tokens.textSecondary else Tokens.textPrimary,
+            modifier = Modifier
+                .clickable(enabled = state.findTotal > 0) { session.findNext() }
+                .padding(8.dp)
+        )
+        Text(
+            text = "完成",
+            color = Tokens.accent,
+            modifier = Modifier.clickable { session.endFind() }.padding(8.dp)
+        )
+    }
+}
+
+@Composable
+private fun ReaderBar(session: BrowserSession) {
+    val state by session.state.collectAsStateWithLifecycle()
+    val settings = state.readerSettings
+    val theme = ReaderTheme.theme(settings.paper)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colorFromHex(theme.background))
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "A−",
+            color = colorFromHex(theme.textPrimary),
+            modifier = Modifier
+                .clickable(enabled = settings.canShrink) { session.updateReaderSettings { it.shrink() } }
+                .padding(8.dp)
+        )
+        Text(
+            text = "A+",
+            color = colorFromHex(theme.textPrimary),
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier
+                .clickable(enabled = settings.canGrow) { session.updateReaderSettings { it.grow() } }
+                .padding(8.dp)
+        )
+        Text(
+            text = "行距",
+            fontSize = 12.sp,
+            color = colorFromHex(theme.textPrimary),
+            modifier = Modifier
+                .clickable { session.updateReaderSettings { it.cycleLineHeight() } }
+                .padding(8.dp)
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(start = 8.dp)) {
+            ReaderPaper.entries.forEach { paper ->
+                val swatch = ReaderTheme.theme(paper)
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(colorFromHex(swatch.background))
+                        .border(
+                            width = if (settings.paper == paper) 2.dp else 1.dp,
+                            color = colorFromHex(if (settings.paper == paper) theme.accent else theme.pillBorder),
+                            shape = CircleShape
+                        )
+                        .clickable { session.updateReaderSettings { it.copy(paper = paper) } }
+                )
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        Text(
+            text = "完成",
+            color = colorFromHex(theme.textPrimary),
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.clickable { session.toggleReader() }.padding(8.dp)
+        )
     }
 }
 

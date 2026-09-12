@@ -10,7 +10,9 @@ data class BrowserTab(
     val title: String = "新标签页",
     val isPrivate: Boolean = false,
     val isLoading: Boolean = false,
-    val lastVisitedAt: Long = System.currentTimeMillis()
+    val lastVisitedAt: Long = System.currentTimeMillis(),
+    val isReader: Boolean = false,
+    val isDesktop: Boolean = false
 ) {
     val displayTitle: String
         get() {

@@ -11,3 +11,12 @@ object Tokens {
     val border = Color(0xFFE5E2DB)
     val accent = Color(0xFF2E6B5C)
 }
+
+fun colorFromHex(hex: String): Color {
+    val trimmed = hex.trim().removePrefix("#")
+    val value = trimmed.toLongOrNull(16) ?: return textFallback
+    val argb = if (trimmed.length <= 6) 0xFF000000L or value else value
+    return Color(argb)
+}
+
+private val textFallback = Color(0xFF1A1A18)

@@ -49,5 +49,6 @@ Sync Android scripts and compact `{host,path}` network rules with
 native home, tabs, private tabs, background `shouldInterceptRequest` blocking,
 per-site allow-list, bookmarks, history, omni suggestions from the shared
 `core` library policy, and `Intent.ACTION_SEND` sharing. Private tabs never
-write those records. Reader, find-in-page, desktop UA, downloads, and site
-permissions are still ahead of this shell.
+write those records. Reader mode, find-in-page, and desktop UA are available
+from the address-bar action menu. Downloads and site permissions are still
+ahead of this shell.

@@ -2,11 +2,14 @@ package com.youdroid.zhuobrowser.session
 
 import android.app.Application
 import android.content.Context
+import android.webkit.WebView
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.youdroid.zhuobrowser.policy.SearchEngine
 import com.youdroid.zhuobrowser.policy.UrlPolicy
 import com.youdroid.zhuobrowser.web.NetworkBlocker
+import com.youdroid.zhuobrowser.web.ReaderScripts
+import com.youdroid.zhuobrowser.web.WebKernel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +29,11 @@ data class BrowserUiState(
     val allowedHosts: List<String> = emptyList(),
     val history: List<HistoryEntry> = emptyList(),
     val savedItems: List<SavedItem> = emptyList(),
+    val readerSettings: ReaderSettings = ReaderSettings(),
+    val showsFind: Boolean = false,
+    val findQuery: String = "",
+    val findCurrent: Int = 0,
+    val findTotal: Int = 0,
     val notice: String? = null
 ) {
     val activeTab: BrowserTab?
@@ -35,6 +43,7 @@ data class BrowserUiState(
 class BrowserSession(application: Application) : AndroidViewModel(application) {
     val blocker = NetworkBlocker()
     private val prefs = application.getSharedPreferences("zhuo", Context.MODE_PRIVATE)
+    private val webViews = mutableMapOf<String, WebView>()
     private val _state = MutableStateFlow(BrowserUiState())
     val state: StateFlow<BrowserUiState> = _state
 
@@ -53,9 +62,23 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
         return AllowListPolicy.adsBlockEnabled(url, current.allowedHosts, current.settings.blockAds)
     }
 
+    fun attachWebView(id: String, webView: WebView) {
+        webViews[id] = webView
+    }
+
+    fun detachWebView(id: String, webView: WebView) {
+        if (webViews[id] !== webView) return
+        webViews.remove(id)
+        webView.stopLoading()
+        webView.destroy()
+    }
+
     fun openInActiveTab(raw: String) {
         val address = UrlPolicy.normalizeAddress(raw, _state.value.settings.searchEngine)
-        updateActive { it.copy(url = address, lastVisitedAt = System.currentTimeMillis()) }
+        updateActive { tab ->
+            val resolved = if (tab.isDesktop) UrlPolicy.desktopUrl(address) else address
+            tab.copy(url = resolved, isReader = false, lastVisitedAt = System.currentTimeMillis())
+        }
         persist()
     }
 
@@ -77,6 +100,7 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeTab(id: String) {
+        destroyWebView(id)
         _state.update { current ->
             val remaining = current.tabs.filter { it.id != id }
             val tabs = remaining.ifEmpty { listOf(BrowserTab.home(false)) }
@@ -87,6 +111,7 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeAll() {
+        webViews.keys.toList().forEach { destroyWebView(it) }
         val home = BrowserTab.home(false)
         _state.update { it.copy(tabs = listOf(home), activeTabId = home.id, showsOverview = false) }
         persist()
@@ -132,6 +157,100 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
     fun setSearchSuggestionsEnabled(enabled: Boolean) {
         _state.update { it.copy(settings = it.settings.copy(searchSuggestionsEnabled = enabled)) }
         persistSettings()
+    }
+
+    fun toggleReader() {
+        val tab = _state.value.activeTab ?: return
+        if (UrlPolicy.isHomeUrl(tab.url)) return
+        val webView = activeWebView() ?: return
+        val assets = getApplication<Application>().assets
+        if (tab.isReader) {
+            webView.evaluateJavascript(ReaderScripts.exit(assets), null)
+            updateTab(tab.id, isReader = false)
+            persist()
+            return
+        }
+        webView.evaluateJavascript(ReaderScripts.apply(assets, _state.value.readerSettings)) { raw ->
+            if (ReaderScripts.isReaderStatus(raw)) {
+                updateTab(tab.id, isReader = true)
+                persist()
+            } else {
+                flash("无法提取正文")
+            }
+        }
+    }
+
+    fun refreshReader() {
+        val tab = _state.value.activeTab ?: return
+        if (!tab.isReader) return
+        persistReaderSettings()
+        val webView = activeWebView() ?: return
+        webView.evaluateJavascript(
+            ReaderScripts.apply(getApplication<Application>().assets, _state.value.readerSettings),
+            null
+        )
+    }
+
+    fun updateReaderSettings(mutate: (ReaderSettings) -> ReaderSettings) {
+        _state.update { it.copy(readerSettings = mutate(it.readerSettings)) }
+        refreshReader()
+    }
+
+    fun toggleDesktop() {
+        val tab = _state.value.activeTab ?: return
+        if (UrlPolicy.isHomeUrl(tab.url)) return
+        val next = !tab.isDesktop
+        val target = if (next) UrlPolicy.desktopUrl(tab.url) else tab.url
+        val urlChanged = target != tab.url
+        updateActive { it.copy(isDesktop = next, isReader = false, url = target) }
+        val webView = activeWebView()
+        if (webView != null) {
+            WebKernel.applyUserAgent(webView, next)
+            if (!urlChanged) webView.reload()
+        }
+        persist()
+    }
+
+    fun beginFind() {
+        val tab = _state.value.activeTab ?: return
+        if (UrlPolicy.isHomeUrl(tab.url)) return
+        _state.update { it.copy(showsFind = true) }
+    }
+
+    fun setFindQuery(query: String) {
+        _state.update { it.copy(findQuery = query) }
+        val trimmed = query.trim()
+        val webView = activeWebView()
+        if (trimmed.isEmpty()) {
+            webView?.clearMatches()
+            _state.update { it.copy(findCurrent = 0, findTotal = 0) }
+            return
+        }
+        webView?.findAllAsync(trimmed)
+    }
+
+    fun findNext() {
+        if (_state.value.findTotal <= 0) return
+        activeWebView()?.findNext(true)
+    }
+
+    fun findPrevious() {
+        if (_state.value.findTotal <= 0) return
+        activeWebView()?.findNext(false)
+    }
+
+    fun endFind() {
+        activeWebView()?.clearMatches()
+        _state.update { it.copy(showsFind = false, findQuery = "", findCurrent = 0, findTotal = 0) }
+    }
+
+    fun onFindResult(activeOrdinal: Int, total: Int) {
+        _state.update {
+            it.copy(
+                findTotal = total,
+                findCurrent = if (total == 0) 0 else activeOrdinal + 1
+            )
+        }
     }
 
     fun recordVisit(tabId: String) {
@@ -234,7 +353,14 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
         persistAllowList()
     }
 
-    fun updateTab(id: String, title: String? = null, url: String? = null, loading: Boolean? = null) {
+    fun updateTab(
+        id: String,
+        title: String? = null,
+        url: String? = null,
+        loading: Boolean? = null,
+        isReader: Boolean? = null,
+        isDesktop: Boolean? = null
+    ) {
         _state.update { current ->
             current.copy(
                 tabs = current.tabs.map { tab ->
@@ -243,6 +369,8 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
                         title = title ?: tab.title,
                         url = url ?: tab.url,
                         isLoading = loading ?: tab.isLoading,
+                        isReader = isReader ?: tab.isReader,
+                        isDesktop = isDesktop ?: tab.isDesktop,
                         lastVisitedAt = System.currentTimeMillis()
                     )
                 }
@@ -253,7 +381,14 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
     fun goBackToHomeIfNeeded(id: String): Boolean {
         val tab = _state.value.tabs.firstOrNull { it.id == id } ?: return false
         if (UrlPolicy.isHomeUrl(tab.url)) return false
-        updateTab(id, url = UrlPolicy.HOME_URL, title = if (tab.isPrivate) "无痕" else "新标签页", loading = false)
+        endFind()
+        updateTab(
+            id,
+            url = UrlPolicy.HOME_URL,
+            title = if (tab.isPrivate) "无痕" else "新标签页",
+            loading = false,
+            isReader = false
+        )
         persist()
         return true
     }
@@ -281,10 +416,25 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun activeWebView(): WebView? = webViews[_state.value.activeTabId]
+
+    private fun destroyWebView(id: String) {
+        webViews.remove(id)?.let { view ->
+            view.stopLoading()
+            view.destroy()
+        }
+    }
+
+    override fun onCleared() {
+        webViews.keys.toList().forEach { destroyWebView(it) }
+        super.onCleared()
+    }
+
     private fun persist() {
         persistSettings()
         persistAllowList()
         persistLibrary()
+        persistReaderSettings()
         val persistable = SessionPolicy.persistableTabs(_state.value.tabs)
         val active = if (persistable.any { it.id == _state.value.activeTabId }) {
             _state.value.activeTabId
@@ -297,6 +447,8 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
                     .put("url", tab.url)
                     .put("title", tab.title)
                     .put("lastVisitedAt", tab.lastVisitedAt)
+                    .put("isReader", tab.isReader)
+                    .put("isDesktop", tab.isDesktop)
             )
         }
         prefs.edit()
@@ -311,6 +463,15 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
             .putInt("searchEngine", settings.searchEngine.raw)
             .putBoolean("blockAds", settings.blockAds)
             .putBoolean("searchSuggestionsEnabled", settings.searchSuggestionsEnabled)
+            .apply()
+    }
+
+    private fun persistReaderSettings() {
+        val settings = _state.value.readerSettings
+        prefs.edit()
+            .putInt("readerFontSize", settings.fontSize)
+            .putInt("readerLineHeightIndex", settings.lineHeightIndex)
+            .putInt("readerPaper", settings.paper.raw)
             .apply()
     }
 
@@ -354,6 +515,11 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
             searchEngine = SearchEngine.fromRaw(prefs.getInt("searchEngine", 0)),
             blockAds = prefs.getBoolean("blockAds", true),
             searchSuggestionsEnabled = prefs.getBoolean("searchSuggestionsEnabled", true)
+        )
+        val readerSettings = ReaderSettings(
+            fontSize = prefs.getInt("readerFontSize", 17),
+            lineHeightIndex = prefs.getInt("readerLineHeightIndex", 1),
+            paper = ReaderPaper.fromRaw(prefs.getInt("readerPaper", ReaderPaper.Sepia.raw))
         )
         val allowed = runCatching {
             val array = JSONArray(prefs.getString("allowedHosts", "[]"))
@@ -405,7 +571,9 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
                             id = obj.getString("id"),
                             url = obj.getString("url"),
                             title = obj.optString("title"),
-                            lastVisitedAt = obj.optLong("lastVisitedAt")
+                            lastVisitedAt = obj.optLong("lastVisitedAt"),
+                            isReader = obj.optBoolean("isReader"),
+                            isDesktop = obj.optBoolean("isDesktop")
                         )
                     )
                 }
@@ -418,7 +586,8 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
             settings = settings,
             allowedHosts = allowed,
             history = history,
-            savedItems = savedItems
+            savedItems = savedItems,
+            readerSettings = readerSettings
         )
     }
 }

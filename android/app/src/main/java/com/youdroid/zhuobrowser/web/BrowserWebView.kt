@@ -30,6 +30,10 @@ fun BrowserWebView(
     val webView = remember(tab.id) {
         createWebView(session, tab)
     }
+    DisposableEffect(tab.id) {
+        session.attachWebView(tab.id, webView)
+        onDispose { session.detachWebView(tab.id, webView) }
+    }
     DisposableEffect(tab.id, tab.url) {
         if (!UrlPolicy.isHomeUrl(tab.url) && webView.url != tab.url) {
             webView.loadUrl(tab.url)
@@ -42,18 +46,26 @@ fun BrowserWebView(
 @SuppressLint("SetJavaScriptEnabled")
 private fun createWebView(session: BrowserSession, tab: BrowserTab): WebView {
     val context = session.getApplication<android.app.Application>()
+    val assets = context.assets
     val webView = WebView(context)
     webView.settings.javaScriptEnabled = true
     webView.settings.domStorageEnabled = !tab.isPrivate
     webView.settings.cacheMode = if (tab.isPrivate) WebSettings.LOAD_NO_CACHE else WebSettings.LOAD_DEFAULT
     webView.settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-    injectDocumentStartScripts(webView, context.assets)
+    WebKernel.applyUserAgent(webView, tab.isDesktop)
+    injectDocumentStartScripts(webView, assets)
+    webView.setFindListener { active, total, done ->
+        if (done) session.onFindResult(active, total)
+    }
     webView.webViewClient = object : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val url = request.url.toString()
             if (UrlPolicy.isHomeUrl(url)) {
-                session.updateTab(tab.id, url = UrlPolicy.HOME_URL, loading = false)
+                session.updateTab(tab.id, url = UrlPolicy.HOME_URL, loading = false, isReader = false)
                 return true
+            }
+            if (request.isForMainFrame && request.hasGesture()) {
+                session.updateTab(tab.id, isReader = false)
             }
             return false
         }
@@ -78,6 +90,20 @@ private fun createWebView(session: BrowserSession, tab: BrowserTab): WebView {
             if (url != view.url) return
             session.updateTab(tab.id, title = view.title, url = url, loading = false)
             session.recordVisit(tab.id)
+            injectDocumentEndScripts(view, assets)
+            val current = session.state.value.tabs.firstOrNull { it.id == tab.id } ?: return
+            if (current.isDesktop) {
+                WebKernel.loadScript(assets, "desktop-viewport.js")?.let { script ->
+                    view.evaluateJavascript(script, null)
+                }
+            }
+            if (current.isReader) {
+                view.evaluateJavascript(ReaderScripts.apply(assets, session.state.value.readerSettings)) { raw ->
+                    if (!ReaderScripts.isReaderStatus(raw)) {
+                        session.updateTab(tab.id, isReader = false)
+                    }
+                }
+            }
         }
     }
     webView.webChromeClient = object : WebChromeClient() {
@@ -92,12 +118,16 @@ private fun createWebView(session: BrowserSession, tab: BrowserTab): WebView {
 }
 
 private fun injectDocumentStartScripts(webView: WebView, assets: android.content.res.AssetManager) {
-    val names = listOf("blocked-link-guard.js", "long-press-target.js", "password-field-watcher.js")
     if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) return
-    for (name in names) {
-        val script = runCatching {
-            assets.open("js/$name").bufferedReader().use { it.readText() }
-        }.getOrNull() ?: continue
+    for (name in WebKernel.documentStartFiles) {
+        val script = WebKernel.loadScript(assets, name) ?: continue
         WebViewCompat.addDocumentStartJavaScript(webView, script, setOf("*"))
+    }
+}
+
+private fun injectDocumentEndScripts(webView: WebView, assets: android.content.res.AssetManager) {
+    for (name in WebKernel.documentEndFiles) {
+        val script = WebKernel.loadScript(assets, name) ?: continue
+        webView.evaluateJavascript(script, null)
     }
 }

@@ -42,6 +42,13 @@ object UrlPolicy {
         return normalized.ifEmpty { searchUrl(value, engine) }
     }
 
+    fun desktopUrl(url: String): String {
+        val match = Regex("^(https?)://([^/?#]+)(.*)$", RegexOption.IGNORE_CASE).find(url) ?: return url
+        val host = match.groupValues[2].substringBefore(':').lowercase()
+        if (host != "m.weibo.cn") return url
+        return "https://weibo.com${match.groupValues[3]}"
+    }
+
     fun searchUrl(query: String, engine: SearchEngine): String {
         val value = query.trim()
         val parts = value.split(Regex("\\s+"))
