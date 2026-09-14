@@ -375,6 +375,17 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
+        if let rawURL = navigationAction.request.url?.absoluteString {
+            let sourceURL = session?.tab(id)?.url ?? webView.url?.absoluteString ?? ""
+            let externalDecision = ExternalProtocolPolicy.decision(for: rawURL, sourceURL: sourceURL)
+            if externalDecision != .allow {
+                if navigationAction.targetFrame?.isMainFrame != false {
+                    _ = session?.handleExternalNavigation(rawURL, sourceURL: sourceURL)
+                }
+                decisionHandler(.cancel)
+                return
+            }
+        }
         if navigationAction.targetFrame?.isMainFrame == true {
             if let url = navigationAction.request.url?.absoluteString {
                 applyContentBlocker(for: url)
@@ -393,6 +404,21 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             }
         }
         decisionHandler(.allow)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        guard navigationAction.targetFrame == nil,
+              let rawURL = navigationAction.request.url?.absoluteString,
+              ExternalProtocolPolicy.decision(for: rawURL, sourceURL: webView.url?.absoluteString ?? "") == .allow else {
+            return nil
+        }
+        load(rawURL)
+        return nil
     }
 
     func webView(

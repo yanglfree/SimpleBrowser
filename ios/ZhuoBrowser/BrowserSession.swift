@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import SwiftUI
+import UIKit
 import UserNotifications
 import WebKit
 
@@ -44,6 +45,7 @@ final class BrowserSession: ObservableObject {
     @Published var blockEvents: [BlockEvent] = []
     @Published var siteBlockStats: [SiteBlockStats] = []
     @Published var securityWarning: SiteSecurityWarning?
+    @Published var externalProtocolRequest: ExternalProtocolRequest?
     let downloads = DownloadStore()
     let articles = ArticleStore()
     let pro = ProBillingService()
@@ -1119,6 +1121,54 @@ final class BrowserSession: ObservableObject {
         }
         shareItems = items
         showsShare = true
+    }
+
+    func copyCurrentLink() {
+        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url), let url = URL(string: tab.url) else {
+            return
+        }
+        UIPasteboard.general.url = url
+        flash("链接已复制")
+    }
+
+    func visitClipboardLink() {
+        guard let value = UIPasteboard.general.string,
+              let address = ExternalProtocolPolicy.clipboardAddress(from: value, engine: settings.searchEngine) else {
+            flash("剪贴板中没有可访问的网页链接")
+            return
+        }
+        openInActiveTab(address)
+    }
+
+    func handleExternalNavigation(_ rawURL: String, sourceURL: String) -> Bool {
+        switch ExternalProtocolPolicy.decision(for: rawURL, sourceURL: sourceURL) {
+        case .allow:
+            return false
+        case .blocked:
+            flash("已阻止不安全的外部协议")
+            return true
+        case let .confirm(request):
+            externalProtocolRequest = request
+            return true
+        }
+    }
+
+    func openExternalProtocol(_ request: ExternalProtocolRequest) {
+        guard let url = URL(string: request.url) else {
+            externalProtocolRequest = nil
+            return
+        }
+        externalProtocolRequest = nil
+        UIApplication.shared.open(url, options: [:]) { [weak self] opened in
+            guard !opened else { return }
+            DispatchQueue.main.async {
+                self?.flash("没有可处理此链接的应用")
+            }
+        }
+    }
+
+    func cancelPendingExternalProtocol() {
+        externalProtocolRequest = nil
     }
 
     func captureCurrentArticle() {

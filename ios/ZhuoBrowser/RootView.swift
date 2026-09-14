@@ -166,6 +166,18 @@ struct RootView: View {
                 dismissButton: .default(Text("知道了"))
             )
         }
+        .alert(item: $session.externalProtocolRequest) { request in
+            Alert(
+                title: Text(request.category.promptTitle),
+                message: Text(request.promptMessage),
+                primaryButton: .default(Text("打开")) {
+                    session.openExternalProtocol(request)
+                },
+                secondaryButton: .cancel(Text("取消")) {
+                    session.cancelPendingExternalProtocol()
+                }
+            )
+        }
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
         }
@@ -365,6 +377,15 @@ struct RootView: View {
                 session.shareCurrentPage()
             }
             .disabled(!browsing)
+            Button("复制链接") {
+                session.copyCurrentLink()
+            }
+            .disabled(!browsing)
+            .accessibilityIdentifier("page-copy-link")
+            Button("访问剪贴板链接") {
+                session.visitClipboardLink()
+            }
+            .accessibilityIdentifier("page-visit-clipboard")
             Button("下载") {
                 session.showsDownloads = true
             }
