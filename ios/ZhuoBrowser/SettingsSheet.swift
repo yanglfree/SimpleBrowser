@@ -224,11 +224,25 @@ struct SettingsSheet: View {
                     .disabled(!session.settings.quickSitesEnabled)
                     .accessibilityIdentifier("settings-quick-site-limit")
                     Picker("首页背景", selection: homeBackgroundBinding) {
-                        ForEach(HomeBackgroundStyle.allCases) { style in
+                        ForEach(HomeBackgroundStyle.selectableCases) { style in
                             Text(style.label).tag(style)
                         }
                     }
                     .accessibilityIdentifier("settings-home-background")
+                    if session.settings.homeBackgroundStyle.isBuiltIn {
+                        Picker("竖屏图片", selection: homePortraitPresetBinding) {
+                            ForEach(HomePortraitBackgroundPreset.allCases) { preset in
+                                Text(preset.label).tag(preset)
+                            }
+                        }
+                        .accessibilityIdentifier("settings-home-portrait-preset")
+                        Picker("横屏图片", selection: homeLandscapePresetBinding) {
+                            ForEach(HomeLandscapeBackgroundPreset.allCases) { preset in
+                                Text(preset.label).tag(preset)
+                            }
+                        }
+                        .accessibilityIdentifier("settings-home-landscape-preset")
+                    }
                     PhotosPicker(selection: $selectedHomePhoto, matching: .images) {
                         Label(
                             session.settings.homeBackgroundStyle == .custom ? "更换自定义照片" : "选择自定义照片",
@@ -589,6 +603,20 @@ struct SettingsSheet: View {
         Binding(
             get: { session.settings.homeBackgroundStyle },
             set: { session.setHomeBackgroundStyle($0) }
+        )
+    }
+
+    private var homePortraitPresetBinding: Binding<HomePortraitBackgroundPreset> {
+        Binding(
+            get: { session.settings.homePortraitPreset },
+            set: { session.setHomePortraitPreset($0) }
+        )
+    }
+
+    private var homeLandscapePresetBinding: Binding<HomeLandscapeBackgroundPreset> {
+        Binding(
+            get: { session.settings.homeLandscapePreset },
+            set: { session.setHomeLandscapePreset($0) }
         )
     }
 

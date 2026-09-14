@@ -18,6 +18,8 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertTrue(settings.quickSitesEnabled)
         XCTAssertEqual(settings.quickSiteLimit, 6)
         XCTAssertEqual(settings.homeBackgroundStyle, .forest)
+        XCTAssertEqual(settings.homePortraitPreset, .mountain)
+        XCTAssertEqual(settings.homeLandscapePreset, .arch)
         XCTAssertEqual(settings.tabExpiry, .sevenDays)
         XCTAssertEqual(settings.historyRetention, .thirtyDays)
         XCTAssertEqual(settings.liveWebViewLimit, 4)
@@ -53,6 +55,8 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertTrue(settings.autoHideToolbarEnabled)
         XCTAssertFalse(settings.telemetryEnabled)
         XCTAssertEqual(settings.homeBackgroundStyle, .forest)
+        XCTAssertEqual(settings.homePortraitPreset, .mountain)
+        XCTAssertEqual(settings.homeLandscapePreset, .arch)
         XCTAssertEqual(settings.tabExpiry, .sevenDays)
         XCTAssertEqual(settings.historyRetention, .thirtyDays)
         XCTAssertEqual(settings.downloadConcurrency, 2)
@@ -99,6 +103,42 @@ final class BrowserSettingsTests: XCTestCase {
             )
             XCTAssertEqual(restored.homeBackgroundStyle, style)
         }
+    }
+
+    func testHomeBackgroundPresetsRoundTripAndMigrateLegacyStyles() throws {
+        let expected = BrowserSettings(
+            homeBackgroundStyle: .forest,
+            homePortraitPreset: .river,
+            homeLandscapePreset: .wood
+        )
+        let restored = try JSONDecoder().decode(
+            BrowserSettings.self,
+            from: JSONEncoder().encode(expected)
+        )
+
+        XCTAssertEqual(restored, expected)
+        XCTAssertEqual(
+            HomeBackgroundPresetPolicy.resourceName(
+                portrait: restored.homePortraitPreset,
+                landscape: restored.homeLandscapePreset,
+                isLandscape: false
+            ),
+            "portrait-river"
+        )
+        XCTAssertEqual(
+            HomeBackgroundPresetPolicy.resourceName(
+                portrait: restored.homePortraitPreset,
+                landscape: restored.homeLandscapePreset,
+                isLandscape: true
+            ),
+            "landscape-wood"
+        )
+
+        let legacy = #"{"homeBackgroundStyle":2}"#.data(using: .utf8)!
+        let migrated = try JSONDecoder().decode(BrowserSettings.self, from: legacy)
+        XCTAssertEqual(migrated.homeBackgroundStyle, .forest)
+        XCTAssertEqual(migrated.homePortraitPreset, .alley)
+        XCTAssertEqual(migrated.homeLandscapePreset, .roof)
     }
 
     func testTabResourceSettingsUseSupportedValues() {

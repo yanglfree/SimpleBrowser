@@ -68,12 +68,16 @@ enum HomeBackgroundStyle: Int, Codable, CaseIterable, Identifiable {
 
     var id: Int { rawValue }
 
+    static let selectableCases: [HomeBackgroundStyle] = [.plain, .forest, .daily, .custom]
+
+    var isBuiltIn: Bool {
+        self == .forest || self == .dusk || self == .ocean
+    }
+
     var label: String {
         switch self {
         case .plain: return "纯色"
-        case .forest: return "松林"
-        case .dusk: return "暮色"
-        case .ocean: return "远海"
+        case .forest, .dusk, .ocean: return "内置图片"
         case .daily: return "每日美图"
         case .custom: return "自定义照片"
         }
@@ -133,6 +137,8 @@ struct BrowserSettings: Equatable {
     var quickSitesEnabled: Bool = true
     var quickSiteLimit: Int = 6
     var homeBackgroundStyle: HomeBackgroundStyle = .forest
+    var homePortraitPreset: HomePortraitBackgroundPreset = .mountain
+    var homeLandscapePreset: HomeLandscapeBackgroundPreset = .arch
     var tabExpiry: TabExpiry = .sevenDays
     var historyRetention: HistoryRetention = .thirtyDays
     var liveWebViewLimit: Int = 4
@@ -167,6 +173,7 @@ struct BrowserSettings: Equatable {
         case gestureBlockingEnabled, autoHideToolbarEnabled, telemetryEnabled
         case privacyConsentAccepted, onboardingCompleted, appearance
         case quickSitesEnabled, quickSiteLimit, homeBackgroundStyle
+        case homePortraitPreset, homeLandscapePreset
         case tabExpiry, historyRetentionDays, liveWebViewLimit, tabSoftLimit
         case downloadConcurrency, largeDownloadThresholdMB, wifiOnlyDownloads
         case downloadNotificationsEnabled
@@ -194,6 +201,8 @@ struct BrowserSettings: Equatable {
         quickSitesEnabled: Bool = true,
         quickSiteLimit: Int = 6,
         homeBackgroundStyle: HomeBackgroundStyle = .forest,
+        homePortraitPreset: HomePortraitBackgroundPreset = .mountain,
+        homeLandscapePreset: HomeLandscapeBackgroundPreset = .arch,
         tabExpiry: TabExpiry = .sevenDays,
         historyRetention: HistoryRetention = .thirtyDays,
         liveWebViewLimit: Int = 4,
@@ -228,7 +237,9 @@ struct BrowserSettings: Equatable {
         self.appearance = appearance
         self.quickSitesEnabled = quickSitesEnabled
         self.quickSiteLimit = Self.clampedQuickSiteLimit(quickSiteLimit)
-        self.homeBackgroundStyle = homeBackgroundStyle
+        self.homeBackgroundStyle = homeBackgroundStyle.isBuiltIn ? .forest : homeBackgroundStyle
+        self.homePortraitPreset = homePortraitPreset
+        self.homeLandscapePreset = homeLandscapePreset
         self.tabExpiry = tabExpiry
         self.historyRetention = historyRetention
         self.liveWebViewLimit = Self.clampedLiveWebViewLimit(liveWebViewLimit)
@@ -270,7 +281,19 @@ struct BrowserSettings: Equatable {
         quickSiteLimit = Self.clampedQuickSiteLimit(
             try container.decodeIfPresent(Int.self, forKey: .quickSiteLimit) ?? 6
         )
-        homeBackgroundStyle = try container.decodeIfPresent(HomeBackgroundStyle.self, forKey: .homeBackgroundStyle) ?? .forest
+        let decodedBackgroundStyle = try container.decodeIfPresent(
+            HomeBackgroundStyle.self,
+            forKey: .homeBackgroundStyle
+        ) ?? .forest
+        homeBackgroundStyle = decodedBackgroundStyle.isBuiltIn ? .forest : decodedBackgroundStyle
+        homePortraitPreset = try container.decodeIfPresent(
+            HomePortraitBackgroundPreset.self,
+            forKey: .homePortraitPreset
+        ) ?? HomeBackgroundPresetPolicy.legacyPortraitPreset(for: decodedBackgroundStyle)
+        homeLandscapePreset = try container.decodeIfPresent(
+            HomeLandscapeBackgroundPreset.self,
+            forKey: .homeLandscapePreset
+        ) ?? HomeBackgroundPresetPolicy.legacyLandscapePreset(for: decodedBackgroundStyle)
         tabExpiry = try container.decodeIfPresent(TabExpiry.self, forKey: .tabExpiry) ?? .sevenDays
         historyRetention = try container.decodeIfPresent(
             HistoryRetention.self,
@@ -342,6 +365,8 @@ struct BrowserSettings: Equatable {
         try container.encode(quickSitesEnabled, forKey: .quickSitesEnabled)
         try container.encode(Self.clampedQuickSiteLimit(quickSiteLimit), forKey: .quickSiteLimit)
         try container.encode(homeBackgroundStyle, forKey: .homeBackgroundStyle)
+        try container.encode(homePortraitPreset, forKey: .homePortraitPreset)
+        try container.encode(homeLandscapePreset, forKey: .homeLandscapePreset)
         try container.encode(tabExpiry, forKey: .tabExpiry)
         try container.encode(historyRetention, forKey: .historyRetentionDays)
         try container.encode(Self.clampedLiveWebViewLimit(liveWebViewLimit), forKey: .liveWebViewLimit)

@@ -15,6 +15,7 @@ final class SettingsSearchPolicyTests: XCTestCase {
         XCTAssertEqual(SettingsSearchPolicy.visibleSections(for: "Wi-Fi"), [.downloads])
         XCTAssertEqual(SettingsSearchPolicy.visibleSections(for: "相机权限"), [.blocking])
         XCTAssertEqual(SettingsSearchPolicy.visibleSections(for: "遥测"), [.privacy])
+        XCTAssertEqual(SettingsSearchPolicy.visibleSections(for: "横屏木纹"), [.startPage])
     }
 
     func testMatchingIgnoresCaseAndWhitespace() {

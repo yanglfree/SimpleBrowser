@@ -1219,7 +1219,21 @@ final class BrowserSession: ObservableObject {
     }
 
     func setHomeBackgroundStyle(_ style: HomeBackgroundStyle) {
-        settings.homeBackgroundStyle = style
+        settings.homeBackgroundStyle = style.isBuiltIn ? .forest : style
+        persistSettings()
+        refreshHomeBackground()
+    }
+
+    func setHomePortraitPreset(_ preset: HomePortraitBackgroundPreset) {
+        settings.homePortraitPreset = preset
+        settings.homeBackgroundStyle = .forest
+        persistSettings()
+        refreshHomeBackground()
+    }
+
+    func setHomeLandscapePreset(_ preset: HomeLandscapeBackgroundPreset) {
+        settings.homeLandscapePreset = preset
+        settings.homeBackgroundStyle = .forest
         persistSettings()
         refreshHomeBackground()
     }

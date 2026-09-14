@@ -25,8 +25,11 @@ struct NativeHomeView: View {
 
     var body: some View {
         ZStack {
-            background
-                .ignoresSafeArea()
+            GeometryReader { proxy in
+                background(isLandscape: proxy.size.width > proxy.size.height)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+            }
+            .ignoresSafeArea()
             if settings.homeBackgroundStyle != .plain {
                 Color.black.opacity(0.16).ignoresSafeArea()
             }
@@ -132,16 +135,27 @@ struct NativeHomeView: View {
     }
 
     @ViewBuilder
-    private var background: some View {
+    private func background(isLandscape: Bool) -> some View {
         switch settings.homeBackgroundStyle {
         case .plain:
             DesignTokens.pageBackground
-        case .forest:
-            LinearGradient(colors: [Color(hex: "#31584D"), Color(hex: "#91AA91")], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .dusk:
-            LinearGradient(colors: [Color(hex: "#574765"), Color(hex: "#C48675")], startPoint: .top, endPoint: .bottomTrailing)
-        case .ocean:
-            LinearGradient(colors: [Color(hex: "#245A73"), Color(hex: "#86B8BE")], startPoint: .topLeading, endPoint: .bottom)
+        case .forest, .dusk, .ocean:
+            if let image = HomeBackgroundPresetImageStore.image(
+                portrait: settings.homePortraitPreset,
+                landscape: settings.homeLandscapePreset,
+                isLandscape: isLandscape
+            ) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .clipped()
+            } else {
+                LinearGradient(
+                    colors: [Color(hex: "#31584D"), Color(hex: "#91AA91")],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
         case .daily, .custom:
             if let backgroundImage {
                 Image(uiImage: backgroundImage)

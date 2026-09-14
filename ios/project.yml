@@ -24,6 +24,9 @@ targets:
       - path: ZhuoBrowser/Resources/rules
         buildPhase: resources
         type: folder
+      - path: ZhuoBrowser/Resources/backgrounds
+        buildPhase: resources
+        type: folder
       - path: Shared
     dependencies:
       - target: ZhuoBrowserShareExtension
