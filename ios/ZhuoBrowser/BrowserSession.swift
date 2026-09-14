@@ -37,6 +37,7 @@ final class BrowserSession: ObservableObject {
     @Published var pageResumeRequest: PageResumeRequest?
     @Published var showsProPaywall = false
     @Published var showsSecurityPanel = false
+    @Published var showsPageSettings = false
     @Published var securityWarning: SiteSecurityWarning?
     let downloads = DownloadStore()
     let articles = ArticleStore()
@@ -87,6 +88,16 @@ final class BrowserSession: ObservableObject {
         ContentBlocker.shared.prepare()
         readerSettings = Self.loadReaderSettings()
         settings = loadedSettings
+        tabs = tabs.map { tab in
+            var resolved = tab
+            if !URLPolicy.isHomeURL(tab.url) {
+                resolved.isDesktop = WebAppearancePolicy.usesDesktopUserAgent(
+                    for: tab.url,
+                    settings: loadedSettings
+                )
+            }
+            return resolved
+        }
         downloads.configure(settings: loadedSettings)
         downloads.onCompletion = { [weak self] task in
             self?.flash("\(task.fileName) 下载完成")
@@ -139,16 +150,20 @@ final class BrowserSession: ObservableObject {
 
     func openInActiveTab(_ raw: String) {
         let address = URLPolicy.normalizeAddress(raw, engine: settings.searchEngine)
+        let usesDesktop = WebAppearancePolicy.usesDesktopUserAgent(for: address, settings: settings)
         prepareNavigation(tabID: activeTabID, to: address)
         update(tabID: activeTabID) { tab in
             tab.url = address
             tab.lastVisitedAt = Date().timeIntervalSince1970
+            tab.isDesktop = usesDesktop
         }
         if URLPolicy.isHomeURL(address) {
             persist()
             return
         }
         if let controller = controllers[activeTabID] {
+            controller.applyUserAgent(isDesktop: usesDesktop)
+            controller.applyWebAppearance(for: address)
             controller.load(address)
         } else if let current = activeTab {
             let controller = makeController(for: current)
@@ -551,11 +566,11 @@ final class BrowserSession: ObservableObject {
         activeController?.applyReader(settings: readerSettings) { _ in }
     }
 
-    func toggleDesktop() {
+    func applyUserAgentOnce(_ preference: UserAgentPreference) {
         guard let current = activeTab, !URLPolicy.isHomeURL(current.url) else {
             return
         }
-        let next = !current.isDesktop
+        let next = preference == .desktop
         update(tabID: current.id) { tab in
             tab.isDesktop = next
             tab.isReader = false
@@ -565,6 +580,115 @@ final class BrowserSession: ObservableObject {
         let target = next ? URLPolicy.desktopURL(for: current.url) : current.url
         activeController?.load(target, rewriteDesktop: next)
         persist()
+    }
+
+    func setSiteUserAgentPreference(_ preference: UserAgentPreference) {
+        guard let current = activeTab else {
+            return
+        }
+        let host = WebAppearancePolicy.host(for: current.url)
+        guard !host.isEmpty else {
+            return
+        }
+        settings.siteUserAgentPreferences.removeAll { $0.host == host }
+        if preference != .default {
+            settings.siteUserAgentPreferences.append(
+                SiteUserAgentPreference(host: host, preference: preference)
+            )
+        }
+        settings.siteUserAgentPreferences = WebAppearancePolicy.normalizedUserAgentPreferences(
+            settings.siteUserAgentPreferences
+        )
+        persistSettings()
+        applyResolvedUserAgentToActive()
+    }
+
+    func setDefaultUserAgentPreference(_ preference: UserAgentPreference) {
+        settings.defaultUserAgentPreference = preference
+        persistSettings()
+        applyResolvedUserAgentToActive()
+    }
+
+    func resetUserAgentPreferences() {
+        settings.defaultUserAgentPreference = .default
+        settings.siteUserAgentPreferences = []
+        persistSettings()
+        applyResolvedUserAgentToActive()
+    }
+
+    func userAgentPreference(for rawURL: String) -> UserAgentPreference {
+        WebAppearancePolicy.userAgentPreference(for: rawURL, settings: settings)
+    }
+
+    func siteUserAgentPreference(for rawURL: String) -> UserAgentPreference {
+        let host = WebAppearancePolicy.host(for: rawURL)
+        return settings.siteUserAgentPreferences.first(where: { $0.host == host })?.preference ?? .default
+    }
+
+    func setMinimumFontSize(_ size: Int) {
+        settings.minimumFontSize = BrowserSettings.clampedMinimumFontSize(size)
+        persistSettings()
+        controllers.values.forEach { $0.applyWebAppearance() }
+        activeController?.reload()
+    }
+
+    func setWebDarkMode(_ preference: WebDarkModePreference) {
+        settings.webDarkMode = preference
+        persistSettings()
+        controllers.values.forEach { $0.applyWebAppearance() }
+    }
+
+    func isWebDarkModeExcluded(for rawURL: String) -> Bool {
+        WebAppearancePolicy.isDarkModeExcluded(for: rawURL, settings: settings)
+    }
+
+    func setCurrentSiteDarkModeExcluded(_ excluded: Bool) {
+        guard let current = activeTab else {
+            return
+        }
+        let host = WebAppearancePolicy.host(for: current.url)
+        guard !host.isEmpty else {
+            return
+        }
+        settings.webDarkModeExcludedHosts.removeAll { $0 == host }
+        if excluded {
+            settings.webDarkModeExcludedHosts.append(host)
+        }
+        settings.webDarkModeExcludedHosts = WebAppearancePolicy.normalizedHosts(
+            settings.webDarkModeExcludedHosts
+        )
+        persistSettings()
+        activeController?.applyWebAppearance()
+    }
+
+    func zoomPercent(for rawURL: String) -> Int {
+        WebAppearancePolicy.zoomPercent(for: rawURL, settings: settings)
+    }
+
+    func setCurrentSiteZoom(_ percent: Int) {
+        guard let current = activeTab else {
+            return
+        }
+        let host = WebAppearancePolicy.host(for: current.url)
+        guard !host.isEmpty else {
+            return
+        }
+        settings.siteZoomRatios.removeAll { $0.host == host }
+        let clamped = WebAppearancePolicy.clampedZoomPercent(percent)
+        if clamped != 100 {
+            settings.siteZoomRatios.append(SiteZoomRatio(host: host, percent: clamped))
+        }
+        settings.siteZoomRatios = WebAppearancePolicy.normalizedZoomRatios(settings.siteZoomRatios)
+        persistSettings()
+        activeController?.applyWebAppearance()
+    }
+
+    private func applyResolvedUserAgentToActive() {
+        guard let current = activeTab, !URLPolicy.isHomeURL(current.url) else {
+            return
+        }
+        let preference = userAgentPreference(for: current.url)
+        applyUserAgentOnce(preference == .desktop ? .desktop : .mobile)
     }
 
     func beginFind() {

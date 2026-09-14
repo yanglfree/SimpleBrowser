@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-8",
+  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-9",
   "lastRun": {
     "date": "2026-09-15",
     "device": "Jimu QA iPhone 17",
@@ -222,6 +222,23 @@
       "expected": "Connection state is truthful, HTTP password entry warns before input, privacy controls are reachable, and destructive clearing is never performed without the explicit Clear action.",
       "result": "passed",
       "notes": "The per-site and global destructive Clear actions were inspected but not invoked during this retained-data QA run. Certificate-error classification and website-data record matching are covered by focused tests."
+    },
+    {
+      "id": "IOS-WEB-DISPLAY-001",
+      "title": "Web appearance, user-agent policy, and site zoom persist",
+      "steps": [
+        "Open Example Domain and choose Web Display from the page menu",
+        "Verify one-shot Mobile and Desktop actions plus site and global user-agent controls",
+        "Set the Example Domain site policy to Desktop and page zoom to 125%",
+        "Open Settings and verify global webpage appearance and minimum-font-size controls",
+        "Set minimum font size to 18 pt, terminate the app, and relaunch",
+        "Reopen Web Display and verify the Desktop site policy and 125% zoom remain"
+      ],
+      "expected": "The active page applies the zoom immediately, site and global controls remain reachable, and the site policy survives a cold launch.",
+      "result": "passed",
+      "evidence": "evidence/web-display-site-policy.png",
+      "additionalEvidence": "evidence/web-display-global-settings.png",
+      "notes": "The Simulator accessibility tree confirmed the persisted Desktop and 125% selections after relaunch. Policy normalization and legacy defaults are covered by focused tests."
     }
   ]
 }

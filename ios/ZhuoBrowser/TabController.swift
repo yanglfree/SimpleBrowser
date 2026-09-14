@@ -16,7 +16,8 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         let configuration = WebKernel.makeConfiguration(
             isPrivate: tab.isPrivate,
             dataStore: dataStore,
-            blockAds: session.adsBlockEnabled(for: tab.url)
+            blockAds: session.adsBlockEnabled(for: tab.url),
+            minimumFontSize: session.settings.minimumFontSize
         )
         let pageStateMessageHandler = WeakScriptMessageHandler()
         let securityMessageHandler = WeakScriptMessageHandler()
@@ -49,6 +50,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         pageStateMessageHandler.delegate = self
         securityMessageHandler.delegate = self
         applyUserAgent(isDesktop: tab.isDesktop)
+        applyWebAppearance(for: tab.url)
         if !URLPolicy.isHomeURL(tab.url) {
             let target = tab.isDesktop ? URLPolicy.desktopURL(for: tab.url) : tab.url
             load(target, rewriteDesktop: false)
@@ -153,6 +155,27 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
 
     func applyUserAgent(isDesktop: Bool) {
         webView.customUserAgent = isDesktop ? WebKernel.desktopUserAgent : nil
+    }
+
+    func applyWebAppearance(for rawURL: String? = nil) {
+        guard let session else {
+            return
+        }
+        let url = rawURL ?? session.tab(id)?.url ?? ""
+        webView.configuration.preferences.minimumFontSize = CGFloat(session.settings.minimumFontSize)
+        webView.pageZoom = CGFloat(session.zoomPercent(for: url)) / 100
+        if session.isWebDarkModeExcluded(for: url) {
+            webView.overrideUserInterfaceStyle = .light
+            return
+        }
+        switch session.settings.webDarkMode {
+        case .system:
+            webView.overrideUserInterfaceStyle = .unspecified
+        case .light:
+            webView.overrideUserInterfaceStyle = .light
+        case .dark:
+            webView.overrideUserInterfaceStyle = .dark
+        }
     }
 
     func applyDesktopViewportIfNeeded() {
@@ -323,6 +346,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         if navigationAction.targetFrame?.isMainFrame == true {
             if let url = navigationAction.request.url?.absoluteString {
                 applyContentBlocker(for: url)
+                applyWebAppearance(for: url)
                 session?.prepareNavigation(tabID: id, to: url)
             }
             if navigationAction.navigationType != .reload {

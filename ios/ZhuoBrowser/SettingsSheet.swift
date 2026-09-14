@@ -47,6 +47,18 @@ struct SettingsSheet: View {
                         }
                     }
                     .accessibilityIdentifier("settings-appearance")
+                    Picker("网页外观", selection: webDarkModeBinding) {
+                        ForEach(WebDarkModePreference.allCases) { preference in
+                            Text(preference.label).tag(preference)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-web-appearance")
+                    Picker("网页最小字号", selection: minimumFontSizeBinding) {
+                        ForEach([12, 14, 16, 18], id: \.self) { size in
+                            Text("\(size) pt").tag(size)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-minimum-font-size")
                 }
 
                 Section("搜索引擎") {
@@ -313,6 +325,20 @@ struct SettingsSheet: View {
         Binding(
             get: { session.settings.appearance },
             set: { session.setAppearance($0) }
+        )
+    }
+
+    private var webDarkModeBinding: Binding<WebDarkModePreference> {
+        Binding(
+            get: { session.settings.webDarkMode },
+            set: { session.setWebDarkMode($0) }
+        )
+    }
+
+    private var minimumFontSizeBinding: Binding<Int> {
+        Binding(
+            get: { session.settings.minimumFontSize },
+            set: { session.setMinimumFontSize($0) }
         )
     }
 

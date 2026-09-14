@@ -17,11 +17,17 @@ enum WebKernel {
         "force-zoom"
     ]
 
-    static func makeConfiguration(isPrivate: Bool, dataStore: WKWebsiteDataStore, blockAds: Bool) -> WKWebViewConfiguration {
+    static func makeConfiguration(
+        isPrivate: Bool,
+        dataStore: WKWebsiteDataStore,
+        blockAds: Bool,
+        minimumFontSize: Int
+    ) -> WKWebViewConfiguration {
         let configuration = WKWebViewConfiguration()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.websiteDataStore = isPrivate ? dataStore : .default()
         configuration.preferences.isFraudulentWebsiteWarningEnabled = true
+        configuration.preferences.minimumFontSize = CGFloat(minimumFontSize)
         let controller = configuration.userContentController
         for name in documentStartFiles {
             if let script = loadScript(named: name) {

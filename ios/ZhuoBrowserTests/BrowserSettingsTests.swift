@@ -19,6 +19,12 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertFalse(settings.wifiOnlyDownloads)
         XCTAssertFalse(settings.downloadNotificationsEnabled)
         XCTAssertFalse(settings.clearCookiesOnTabClose)
+        XCTAssertEqual(settings.minimumFontSize, 14)
+        XCTAssertEqual(settings.defaultUserAgentPreference, .default)
+        XCTAssertEqual(settings.webDarkMode, .system)
+        XCTAssertTrue(settings.siteUserAgentPreferences.isEmpty)
+        XCTAssertTrue(settings.siteZoomRatios.isEmpty)
+        XCTAssertTrue(settings.webDarkModeExcludedHosts.isEmpty)
     }
 
     func testLegacySettingsDecodeWithSafeNewDefaults() throws {
@@ -34,6 +40,9 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertEqual(settings.downloadConcurrency, 2)
         XCTAssertEqual(settings.largeDownloadThresholdMB, 50)
         XCTAssertFalse(settings.clearCookiesOnTabClose)
+        XCTAssertEqual(settings.minimumFontSize, 14)
+        XCTAssertEqual(settings.defaultUserAgentPreference, .default)
+        XCTAssertEqual(settings.webDarkMode, .system)
     }
 
     func testQuickSiteLimitIsClampedDuringInitialization() {
@@ -74,5 +83,54 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertEqual(BrowserSettings(downloadConcurrency: 99).downloadConcurrency, 6)
         XCTAssertEqual(BrowserSettings(largeDownloadThresholdMB: 0).largeDownloadThresholdMB, 1)
         XCTAssertEqual(BrowserSettings(largeDownloadThresholdMB: 2_000).largeDownloadThresholdMB, 1_024)
+    }
+
+    func testWebAppearanceSettingsAreNormalizedAndRoundTrip() throws {
+        let expected = BrowserSettings(
+            minimumFontSize: 17,
+            siteZoomRatios: [
+                SiteZoomRatio(host: "Example.COM", percent: 127),
+                SiteZoomRatio(host: "unchanged.example", percent: 100)
+            ],
+            defaultUserAgentPreference: .mobile,
+            siteUserAgentPreferences: [
+                SiteUserAgentPreference(host: "Example.COM", preference: .desktop),
+                SiteUserAgentPreference(host: "ignored.example", preference: .default)
+            ],
+            webDarkMode: .dark,
+            webDarkModeExcludedHosts: ["Example.COM", "example.com"]
+        )
+
+        XCTAssertEqual(expected.minimumFontSize, 16)
+        XCTAssertEqual(expected.siteZoomRatios, [SiteZoomRatio(host: "example.com", percent: 125)])
+        XCTAssertEqual(
+            expected.siteUserAgentPreferences,
+            [SiteUserAgentPreference(host: "example.com", preference: .desktop)]
+        )
+        XCTAssertEqual(expected.webDarkModeExcludedHosts, ["example.com"])
+
+        let restored = try JSONDecoder().decode(
+            BrowserSettings.self,
+            from: JSONEncoder().encode(expected)
+        )
+        XCTAssertEqual(restored, expected)
+    }
+
+    func testWebAppearancePolicyResolvesSiteOverrides() {
+        let settings = BrowserSettings(
+            siteZoomRatios: [SiteZoomRatio(host: "example.com", percent: 150)],
+            defaultUserAgentPreference: .mobile,
+            siteUserAgentPreferences: [
+                SiteUserAgentPreference(host: "example.com", preference: .desktop)
+            ],
+            webDarkMode: .dark,
+            webDarkModeExcludedHosts: ["example.com"]
+        )
+
+        XCTAssertEqual(WebAppearancePolicy.host(for: "https://Example.com/a"), "example.com")
+        XCTAssertTrue(WebAppearancePolicy.usesDesktopUserAgent(for: "https://example.com", settings: settings))
+        XCTAssertFalse(WebAppearancePolicy.usesDesktopUserAgent(for: "https://other.example", settings: settings))
+        XCTAssertEqual(WebAppearancePolicy.zoomPercent(for: "https://example.com/a", settings: settings), 150)
+        XCTAssertTrue(WebAppearancePolicy.isDarkModeExcluded(for: "https://example.com", settings: settings))
     }
 }

@@ -88,6 +88,11 @@ struct RootView: View {
                 .environmentObject(session)
                 .preferredColorScheme(preferredColorScheme)
         }
+        .sheet(isPresented: $session.showsPageSettings) {
+            PageDisplaySettingsSheet()
+                .environmentObject(session)
+                .presentationDetents([.medium, .large])
+        }
         .sheet(isPresented: $session.showsShare) {
             ShareSheet(items: session.shareItems)
         }
@@ -317,8 +322,8 @@ struct RootView: View {
                 session.beginFind()
             }
             .disabled(!browsing)
-            Button(session.activeTab?.isDesktop == true ? "移动版网站" : "桌面版网站") {
-                session.toggleDesktop()
+            Button("网页显示") {
+                session.showsPageSettings = true
             }
             .disabled(!browsing)
             Button(session.isCurrentHostAllowed() ? "对此站点恢复拦截" : "允许此站点加载广告") {

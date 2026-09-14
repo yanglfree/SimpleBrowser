@@ -16,6 +16,48 @@ enum AppearanceMode: Int, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum WebDarkModePreference: Int, Codable, CaseIterable, Identifiable {
+    case system = 0
+    case light = 1
+    case dark = 2
+
+    var id: Int { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: return "跟随系统"
+        case .light: return "始终浅色"
+        case .dark: return "始终深色"
+        }
+    }
+}
+
+enum UserAgentPreference: Int, Codable, CaseIterable, Identifiable {
+    case `default` = 0
+    case mobile = 1
+    case desktop = 2
+
+    var id: Int { rawValue }
+
+    var label: String {
+        switch self {
+        case .default: return "默认"
+        case .mobile: return "移动版"
+        case .desktop: return "桌面版"
+        }
+    }
+}
+
+struct SiteUserAgentPreference: Codable, Equatable {
+    let host: String
+    let preference: UserAgentPreference
+}
+
+struct SiteZoomRatio: Codable, Equatable {
+    let host: String
+    let percent: Int
+}
+
 enum HomeBackgroundStyle: Int, Codable, CaseIterable, Identifiable {
     case plain = 0
     case forest = 1
@@ -89,6 +131,12 @@ struct BrowserSettings: Equatable {
     var wifiOnlyDownloads: Bool = false
     var downloadNotificationsEnabled: Bool = false
     var clearCookiesOnTabClose: Bool = false
+    var minimumFontSize: Int = 14
+    var siteZoomRatios: [SiteZoomRatio] = []
+    var defaultUserAgentPreference: UserAgentPreference = .default
+    var siteUserAgentPreferences: [SiteUserAgentPreference] = []
+    var webDarkMode: WebDarkModePreference = .system
+    var webDarkModeExcludedHosts: [String] = []
 
     var searchEngineLabel: String {
         switch searchEngine {
@@ -107,6 +155,9 @@ struct BrowserSettings: Equatable {
         case downloadConcurrency, largeDownloadThresholdMB, wifiOnlyDownloads
         case downloadNotificationsEnabled
         case clearCookiesOnTabClose
+        case minimumFontSize, siteZoomRatios
+        case defaultUserAgentPreference, siteUserAgentPreferences
+        case webDarkMode, webDarkModeExcludedHosts
     }
 
     init(
@@ -127,7 +178,13 @@ struct BrowserSettings: Equatable {
         largeDownloadThresholdMB: Int = 50,
         wifiOnlyDownloads: Bool = false,
         downloadNotificationsEnabled: Bool = false,
-        clearCookiesOnTabClose: Bool = false
+        clearCookiesOnTabClose: Bool = false,
+        minimumFontSize: Int = 14,
+        siteZoomRatios: [SiteZoomRatio] = [],
+        defaultUserAgentPreference: UserAgentPreference = .default,
+        siteUserAgentPreferences: [SiteUserAgentPreference] = [],
+        webDarkMode: WebDarkModePreference = .system,
+        webDarkModeExcludedHosts: [String] = []
     ) {
         self.searchEngine = searchEngine
         self.blockAds = blockAds
@@ -147,6 +204,12 @@ struct BrowserSettings: Equatable {
         self.wifiOnlyDownloads = wifiOnlyDownloads
         self.downloadNotificationsEnabled = downloadNotificationsEnabled
         self.clearCookiesOnTabClose = clearCookiesOnTabClose
+        self.minimumFontSize = Self.clampedMinimumFontSize(minimumFontSize)
+        self.siteZoomRatios = WebAppearancePolicy.normalizedZoomRatios(siteZoomRatios)
+        self.defaultUserAgentPreference = defaultUserAgentPreference
+        self.siteUserAgentPreferences = WebAppearancePolicy.normalizedUserAgentPreferences(siteUserAgentPreferences)
+        self.webDarkMode = webDarkMode
+        self.webDarkModeExcludedHosts = WebAppearancePolicy.normalizedHosts(webDarkModeExcludedHosts)
     }
 
     init(from decoder: Decoder) throws {
@@ -185,6 +248,26 @@ struct BrowserSettings: Equatable {
             forKey: .downloadNotificationsEnabled
         ) ?? false
         clearCookiesOnTabClose = try container.decodeIfPresent(Bool.self, forKey: .clearCookiesOnTabClose) ?? false
+        minimumFontSize = Self.clampedMinimumFontSize(
+            try container.decodeIfPresent(Int.self, forKey: .minimumFontSize) ?? 14
+        )
+        siteZoomRatios = WebAppearancePolicy.normalizedZoomRatios(
+            try container.decodeIfPresent([SiteZoomRatio].self, forKey: .siteZoomRatios) ?? []
+        )
+        defaultUserAgentPreference = try container.decodeIfPresent(
+            UserAgentPreference.self,
+            forKey: .defaultUserAgentPreference
+        ) ?? .default
+        siteUserAgentPreferences = WebAppearancePolicy.normalizedUserAgentPreferences(
+            try container.decodeIfPresent(
+                [SiteUserAgentPreference].self,
+                forKey: .siteUserAgentPreferences
+            ) ?? []
+        )
+        webDarkMode = try container.decodeIfPresent(WebDarkModePreference.self, forKey: .webDarkMode) ?? .system
+        webDarkModeExcludedHosts = WebAppearancePolicy.normalizedHosts(
+            try container.decodeIfPresent([String].self, forKey: .webDarkModeExcludedHosts) ?? []
+        )
     }
 
     func encode(to encoder: Encoder) throws {
@@ -210,6 +293,18 @@ struct BrowserSettings: Equatable {
         try container.encode(wifiOnlyDownloads, forKey: .wifiOnlyDownloads)
         try container.encode(downloadNotificationsEnabled, forKey: .downloadNotificationsEnabled)
         try container.encode(clearCookiesOnTabClose, forKey: .clearCookiesOnTabClose)
+        try container.encode(Self.clampedMinimumFontSize(minimumFontSize), forKey: .minimumFontSize)
+        try container.encode(WebAppearancePolicy.normalizedZoomRatios(siteZoomRatios), forKey: .siteZoomRatios)
+        try container.encode(defaultUserAgentPreference, forKey: .defaultUserAgentPreference)
+        try container.encode(
+            WebAppearancePolicy.normalizedUserAgentPreferences(siteUserAgentPreferences),
+            forKey: .siteUserAgentPreferences
+        )
+        try container.encode(webDarkMode, forKey: .webDarkMode)
+        try container.encode(
+            WebAppearancePolicy.normalizedHosts(webDarkModeExcludedHosts),
+            forKey: .webDarkModeExcludedHosts
+        )
     }
 
     static func clampedQuickSiteLimit(_ value: Int) -> Int {
@@ -236,6 +331,10 @@ struct BrowserSettings: Equatable {
 
     static func clampedLargeDownloadThresholdMB(_ value: Int) -> Int {
         min(1_024, max(1, value))
+    }
+
+    static func clampedMinimumFontSize(_ value: Int) -> Int {
+        [12, 14, 16, 18].min(by: { abs($0 - value) < abs($1 - value) }) ?? 14
     }
 }
 
