@@ -156,12 +156,13 @@ export const TRACKER_BLOCK_SCRIPT: string = `
   var trackerPatterns = ${JSON.stringify(TRACKER_URL_PATTERNS)};
   var maliciousPatterns = ${JSON.stringify(MALICIOUS_URL_PATTERNS)};
   var trackers = 0, malicious = 0;
+  var resources = [];
 
   var scripts = document.querySelectorAll('script[src],img[src],iframe[src]');
   for (var i = 0; i < scripts.length; i++) {
     var node = scripts[i];
     if (node.hasAttribute(TAG)) continue;
-    var src = (node.getAttribute('src') || '').toLowerCase();
+    var src = (node.src || node.getAttribute('src') || '').toLowerCase();
     if (!src) continue;
     var matched = false;
     for (var m = 0; m < maliciousPatterns.length; m++) {
@@ -169,6 +170,7 @@ export const TRACKER_BLOCK_SCRIPT: string = `
         node.setAttribute(TAG, '1');
         node.remove();
         malicious++;
+        if (resources.length < 50) resources.push({ url: src, category: 'malicious' });
         matched = true;
         break;
       }
@@ -179,6 +181,7 @@ export const TRACKER_BLOCK_SCRIPT: string = `
       node.setAttribute(TAG, '1');
       node.remove();
       trackers++;
+      if (resources.length < 50) resources.push({ url: src, category: 'tracker' });
       break;
     }
   }
@@ -193,7 +196,7 @@ export const TRACKER_BLOCK_SCRIPT: string = `
   trackers += window.__mbBeaconCount || 0;
   window.__mbBeaconCount = 0;
 
-  return JSON.stringify({ trackers: trackers, malicious: malicious });
+  return JSON.stringify({ trackers: trackers, malicious: malicious, resources: resources });
 })();`;
 
 /** Overrides restrictive viewport declarations so native pinch zoom remains available. */

@@ -1631,30 +1631,30 @@ final class BrowserSession: ObservableObject {
         }
     }
 
-    func recordObservedBlocking(tabID: String, url: String, stats: BlockStats) {
+    func recordObservedBlocking(
+        tabID: String,
+        url: String,
+        stats: BlockStats,
+        resources: [ObservedBlockResource] = []
+    ) {
         guard stats.total > 0, PageStatePolicy.isSamePage(tab(tabID)?.url ?? "", url) else { return }
         var tabStats = tabBlockStats[tabID] ?? BlockStats()
         tabStats.add(stats)
         tabBlockStats[tabID] = tabStats
         let now = Date()
-        let categories: [(BlockCategory, Int)] = [
-            (.advertisement, stats.ads), (.tracker, stats.trackers),
-            (.malicious, stats.malicious),
-            (.popup, stats.popups), (.cookieBanner, stats.cookieBanners)
-        ]
-        for (category, count) in categories where count > 0 {
-            blockEvents.insert(
-                BlockEvent(
-                    id: UUID().uuidString,
-                    tabID: tabID,
-                    pageURL: url,
-                    category: category,
-                    count: count,
-                    occurredAt: now
-                ),
-                at: 0
+        let newEvents = BlockObservationPolicy.eventDrafts(stats: stats, resources: resources).map { draft in
+            BlockEvent(
+                id: UUID().uuidString,
+                tabID: tabID,
+                pageURL: url,
+                category: draft.category,
+                count: draft.count,
+                occurredAt: now,
+                resourceHost: draft.resourceHost,
+                engine: draft.engine
             )
         }
+        blockEvents.insert(contentsOf: newEvents, at: 0)
         blockEvents = Array(blockEvents.prefix(200))
         guard tab(tabID)?.isPrivate == false else { return }
         let host = URLPolicy.rawHost(url).lowercased()

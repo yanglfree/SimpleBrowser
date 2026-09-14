@@ -40,7 +40,7 @@ struct BlockEventSheet: View {
                 Text(event.category.label)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(DesignTokens.accent)
-                Text("WebKit 页面清理")
+                Text(event.engine.label)
                     .font(.system(size: 12))
                     .foregroundStyle(DesignTokens.textSecondary)
                 Spacer()
@@ -48,11 +48,11 @@ struct BlockEventSheet: View {
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(DesignTokens.textSecondary)
             }
-            Text(eventHost(event))
+            Text(event.resourceHost ?? eventHost(event))
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(DesignTokens.textPrimary)
                 .lineLimit(1)
-            Text("已清理 \(event.count) 个页面元素")
+            Text(event.resourceHost == nil ? "已清理 \(event.count) 个页面元素" : "已清理页面资源")
                 .font(.system(size: 12))
                 .foregroundStyle(DesignTokens.textSecondary)
         }

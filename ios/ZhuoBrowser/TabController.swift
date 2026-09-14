@@ -311,8 +311,14 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
                     trackers: Self.integer(payload["trackers"]),
                     malicious: Self.integer(payload["malicious"])
                 )
+                let resources = BlockObservationPolicy.resources(from: payload["resources"])
                 DispatchQueue.main.async {
-                    self.session?.recordObservedBlocking(tabID: self.id, url: rawURL, stats: stats)
+                    self.session?.recordObservedBlocking(
+                        tabID: self.id,
+                        url: rawURL,
+                        stats: stats,
+                        resources: resources
+                    )
                 }
             }
         }

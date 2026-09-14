@@ -39,6 +39,7 @@ test('tracker cleanup reports observed malicious resources separately and stays 
   const makeNode = (src) => {
     const attributes = new Set();
     return {
+      src,
       removed: false,
       hasAttribute: (name) => attributes.has(name),
       getAttribute: (name) => name === 'src' ? src : '',
@@ -56,8 +57,19 @@ test('tracker cleanup reports observed malicious resources separately and stays 
   const navigator = {};
   const run = Function('document', 'window', 'navigator', `return ${script.trim()}`);
 
-  assert.deepEqual(JSON.parse(run(document, window, navigator)), { trackers: 1, malicious: 1 });
-  assert.deepEqual(JSON.parse(run(document, window, navigator)), { trackers: 0, malicious: 0 });
+  assert.deepEqual(JSON.parse(run(document, window, navigator)), {
+    trackers: 1,
+    malicious: 1,
+    resources: [
+      { url: 'https://evil.example/phishing/payload.js', category: 'malicious' },
+      { url: 'https://www.google-analytics.com/analytics.js', category: 'tracker' }
+    ]
+  });
+  assert.deepEqual(JSON.parse(run(document, window, navigator)), {
+    trackers: 0,
+    malicious: 0,
+    resources: []
+  });
   assert.deepEqual(nodes.map((node) => node.removed), [true, true, false]);
 });
 

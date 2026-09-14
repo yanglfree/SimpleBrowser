@@ -2,6 +2,64 @@ import XCTest
 @testable import ZhuoBrowser
 
 final class BlockingPolicyTests: XCTestCase {
+    func testObservedResourcesAreSanitizedTypedAndBounded() {
+        let payload: [[String: Any]] = (0..<60).map { index in
+            [
+                "url": "https://Resource\(index).Example/path?secret=value",
+                "category": index.isMultiple(of: 2) ? "tracker" : "malicious"
+            ]
+        } + [
+            ["url": "javascript:alert(1)", "category": "tracker"],
+            ["url": "https://ignored.example", "category": "unknown"]
+        ]
+
+        let resources = BlockObservationPolicy.resources(from: payload)
+
+        XCTAssertEqual(resources.count, BlockObservationPolicy.maximumResourceDetails)
+        XCTAssertEqual(resources.first, ObservedBlockResource(host: "resource0.example", category: .tracker))
+        XCTAssertEqual(resources.last, ObservedBlockResource(host: "resource49.example", category: .malicious))
+    }
+
+    func testEventDraftsKeepResourceDetailsAndAggregateOnlyTheRemainder() {
+        let drafts = BlockObservationPolicy.eventDrafts(
+            stats: BlockStats(ads: 1, trackers: 3, malicious: 2, popups: 2),
+            resources: [
+                ObservedBlockResource(host: "analytics.example", category: .tracker),
+                ObservedBlockResource(host: "phishing.example", category: .malicious)
+            ]
+        )
+
+        XCTAssertEqual(
+            Array(drafts.prefix(2)),
+            [
+                BlockEventDraft(
+                    category: .tracker,
+                    count: 1,
+                    resourceHost: "analytics.example",
+                    engine: .resourceCleanup
+                ),
+                BlockEventDraft(
+                    category: .malicious,
+                    count: 1,
+                    resourceHost: "phishing.example",
+                    engine: .resourceCleanup
+                )
+            ]
+        )
+        XCTAssertEqual(drafts.reduce(0) { $0 + $1.count }, 8)
+        XCTAssertEqual(
+            drafts.filter { $0.resourceHost == nil }.map { [$0.category.rawValue, $0.count] },
+            [[BlockCategory.advertisement.rawValue, 1], [BlockCategory.tracker.rawValue, 2],
+             [BlockCategory.malicious.rawValue, 1], [BlockCategory.popup.rawValue, 2]]
+        )
+        XCTAssertTrue(
+            BlockObservationPolicy.eventDrafts(
+                stats: BlockStats(),
+                resources: [ObservedBlockResource(host: "unexpected.example", category: .tracker)]
+            ).isEmpty
+        )
+    }
+
     func testVisibleEventsStayTabScopedPositiveRecentAndBounded() {
         let now = Date(timeIntervalSince1970: 100)
         let events = [

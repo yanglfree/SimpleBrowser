@@ -98,7 +98,7 @@ struct SiteBlockStats: Codable, Equatable, Identifiable {
     var id: String { host }
 }
 
-enum BlockCategory: Int, Codable, CaseIterable, Identifiable {
+enum BlockCategory: Int, Codable, CaseIterable, Hashable, Identifiable {
     case advertisement = 0
     case tracker = 1
     case popup = 2
@@ -118,6 +118,30 @@ enum BlockCategory: Int, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum BlockEventEngine: Equatable {
+    case resourceCleanup
+    case elementCleanup
+
+    var label: String {
+        switch self {
+        case .resourceCleanup: return "WebKit 资源清理"
+        case .elementCleanup: return "WebKit 页面清理"
+        }
+    }
+}
+
+struct ObservedBlockResource: Equatable {
+    let host: String
+    let category: BlockCategory
+}
+
+struct BlockEventDraft: Equatable {
+    let category: BlockCategory
+    let count: Int
+    let resourceHost: String?
+    let engine: BlockEventEngine
+}
+
 struct BlockEvent: Identifiable, Equatable {
     let id: String
     let tabID: String
@@ -125,6 +149,88 @@ struct BlockEvent: Identifiable, Equatable {
     let category: BlockCategory
     let count: Int
     let occurredAt: Date
+    let resourceHost: String?
+    let engine: BlockEventEngine
+
+    init(
+        id: String,
+        tabID: String,
+        pageURL: String,
+        category: BlockCategory,
+        count: Int,
+        occurredAt: Date,
+        resourceHost: String? = nil,
+        engine: BlockEventEngine = .elementCleanup
+    ) {
+        self.id = id
+        self.tabID = tabID
+        self.pageURL = pageURL
+        self.category = category
+        self.count = count
+        self.occurredAt = occurredAt
+        self.resourceHost = resourceHost
+        self.engine = engine
+    }
+}
+
+enum BlockObservationPolicy {
+    static let maximumResourceDetails = 50
+
+    static func resources(from value: Any?) -> [ObservedBlockResource] {
+        guard let values = value as? [[String: Any]] else { return [] }
+        return values.prefix(maximumResourceDetails).compactMap { item in
+            guard let rawURL = item["url"] as? String else { return nil }
+            let host = URLPolicy.rawHost(rawURL)
+            guard !host.isEmpty else { return nil }
+            let category: BlockCategory
+            switch item["category"] as? String {
+            case "tracker": category = .tracker
+            case "malicious": category = .malicious
+            default: return nil
+            }
+            return ObservedBlockResource(host: host, category: category)
+        }
+    }
+
+    static func eventDrafts(stats: BlockStats, resources: [ObservedBlockResource]) -> [BlockEventDraft] {
+        var drafts: [BlockEventDraft] = []
+        var detailBudget: [BlockCategory: Int] = [
+            .tracker: max(0, stats.trackers),
+            .malicious: max(0, stats.malicious)
+        ]
+        for resource in resources where detailBudget[resource.category, default: 0] > 0 {
+            drafts.append(
+                BlockEventDraft(
+                    category: resource.category,
+                    count: 1,
+                    resourceHost: resource.host,
+                    engine: .resourceCleanup
+                )
+            )
+            detailBudget[resource.category, default: 0] -= 1
+        }
+        var detailedCounts: [BlockCategory: Int] = [:]
+        drafts.forEach { detailedCounts[$0.category, default: 0] += 1 }
+        let totals: [(BlockCategory, Int)] = [
+            (.advertisement, stats.ads), (.tracker, stats.trackers),
+            (.malicious, stats.malicious), (.popup, stats.popups),
+            (.cookieBanner, stats.cookieBanners)
+        ]
+        for (category, total) in totals {
+            let remaining = max(0, total - detailedCounts[category, default: 0])
+            if remaining > 0 {
+                drafts.append(
+                    BlockEventDraft(
+                        category: category,
+                        count: remaining,
+                        resourceHost: nil,
+                        engine: .elementCleanup
+                    )
+                )
+            }
+        }
+        return drafts
+    }
 }
 
 enum BlockEventPresentationPolicy {
