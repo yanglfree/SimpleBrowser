@@ -425,8 +425,23 @@ struct RootView: View {
             )
             .id(tabID)
             .overlay {
-                paneFocusBorder(tabID: tabID)
-                    .allowsHitTesting(false)
+                ZStack {
+                    if let tab, tab.loadError != .none {
+                        PageLoadErrorView(
+                            kind: tab.loadError,
+                            onRetry: {
+                                session.focusPane(tabID)
+                                session.retryPage(tabID: tabID)
+                            },
+                            onShowSecurity: {
+                                session.focusPane(tabID)
+                                session.openSecurityPanel()
+                            }
+                        )
+                    }
+                    paneFocusBorder(tabID: tabID)
+                        .allowsHitTesting(false)
+                }
             }
         } else {
             pageBackground

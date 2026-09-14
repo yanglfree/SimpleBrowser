@@ -407,6 +407,21 @@ final class BrowserSession: ObservableObject {
         activeController?.reload()
     }
 
+    func retryPage(tabID: String) {
+        guard let current = tab(tabID), !URLPolicy.isHomeURL(current.url) else { return }
+        let controller = controllers[tabID]
+        update(tabID: tabID) { tab in
+            tab.loadError = .none
+            tab.isLoading = true
+            tab.progress = 0
+        }
+        if let controller {
+            controller.load(current.url)
+        } else {
+            ensureLive(tabID)
+        }
+    }
+
     @discardableResult
     func createTab(isPrivate: Bool, select: Bool = true) -> String? {
         guard tabs.count < SessionPolicy.maxTabCount else {
