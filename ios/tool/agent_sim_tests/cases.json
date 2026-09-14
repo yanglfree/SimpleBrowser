@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-6",
+  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-7",
   "lastRun": {
     "date": "2026-09-15",
     "device": "Jimu QA iPhone 17",
@@ -192,6 +192,22 @@
       "evidence": "evidence/article-offline-restored.png",
       "additionalEvidence": "evidence/article-export.png",
       "notes": "Highlight persistence is covered by policy tests; text-selection interaction remains a physical-device acceptance item."
+    },
+    {
+      "id": "IOS-PRO-001",
+      "title": "Server-authoritative Pro gate and safe unavailable state",
+      "steps": [
+        "Choose Save Offline Article while no verified entitlement exists",
+        "Verify that the Pro paywall opens instead of capturing the page",
+        "Inspect benefits, agreement, restore, manage-subscription, legal, privacy, and support controls",
+        "Enable the agreement switch while the server catalog has no deployed iOS products",
+        "Open Settings and verify the Pro and support entries"
+      ],
+      "expected": "Offline capture stays locked, live StoreKit pricing is never invented, purchase remains disabled without a valid catalog product, and both the feature gate and Settings reach the paywall.",
+      "result": "passed",
+      "evidence": "evidence/pro-paywall-unavailable.png",
+      "additionalEvidence": "evidence/pro-settings-entry.png",
+      "notes": "The Simulator has no StoreKit account and the production iOS catalog is not deployed yet. Restore and purchase were not invoked; Sandbox/TestFlight transaction acceptance remains open."
     }
   ]
 }

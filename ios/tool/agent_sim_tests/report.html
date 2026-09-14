@@ -19,7 +19,7 @@
 <body>
   <header>
     <h1>ZhuoBrowser iOS Simulator QA</h1>
-    <p class="pass">13 / 13 scenarios passed</p>
+    <p class="pass">14 / 14 scenarios passed</p>
     <p class="meta">2026-09-15 · Jimu QA iPhone 17 · iOS 26.1 · Debug</p>
   </header>
   <article>
@@ -91,6 +91,12 @@
     <p>The shared capture script saved the fixture body and image, a body-only keyword returned the article, and tags, topic, and note metadata persisted. After the fixture server stopped and the app cold-launched, the local reader reopened near the final checkpoint with its image available. Markdown export opened the system share sheet. Highlight storage and relocation are policy-tested; text-selection interaction remains a physical-device acceptance item.</p>
     <img src="evidence/article-offline-restored.png" alt="Offline article reopened near its saved reading position after the fixture server stopped">
     <img src="evidence/article-export.png" alt="Portable Markdown article in the system share sheet">
+  </article>
+  <article>
+    <h2><code>IOS-PRO-001</code> Server-authoritative Pro gate</h2>
+    <p>Save Offline Article opened the Pro paywall without writing a new capture. The paywall exposed benefits, agreement, restore, subscription management, legal, privacy, and support controls. Because the production iOS catalog is not deployed yet, no price was invented and Purchase remained disabled even after agreement. Settings exposed both Pro and support entries. Simulator interaction does not cover a real Sandbox purchase, renewal, refund, or restore.</p>
+    <img src="evidence/pro-paywall-unavailable.png" alt="Pro paywall safely showing unavailable App Store products">
+    <img src="evidence/pro-settings-entry.png" alt="Pro membership and support entries in Settings">
   </article>
 </body>
 </html>

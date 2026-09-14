@@ -18,6 +18,27 @@ struct SettingsSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("卓阅 Pro") {
+                    Button {
+                        session.showsSettings = false
+                        DispatchQueue.main.async {
+                            session.showsProPaywall = true
+                        }
+                    } label: {
+                        HStack {
+                            Label(session.pro.isPro ? "Pro 已激活" : "升级卓阅 Pro", systemImage: "crown.fill")
+                            Spacer()
+                            if session.pro.isPro {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundStyle(DesignTokens.accent)
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("settings-pro")
+                    Link("联系支持", destination: URL(string: "mailto:youdroid2048@gmail.com")!)
+                        .accessibilityIdentifier("settings-support")
+                }
+
                 Section("外观") {
                     Picker("应用外观", selection: appearanceBinding) {
                         ForEach(AppearanceMode.allCases) { appearance in

@@ -78,6 +78,11 @@ struct RootView: View {
             ArticleLibrarySheet()
                 .environmentObject(session)
         }
+        .sheet(isPresented: $session.showsProPaywall) {
+            ProPaywallView()
+                .environmentObject(session)
+                .preferredColorScheme(preferredColorScheme)
+        }
         .sheet(isPresented: $session.showsShare) {
             ShareSheet(items: session.shareItems)
         }
@@ -142,6 +147,9 @@ struct RootView: View {
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
         }
+        .task {
+            await session.pro.activate()
+        }
         .onChange(of: session.activeTabID) { _, _ in
             addressText = displayAddress(session.activeTab?.url ?? "")
         }
@@ -153,6 +161,8 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, newValue in
             if newValue != .active {
                 session.captureActivePageState()
+            } else {
+                Task { await session.pro.refreshForForeground() }
             }
         }
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)

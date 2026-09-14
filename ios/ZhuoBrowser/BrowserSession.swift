@@ -35,8 +35,10 @@ final class BrowserSession: ObservableObject {
     @Published var showsExpiredTabsPrompt = false
     @Published var showsTabSoftLimitPrompt = false
     @Published var pageResumeRequest: PageResumeRequest?
+    @Published var showsProPaywall = false
     let downloads = DownloadStore()
     let articles = ArticleStore()
+    let pro = ProBillingService()
     private var permissionReply: ((Bool) -> Void)?
 
     private var controllers: [String: TabController] = [:]
@@ -107,6 +109,12 @@ final class BrowserSession: ObservableObject {
             }
             .store(in: &cancellables)
         articles.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+        pro.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
@@ -848,6 +856,11 @@ final class BrowserSession: ObservableObject {
     }
 
     func captureCurrentArticle() {
+        guard pro.isPro else {
+            showsProPaywall = true
+            flash("保存离线文章需要卓阅 Pro")
+            return
+        }
         guard let tab = activeTab,
               !tab.isPrivate,
               !URLPolicy.isHomeURL(tab.url),
