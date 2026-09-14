@@ -11,6 +11,7 @@ struct NativeHomeView: View {
     var onEdit: (QuickSite) -> Void = { _ in }
     var onRemove: (QuickSite) -> Void = { _ in }
     var onSettings: () -> Void = {}
+    var onOpenBackgroundPicker: () -> Void = {}
     var onBookmarks: () -> Void = {}
     var onHistory: () -> Void = {}
 
@@ -43,6 +44,7 @@ struct NativeHomeView: View {
                 .padding(.bottom, 32)
             }
         }
+        .onLongPressGesture(minimumDuration: 0.5, perform: onOpenBackgroundPicker)
         .accessibilityIdentifier("native-home")
     }
 

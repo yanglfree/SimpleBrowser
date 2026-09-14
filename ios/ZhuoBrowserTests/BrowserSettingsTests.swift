@@ -133,6 +133,16 @@ final class BrowserSettingsTests: XCTestCase {
             ),
             "landscape-wood"
         )
+        XCTAssertEqual(
+            HomeBackgroundPresetChoice.choices(isLandscape: false),
+            [.portrait(.mountain), .portrait(.alley), .portrait(.river)]
+        )
+        XCTAssertEqual(
+            HomeBackgroundPresetChoice.choices(isLandscape: true),
+            [.landscape(.arch), .landscape(.roof), .landscape(.wood)]
+        )
+        XCTAssertTrue(HomeBackgroundPresetChoice.portrait(.river).isSelected(in: restored))
+        XCTAssertTrue(HomeBackgroundPresetChoice.landscape(.wood).isSelected(in: restored))
 
         let legacy = #"{"homeBackgroundStyle":2}"#.data(using: .utf8)!
         let migrated = try JSONDecoder().decode(BrowserSettings.self, from: legacy)

@@ -35,6 +35,40 @@ enum HomeLandscapeBackgroundPreset: String, Codable, CaseIterable, Identifiable 
     }
 }
 
+enum HomeBackgroundPresetChoice: Equatable, Identifiable {
+    case portrait(HomePortraitBackgroundPreset)
+    case landscape(HomeLandscapeBackgroundPreset)
+
+    var id: String {
+        switch self {
+        case let .portrait(preset): return "portrait-\(preset.rawValue)"
+        case let .landscape(preset): return "landscape-\(preset.rawValue)"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case let .portrait(preset): return preset.label
+        case let .landscape(preset): return preset.label
+        }
+    }
+
+    static func choices(isLandscape: Bool) -> [HomeBackgroundPresetChoice] {
+        if isLandscape {
+            return HomeLandscapeBackgroundPreset.allCases.map(HomeBackgroundPresetChoice.landscape)
+        }
+        return HomePortraitBackgroundPreset.allCases.map(HomeBackgroundPresetChoice.portrait)
+    }
+
+    func isSelected(in settings: BrowserSettings) -> Bool {
+        guard settings.homeBackgroundStyle.isBuiltIn else { return false }
+        switch self {
+        case let .portrait(preset): return settings.homePortraitPreset == preset
+        case let .landscape(preset): return settings.homeLandscapePreset == preset
+        }
+    }
+}
+
 enum HomeBackgroundPresetPolicy {
     static func resourceName(
         portrait: HomePortraitBackgroundPreset,
