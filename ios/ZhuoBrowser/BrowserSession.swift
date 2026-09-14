@@ -18,6 +18,7 @@ final class BrowserSession: ObservableObject {
     @Published var settings = BrowserSettings()
     @Published var showsSettings = false
     @Published var showsDownloads = false
+    @Published var showsArticles = false
     @Published var showsShare = false
     @Published var shareItems: [Any] = []
     @Published var showsLibrary = false
@@ -35,6 +36,7 @@ final class BrowserSession: ObservableObject {
     @Published var showsTabSoftLimitPrompt = false
     @Published var pageResumeRequest: PageResumeRequest?
     let downloads = DownloadStore()
+    let articles = ArticleStore()
     private var permissionReply: ((Bool) -> Void)?
 
     private var controllers: [String: TabController] = [:]
@@ -99,6 +101,12 @@ final class BrowserSession: ObservableObject {
         persistArchivedTabs()
         showsExpiredTabsPrompt = !archivedTabs.isEmpty
         downloads.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+        articles.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
@@ -837,6 +845,31 @@ final class BrowserSession: ObservableObject {
         }
         shareItems = items
         showsShare = true
+    }
+
+    func captureCurrentArticle() {
+        guard let tab = activeTab,
+              !tab.isPrivate,
+              !URLPolicy.isHomeURL(tab.url),
+              let webView = activeController?.webView else {
+            return
+        }
+        let expectedURL = tab.url
+        Task { [weak self, weak webView] in
+            guard let self, let webView else { return }
+            do {
+                let snapshot = try await ArticleCapture.capture(from: webView)
+                guard PageStatePolicy.isSamePage(expectedURL, snapshot.sourceUrl) else {
+                    self.flash("页面已变化，请重新保存")
+                    return
+                }
+                let article = try await self.articles.save(snapshot)
+                let suffix = article.quality == .partial ? "，部分图片未保存" : ""
+                self.flash("已保存离线文章\(suffix)")
+            } catch {
+                self.flash(error.localizedDescription)
+            }
+        }
     }
 
     func clearBrowsingData() {

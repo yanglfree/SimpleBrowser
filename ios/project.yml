@@ -18,8 +18,12 @@ targets:
       - path: ZhuoBrowser
         excludes:
           - Resources/**
-    resources:
-      - path: ZhuoBrowser/Resources
+      - path: ZhuoBrowser/Resources/js
+        buildPhase: resources
+        type: folder
+      - path: ZhuoBrowser/Resources/rules
+        buildPhase: resources
+        type: folder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.youdroid.zhuobrowser

@@ -19,8 +19,8 @@
 <body>
   <header>
     <h1>ZhuoBrowser iOS Simulator QA</h1>
-    <p class="pass">12 / 12 scenarios passed</p>
-    <p class="meta">2026-09-14 · Jimu QA iPhone 17 · iOS 26.1 · Debug</p>
+    <p class="pass">13 / 13 scenarios passed</p>
+    <p class="meta">2026-09-15 · Jimu QA iPhone 17 · iOS 26.1 · Debug</p>
   </header>
   <article>
     <h2><code>IOS-SETUP-001</code> Privacy gate and onboarding</h2>
@@ -85,6 +85,12 @@
     <img src="evidence/download-missing-file.png" alt="Canceled and missing-file download recovery states">
     <img src="evidence/download-settings.png" alt="Download concurrency and network policy settings">
     <img src="evidence/download-preview.png" alt="Completed fixture opened with Quick Look">
+  </article>
+  <article>
+    <h2><code>IOS-ARTICLE-001</code> Offline article lifecycle</h2>
+    <p>The shared capture script saved the fixture body and image, a body-only keyword returned the article, and tags, topic, and note metadata persisted. After the fixture server stopped and the app cold-launched, the local reader reopened near the final checkpoint with its image available. Markdown export opened the system share sheet. Highlight storage and relocation are policy-tested; text-selection interaction remains a physical-device acceptance item.</p>
+    <img src="evidence/article-offline-restored.png" alt="Offline article reopened near its saved reading position after the fixture server stopped">
+    <img src="evidence/article-export.png" alt="Portable Markdown article in the system share sheet">
   </article>
 </body>
 </html>

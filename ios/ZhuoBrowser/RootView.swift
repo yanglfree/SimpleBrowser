@@ -74,6 +74,10 @@ struct RootView: View {
             DownloadSheet()
                 .environmentObject(session)
         }
+        .sheet(isPresented: $session.showsArticles) {
+            ArticleLibrarySheet()
+                .environmentObject(session)
+        }
         .sheet(isPresented: $session.showsShare) {
             ShareSheet(items: session.shareItems)
         }
@@ -281,6 +285,7 @@ struct RootView: View {
 
     private var pageActions: some View {
         let browsing = !(session.activeTab.map { URLPolicy.isHomeURL($0.url) } ?? true)
+        let isSavingArticle = session.activeTab.map { session.articles.capturingURLs.contains($0.url) } ?? false
         return Menu {
             Button(session.activeTab?.isReader == true ? "退出阅读模式" : "阅读模式") {
                 session.toggleReader()
@@ -306,6 +311,13 @@ struct RootView: View {
                 session.saveCurrentPageForLater()
             }
             .disabled(!browsing || session.activeTab?.isPrivate == true)
+            Button(isSavingArticle ? "正在保存文章" : "保存离线文章") {
+                session.captureCurrentArticle()
+            }
+            .disabled(!browsing || session.activeTab?.isPrivate == true || isSavingArticle)
+            Button("离线文章库") {
+                session.showsArticles = true
+            }
             Button("书签与历史") {
                 session.openLibrary(.bookmarks)
             }
