@@ -83,6 +83,11 @@ struct RootView: View {
                 .environmentObject(session)
                 .preferredColorScheme(preferredColorScheme)
         }
+        .sheet(isPresented: $session.showsSecurityPanel) {
+            SiteSecuritySheet()
+                .environmentObject(session)
+                .preferredColorScheme(preferredColorScheme)
+        }
         .sheet(isPresented: $session.showsShare) {
             ShareSheet(items: session.shareItems)
         }
@@ -143,6 +148,13 @@ struct RootView: View {
                     }
                 )
             }
+        }
+        .alert(item: $session.securityWarning) { warning in
+            Alert(
+                title: Text("此页面连接不安全"),
+                message: Text("\(warning.host) 使用未加密的 HTTP 连接。请勿在此页面输入密码或其他敏感信息。"),
+                dismissButton: .default(Text("知道了"))
+            )
         }
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
@@ -311,6 +323,10 @@ struct RootView: View {
             .disabled(!browsing)
             Button(session.isCurrentHostAllowed() ? "对此站点恢复拦截" : "允许此站点加载广告") {
                 session.toggleCurrentHostAllowed()
+            }
+            .disabled(!browsing)
+            Button("网站安全") {
+                session.openSecurityPanel()
             }
             .disabled(!browsing)
             Button(session.isCurrentPageSaved() ? "取消书签" : "加入书签") {

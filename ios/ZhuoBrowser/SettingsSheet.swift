@@ -14,6 +14,7 @@ struct SettingsSheet: View {
     @State private var isExportingBookmarks = false
     @State private var exportDocument: BookmarkHTMLDocument?
     @State private var transferMessage: BookmarkTransferMessage?
+    @State private var showsClearBrowsingData = false
 
     var body: some View {
         NavigationStack {
@@ -214,8 +215,11 @@ struct SettingsSheet: View {
                 }
 
                 Section("隐私") {
+                    Toggle("关闭标签时清除 Cookie", isOn: clearCookiesOnTabCloseBinding)
+                        .tint(DesignTokens.accent)
+                        .accessibilityIdentifier("settings-clear-cookies-on-close")
                     Button("清除浏览数据", role: .destructive) {
-                        session.clearBrowsingData()
+                        showsClearBrowsingData = true
                     }
                     .accessibilityIdentifier("settings-clear-data")
                 }
@@ -252,6 +256,10 @@ struct SettingsSheet: View {
         }
         .alert(item: $transferMessage) { message in
             Alert(title: Text(message.title), message: Text(message.message), dismissButton: .default(Text("好")))
+        }
+        .sheet(isPresented: $showsClearBrowsingData) {
+            ClearBrowsingDataSheet()
+                .environmentObject(session)
         }
         .accessibilityIdentifier("settings-sheet")
     }
@@ -382,6 +390,13 @@ struct SettingsSheet: View {
         Binding(
             get: { session.settings.downloadNotificationsEnabled },
             set: { session.setDownloadNotificationsEnabled($0) }
+        )
+    }
+
+    private var clearCookiesOnTabCloseBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.clearCookiesOnTabClose },
+            set: { session.setClearCookiesOnTabClose($0) }
         )
     }
 }

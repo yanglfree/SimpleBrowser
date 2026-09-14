@@ -8,6 +8,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     weak var session: BrowserSession?
     private var installedRuleLists: Set<String>
     private let pageStateMessageHandler: WeakScriptMessageHandler
+    private let securityMessageHandler: WeakScriptMessageHandler
 
     init(tab: BrowserTab, session: BrowserSession, dataStore: WKWebsiteDataStore) {
         self.id = tab.id
@@ -18,6 +19,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             blockAds: session.adsBlockEnabled(for: tab.url)
         )
         let pageStateMessageHandler = WeakScriptMessageHandler()
+        let securityMessageHandler = WeakScriptMessageHandler()
         configuration.userContentController.add(
             pageStateMessageHandler,
             contentWorld: .defaultClient,
@@ -31,8 +33,13 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
                 in: .defaultClient
             )
         )
+        configuration.userContentController.add(
+            securityMessageHandler,
+            name: SiteSecurityPolicy.messageHandlerName
+        )
         self.installedRuleLists = WebKernel.installedRuleLists(from: configuration)
         self.pageStateMessageHandler = pageStateMessageHandler
+        self.securityMessageHandler = securityMessageHandler
         self.webView = WKWebView(frame: .zero, configuration: configuration)
         self.session = session
         super.init()
@@ -40,6 +47,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
         pageStateMessageHandler.delegate = self
+        securityMessageHandler.delegate = self
         applyUserAgent(isDesktop: tab.isDesktop)
         if !URLPolicy.isHomeURL(tab.url) {
             let target = tab.isDesktop ? URLPolicy.desktopURL(for: tab.url) : tab.url
@@ -51,6 +59,9 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: PageStatePolicy.messageHandlerName,
             contentWorld: .defaultClient
+        )
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: SiteSecurityPolicy.messageHandlerName
         )
     }
 
@@ -249,6 +260,16 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == SiteSecurityPolicy.messageHandlerName {
+            guard message.frameInfo.isMainFrame,
+                  let payload = message.body as? [String: Any],
+                  payload["type"] as? String == "password-focus",
+                  let url = payload["url"] as? String else {
+                return
+            }
+            session?.handlePasswordFocus(tabID: id, url: url)
+            return
+        }
         guard message.name == PageStatePolicy.messageHandlerName,
               message.frameInfo.isMainFrame,
               let payload = message.body as? [String: Any],
@@ -349,6 +370,9 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             tab.canGoBack = webView.canGoBack
             tab.canGoForward = webView.canGoForward
             tab.lastVisitedAt = Date().timeIntervalSince1970
+            tab.securityState = SiteSecurityPolicy.provisionalState(
+                for: webView.url?.absoluteString ?? tab.url
+            )
         }
     }
 
@@ -363,6 +387,10 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             }
             tab.canGoBack = webView.canGoBack
             tab.canGoForward = webView.canGoForward
+            tab.securityState = SiteSecurityPolicy.state(
+                for: webView.url?.absoluteString ?? tab.url,
+                hasOnlySecureContent: webView.hasOnlySecureContent
+            )
         }
         applyDesktopViewportIfNeeded()
         if session?.tab(id)?.isReader == true {
@@ -392,6 +420,9 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             tab.isLoading = false
             tab.canGoBack = webView.canGoBack
             tab.canGoForward = webView.canGoForward
+            if SiteSecurityPolicy.isCertificateError(error) {
+                tab.securityState = .certificateError
+            }
         }
     }
 
@@ -400,6 +431,9 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             tab.isLoading = false
             tab.canGoBack = webView.canGoBack
             tab.canGoForward = webView.canGoForward
+            if SiteSecurityPolicy.isCertificateError(error) {
+                tab.securityState = .certificateError
+            }
         }
     }
 

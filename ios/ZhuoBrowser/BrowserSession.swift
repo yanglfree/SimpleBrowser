@@ -36,6 +36,8 @@ final class BrowserSession: ObservableObject {
     @Published var showsTabSoftLimitPrompt = false
     @Published var pageResumeRequest: PageResumeRequest?
     @Published var showsProPaywall = false
+    @Published var showsSecurityPanel = false
+    @Published var securityWarning: SiteSecurityWarning?
     let downloads = DownloadStore()
     let articles = ArticleStore()
     let pro = ProBillingService()
@@ -351,11 +353,11 @@ final class BrowserSession: ObservableObject {
     }
 
     private func finishClosingTab(_ id: String) {
-        guard tab(id) != nil else {
+        guard let closingTab = tab(id) else {
             return
         }
-        if let closing = tab(id), !closing.isPrivate {
-            recentlyClosedTabs.insert(closing, at: 0)
+        if !closingTab.isPrivate {
+            recentlyClosedTabs.insert(closingTab, at: 0)
             recentlyClosedTabs = Array(recentlyClosedTabs.prefix(10))
         }
         let nextActiveID = activeTabID == id
@@ -374,6 +376,9 @@ final class BrowserSession: ObservableObject {
         recyclePrivateStoreIfNeeded()
         ensureLive(activeTabID)
         persist()
+        if !closingTab.isPrivate && settings.clearCookiesOnTabClose {
+            clearCookies()
+        }
     }
 
     @discardableResult
@@ -484,6 +489,7 @@ final class BrowserSession: ObservableObject {
     }
 
     func closeAll() {
+        let shouldClearCookies = settings.clearCookiesOnTabClose && tabs.contains { !$0.isPrivate }
         dismissPageResume()
         controllers.removeAll()
         let home = BrowserTab.home(isPrivate: false)
@@ -491,6 +497,9 @@ final class BrowserSession: ObservableObject {
         activeTabID = home.id
         privateStore = WKWebsiteDataStore.nonPersistent()
         persist()
+        if shouldClearCookies {
+            clearCookies()
+        }
     }
 
     func toggleReader() {
@@ -725,6 +734,11 @@ final class BrowserSession: ObservableObject {
         }
     }
 
+    func setClearCookiesOnTabClose(_ enabled: Bool) {
+        settings.clearCookiesOnTabClose = enabled
+        persistSettings()
+    }
+
     func retryDownload(_ id: String) {
         downloads.retry(id, using: activeController?.webView)
     }
@@ -885,18 +899,91 @@ final class BrowserSession: ObservableObject {
         }
     }
 
-    func clearBrowsingData() {
+    func clearBrowsingData(_ selection: BrowsingDataSelection) {
+        guard selection.hasSelection else {
+            return
+        }
+        if selection.history {
+            let cutoff = BrowsingPrivacyPolicy.cutoff(for: selection.range).timeIntervalSince1970
+            history.removeAll { $0.visitedAt >= cutoff }
+            persistLibrary()
+        }
+        if selection.permissions {
+            allowedHosts = []
+            sitePermissions = []
+            persistAllowList()
+            persistSitePermissions()
+            controllers.values.forEach { $0.applyContentBlocker() }
+        }
+        var dataTypes = Set<String>()
+        if selection.cookies {
+            dataTypes.formUnion(Self.cookieAndStorageDataTypes)
+        }
+        if selection.cache {
+            dataTypes.formUnion(Self.cacheDataTypes)
+        }
+        guard !dataTypes.isEmpty else {
+            flash("已清除所选浏览数据")
+            return
+        }
         let store = WKWebsiteDataStore.default()
-        store.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
-            store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), for: records) {
+        store.removeData(ofTypes: dataTypes, modifiedSince: .distantPast) {
+            DispatchQueue.main.async {
+                self.flash("已清除所选浏览数据")
+            }
+        }
+    }
+
+    func clearCurrentSiteData() {
+        guard let tab = activeTab else { return }
+        let host = URLPolicy.rawHost(tab.url)
+        guard !host.isEmpty else { return }
+        history = LibraryPolicy.removeHistoryForHost(history, host: host)
+        allowedHosts.removeAll { $0.caseInsensitiveCompare(host) == .orderedSame }
+        sitePermissions.removeAll { permission in
+            guard let permissionHost = URL(string: permission.origin)?.host else { return false }
+            return permissionHost.caseInsensitiveCompare(host) == .orderedSame
+        }
+        persistLibrary()
+        persistAllowList()
+        persistSitePermissions()
+        controllers.values.forEach { $0.applyContentBlocker() }
+
+        let store = WKWebsiteDataStore.default()
+        let types = WKWebsiteDataStore.allWebsiteDataTypes()
+        store.fetchDataRecords(ofTypes: types) { records in
+            let matching = records.filter {
+                BrowsingPrivacyPolicy.recordDisplayName($0.displayName, matches: host)
+            }
+            store.removeData(ofTypes: types, for: matching) {
                 DispatchQueue.main.async {
-                    self.flash("已清除浏览数据")
+                    self.activeController?.reload()
+                    self.showsSecurityPanel = false
+                    self.flash("已清除 \(host) 的站点数据")
                 }
             }
         }
-        privateStore = WKWebsiteDataStore.nonPersistent()
-        history = []
-        persistLibrary()
+    }
+
+    func openSecurityPanel() {
+        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url) else { return }
+        showsSecurityPanel = true
+    }
+
+    func handlePasswordFocus(tabID: String, url: String) {
+        guard tabID == activeTabID,
+              PageStatePolicy.isSamePage(tab(tabID)?.url ?? "", url),
+              SiteSecurityPolicy.shouldWarnForPasswordFocus(on: url) else {
+            return
+        }
+        securityWarning = SiteSecurityWarning(host: URLPolicy.displayHost(url))
+    }
+
+    private func clearCookies() {
+        WKWebsiteDataStore.default().removeData(
+            ofTypes: [WKWebsiteDataTypeCookies],
+            modifiedSince: .distantPast
+        ) {}
     }
 
     func persistSettings() {
@@ -1275,4 +1362,18 @@ final class BrowserSession: ObservableObject {
         }
         return settings
     }
+
+    private static let cookieAndStorageDataTypes: Set<String> = [
+        WKWebsiteDataTypeCookies,
+        WKWebsiteDataTypeSessionStorage,
+        WKWebsiteDataTypeLocalStorage,
+        WKWebsiteDataTypeWebSQLDatabases,
+        WKWebsiteDataTypeIndexedDBDatabases
+    ]
+
+    private static let cacheDataTypes: Set<String> = [
+        WKWebsiteDataTypeDiskCache,
+        WKWebsiteDataTypeMemoryCache,
+        WKWebsiteDataTypeOfflineWebApplicationCache
+    ]
 }

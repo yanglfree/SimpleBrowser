@@ -18,6 +18,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
     var scrollSavedAt: TimeInterval
     var readerScrollSavedAt: TimeInterval
     var formDraft: String
+    var securityState: SiteSecurityState
 
     static func home(isPrivate: Bool) -> BrowserTab {
         BrowserTab(
@@ -37,7 +38,8 @@ struct BrowserTab: Identifiable, Equatable, Codable {
             readerScrollY: 0,
             scrollSavedAt: 0,
             readerScrollSavedAt: 0,
-            formDraft: ""
+            formDraft: "",
+            securityState: .unknown
         )
     }
 
@@ -66,7 +68,8 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         readerScrollY: Double = 0,
         scrollSavedAt: TimeInterval = 0,
         readerScrollSavedAt: TimeInterval = 0,
-        formDraft: String = ""
+        formDraft: String = "",
+        securityState: SiteSecurityState = .unknown
     ) {
         self.id = id
         self.url = url
@@ -85,12 +88,13 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         self.scrollSavedAt = scrollSavedAt
         self.readerScrollSavedAt = readerScrollSavedAt
         self.formDraft = formDraft
+        self.securityState = securityState
     }
 
     enum CodingKeys: String, CodingKey {
         case id, url, title, isPrivate, isLoading, progress, canGoBack, canGoForward
         case lastVisitedAt, isReader, isDesktop, isPinned
-        case scrollY, readerScrollY, scrollSavedAt, readerScrollSavedAt, formDraft
+        case scrollY, readerScrollY, scrollSavedAt, readerScrollSavedAt, formDraft, securityState
     }
 
     init(from decoder: Decoder) throws {
@@ -112,6 +116,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         scrollSavedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .scrollSavedAt) ?? 0
         readerScrollSavedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .readerScrollSavedAt) ?? 0
         formDraft = try container.decodeIfPresent(String.self, forKey: .formDraft) ?? ""
+        securityState = try container.decodeIfPresent(SiteSecurityState.self, forKey: .securityState) ?? .unknown
     }
 
     func encode(to encoder: Encoder) throws {
@@ -133,6 +138,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         try container.encode(scrollSavedAt, forKey: .scrollSavedAt)
         try container.encode(readerScrollSavedAt, forKey: .readerScrollSavedAt)
         try container.encode(formDraft, forKey: .formDraft)
+        try container.encode(securityState, forKey: .securityState)
     }
 }
 

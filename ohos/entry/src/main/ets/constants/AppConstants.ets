@@ -423,6 +423,9 @@ export const PASSWORD_FIELD_WATCHER_SCRIPT: string = `
       if (window.dolphinSecurity && window.dolphinSecurity.notifyPasswordFocus) {
         window.dolphinSecurity.notifyPasswordFocus();
       }
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.zhuoSecurity) {
+        window.webkit.messageHandlers.zhuoSecurity.postMessage({ type: 'password-focus', url: window.location.href });
+      }
     }
   }, true);
   return 'armed';

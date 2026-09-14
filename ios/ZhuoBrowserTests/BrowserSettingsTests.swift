@@ -18,6 +18,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertEqual(settings.largeDownloadThresholdMB, 50)
         XCTAssertFalse(settings.wifiOnlyDownloads)
         XCTAssertFalse(settings.downloadNotificationsEnabled)
+        XCTAssertFalse(settings.clearCookiesOnTabClose)
     }
 
     func testLegacySettingsDecodeWithSafeNewDefaults() throws {
@@ -32,6 +33,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertEqual(settings.historyRetention, .thirtyDays)
         XCTAssertEqual(settings.downloadConcurrency, 2)
         XCTAssertEqual(settings.largeDownloadThresholdMB, 50)
+        XCTAssertFalse(settings.clearCookiesOnTabClose)
     }
 
     func testQuickSiteLimitIsClampedDuringInitialization() {
@@ -55,7 +57,8 @@ final class BrowserSettingsTests: XCTestCase {
             downloadConcurrency: 5,
             largeDownloadThresholdMB: 125,
             wifiOnlyDownloads: true,
-            downloadNotificationsEnabled: true
+            downloadNotificationsEnabled: true,
+            clearCookiesOnTabClose: true
         )
 
         let restored = try JSONDecoder().decode(

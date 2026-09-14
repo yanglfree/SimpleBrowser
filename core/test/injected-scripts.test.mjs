@@ -17,6 +17,7 @@ test('extracts document-start and reader scripts from AppConstants', async () =>
   assert.match(scripts.FORCE_ZOOM_SCRIPT, /user-scalable=yes/);
   assert.match(scripts.READER_EXTRACTION_CORE_SCRIPT, /__zhuoReaderExtract/);
   assert.match(scripts.TRACKER_BLOCK_SCRIPT, /google-analytics/);
+  assert.match(scripts.PASSWORD_FIELD_WATCHER_SCRIPT, /messageHandlers\.zhuoSecurity/);
   assert.match(scripts.ARTICLE_CAPTURE_SCRIPT, /__zhuoReaderExtract/);
   for (const name of Object.keys(FILE_NAMES)) {
     assert.equal(typeof scripts[name], 'string');

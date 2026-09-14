@@ -88,6 +88,7 @@ struct BrowserSettings: Equatable {
     var largeDownloadThresholdMB: Int = 50
     var wifiOnlyDownloads: Bool = false
     var downloadNotificationsEnabled: Bool = false
+    var clearCookiesOnTabClose: Bool = false
 
     var searchEngineLabel: String {
         switch searchEngine {
@@ -105,6 +106,7 @@ struct BrowserSettings: Equatable {
         case tabExpiry, historyRetentionDays, liveWebViewLimit, tabSoftLimit
         case downloadConcurrency, largeDownloadThresholdMB, wifiOnlyDownloads
         case downloadNotificationsEnabled
+        case clearCookiesOnTabClose
     }
 
     init(
@@ -124,7 +126,8 @@ struct BrowserSettings: Equatable {
         downloadConcurrency: Int = 2,
         largeDownloadThresholdMB: Int = 50,
         wifiOnlyDownloads: Bool = false,
-        downloadNotificationsEnabled: Bool = false
+        downloadNotificationsEnabled: Bool = false,
+        clearCookiesOnTabClose: Bool = false
     ) {
         self.searchEngine = searchEngine
         self.blockAds = blockAds
@@ -143,6 +146,7 @@ struct BrowserSettings: Equatable {
         self.largeDownloadThresholdMB = Self.clampedLargeDownloadThresholdMB(largeDownloadThresholdMB)
         self.wifiOnlyDownloads = wifiOnlyDownloads
         self.downloadNotificationsEnabled = downloadNotificationsEnabled
+        self.clearCookiesOnTabClose = clearCookiesOnTabClose
     }
 
     init(from decoder: Decoder) throws {
@@ -180,6 +184,7 @@ struct BrowserSettings: Equatable {
             Bool.self,
             forKey: .downloadNotificationsEnabled
         ) ?? false
+        clearCookiesOnTabClose = try container.decodeIfPresent(Bool.self, forKey: .clearCookiesOnTabClose) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -204,6 +209,7 @@ struct BrowserSettings: Equatable {
         )
         try container.encode(wifiOnlyDownloads, forKey: .wifiOnlyDownloads)
         try container.encode(downloadNotificationsEnabled, forKey: .downloadNotificationsEnabled)
+        try container.encode(clearCookiesOnTabClose, forKey: .clearCookiesOnTabClose)
     }
 
     static func clampedQuickSiteLimit(_ value: Int) -> Int {

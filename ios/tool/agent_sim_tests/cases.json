@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-7",
+  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-8",
   "lastRun": {
     "date": "2026-09-15",
     "device": "Jimu QA iPhone 17",
@@ -200,7 +200,7 @@
         "Choose Save Offline Article while no verified entitlement exists",
         "Verify that the Pro paywall opens instead of capturing the page",
         "Inspect benefits, agreement, restore, manage-subscription, legal, privacy, and support controls",
-        "Enable the agreement switch while the server catalog has no deployed iOS products",
+        "Enable the agreement switch while no App Store product is available in the Simulator",
         "Open Settings and verify the Pro and support entries"
       ],
       "expected": "Offline capture stays locked, live StoreKit pricing is never invented, purchase remains disabled without a valid catalog product, and both the feature gate and Settings reach the paywall.",
@@ -208,6 +208,20 @@
       "evidence": "evidence/pro-paywall-unavailable.png",
       "additionalEvidence": "evidence/pro-settings-entry.png",
       "notes": "The Simulator has no StoreKit account or available App Store products. The production gateway catalog was verified separately. Restore and purchase were not invoked; Sandbox/TestFlight transaction acceptance remains open."
+    },
+    {
+      "id": "IOS-PRIVACY-001",
+      "title": "Site security state, insecure password warning, and selective clearing",
+      "steps": [
+        "Open an HTTP fixture and inspect Website Security",
+        "Focus the fixture password field and verify the insecure-connection warning",
+        "Open example.com and verify the HTTPS security state",
+        "Open Privacy settings and toggle Clear Cookies When Closing Tabs",
+        "Open Clear Browsing Data and inspect all four selectable categories and history range"
+      ],
+      "expected": "Connection state is truthful, HTTP password entry warns before input, privacy controls are reachable, and destructive clearing is never performed without the explicit Clear action.",
+      "result": "passed",
+      "notes": "The per-site and global destructive Clear actions were inspected but not invoked during this retained-data QA run. Certificate-error classification and website-data record matching are covered by focused tests."
     }
   ]
 }
