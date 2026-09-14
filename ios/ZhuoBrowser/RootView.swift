@@ -6,6 +6,8 @@ struct RootView: View {
     @StateObject private var session: BrowserSession
     private let windowRequest: BrowserWindowRequest?
     @State private var addressText = ""
+    @State private var addressSelection = OmniboxSelection.zero
+    @State private var addressFocused = false
     @State private var quickSiteEditor: QuickSiteEditorRequest?
     @State private var sidebarPanel: BrowserSidebarPanel = .tabs
     @State private var sidebarVisible = false
@@ -17,7 +19,6 @@ struct RootView: View {
     @State private var showsPageActions = false
     @State private var showsHomeBackgroundPicker = false
     @State private var showsHomePageSettings = false
-    @FocusState private var addressFocused: Bool
 
     init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
         self.windowRequest = windowRequest
@@ -299,10 +300,26 @@ struct RootView: View {
                 ZStack {
                     pageArea(width: proxy.size.width)
                     if addressFocused && !session.showsOverview {
-                        SuggestionList(suggestions: session.suggestions(for: addressText)) { item in
-                            addressFocused = false
-                            addressText = displayAddress(item.url)
-                            session.openInActiveTab(item.url)
+                        VStack(spacing: 0) {
+                            SuggestionList(
+                                suggestions: session.suggestions(for: addressText),
+                                onSelect: { item in
+                                    addressFocused = false
+                                    addressText = displayAddress(item.url)
+                                    session.openInActiveTab(item.url)
+                                },
+                                onComplete: { item in
+                                    addressText = item.url
+                                    let caret = (item.url as NSString).length
+                                    addressSelection = OmniboxSelection(start: caret, end: caret)
+                                }
+                            )
+                            OmniboxShortcutBar(
+                                shortcuts: OmniboxShortcutPolicy.shortcuts(
+                                    currentHost: URLPolicy.rawHost(session.activeTab?.url ?? "")
+                                ),
+                                onSelect: applyOmniboxShortcut
+                            )
                         }
                     }
                     if session.showsOverview {
@@ -614,21 +631,19 @@ struct RootView: View {
                 session.openNavigationHistory()
             }
 
-            TextField(session.activeTab?.isPrivate == true ? "无痕搜索或输入网址" : "搜索或输入网址", text: $addressText)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.URL)
-                .submitLabel(.go)
-                .font(.system(size: 15))
-                .padding(.horizontal, 12)
-                .frame(height: 36)
-                .background(DesignTokens.surfaceSubtle, in: Capsule())
-                .focused($addressFocused)
-                .accessibilityIdentifier("omni-field")
-                .onSubmit {
+            OmniboxTextField(
+                text: $addressText,
+                isFocused: $addressFocused,
+                selection: $addressSelection,
+                placeholder: session.activeTab?.isPrivate == true ? "无痕搜索或输入网址" : "搜索或输入网址",
+                onSubmit: {
                     addressFocused = false
                     session.openInActiveTab(addressText)
                 }
+            )
+                .padding(.horizontal, 12)
+                .frame(height: 36)
+                .background(DesignTokens.surfaceSubtle, in: Capsule())
 
             pageActions
 
@@ -792,6 +807,17 @@ struct RootView: View {
                 session.beginFind()
             }
         )
+    }
+
+    private func applyOmniboxShortcut(_ shortcut: OmniboxShortcut) {
+        let result = OmniboxShortcutPolicy.apply(
+            text: addressText,
+            selection: addressSelection,
+            shortcut: shortcut
+        )
+        addressText = result.text
+        addressSelection = result.selection
+        addressFocused = true
     }
 
     private func displayAddress(_ url: String) -> String {
