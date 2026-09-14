@@ -88,27 +88,37 @@ final class BlockingPolicyTests: XCTestCase {
         XCTAssertEqual(controls, [SiteControl(host: "example.com", trackerBlocking: .disabled)])
 
         let stats = BlockingPolicy.normalizedSiteStats([
-            SiteBlockStats(host: "Example.COM", stats: BlockStats(ads: 2, trackers: 1)),
+            SiteBlockStats(host: "Example.COM", stats: BlockStats(ads: 2, trackers: 1, malicious: 5)),
             SiteBlockStats(host: "example.com", stats: BlockStats(popups: 3, cookieBanners: 4))
         ])
         XCTAssertEqual(
             stats,
-            [SiteBlockStats(host: "example.com", stats: BlockStats(ads: 2, trackers: 1, popups: 3, cookieBanners: 4))]
+            [SiteBlockStats(
+                host: "example.com",
+                stats: BlockStats(ads: 2, trackers: 1, malicious: 5, popups: 3, cookieBanners: 4)
+            )]
         )
         XCTAssertEqual(
             BlockingPolicy.cumulativeStats([
                 SiteBlockStats(host: "example.com", stats: BlockStats(ads: 2, trackers: 1)),
-                SiteBlockStats(host: "other.example", stats: BlockStats(ads: -5, popups: 3))
+                SiteBlockStats(host: "other.example", stats: BlockStats(ads: -5, malicious: 4, popups: 3))
             ]),
-            BlockStats(ads: 2, trackers: 1, popups: 3, cookieBanners: 0)
+            BlockStats(ads: 2, trackers: 1, malicious: 4, popups: 3, cookieBanners: 0)
         )
     }
 
     func testBlockStatsOnlyAddsNonnegativeCounts() {
         var stats = BlockStats(ads: 1)
-        stats.add(BlockStats(ads: -3, trackers: 2, popups: 4, cookieBanners: -1))
+        stats.add(BlockStats(ads: -3, trackers: 2, malicious: 3, popups: 4, cookieBanners: -1))
 
-        XCTAssertEqual(stats, BlockStats(ads: 1, trackers: 2, popups: 4, cookieBanners: 0))
-        XCTAssertEqual(stats.total, 7)
+        XCTAssertEqual(stats, BlockStats(ads: 1, trackers: 2, malicious: 3, popups: 4, cookieBanners: 0))
+        XCTAssertEqual(stats.total, 10)
+    }
+
+    func testLegacyBlockStatsDecodeMissingMaliciousCountAsZero() throws {
+        let legacy = #"{"ads":2,"trackers":1,"popups":3,"cookieBanners":4}"#.data(using: .utf8)!
+        let restored = try JSONDecoder().decode(BlockStats.self, from: legacy)
+
+        XCTAssertEqual(restored, BlockStats(ads: 2, trackers: 1, malicious: 0, popups: 3, cookieBanners: 4))
     }
 }

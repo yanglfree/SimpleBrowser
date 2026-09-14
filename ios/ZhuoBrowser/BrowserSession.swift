@@ -1639,6 +1639,7 @@ final class BrowserSession: ObservableObject {
         let now = Date()
         let categories: [(BlockCategory, Int)] = [
             (.advertisement, stats.ads), (.tracker, stats.trackers),
+            (.malicious, stats.malicious),
             (.popup, stats.popups), (.cookieBanner, stats.cookieBanners)
         ]
         for (category, count) in categories where count > 0 {

@@ -23,6 +23,7 @@ struct BlockPanelSheet: View {
                     }
                     statRow("广告元素", value: pageStats.ads, icon: "rectangle.slash")
                     statRow("跟踪器", value: pageStats.trackers, icon: "scope")
+                    statRow("恶意内容", value: pageStats.malicious, icon: "exclamationmark.shield")
                     statRow("弹窗", value: pageStats.popups, icon: "macwindow.badge.plus")
                     statRow("Cookie 提示", value: pageStats.cookieBanners, icon: "hand.raised")
                 } footer: {

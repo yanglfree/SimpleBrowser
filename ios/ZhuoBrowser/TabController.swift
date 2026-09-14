@@ -307,7 +307,10 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         if control.trackerBlockingEnabled, let script = WebKernel.loadScript(named: "tracker-block") {
             webView.evaluateJavaScript(script) { [weak self] result, _ in
                 guard let self, let payload = Self.jsonObject(from: result) else { return }
-                let stats = BlockStats(trackers: Self.integer(payload["trackers"]))
+                let stats = BlockStats(
+                    trackers: Self.integer(payload["trackers"]),
+                    malicious: Self.integer(payload["malicious"])
+                )
                 DispatchQueue.main.async {
                     self.session?.recordObservedBlocking(tabID: self.id, url: rawURL, stats: stats)
                 }

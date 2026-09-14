@@ -34,6 +34,33 @@ test('builders still produce parameterized scripts', async () => {
   assert.equal(await findCountScript('Hello'), await findCountScript('  HELLO '));
 });
 
+test('tracker cleanup reports observed malicious resources separately and stays idempotent', async () => {
+  const script = await extractTemplateConst('TRACKER_BLOCK_SCRIPT');
+  const makeNode = (src) => {
+    const attributes = new Set();
+    return {
+      removed: false,
+      hasAttribute: (name) => attributes.has(name),
+      getAttribute: (name) => name === 'src' ? src : '',
+      setAttribute: (name) => attributes.add(name),
+      remove() { this.removed = true; }
+    };
+  };
+  const nodes = [
+    makeNode('https://evil.example/phishing/payload.js'),
+    makeNode('https://www.google-analytics.com/analytics.js'),
+    makeNode('https://cdn.example/app.js')
+  ];
+  const document = { querySelectorAll: () => nodes };
+  const window = {};
+  const navigator = {};
+  const run = Function('document', 'window', 'navigator', `return ${script.trim()}`);
+
+  assert.deepEqual(JSON.parse(run(document, window, navigator)), { trackers: 1, malicious: 1 });
+  assert.deepEqual(JSON.parse(run(document, window, navigator)), { trackers: 0, malicious: 0 });
+  assert.deepEqual(nodes.map((node) => node.removed), [true, true, false]);
+});
+
 test('reader extraction core stays a closed IIFE', async () => {
   const core = await extractTemplateConst('READER_EXTRACTION_CORE_SCRIPT');
   assert.match(core.trim(), /^\(function\(\)/);

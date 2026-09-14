@@ -51,6 +51,12 @@ export const TRACKER_URL_PATTERNS: string[] = [
   'pixel', 'collect?', '/stat', 'sensorsdata'
 ];
 
+/** URL fragments shown in the blocking panel's malicious-resource bucket. */
+export const MALICIOUS_URL_PATTERNS: string[] = [
+  'malware', 'phishing', 'phish', 'trojan', 'ransom', 'exploit',
+  'cryptominer', 'coinhive', 'malvertising'
+];
+
 export const STRICT_AD_TOKEN_PATTERN: string =
   '(^|[\\s_-])ads?([\\s_-]|$)|advert|adsbygoogle|sponsor|promotion|banner-?ad|gg-?wrap';
 
@@ -141,14 +147,15 @@ export function contentCleanupScript(strict: boolean): string {
 
 /**
  * Neutralises analytics that already made it into the document: removes known
- * tracker <script> tags and stubs out the beacon APIs they use to phone home.
- * Returns `{"trackers":n}`.
+ * tracker or malicious resource tags and stubs out the beacon APIs trackers
+ * use to phone home. Returns only resources that were actually removed.
  */
 export const TRACKER_BLOCK_SCRIPT: string = `
 (function() {
   var TAG = '__mbTracker';
-  var patterns = ${JSON.stringify(TRACKER_URL_PATTERNS)};
-  var removed = 0;
+  var trackerPatterns = ${JSON.stringify(TRACKER_URL_PATTERNS)};
+  var maliciousPatterns = ${JSON.stringify(MALICIOUS_URL_PATTERNS)};
+  var trackers = 0, malicious = 0;
 
   var scripts = document.querySelectorAll('script[src],img[src],iframe[src]');
   for (var i = 0; i < scripts.length; i++) {
@@ -156,13 +163,23 @@ export const TRACKER_BLOCK_SCRIPT: string = `
     if (node.hasAttribute(TAG)) continue;
     var src = (node.getAttribute('src') || '').toLowerCase();
     if (!src) continue;
-    for (var p = 0; p < patterns.length; p++) {
-      if (src.indexOf(patterns[p]) >= 0) {
+    var matched = false;
+    for (var m = 0; m < maliciousPatterns.length; m++) {
+      if (src.indexOf(maliciousPatterns[m]) >= 0) {
         node.setAttribute(TAG, '1');
         node.remove();
-        removed++;
+        malicious++;
+        matched = true;
         break;
       }
+    }
+    if (matched) continue;
+    for (var p = 0; p < trackerPatterns.length; p++) {
+      if (src.indexOf(trackerPatterns[p]) < 0) continue;
+      node.setAttribute(TAG, '1');
+      node.remove();
+      trackers++;
+      break;
     }
   }
 
@@ -173,10 +190,10 @@ export const TRACKER_BLOCK_SCRIPT: string = `
       navigator.sendBeacon = function() { window.__mbBeaconCount++; return true; };
     }
   }
-  removed += window.__mbBeaconCount || 0;
+  trackers += window.__mbBeaconCount || 0;
   window.__mbBeaconCount = 0;
 
-  return JSON.stringify({ trackers: removed });
+  return JSON.stringify({ trackers: trackers, malicious: malicious });
 })();`;
 
 /** Overrides restrictive viewport declarations so native pinch zoom remains available. */

@@ -55,14 +55,37 @@ struct EffectiveSiteControl: Equatable {
 struct BlockStats: Codable, Equatable {
     var ads = 0
     var trackers = 0
+    var malicious = 0
     var popups = 0
     var cookieBanners = 0
 
-    var total: Int { ads + trackers + popups + cookieBanners }
+    var total: Int { ads + trackers + malicious + popups + cookieBanners }
+
+    init(ads: Int = 0, trackers: Int = 0, malicious: Int = 0, popups: Int = 0, cookieBanners: Int = 0) {
+        self.ads = ads
+        self.trackers = trackers
+        self.malicious = malicious
+        self.popups = popups
+        self.cookieBanners = cookieBanners
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case ads, trackers, malicious, popups, cookieBanners
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        ads = try container.decodeIfPresent(Int.self, forKey: .ads) ?? 0
+        trackers = try container.decodeIfPresent(Int.self, forKey: .trackers) ?? 0
+        malicious = try container.decodeIfPresent(Int.self, forKey: .malicious) ?? 0
+        popups = try container.decodeIfPresent(Int.self, forKey: .popups) ?? 0
+        cookieBanners = try container.decodeIfPresent(Int.self, forKey: .cookieBanners) ?? 0
+    }
 
     mutating func add(_ other: BlockStats) {
         ads += max(0, other.ads)
         trackers += max(0, other.trackers)
+        malicious += max(0, other.malicious)
         popups += max(0, other.popups)
         cookieBanners += max(0, other.cookieBanners)
     }
@@ -80,6 +103,7 @@ enum BlockCategory: Int, Codable, CaseIterable, Identifiable {
     case tracker = 1
     case popup = 2
     case cookieBanner = 3
+    case malicious = 4
 
     var id: Int { rawValue }
 
@@ -87,6 +111,7 @@ enum BlockCategory: Int, Codable, CaseIterable, Identifiable {
         switch self {
         case .advertisement: return "广告元素"
         case .tracker: return "跟踪器"
+        case .malicious: return "恶意内容"
         case .popup: return "弹窗"
         case .cookieBanner: return "Cookie 提示"
         }
