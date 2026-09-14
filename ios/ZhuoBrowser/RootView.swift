@@ -110,6 +110,7 @@ struct RootView: View {
                 addressText = displayAddress(newValue ?? "")
             }
         }
+        .focusedSceneValue(\.browserCommandActions, browserCommandActions)
     }
 
     private var pageBackground: Color {
@@ -310,6 +311,40 @@ struct RootView: View {
         case .light: return .light
         case .dark: return .dark
         }
+    }
+
+    private var browserCommandActions: BrowserCommandActions {
+        BrowserCommandActions(
+            canReopenTab: session.canReopenRecentlyClosedTab,
+            canReload: !(session.activeTab.map { URLPolicy.isHomeURL($0.url) } ?? true),
+            canFind: !(session.activeTab.map { URLPolicy.isHomeURL($0.url) } ?? true),
+            focusAddress: {
+                session.showsOverview = false
+                addressText = displayAddress(session.activeTab?.url ?? "")
+                addressFocused = true
+            },
+            newTab: {
+                session.createTab(isPrivate: session.activeTab?.isPrivate == true)
+            },
+            closeTab: {
+                session.closeTab(session.activeTabID)
+            },
+            reopenTab: {
+                session.reopenRecentlyClosedTab()
+            },
+            nextTab: {
+                session.switchAdjacentTab(1)
+            },
+            previousTab: {
+                session.switchAdjacentTab(-1)
+            },
+            reload: {
+                session.reloadOrStop()
+            },
+            find: {
+                session.beginFind()
+            }
+        )
     }
 
     private func displayAddress(_ url: String) -> String {

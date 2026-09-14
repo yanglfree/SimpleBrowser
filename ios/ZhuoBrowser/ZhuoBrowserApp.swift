@@ -6,5 +6,8 @@ struct ZhuoBrowserApp: App {
         WindowGroup {
             RootView()
         }
+        .commands {
+            BrowserCommands()
+        }
     }
 }

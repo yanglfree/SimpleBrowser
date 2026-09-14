@@ -50,6 +50,36 @@ final class SessionPolicyTests: XCTestCase {
         XCTAssertEqual(SessionPolicy.selectedTabAfterClosing(tabs, closing: "c"), "b")
     }
 
+    func testAdjacentTabSelectionWrapsInBothDirections() {
+        let tabs = [makeTab(id: "a"), makeTab(id: "b"), makeTab(id: "c")]
+
+        XCTAssertEqual(SessionPolicy.adjacentTabID(tabs, activeTabID: "c", direction: 1), "a")
+        XCTAssertEqual(SessionPolicy.adjacentTabID(tabs, activeTabID: "a", direction: -1), "c")
+    }
+
+    func testReorderingStaysInsidePinAndPrivacyGroups() {
+        var pinnedA = makeTab(id: "pinned-a")
+        pinnedA.isPinned = true
+        var pinnedB = makeTab(id: "pinned-b")
+        pinnedB.isPinned = true
+        let normalA = makeTab(id: "normal-a")
+        let normalB = makeTab(id: "normal-b")
+        var privateTab = makeTab(id: "private")
+        privateTab.isPrivate = true
+        let tabs = [pinnedA, pinnedB, normalA, normalB, privateTab]
+
+        XCTAssertEqual(
+            SessionPolicy.reorderedTabs(tabs, moving: "pinned-a", direction: 1)?.map(\.id),
+            ["pinned-b", "pinned-a", "normal-a", "normal-b", "private"]
+        )
+        XCTAssertNil(SessionPolicy.reorderedTabs(tabs, moving: "pinned-b", direction: 1))
+        XCTAssertEqual(
+            SessionPolicy.reorderedTabs(tabs, moving: "normal-a", targetID: "private")?.map(\.id),
+            ["pinned-a", "pinned-b", "normal-b", "normal-a", "private"]
+        )
+        XCTAssertNil(SessionPolicy.reorderedTabs(tabs, moving: "normal-b", targetID: "private"))
+    }
+
     func testLegacyTabDecodesNavigationAndPinDefaults() throws {
         let data = #"{"id":"old","url":"https://example.com","title":"Example","isPrivate":false,"isLoading":false,"progress":0,"canGoBack":true,"lastVisitedAt":1,"isReader":false,"isDesktop":false}"#.data(using: .utf8)!
 

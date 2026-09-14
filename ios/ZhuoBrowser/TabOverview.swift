@@ -26,6 +26,16 @@ struct TabOverview: View {
                     .accessibilityLabel("\(session.archivedTabs.count) 个已过期标签页")
                     .accessibilityIdentifier("expired-tabs")
                 }
+                if session.canReopenRecentlyClosedTab {
+                    Button {
+                        session.reopenRecentlyClosedTab()
+                    } label: {
+                        Image(systemName: "arrow.uturn.backward")
+                    }
+                    .foregroundStyle(DesignTokens.textSecondary)
+                    .accessibilityLabel("恢复关闭的标签页")
+                    .accessibilityIdentifier("reopen-closed-tab")
+                }
                 Button("全部关闭") {
                     session.closeAll()
                     session.showsOverview = false
@@ -114,6 +124,28 @@ struct TabOverview: View {
                         session.toggleTabPinned(tab.id)
                     }
                 }
+                Divider()
+                Button("向前移动", systemImage: "arrow.left") {
+                    session.reorderTab(tab.id, direction: -1)
+                }
+                .disabled(!session.canReorderTab(tab.id, direction: -1))
+                Button("向后移动", systemImage: "arrow.right") {
+                    session.reorderTab(tab.id, direction: 1)
+                }
+                .disabled(!session.canReorderTab(tab.id, direction: 1))
+            }
+            .simultaneousGesture(tabSwitchGesture)
+            .accessibilityAction(named: "上一个标签页") {
+                session.switchAdjacentTab(-1)
+            }
+            .accessibilityAction(named: "下一个标签页") {
+                session.switchAdjacentTab(1)
+            }
+            .accessibilityAction(named: "向前移动") {
+                session.reorderTab(tab.id, direction: -1)
+            }
+            .accessibilityAction(named: "向后移动") {
+                session.reorderTab(tab.id, direction: 1)
             }
 
             Button {
@@ -141,7 +173,37 @@ struct TabOverview: View {
                 .padding(4)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
+
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DesignTokens.textSecondary)
+                .frame(width: 28, height: 28)
+                .padding(4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                .draggable(tab.id) {
+                    Label(tab.displayTitle, systemImage: "rectangle.on.rectangle")
+                        .padding(10)
+                        .background(DesignTokens.surfacePanel, in: RoundedRectangle(cornerRadius: 10))
+                }
+                .accessibilityHidden(true)
         }
+        .dropDestination(for: String.self) { ids, _ in
+            guard let id = ids.first else {
+                return false
+            }
+            return session.moveTab(id, to: tab.id)
+        }
+    }
+
+    private var tabSwitchGesture: some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                guard abs(value.translation.width) > abs(value.translation.height) * 1.5,
+                      abs(value.translation.width) >= 56 else {
+                    return
+                }
+                session.switchAdjacentTab(value.translation.width < 0 ? 1 : -1)
+            }
     }
 
     private func labelButton(title: String, systemImage: String) -> some View {

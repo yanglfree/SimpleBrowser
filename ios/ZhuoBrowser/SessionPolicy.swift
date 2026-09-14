@@ -75,6 +75,71 @@ enum SessionPolicy {
         return remaining[min(index, remaining.count - 1)].id
     }
 
+    static func adjacentTabID(_ tabs: [BrowserTab], activeTabID: String, direction: Int) -> String? {
+        guard tabs.count > 1,
+              direction != 0,
+              let index = tabs.firstIndex(where: { $0.id == activeTabID }) else {
+            return nil
+        }
+        let offset = direction < 0 ? -1 : 1
+        return tabs[(index + offset + tabs.count) % tabs.count].id
+    }
+
+    static func canReorderTab(_ tabs: [BrowserTab], id: String, direction: Int) -> Bool {
+        guard direction != 0,
+              let index = tabs.firstIndex(where: { $0.id == id }) else {
+            return false
+        }
+        let targetIndex = index + (direction < 0 ? -1 : 1)
+        guard tabs.indices.contains(targetIndex) else {
+            return false
+        }
+        return sharesGroup(tabs[index], tabs[targetIndex])
+    }
+
+    static func reorderedTabs(_ tabs: [BrowserTab], moving id: String, direction: Int) -> [BrowserTab]? {
+        guard canReorderTab(tabs, id: id, direction: direction),
+              let index = tabs.firstIndex(where: { $0.id == id }) else {
+            return nil
+        }
+        return reorderedTabs(tabs, moving: id, targetIndex: index + (direction < 0 ? -1 : 1))
+    }
+
+    static func reorderedTabs(_ tabs: [BrowserTab], moving id: String, targetID: String) -> [BrowserTab]? {
+        guard let targetIndex = tabs.firstIndex(where: { $0.id == targetID }) else {
+            return nil
+        }
+        return reorderedTabs(tabs, moving: id, targetIndex: targetIndex)
+    }
+
+    private static func reorderedTabs(_ tabs: [BrowserTab], moving id: String, targetIndex: Int) -> [BrowserTab]? {
+        guard let index = tabs.firstIndex(where: { $0.id == id }),
+              index != targetIndex else {
+            return nil
+        }
+        let moving = tabs[index]
+        var first = index
+        while first > 0, sharesGroup(tabs[first - 1], moving) {
+            first -= 1
+        }
+        var last = index
+        while last < tabs.count - 1, sharesGroup(tabs[last + 1], moving) {
+            last += 1
+        }
+        let clamped = min(max(targetIndex, first), last)
+        guard clamped != index else {
+            return nil
+        }
+        var reordered = tabs
+        let tab = reordered.remove(at: index)
+        reordered.insert(tab, at: min(clamped, reordered.count))
+        return reordered
+    }
+
+    private static func sharesGroup(_ left: BrowserTab, _ right: BrowserTab) -> Bool {
+        left.isPrivate == right.isPrivate && left.isPinned == right.isPinned
+    }
+
     static func isTabLive(_ liveIDs: [String], _ tabID: String) -> Bool {
         liveIDs.contains(tabID)
     }

@@ -36,6 +36,7 @@ final class BrowserSession: ObservableObject {
 
     private var controllers: [String: TabController] = [:]
     private var privateStore = WKWebsiteDataStore.nonPersistent()
+    private var recentlyClosedTabs: [BrowserTab] = []
     private var cancellables: Set<AnyCancellable> = []
     private let defaultsKey = "browser_session"
     private let archivedTabsKey = "browser_archived_tabs"
@@ -46,6 +47,10 @@ final class BrowserSession: ObservableObject {
 
     var activeController: TabController? {
         controllers[activeTabID]
+    }
+
+    var canReopenRecentlyClosedTab: Bool {
+        !recentlyClosedTabs.isEmpty && tabs.count < SessionPolicy.maxTabCount
     }
 
     init() {
@@ -263,6 +268,10 @@ final class BrowserSession: ObservableObject {
     }
 
     func closeTab(_ id: String) {
+        if let closing = tab(id), !closing.isPrivate {
+            recentlyClosedTabs.insert(closing, at: 0)
+            recentlyClosedTabs = Array(recentlyClosedTabs.prefix(10))
+        }
         let nextActiveID = activeTabID == id
             ? SessionPolicy.selectedTabAfterClosing(tabs, closing: id)
             : activeTabID
@@ -278,6 +287,55 @@ final class BrowserSession: ObservableObject {
         recyclePrivateStoreIfNeeded()
         ensureLive(activeTabID)
         persist()
+    }
+
+    @discardableResult
+    func reopenRecentlyClosedTab() -> Bool {
+        guard tabs.count < SessionPolicy.maxTabCount,
+              var restored = recentlyClosedTabs.first else {
+            return false
+        }
+        recentlyClosedTabs.removeFirst()
+        restored.id = UUID().uuidString
+        restored.isPrivate = false
+        restored.isLoading = false
+        restored.progress = 0
+        restored.canGoBack = false
+        restored.canGoForward = false
+        restored.lastVisitedAt = Date().timeIntervalSince1970
+        tabs.append(restored)
+        selectTab(restored.id)
+        flash("已恢复关闭的标签页")
+        return true
+    }
+
+    func switchAdjacentTab(_ direction: Int) {
+        guard let id = SessionPolicy.adjacentTabID(tabs, activeTabID: activeTabID, direction: direction) else {
+            return
+        }
+        selectTab(id)
+    }
+
+    func canReorderTab(_ id: String, direction: Int) -> Bool {
+        SessionPolicy.canReorderTab(tabs, id: id, direction: direction)
+    }
+
+    func reorderTab(_ id: String, direction: Int) {
+        guard let reordered = SessionPolicy.reorderedTabs(tabs, moving: id, direction: direction) else {
+            return
+        }
+        tabs = reordered
+        persist()
+    }
+
+    @discardableResult
+    func moveTab(_ id: String, to targetID: String) -> Bool {
+        guard let reordered = SessionPolicy.reorderedTabs(tabs, moving: id, targetID: targetID) else {
+            return false
+        }
+        tabs = reordered
+        persist()
+        return true
     }
 
     func toggleTabPinned(_ id: String) {

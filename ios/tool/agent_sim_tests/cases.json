@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-2",
+  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-3",
   "lastRun": {
     "date": "2026-09-14",
     "device": "Jimu QA iPhone 17",
@@ -94,6 +94,32 @@
       "expected": "The alert offers Continue and Cleanup, and Cleanup reduces nine tabs to seven while keeping the active tab.",
       "result": "passed",
       "evidence": "evidence/tab-soft-limit.png"
+    },
+    {
+      "id": "IOS-TAB-REORDER-001",
+      "title": "Tab reordering stays within groups and persists",
+      "steps": [
+        "Open the tab overview with multiple normal tabs",
+        "Use the accessible Move Backward action on the Example Domain tab",
+        "Verify that the card order changes without changing the active page",
+        "Terminate and relaunch the app"
+      ],
+      "expected": "The reordered normal-tab sequence and active selection survive relaunch; pinned and private boundaries remain protected by policy tests.",
+      "result": "passed",
+      "evidence": "evidence/tab-reordering.png"
+    },
+    {
+      "id": "IOS-KEYBOARD-001",
+      "title": "Supported Simulator keyboard commands and recent-closed recovery",
+      "steps": [
+        "Press Command-T and verify that the tab count increases",
+        "Close the active tab from the overview",
+        "Press Command-Shift-T and verify that the page and recovery notice return",
+        "Open a web page, press Command-F, and verify that the find bar appears"
+      ],
+      "expected": "New Tab, Reopen Closed Tab, and Find operate through the scene command routing. Host-reserved Command-L, Command-W, and Control-Tab are excluded from this Simulator result.",
+      "result": "passed",
+      "evidence": "evidence/keyboard-reopen.png"
     }
   ]
 }

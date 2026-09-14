@@ -19,7 +19,7 @@
 <body>
   <header>
     <h1>ZhuoBrowser iOS Simulator QA</h1>
-    <p class="pass">7 / 7 scenarios passed</p>
+    <p class="pass">9 / 9 scenarios passed</p>
     <p class="meta">2026-09-14 · Jimu QA iPhone 17 · iOS 26.1 · Debug</p>
   </header>
   <article>
@@ -54,6 +54,16 @@
     <h2><code>IOS-TAB-LIMIT-001</code> Soft tab limit</h2>
     <p>The eight-tab threshold did not block creation. It offered Continue and Cleanup; Cleanup reduced nine tabs to seven while preserving the active tab.</p>
     <img src="evidence/tab-soft-limit.png" alt="Soft tab-limit cleanup alert">
+  </article>
+  <article>
+    <h2><code>IOS-TAB-REORDER-001</code> Group-safe tab reordering</h2>
+    <p>The accessibility reorder action moved the Example Domain card while preserving the active page. The new order survived termination and relaunch; unit tests cover pinned, normal, and private group boundaries.</p>
+    <img src="evidence/tab-reordering.png" alt="Persisted reordered tabs in the tab overview">
+  </article>
+  <article>
+    <h2><code>IOS-KEYBOARD-001</code> Keyboard commands and recent-closed recovery</h2>
+    <p><code>Command-T</code> created a tab, <code>Command-Shift-T</code> restored a tab closed from the overview, and <code>Command-F</code> opened find-in-page. The macOS Simulator host reserves <code>Command-L</code>, <code>Command-W</code>, and <code>Control-Tab</code>, so those bindings are implemented and compiled but are not counted as Simulator interaction acceptance.</p>
+    <img src="evidence/keyboard-reopen.png" alt="Restored Example Domain tab after a keyboard command">
   </article>
 </body>
 </html>
