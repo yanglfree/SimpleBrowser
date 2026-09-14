@@ -13,6 +13,8 @@
     "reader-extraction-core.js",
     "reader-exit.js",
     "tracker-block.js",
+    "content-cleanup-standard.js",
+    "content-cleanup-strict.js",
     "article-capture.js"
   ]
 }

@@ -37,6 +37,8 @@ export const FILE_NAMES = Object.freeze({
   READER_EXTRACTION_CORE_SCRIPT: 'reader-extraction-core.js',
   READER_EXIT_SCRIPT: 'reader-exit.js',
   TRACKER_BLOCK_SCRIPT: 'tracker-block.js',
+  CONTENT_CLEANUP_STANDARD_SCRIPT: 'content-cleanup-standard.js',
+  CONTENT_CLEANUP_STRICT_SCRIPT: 'content-cleanup-strict.js',
   ARTICLE_CAPTURE_SCRIPT: 'article-capture.js'
 });
 
@@ -166,6 +168,8 @@ export async function loadStaticScripts() {
     scripts[name] = await extractTemplateConst(name);
   }
   scripts.TRACKER_BLOCK_SCRIPT = await extractTemplateConst('TRACKER_BLOCK_SCRIPT');
+  scripts.CONTENT_CLEANUP_STANDARD_SCRIPT = await contentCleanupScript(false);
+  scripts.CONTENT_CLEANUP_STRICT_SCRIPT = await contentCleanupScript(true);
   scripts.ARTICLE_CAPTURE_SCRIPT = await extractTemplateConst('ARTICLE_CAPTURE_SCRIPT');
   return scripts;
 }

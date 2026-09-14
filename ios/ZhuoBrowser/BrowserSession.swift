@@ -38,6 +38,11 @@ final class BrowserSession: ObservableObject {
     @Published var showsProPaywall = false
     @Published var showsSecurityPanel = false
     @Published var showsPageSettings = false
+    @Published var showsBlockPanel = false
+    @Published var isRulesUpdating = false
+    @Published var tabBlockStats: [String: BlockStats] = [:]
+    @Published var blockEvents: [BlockEvent] = []
+    @Published var siteBlockStats: [SiteBlockStats] = []
     @Published var securityWarning: SiteSecurityWarning?
     let downloads = DownloadStore()
     let articles = ArticleStore()
@@ -51,6 +56,7 @@ final class BrowserSession: ObservableObject {
     private var resumePromptGeneration = 0
     private let defaultsKey = "browser_session"
     private let archivedTabsKey = "browser_archived_tabs"
+    private let siteBlockStatsKey = "browser_site_block_stats"
 
     var activeTab: BrowserTab? {
         tab(activeTabID)
@@ -113,6 +119,7 @@ final class BrowserSession: ObservableObject {
         allowedHosts = Self.loadAllowedHosts()
         sitePermissions = Self.loadSitePermissions()
         quickSites = Self.loadQuickSites()
+        siteBlockStats = Self.loadSiteBlockStats()
         persistArchivedTabs()
         showsExpiredTabsPrompt = !archivedTabs.isEmpty
         downloads.objectWillChange
@@ -379,6 +386,8 @@ final class BrowserSession: ObservableObject {
             ? SessionPolicy.selectedTabAfterClosing(tabs, closing: id)
             : activeTabID
         controllers[id] = nil
+        tabBlockStats[id] = nil
+        blockEvents.removeAll { $0.tabID == id }
         tabs.removeAll { $0.id == id }
         if tabs.isEmpty {
             let home = BrowserTab.home(isPrivate: false)
@@ -938,7 +947,125 @@ final class BrowserSession: ObservableObject {
     }
 
     func adsBlockEnabled(for url: String) -> Bool {
-        AllowListPolicy.adsBlockEnabled(for: url, hosts: allowedHosts, blockAds: settings.blockAds)
+        let effective = BlockingPolicy.effectiveControl(for: url, settings: settings)
+        return effective.networkBlockingEnabled && effective.trackerBlockingEnabled &&
+            !AllowListPolicy.isHostAllowed(allowedHosts, URLPolicy.rawHost(url))
+    }
+
+    func effectiveSiteControl(for url: String) -> EffectiveSiteControl {
+        BlockingPolicy.effectiveControl(for: url, settings: settings)
+    }
+
+    func isBlockingAllowListed(for url: String) -> Bool {
+        AllowListPolicy.isHostAllowed(allowedHosts, URLPolicy.rawHost(url))
+    }
+
+    func currentSiteControl() -> SiteControl {
+        BlockingPolicy.siteControl(for: activeTab?.url ?? "", controls: settings.siteControls)
+    }
+
+    func setCurrentSiteControl(_ control: SiteControl) {
+        let host = URLPolicy.rawHost(activeTab?.url ?? "").lowercased()
+        guard !host.isEmpty else { return }
+        var normalized = control
+        normalized.host = host
+        settings.siteControls.removeAll { $0.host == host }
+        if normalized.hasOverride {
+            settings.siteControls.append(normalized)
+        }
+        settings.siteControls = BlockingPolicy.normalizedSiteControls(settings.siteControls)
+        persistSettings()
+        controllers.values.forEach { $0.applyContentBlocker() }
+        activeController?.reload()
+    }
+
+    func setRuleStrength(_ strength: RuleStrength) {
+        guard settings.ruleStrength != strength else { return }
+        settings.ruleStrength = strength
+        persistSettings()
+        activeController?.reload()
+    }
+
+    func reloadBundledRules() {
+        guard !isRulesUpdating else { return }
+        isRulesUpdating = true
+        ContentBlocker.shared.reloadBundledRules { [weak self] success in
+            guard let self else { return }
+            self.isRulesUpdating = false
+            if success {
+                self.settings.rulesLastUpdatedAt = Date().timeIntervalSince1970
+                self.persistSettings()
+                self.flash("内置拦截规则已重新加载")
+            } else {
+                self.flash("内置拦截规则加载失败")
+            }
+        }
+    }
+
+    func recordObservedBlocking(tabID: String, url: String, stats: BlockStats) {
+        guard stats.total > 0, PageStatePolicy.isSamePage(tab(tabID)?.url ?? "", url) else { return }
+        var tabStats = tabBlockStats[tabID] ?? BlockStats()
+        tabStats.add(stats)
+        tabBlockStats[tabID] = tabStats
+        let now = Date()
+        let categories: [(BlockCategory, Int)] = [
+            (.advertisement, stats.ads), (.tracker, stats.trackers),
+            (.popup, stats.popups), (.cookieBanner, stats.cookieBanners)
+        ]
+        for (category, count) in categories where count > 0 {
+            blockEvents.insert(
+                BlockEvent(
+                    id: UUID().uuidString,
+                    tabID: tabID,
+                    pageURL: url,
+                    category: category,
+                    count: count,
+                    occurredAt: now
+                ),
+                at: 0
+            )
+        }
+        blockEvents = Array(blockEvents.prefix(200))
+        guard tab(tabID)?.isPrivate == false else { return }
+        let host = URLPolicy.rawHost(url).lowercased()
+        guard !host.isEmpty else { return }
+        var entries = siteBlockStats
+        if let index = entries.firstIndex(where: { $0.host == host }) {
+            entries[index].stats.add(stats)
+        } else {
+            entries.append(SiteBlockStats(host: host, stats: stats))
+        }
+        siteBlockStats = BlockingPolicy.normalizedSiteStats(entries)
+        persistSiteBlockStats()
+    }
+
+    func observedStatsForActiveTab() -> BlockStats {
+        tabBlockStats[activeTabID] ?? BlockStats()
+    }
+
+    func observedStatsForCurrentSite() -> BlockStats {
+        let host = URLPolicy.rawHost(activeTab?.url ?? "").lowercased()
+        return siteBlockStats.first(where: { $0.host == host })?.stats ?? BlockStats()
+    }
+
+    func observedEventsForActiveTab() -> [BlockEvent] {
+        blockEvents.filter { $0.tabID == activeTabID }
+    }
+
+    func resetObservedBlocking(tabID: String) {
+        tabBlockStats[tabID] = BlockStats()
+        blockEvents.removeAll { $0.tabID == tabID }
+    }
+
+    func applyAutomaticReaderIfNeeded(tabID: String) {
+        guard let current = tab(tabID), !current.isReader,
+              effectiveSiteControl(for: current.url).autoReaderEnabled,
+              let controller = controllers[tabID] else { return }
+        controller.applyReader(settings: readerSettings) { [weak self] success in
+            guard let self, success else { return }
+            self.update(tabID: tabID) { $0.isReader = true }
+            self.persist()
+        }
     }
 
     func isCurrentHostAllowed() -> Bool {
@@ -974,6 +1101,7 @@ final class BrowserSession: ObservableObject {
         settings.blockAds = enabled
         persistSettings()
         controllers.values.forEach { $0.applyContentBlocker() }
+        activeController?.reload()
     }
 
     func shareCurrentPage() {
@@ -1035,8 +1163,10 @@ final class BrowserSession: ObservableObject {
         if selection.permissions {
             allowedHosts = []
             sitePermissions = []
+            settings.siteControls = []
             persistAllowList()
             persistSitePermissions()
+            persistSettings()
             controllers.values.forEach { $0.applyContentBlocker() }
         }
         var dataTypes = Set<String>()
@@ -1068,9 +1198,13 @@ final class BrowserSession: ObservableObject {
             guard let permissionHost = URL(string: permission.origin)?.host else { return false }
             return permissionHost.caseInsensitiveCompare(host) == .orderedSame
         }
+        settings.siteControls.removeAll { $0.host == host.lowercased() }
+        siteBlockStats.removeAll { $0.host == host.lowercased() }
         persistLibrary()
         persistAllowList()
         persistSitePermissions()
+        persistSettings()
+        persistSiteBlockStats()
         controllers.values.forEach { $0.applyContentBlocker() }
 
         let store = WKWebsiteDataStore.default()
@@ -1134,6 +1268,7 @@ final class BrowserSession: ObservableObject {
             return
         }
         dismissPageResume()
+        resetObservedBlocking(tabID: tabID)
         update(tabID: tabID) { tab in
             tab.scrollY = 0
             tab.readerScrollY = 0
@@ -1234,6 +1369,13 @@ final class BrowserSession: ObservableObject {
     func persistAllowList() {
         if let data = try? JSONEncoder().encode(allowedHosts) {
             UserDefaults.standard.set(data, forKey: "allowed_hosts")
+        }
+    }
+
+    private func persistSiteBlockStats() {
+        let limited = Array(siteBlockStats.sorted { $0.stats.total > $1.stats.total }.prefix(500))
+        if let data = try? JSONEncoder().encode(limited) {
+            UserDefaults.standard.set(data, forKey: siteBlockStatsKey)
         }
     }
 
@@ -1477,6 +1619,14 @@ final class BrowserSession: ObservableObject {
             return QuickSite.defaults
         }
         return Array(sites.prefix(QuickSitePolicy.maximumCount))
+    }
+
+    private static func loadSiteBlockStats() -> [SiteBlockStats] {
+        guard let data = UserDefaults.standard.data(forKey: "browser_site_block_stats"),
+              let entries = try? JSONDecoder().decode([SiteBlockStats].self, from: data) else {
+            return []
+        }
+        return BlockingPolicy.normalizedSiteStats(entries)
     }
 
     private static func loadReaderSettings() -> ReaderSettings {

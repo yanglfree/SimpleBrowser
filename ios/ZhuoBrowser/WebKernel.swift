@@ -13,7 +13,6 @@ enum WebKernel {
     ]
 
     static let documentEndFiles = [
-        "tracker-block",
         "force-zoom"
     ]
 

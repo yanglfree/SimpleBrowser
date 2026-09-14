@@ -25,6 +25,9 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertTrue(settings.siteUserAgentPreferences.isEmpty)
         XCTAssertTrue(settings.siteZoomRatios.isEmpty)
         XCTAssertTrue(settings.webDarkModeExcludedHosts.isEmpty)
+        XCTAssertEqual(settings.ruleStrength, .standard)
+        XCTAssertTrue(settings.siteControls.isEmpty)
+        XCTAssertEqual(settings.rulesLastUpdatedAt, 0)
     }
 
     func testLegacySettingsDecodeWithSafeNewDefaults() throws {
@@ -43,6 +46,8 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertEqual(settings.minimumFontSize, 14)
         XCTAssertEqual(settings.defaultUserAgentPreference, .default)
         XCTAssertEqual(settings.webDarkMode, .system)
+        XCTAssertEqual(settings.ruleStrength, .standard)
+        XCTAssertTrue(settings.siteControls.isEmpty)
     }
 
     func testQuickSiteLimitIsClampedDuringInitialization() {
@@ -67,7 +72,10 @@ final class BrowserSettingsTests: XCTestCase {
             largeDownloadThresholdMB: 125,
             wifiOnlyDownloads: true,
             downloadNotificationsEnabled: true,
-            clearCookiesOnTabClose: true
+            clearCookiesOnTabClose: true,
+            ruleStrength: .strict,
+            siteControls: [SiteControl(host: "example.com", autoReader: .enabled)],
+            rulesLastUpdatedAt: 1234
         )
 
         let restored = try JSONDecoder().decode(

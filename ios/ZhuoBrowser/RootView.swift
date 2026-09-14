@@ -93,6 +93,11 @@ struct RootView: View {
                 .environmentObject(session)
                 .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $session.showsBlockPanel) {
+            BlockPanelSheet()
+                .environmentObject(session)
+                .presentationDetents([.medium, .large])
+        }
         .sheet(isPresented: $session.showsShare) {
             ShareSheet(items: session.shareItems)
         }
@@ -326,8 +331,8 @@ struct RootView: View {
                 session.showsPageSettings = true
             }
             .disabled(!browsing)
-            Button(session.isCurrentHostAllowed() ? "对此站点恢复拦截" : "允许此站点加载广告") {
-                session.toggleCurrentHostAllowed()
+            Button("内容拦截") {
+                session.showsBlockPanel = true
             }
             .disabled(!browsing)
             Button("网站安全") {

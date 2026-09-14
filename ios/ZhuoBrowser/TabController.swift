@@ -282,6 +282,38 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         WebKernel.storeInstalledRuleLists(installed, on: webView.configuration)
     }
 
+    func runObservableBlockingPass(for rawURL: String) {
+        guard let session, !session.isBlockingAllowListed(for: rawURL) else { return }
+        let control = session.effectiveSiteControl(for: rawURL)
+        if control.trackerBlockingEnabled, let script = WebKernel.loadScript(named: "tracker-block") {
+            webView.evaluateJavaScript(script) { [weak self] result, _ in
+                guard let self, let payload = Self.jsonObject(from: result) else { return }
+                let stats = BlockStats(trackers: Self.integer(payload["trackers"]))
+                DispatchQueue.main.async {
+                    self.session?.recordObservedBlocking(tabID: self.id, url: rawURL, stats: stats)
+                }
+            }
+        }
+        if control.cosmeticCleanupEnabled {
+            let name = session.settings.ruleStrength == .strict
+                ? "content-cleanup-strict"
+                : "content-cleanup-standard"
+            if let script = WebKernel.loadScript(named: name) {
+                webView.evaluateJavaScript(script) { [weak self] result, _ in
+                    guard let self, let payload = Self.jsonObject(from: result) else { return }
+                    let stats = BlockStats(
+                        ads: Self.integer(payload["ads"]),
+                        popups: Self.integer(payload["popups"]),
+                        cookieBanners: Self.integer(payload["cookieBanners"])
+                    )
+                    DispatchQueue.main.async {
+                        self.session?.recordObservedBlocking(tabID: self.id, url: rawURL, stats: stats)
+                    }
+                }
+            }
+        }
+    }
+
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == SiteSecurityPolicy.messageHandlerName {
             guard message.frameInfo.isMainFrame,
@@ -386,6 +418,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        session?.resetObservedBlocking(tabID: id)
         session?.update(tabID: id) { tab in
             tab.isLoading = true
             if let url = webView.url?.absoluteString, !url.isEmpty {
@@ -417,6 +450,8 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             )
         }
         applyDesktopViewportIfNeeded()
+        let finishedURL = webView.url?.absoluteString ?? session?.tab(id)?.url ?? ""
+        runObservableBlockingPass(for: finishedURL)
         if session?.tab(id)?.isReader == true {
             let settings = session?.readerSettings ?? ReaderSettings()
             applyReader(settings: settings) { [weak self] ok in
@@ -436,6 +471,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         if let tab = session?.tab(id) {
             session?.recordVisit(of: tab)
         }
+        session?.applyAutomaticReaderIfNeeded(tabID: id)
         session?.persist()
     }
 
@@ -484,6 +520,13 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             return nil
         }
         return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+
+    private static func integer(_ value: Any?) -> Int {
+        if let value = value as? Int { return max(0, value) }
+        if let value = value as? NSNumber { return max(0, value.intValue) }
+        if let value = value as? String, let parsed = Int(value) { return max(0, parsed) }
+        return 0
     }
 }
 

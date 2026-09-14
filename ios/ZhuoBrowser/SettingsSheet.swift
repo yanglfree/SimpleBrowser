@@ -86,6 +86,31 @@ struct SettingsSheet: View {
                     }
                     .tint(DesignTokens.accent)
                     .accessibilityIdentifier("settings-block-ads")
+                    Picker("规则强度", selection: ruleStrengthBinding) {
+                        ForEach(RuleStrength.allCases) { strength in
+                            Text(strength.label).tag(strength)
+                        }
+                    }
+                    .disabled(!session.settings.blockAds)
+                    .accessibilityIdentifier("settings-rule-strength")
+                    Button {
+                        session.reloadBundledRules()
+                    } label: {
+                        HStack {
+                            Text("重新加载内置规则")
+                            Spacer()
+                            if session.isRulesUpdating {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(session.isRulesUpdating)
+                    .accessibilityIdentifier("settings-reload-rules")
+                    if session.settings.rulesLastUpdatedAt > 0 {
+                        Text("上次加载：\(Self.ruleDateFormatter.string(from: Date(timeIntervalSince1970: session.settings.rulesLastUpdatedAt)))")
+                            .font(.caption)
+                            .foregroundStyle(DesignTokens.textSecondary)
+                    }
                     if !session.sitePermissions.isEmpty {
                         ForEach(session.sitePermissions) { entry in
                             VStack(alignment: .leading, spacing: 4) {
@@ -320,6 +345,20 @@ struct SettingsSheet: View {
             set: { session.setBlockAds($0) }
         )
     }
+
+    private var ruleStrengthBinding: Binding<RuleStrength> {
+        Binding(
+            get: { session.settings.ruleStrength },
+            set: { session.setRuleStrength($0) }
+        )
+    }
+
+    private static let ruleDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter
+    }()
 
     private var appearanceBinding: Binding<AppearanceMode> {
         Binding(

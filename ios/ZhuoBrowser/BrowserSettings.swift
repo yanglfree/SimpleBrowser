@@ -137,6 +137,9 @@ struct BrowserSettings: Equatable {
     var siteUserAgentPreferences: [SiteUserAgentPreference] = []
     var webDarkMode: WebDarkModePreference = .system
     var webDarkModeExcludedHosts: [String] = []
+    var ruleStrength: RuleStrength = .standard
+    var siteControls: [SiteControl] = []
+    var rulesLastUpdatedAt: TimeInterval = 0
 
     var searchEngineLabel: String {
         switch searchEngine {
@@ -158,6 +161,7 @@ struct BrowserSettings: Equatable {
         case minimumFontSize, siteZoomRatios
         case defaultUserAgentPreference, siteUserAgentPreferences
         case webDarkMode, webDarkModeExcludedHosts
+        case ruleStrength, siteControls, rulesLastUpdatedAt
     }
 
     init(
@@ -184,7 +188,10 @@ struct BrowserSettings: Equatable {
         defaultUserAgentPreference: UserAgentPreference = .default,
         siteUserAgentPreferences: [SiteUserAgentPreference] = [],
         webDarkMode: WebDarkModePreference = .system,
-        webDarkModeExcludedHosts: [String] = []
+        webDarkModeExcludedHosts: [String] = [],
+        ruleStrength: RuleStrength = .standard,
+        siteControls: [SiteControl] = [],
+        rulesLastUpdatedAt: TimeInterval = 0
     ) {
         self.searchEngine = searchEngine
         self.blockAds = blockAds
@@ -210,6 +217,9 @@ struct BrowserSettings: Equatable {
         self.siteUserAgentPreferences = WebAppearancePolicy.normalizedUserAgentPreferences(siteUserAgentPreferences)
         self.webDarkMode = webDarkMode
         self.webDarkModeExcludedHosts = WebAppearancePolicy.normalizedHosts(webDarkModeExcludedHosts)
+        self.ruleStrength = ruleStrength
+        self.siteControls = BlockingPolicy.normalizedSiteControls(siteControls)
+        self.rulesLastUpdatedAt = max(0, rulesLastUpdatedAt)
     }
 
     init(from decoder: Decoder) throws {
@@ -268,6 +278,14 @@ struct BrowserSettings: Equatable {
         webDarkModeExcludedHosts = WebAppearancePolicy.normalizedHosts(
             try container.decodeIfPresent([String].self, forKey: .webDarkModeExcludedHosts) ?? []
         )
+        ruleStrength = try container.decodeIfPresent(RuleStrength.self, forKey: .ruleStrength) ?? .standard
+        siteControls = BlockingPolicy.normalizedSiteControls(
+            try container.decodeIfPresent([SiteControl].self, forKey: .siteControls) ?? []
+        )
+        rulesLastUpdatedAt = max(
+            0,
+            try container.decodeIfPresent(TimeInterval.self, forKey: .rulesLastUpdatedAt) ?? 0
+        )
     }
 
     func encode(to encoder: Encoder) throws {
@@ -305,6 +323,9 @@ struct BrowserSettings: Equatable {
             WebAppearancePolicy.normalizedHosts(webDarkModeExcludedHosts),
             forKey: .webDarkModeExcludedHosts
         )
+        try container.encode(ruleStrength, forKey: .ruleStrength)
+        try container.encode(BlockingPolicy.normalizedSiteControls(siteControls), forKey: .siteControls)
+        try container.encode(max(0, rulesLastUpdatedAt), forKey: .rulesLastUpdatedAt)
     }
 
     static func clampedQuickSiteLimit(_ value: Int) -> Int {
