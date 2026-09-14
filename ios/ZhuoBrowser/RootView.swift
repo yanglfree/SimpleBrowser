@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @StateObject private var session = BrowserSession()
     @State private var addressText = ""
+    @State private var quickSiteEditor: QuickSiteEditorRequest?
     @FocusState private var addressFocused: Bool
 
     var body: some View {
@@ -46,6 +47,12 @@ struct RootView: View {
         }
         .background(pageBackground)
         .environmentObject(session)
+        .preferredColorScheme(preferredColorScheme)
+        .fullScreenCover(isPresented: setupRequired) {
+            SetupFlowView()
+                .environmentObject(session)
+                .preferredColorScheme(preferredColorScheme)
+        }
         .sheet(isPresented: $session.showsSettings) {
             SettingsSheet()
                 .environmentObject(session)
@@ -71,6 +78,10 @@ struct RootView: View {
             )
             .presentationDetents([.medium])
         }
+        .sheet(item: $quickSiteEditor) { request in
+            QuickSiteEditorSheet(request: request, onSave: session.saveQuickSite)
+                .preferredColorScheme(preferredColorScheme)
+        }
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
         }
@@ -95,8 +106,19 @@ struct RootView: View {
     private var pageBody: some View {
         if URLPolicy.isHomeURL(session.activeTab?.url ?? URLPolicy.homeURL) {
             NativeHomeView(
+                sites: session.quickSites,
+                settings: session.settings,
                 onOpen: { url in
                     session.openInActiveTab(url)
+                },
+                onAdd: {
+                    quickSiteEditor = .add
+                },
+                onEdit: { site in
+                    quickSiteEditor = .edit(site)
+                },
+                onRemove: { site in
+                    session.removeQuickSite(site.id)
                 },
                 onSettings: {
                     session.showsSettings = true
@@ -231,6 +253,21 @@ struct RootView: View {
             return false
         }
         return !URLPolicy.isHomeURL(tab.url)
+    }
+
+    private var setupRequired: Binding<Bool> {
+        Binding(
+            get: { !session.settings.privacyConsentAccepted || !session.settings.onboardingCompleted },
+            set: { _ in }
+        )
+    }
+
+    private var preferredColorScheme: ColorScheme? {
+        switch session.settings.appearance {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
     }
 
     private func displayAddress(_ url: String) -> String {

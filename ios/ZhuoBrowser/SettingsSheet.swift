@@ -7,6 +7,15 @@ struct SettingsSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("外观") {
+                    Picker("应用外观", selection: appearanceBinding) {
+                        ForEach(AppearanceMode.allCases) { appearance in
+                            Text(appearance.label).tag(appearance)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-appearance")
+                }
+
                 Section("搜索引擎") {
                     ForEach(SearchEngine.allCases) { engine in
                         Button {
@@ -76,6 +85,28 @@ struct SettingsSheet: View {
                     .accessibilityIdentifier("settings-search-suggestions")
                 }
 
+                Section("起始页") {
+                    Toggle("显示快捷站点", isOn: quickSitesEnabledBinding)
+                        .tint(DesignTokens.accent)
+                        .accessibilityIdentifier("settings-quick-sites")
+                    Stepper(value: quickSiteLimitBinding, in: 4...8) {
+                        Text("显示数量：\(session.settings.quickSiteLimit)")
+                    }
+                    .disabled(!session.settings.quickSitesEnabled)
+                    .accessibilityIdentifier("settings-quick-site-limit")
+                    Picker("首页背景", selection: homeBackgroundBinding) {
+                        ForEach(HomeBackgroundStyle.allCases) { style in
+                            Text(style.label).tag(style)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-home-background")
+                    NavigationLink("管理快捷站点") {
+                        QuickSiteManagerView()
+                            .environmentObject(session)
+                    }
+                    .accessibilityIdentifier("settings-manage-quick-sites")
+                }
+
                 Section("书签与历史") {
                     Button("书签与历史") {
                         session.showsSettings = false
@@ -138,6 +169,34 @@ struct SettingsSheet: View {
         Binding(
             get: { session.settings.blockAds },
             set: { session.setBlockAds($0) }
+        )
+    }
+
+    private var appearanceBinding: Binding<AppearanceMode> {
+        Binding(
+            get: { session.settings.appearance },
+            set: { session.setAppearance($0) }
+        )
+    }
+
+    private var quickSitesEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.quickSitesEnabled },
+            set: { session.setQuickSitesEnabled($0) }
+        )
+    }
+
+    private var quickSiteLimitBinding: Binding<Int> {
+        Binding(
+            get: { session.settings.quickSiteLimit },
+            set: { session.setQuickSiteLimit($0) }
+        )
+    }
+
+    private var homeBackgroundBinding: Binding<HomeBackgroundStyle> {
+        Binding(
+            get: { session.settings.homeBackgroundStyle },
+            set: { session.setHomeBackgroundStyle($0) }
         )
     }
 }

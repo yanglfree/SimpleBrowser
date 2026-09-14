@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "suite": "ZhuoBrowser iOS HarmonyOS parity batch 1",
+  "lastRun": {
+    "date": "2026-09-14",
+    "device": "Jimu QA iPhone 17",
+    "os": "iOS 26.1",
+    "configuration": "Debug",
+    "result": "passed"
+  },
+  "cases": [
+    {
+      "id": "IOS-SETUP-001",
+      "title": "First launch requires privacy consent and completes onboarding",
+      "steps": [
+        "Install the app without existing container data",
+        "Launch and verify that browsing is blocked by the privacy screen",
+        "Verify Continue is disabled until the agreement switch is enabled",
+        "Accept and skip or complete onboarding"
+      ],
+      "expected": "The native home appears only after consent and onboarding state is persisted.",
+      "result": "passed"
+    },
+    {
+      "id": "IOS-HOME-001",
+      "title": "A newly added quick site is immediately visible and persists",
+      "steps": [
+        "Open Add on the native home",
+        "Save OpenAI with openai.com",
+        "Verify OpenAI is the first visible quick site",
+        "Terminate and relaunch the app"
+      ],
+      "expected": "The site remains first and visible after relaunch with the default six-site limit.",
+      "result": "passed",
+      "evidence": "evidence/home-portrait-dark-persisted.png"
+    },
+    {
+      "id": "IOS-SETTINGS-001",
+      "title": "Appearance and start-page controls are reachable and persistent",
+      "steps": [
+        "Open Settings from the native home",
+        "Verify quick-site visibility, count, background, and manager controls",
+        "Select Dark appearance",
+        "Terminate and relaunch the app"
+      ],
+      "expected": "The semantic dark appearance renders and the selection persists.",
+      "result": "passed",
+      "evidence": "evidence/home-portrait-dark-persisted.png"
+    },
+    {
+      "id": "IOS-ROTATION-001",
+      "title": "Native home remains usable in landscape",
+      "steps": [
+        "Rotate the simulator from portrait to landscape",
+        "Inspect the browser chrome and quick-site grid"
+      ],
+      "expected": "Primary controls and visible quick sites remain on screen without clipping or overlap.",
+      "result": "passed",
+      "evidence": "evidence/home-landscape-dark.png"
+    }
+  ]
+}

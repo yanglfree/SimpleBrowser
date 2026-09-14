@@ -6,7 +6,9 @@ truth in `../ohos`. Shared scripts and contracts live in `../core`.
 Phone V1 now includes native home, multi-tab, private tabs with a non-persistent
 data store, live-webview hibernation, session restore for non-private tabs,
 `WKContentRuleList` compiled from `core/rules`, reader mode, find-in-page, and
-a desktop user-agent toggle.
+a desktop user-agent toggle. First launch now enforces privacy consent and
+onboarding; the start page supports persistent quick-site management, built-in
+backgrounds, and system/light/dark appearance.
 
 ## Setup
 
@@ -39,5 +41,7 @@ In:
 - Per-site allow-list that turns off `WKContentRuleList` for that host
 
 - Per-origin camera, microphone, and location decisions (Prompt / Allow / Deny)
+
+The live catch-up ledger is [`../docs/ios-harmony-parity.md`](../docs/ios-harmony-parity.md).
 
 Out until later milestones: IAP, default-browser entitlement.

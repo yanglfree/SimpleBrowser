@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZhuoBrowser iOS Simulator QA</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { max-width: 920px; margin: 0 auto; padding: 40px 24px 64px; line-height: 1.5; }
+    header, article { border: 1px solid color-mix(in srgb, CanvasText 16%, transparent); border-radius: 18px; padding: 22px; margin-bottom: 18px; }
+    h1, h2 { margin: 0 0 10px; }
+    p { margin: 6px 0; }
+    .pass { color: #1b8f55; font-weight: 700; }
+    .meta { color: color-mix(in srgb, CanvasText 62%, transparent); }
+    img { display: block; max-width: min(100%, 420px); max-height: 640px; object-fit: contain; border-radius: 14px; margin-top: 14px; background: #20231f; }
+    code { font-family: ui-monospace, SFMono-Regular, monospace; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ZhuoBrowser iOS Simulator QA</h1>
+    <p class="pass">4 / 4 scenarios passed</p>
+    <p class="meta">2026-09-14 · Jimu QA iPhone 17 · iOS 26.1 · Debug</p>
+  </header>
+  <article>
+    <h2><code>IOS-SETUP-001</code> Privacy gate and onboarding</h2>
+    <p>Continue remained disabled before consent. Accepting consent entered onboarding, and completing the flow revealed the native home.</p>
+  </article>
+  <article>
+    <h2><code>IOS-HOME-001</code> Quick-site visibility and persistence</h2>
+    <p>OpenAI was inserted into the visible six-site window and remained first after terminating and relaunching the app.</p>
+    <img src="evidence/home-portrait-dark-persisted.png" alt="Persisted OpenAI quick site on the portrait native home">
+  </article>
+  <article>
+    <h2><code>IOS-SETTINGS-001</code> Appearance and start-page settings</h2>
+    <p>Appearance, quick-site visibility/count, background, and quick-site management controls were reachable. Dark appearance persisted across relaunch.</p>
+  </article>
+  <article>
+    <h2><code>IOS-ROTATION-001</code> Landscape layout</h2>
+    <p>Browser chrome and the visible quick-site grid remained accessible without clipping or overlap.</p>
+    <img src="evidence/home-landscape-dark.png" alt="Native home rendered in landscape dark appearance">
+  </article>
+</body>
+</html>

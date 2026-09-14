@@ -29,3 +29,14 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         INFOPLIST_FILE: ZhuoBrowser/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: 卓阅
+  ZhuoBrowserTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ZhuoBrowserTests
+    dependencies:
+      - target: ZhuoBrowser
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.youdroid.zhuobrowser.tests
+        GENERATE_INFOPLIST_FILE: true

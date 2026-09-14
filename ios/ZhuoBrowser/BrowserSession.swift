@@ -25,6 +25,7 @@ final class BrowserSession: ObservableObject {
     @Published var allowedHosts: [String] = []
     @Published var sitePermissions: [SitePermission] = []
     @Published var permissionPrompt: PermissionPrompt?
+    @Published var quickSites: [QuickSite] = []
     let downloads = DownloadStore()
     private var permissionReply: ((Bool) -> Void)?
 
@@ -60,6 +61,7 @@ final class BrowserSession: ObservableObject {
         savedItems = Self.loadSavedItems()
         allowedHosts = Self.loadAllowedHosts()
         sitePermissions = Self.loadSitePermissions()
+        quickSites = Self.loadQuickSites()
         downloads.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -381,6 +383,56 @@ final class BrowserSession: ObservableObject {
         persistSettings()
     }
 
+    func acceptPrivacyConsent() {
+        settings.privacyConsentAccepted = true
+        persistSettings()
+    }
+
+    func finishOnboarding() {
+        settings.onboardingCompleted = true
+        persistSettings()
+    }
+
+    func setAppearance(_ appearance: AppearanceMode) {
+        settings.appearance = appearance
+        persistSettings()
+    }
+
+    func setQuickSitesEnabled(_ enabled: Bool) {
+        settings.quickSitesEnabled = enabled
+        persistSettings()
+    }
+
+    func setQuickSiteLimit(_ limit: Int) {
+        settings.quickSiteLimit = BrowserSettings.clampedQuickSiteLimit(limit)
+        persistSettings()
+    }
+
+    func setHomeBackgroundStyle(_ style: HomeBackgroundStyle) {
+        settings.homeBackgroundStyle = style
+        persistSettings()
+    }
+
+    @discardableResult
+    func saveQuickSite(title: String, url: String, replacing: QuickSite? = nil) -> Bool {
+        guard let site = QuickSitePolicy.normalized(title: title, url: url, replacing: replacing, in: quickSites) else {
+            return false
+        }
+        quickSites = QuickSitePolicy.upsert(quickSites, site: site)
+        persistQuickSites()
+        return true
+    }
+
+    func removeQuickSite(_ id: String) {
+        quickSites.removeAll { $0.id == id }
+        persistQuickSites()
+    }
+
+    func moveQuickSites(from offsets: IndexSet, to destination: Int) {
+        quickSites = QuickSitePolicy.move(quickSites, from: offsets, to: destination)
+        persistQuickSites()
+    }
+
     func requestSitePermission(
         origin: String,
         kinds: [SitePermissionKind],
@@ -557,12 +609,19 @@ final class BrowserSession: ObservableObject {
         }
     }
 
+    func persistQuickSites() {
+        if let data = try? JSONEncoder().encode(quickSites) {
+            UserDefaults.standard.set(data, forKey: "browser_quick_sites")
+        }
+    }
+
     func persist() {
         persistSettings()
         persistReaderSettings()
         persistLibrary()
         persistAllowList()
         persistSitePermissions()
+        persistQuickSites()
         let persistable = SessionPolicy.persistableTabs(tabs).map { tab -> BrowserTab in
             var copy = tab
             copy.isLoading = false
@@ -668,6 +727,14 @@ final class BrowserSession: ObservableObject {
             return BrowserSettings()
         }
         return settings
+    }
+
+    private static func loadQuickSites() -> [QuickSite] {
+        guard let data = UserDefaults.standard.data(forKey: "browser_quick_sites"),
+              let sites = try? JSONDecoder().decode([QuickSite].self, from: data) else {
+            return QuickSite.defaults
+        }
+        return Array(sites.prefix(QuickSitePolicy.maximumCount))
     }
 
     private static func loadReaderSettings() -> ReaderSettings {
