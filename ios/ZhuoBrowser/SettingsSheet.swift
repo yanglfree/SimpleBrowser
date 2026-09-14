@@ -20,6 +20,7 @@ struct SettingsSheet: View {
     @State private var selectedHomePhoto: PhotosPickerItem?
     @State private var customSearchTemplate = ""
     @State private var searchTemplateError: String?
+    @State private var searchQuery = ""
 
     var body: some View {
         NavigationStack {
@@ -44,6 +45,7 @@ struct SettingsSheet: View {
                     Link("联系支持", destination: URL(string: "mailto:youdroid2048@gmail.com")!)
                         .accessibilityIdentifier("settings-support")
                 }
+                .settingsSearchVisible(isVisible(.pro))
 
                 Section("外观") {
                     Picker("应用外观", selection: appearanceBinding) {
@@ -65,6 +67,7 @@ struct SettingsSheet: View {
                     }
                     .accessibilityIdentifier("settings-minimum-font-size")
                 }
+                .settingsSearchVisible(isVisible(.appearance))
 
                 Section("搜索引擎") {
                     ForEach(SearchEngine.allCases) { engine in
@@ -102,6 +105,7 @@ struct SettingsSheet: View {
                             .foregroundStyle(DesignTokens.textSecondary)
                     }
                 }
+                .settingsSearchVisible(isVisible(.search))
 
                 Section("手势与工具栏") {
                     Toggle("启用手势", isOn: gesturesEnabledBinding)
@@ -131,6 +135,7 @@ struct SettingsSheet: View {
                     }
                     .accessibilityIdentifier("settings-reset-gestures")
                 }
+                .settingsSearchVisible(isVisible(.gestures))
 
                 Section("内容拦截") {
                     Toggle(isOn: blockAdsBinding) {
@@ -198,6 +203,7 @@ struct SettingsSheet: View {
                         }
                     }
                 }
+                .settingsSearchVisible(isVisible(.blocking))
 
                 Section("地址栏") {
                     Toggle(isOn: searchSuggestionsBinding) {
@@ -206,6 +212,7 @@ struct SettingsSheet: View {
                     .tint(DesignTokens.accent)
                     .accessibilityIdentifier("settings-search-suggestions")
                 }
+                .settingsSearchVisible(isVisible(.addressBar))
 
                 Section("起始页") {
                     Toggle("显示快捷站点", isOn: quickSitesEnabledBinding)
@@ -247,6 +254,7 @@ struct SettingsSheet: View {
                     }
                     .accessibilityIdentifier("settings-manage-quick-sites")
                 }
+                .settingsSearchVisible(isVisible(.startPage))
 
                 Section("标签页") {
                     Picker("自动归档", selection: tabExpiryBinding) {
@@ -268,6 +276,7 @@ struct SettingsSheet: View {
                     }
                     .accessibilityIdentifier("settings-tab-soft-limit")
                 }
+                .settingsSearchVisible(isVisible(.tabs))
 
                 Section("书签与历史") {
                     Button("书签与历史") {
@@ -293,6 +302,7 @@ struct SettingsSheet: View {
                     }
                     .accessibilityIdentifier("settings-export-bookmarks")
                 }
+                .settingsSearchVisible(isVisible(.library))
 
                 Section("下载") {
                     Button("下载内容") {
@@ -321,6 +331,7 @@ struct SettingsSheet: View {
                         .tint(DesignTokens.accent)
                         .accessibilityIdentifier("settings-download-notifications")
                 }
+                .settingsSearchVisible(isVisible(.downloads))
 
                 Section("隐私") {
                     Toggle("关闭标签时清除 Cookie", isOn: clearCookiesOnTabCloseBinding)
@@ -337,6 +348,7 @@ struct SettingsSheet: View {
                     }
                     .accessibilityIdentifier("settings-clear-data")
                 }
+                .settingsSearchVisible(isVisible(.privacy))
 
                 Section("关于") {
                     Button("意见反馈") {
@@ -350,7 +362,18 @@ struct SettingsSheet: View {
                             .foregroundStyle(DesignTokens.textSecondary)
                     }
                 }
+                .settingsSearchVisible(isVisible(.about))
+
+                if visibleSections.isEmpty {
+                    ContentUnavailableView.search(text: searchQuery)
+                        .listRowBackground(Color.clear)
+                }
             }
+            .searchable(
+                text: $searchQuery,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "搜索设置"
+            )
             .scrollContentBackground(.hidden)
             .background(DesignTokens.pageBackground)
             .navigationTitle("设置")
@@ -427,6 +450,14 @@ struct SettingsSheet: View {
         } catch {
             transferMessage = BookmarkTransferMessage(title: "无法导入书签", message: error.localizedDescription)
         }
+    }
+
+    private var visibleSections: Set<SettingsSection> {
+        SettingsSearchPolicy.visibleSections(for: searchQuery)
+    }
+
+    private func isVisible(_ section: SettingsSection) -> Bool {
+        visibleSections.contains(section)
     }
 
     private func permissionSummary(_ entry: SitePermission) -> String {
@@ -629,5 +660,14 @@ struct SettingsSheet: View {
             get: { session.settings.telemetryEnabled },
             set: { session.setTelemetryEnabled($0) }
         )
+    }
+}
+
+fileprivate extension View {
+    @ViewBuilder
+    func settingsSearchVisible(_ isVisible: Bool) -> some View {
+        if isVisible {
+            self
+        }
     }
 }
