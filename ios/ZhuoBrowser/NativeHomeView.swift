@@ -197,6 +197,15 @@ struct NativeHomeView: View {
         return VStack(spacing: 8) {
             if let image = siteIcons[URLPolicy.rawHost(site.url)] {
                 SiteIconThumbnail(image: image, size: 48, cornerRadius: 14)
+            } else if let theme = QuickSiteSemanticPolicy.theme(title: site.title, url: site.url) {
+                Image(systemName: theme.systemImageName)
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        Color(hex: theme.backgroundHex),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    )
             } else {
                 Text(site.badge)
                     .font(.system(size: 18, weight: .semibold))
