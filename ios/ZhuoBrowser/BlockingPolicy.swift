@@ -102,6 +102,29 @@ struct BlockEvent: Identifiable, Equatable {
     let occurredAt: Date
 }
 
+enum BlockEventPresentationPolicy {
+    static let maximumVisibleEvents = 200
+
+    static func visibleEvents(
+        _ events: [BlockEvent],
+        tabID: String,
+        limit: Int = maximumVisibleEvents
+    ) -> [BlockEvent] {
+        guard limit > 0 else { return [] }
+        return Array(
+            events
+                .filter { $0.tabID == tabID && $0.count > 0 }
+                .sorted { lhs, rhs in
+                    if lhs.occurredAt != rhs.occurredAt {
+                        return lhs.occurredAt > rhs.occurredAt
+                    }
+                    return lhs.id < rhs.id
+                }
+                .prefix(limit)
+        )
+    }
+}
+
 enum BlockingPolicy {
     static func normalizedSiteControls(_ controls: [SiteControl]) -> [SiteControl] {
         var byHost: [String: SiteControl] = [:]

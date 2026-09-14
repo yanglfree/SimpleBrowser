@@ -42,19 +42,29 @@ struct BlockPanelSheet: View {
                         Text("\(siteStats.total)")
                             .foregroundStyle(DesignTokens.textSecondary)
                     }
-                }
-
-                if !events.isEmpty {
-                    Section("本页事件") {
-                        ForEach(events) { event in
-                            HStack {
-                                Text(event.category.label)
-                                Spacer()
-                                Text("×\(event.count)")
-                                    .foregroundStyle(DesignTokens.textSecondary)
-                            }
+                    NavigationLink {
+                        BlockEventSheet(events: events)
+                    } label: {
+                        HStack {
+                            Text("清理事件")
+                            Spacer()
+                            Text("\(events.count)")
+                                .foregroundStyle(DesignTokens.textSecondary)
                         }
                     }
+                    .accessibilityIdentifier("block-events")
+                    Button("报告页面问题") {
+                        dismissThen {
+                            session.reportPageIssue()
+                        }
+                    }
+                    .accessibilityIdentifier("block-report-issue")
+                    Button("全局拦截设置") {
+                        dismissThen {
+                            session.showsSettings = true
+                        }
+                    }
+                    .accessibilityIdentifier("block-global-settings")
                 }
             }
             .navigationTitle("内容拦截")
@@ -89,5 +99,10 @@ struct BlockPanelSheet: View {
             Text("\(value)")
                 .foregroundStyle(DesignTokens.textSecondary)
         }
+    }
+
+    private func dismissThen(_ action: @escaping () -> Void) {
+        dismiss()
+        DispatchQueue.main.async(execute: action)
     }
 }

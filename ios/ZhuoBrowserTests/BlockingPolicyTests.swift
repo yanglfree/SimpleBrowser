@@ -2,6 +2,50 @@ import XCTest
 @testable import ZhuoBrowser
 
 final class BlockingPolicyTests: XCTestCase {
+    func testVisibleEventsStayTabScopedPositiveRecentAndBounded() {
+        let now = Date(timeIntervalSince1970: 100)
+        let events = [
+            BlockEvent(
+                id: "older",
+                tabID: "active",
+                pageURL: "https://example.com/old",
+                category: .advertisement,
+                count: 1,
+                occurredAt: now.addingTimeInterval(-2)
+            ),
+            BlockEvent(
+                id: "other-tab",
+                tabID: "other",
+                pageURL: "https://example.com/other",
+                category: .tracker,
+                count: 3,
+                occurredAt: now.addingTimeInterval(2)
+            ),
+            BlockEvent(
+                id: "invalid",
+                tabID: "active",
+                pageURL: "https://example.com/invalid",
+                category: .popup,
+                count: 0,
+                occurredAt: now.addingTimeInterval(1)
+            ),
+            BlockEvent(
+                id: "newer",
+                tabID: "active",
+                pageURL: "https://example.com/new",
+                category: .cookieBanner,
+                count: 2,
+                occurredAt: now
+            )
+        ]
+
+        XCTAssertEqual(
+            BlockEventPresentationPolicy.visibleEvents(events, tabID: "active", limit: 1).map(\.id),
+            ["newer"]
+        )
+        XCTAssertTrue(BlockEventPresentationPolicy.visibleEvents(events, tabID: "active", limit: 0).isEmpty)
+    }
+
     func testEffectiveControlInheritsGlobalAndResolvesOverrides() {
         let settings = BrowserSettings(
             blockAds: true,

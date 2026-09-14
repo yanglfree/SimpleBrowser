@@ -1620,7 +1620,7 @@ final class BrowserSession: ObservableObject {
     }
 
     func observedEventsForActiveTab() -> [BlockEvent] {
-        blockEvents.filter { $0.tabID == activeTabID }
+        BlockEventPresentationPolicy.visibleEvents(blockEvents, tabID: activeTabID)
     }
 
     func resetObservedBlocking(tabID: String) {
