@@ -171,11 +171,12 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         let url = rawURL ?? session.tab(id)?.url ?? ""
         webView.configuration.preferences.minimumFontSize = CGFloat(session.settings.minimumFontSize)
         webView.pageZoom = CGFloat(session.zoomPercent(for: url)) / 100
-        if session.isWebDarkModeExcluded(for: url) {
+        let siteControl = BlockingPolicy.siteControl(for: url, controls: session.settings.siteControls)
+        if siteControl.darkMode == .inherit, session.isWebDarkModeExcluded(for: url) {
             webView.overrideUserInterfaceStyle = .light
             return
         }
-        switch session.settings.webDarkMode {
+        switch session.effectiveSiteControl(for: url).webDarkMode {
         case .system:
             webView.overrideUserInterfaceStyle = .unspecified
         case .light:

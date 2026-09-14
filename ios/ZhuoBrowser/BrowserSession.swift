@@ -163,10 +163,10 @@ final class BrowserSession: ObservableObject {
         tabs = tabs.map { tab in
             var resolved = tab
             if !URLPolicy.isHomeURL(tab.url) {
-                resolved.isDesktop = WebAppearancePolicy.usesDesktopUserAgent(
+                resolved.isDesktop = BlockingPolicy.effectiveControl(
                     for: tab.url,
                     settings: loadedSettings
-                )
+                ).desktopUserAgentEnabled
             }
             return resolved
         }
@@ -246,7 +246,7 @@ final class BrowserSession: ObservableObject {
             engine: settings.searchEngine,
             customTemplate: settings.customSearchTemplate
         )
-        let usesDesktop = WebAppearancePolicy.usesDesktopUserAgent(for: address, settings: settings)
+        let usesDesktop = effectiveSiteControl(for: address).desktopUserAgentEnabled
         prepareNavigation(tabID: activeTabID, to: address)
         update(tabID: activeTabID) { tab in
             tab.url = address
@@ -686,7 +686,7 @@ final class BrowserSession: ObservableObject {
     }
 
     private func prepareLinkedTab(_ tabID: String, url: String) {
-        let usesDesktop = WebAppearancePolicy.usesDesktopUserAgent(for: url, settings: settings)
+        let usesDesktop = effectiveSiteControl(for: url).desktopUserAgentEnabled
         update(tabID: tabID) { tab in
             tab.url = url
             tab.title = URLPolicy.displayHost(url)
@@ -1038,8 +1038,8 @@ final class BrowserSession: ObservableObject {
         guard let current = activeTab, !URLPolicy.isHomeURL(current.url) else {
             return
         }
-        let preference = userAgentPreference(for: current.url)
-        applyUserAgentOnce(preference == .desktop ? .desktop : .mobile)
+        let usesDesktop = effectiveSiteControl(for: current.url).desktopUserAgentEnabled
+        applyUserAgentOnce(usesDesktop ? .desktop : .mobile)
     }
 
     func beginFind() {
@@ -1603,7 +1603,12 @@ final class BrowserSession: ObservableObject {
         settings.siteControls = BlockingPolicy.normalizedSiteControls(settings.siteControls)
         persistSettings()
         controllers.values.forEach { $0.applyContentBlocker() }
-        activeController?.reload()
+        if let current = activeTab, !URLPolicy.isHomeURL(current.url) {
+            activeController?.applyWebAppearance(for: current.url)
+            applyResolvedUserAgentToActive()
+        } else {
+            activeController?.reload()
+        }
     }
 
     func setRuleStrength(_ strength: RuleStrength) {

@@ -213,7 +213,12 @@ final class BrowserSettingsTests: XCTestCase {
             downloadNotificationsEnabled: true,
             clearCookiesOnTabClose: true,
             ruleStrength: .strict,
-            siteControls: [SiteControl(host: "example.com", autoReader: .enabled)],
+            siteControls: [SiteControl(
+                host: "example.com",
+                autoReader: .enabled,
+                darkMode: .enabled,
+                desktopUserAgent: .disabled
+            )],
             rulesLastUpdatedAt: 1234
         )
 

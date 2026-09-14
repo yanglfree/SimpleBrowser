@@ -36,12 +36,49 @@ struct SiteControl: Codable, Equatable, Identifiable {
     var trackerBlocking: SiteControlMode = .inherit
     var cosmeticCleanup: SiteControlMode = .inherit
     var autoReader: SiteControlMode = .inherit
+    var darkMode: SiteControlMode = .inherit
+    var desktopUserAgent: SiteControlMode = .inherit
+
+    init(
+        host: String,
+        networkBlocking: SiteControlMode = .inherit,
+        trackerBlocking: SiteControlMode = .inherit,
+        cosmeticCleanup: SiteControlMode = .inherit,
+        autoReader: SiteControlMode = .inherit,
+        darkMode: SiteControlMode = .inherit,
+        desktopUserAgent: SiteControlMode = .inherit
+    ) {
+        self.host = host
+        self.networkBlocking = networkBlocking
+        self.trackerBlocking = trackerBlocking
+        self.cosmeticCleanup = cosmeticCleanup
+        self.autoReader = autoReader
+        self.darkMode = darkMode
+        self.desktopUserAgent = desktopUserAgent
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case host, networkBlocking, trackerBlocking, cosmeticCleanup, autoReader
+        case darkMode, desktopUserAgent
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        host = try container.decode(String.self, forKey: .host)
+        networkBlocking = try container.decodeIfPresent(SiteControlMode.self, forKey: .networkBlocking) ?? .inherit
+        trackerBlocking = try container.decodeIfPresent(SiteControlMode.self, forKey: .trackerBlocking) ?? .inherit
+        cosmeticCleanup = try container.decodeIfPresent(SiteControlMode.self, forKey: .cosmeticCleanup) ?? .inherit
+        autoReader = try container.decodeIfPresent(SiteControlMode.self, forKey: .autoReader) ?? .inherit
+        darkMode = try container.decodeIfPresent(SiteControlMode.self, forKey: .darkMode) ?? .inherit
+        desktopUserAgent = try container.decodeIfPresent(SiteControlMode.self, forKey: .desktopUserAgent) ?? .inherit
+    }
 
     var id: String { host }
 
     var hasOverride: Bool {
         networkBlocking != .inherit || trackerBlocking != .inherit ||
-            cosmeticCleanup != .inherit || autoReader != .inherit
+            cosmeticCleanup != .inherit || autoReader != .inherit ||
+            darkMode != .inherit || desktopUserAgent != .inherit
     }
 }
 
@@ -50,6 +87,8 @@ struct EffectiveSiteControl: Equatable {
     let trackerBlockingEnabled: Bool
     let cosmeticCleanupEnabled: Bool
     let autoReaderEnabled: Bool
+    let webDarkMode: WebDarkModePreference
+    let desktopUserAgentEnabled: Bool
 }
 
 struct BlockStats: Codable, Equatable {
@@ -280,7 +319,12 @@ enum BlockingPolicy {
             networkBlockingEnabled: resolve(control.networkBlocking, fallback: settings.blockAds),
             trackerBlockingEnabled: resolve(control.trackerBlocking, fallback: settings.blockAds),
             cosmeticCleanupEnabled: resolve(control.cosmeticCleanup, fallback: settings.blockAds),
-            autoReaderEnabled: resolve(control.autoReader, fallback: false)
+            autoReaderEnabled: resolve(control.autoReader, fallback: false),
+            webDarkMode: resolveWebDarkMode(control.darkMode, fallback: settings.webDarkMode),
+            desktopUserAgentEnabled: resolve(
+                control.desktopUserAgent,
+                fallback: WebAppearancePolicy.usesDesktopUserAgent(for: rawURL, settings: settings)
+            )
         )
     }
 
@@ -309,6 +353,17 @@ enum BlockingPolicy {
         case .inherit: return fallback
         case .enabled: return true
         case .disabled: return false
+        }
+    }
+
+    private static func resolveWebDarkMode(
+        _ mode: SiteControlMode,
+        fallback: WebDarkModePreference
+    ) -> WebDarkModePreference {
+        switch mode {
+        case .inherit: return fallback
+        case .enabled: return .dark
+        case .disabled: return .light
         }
     }
 }

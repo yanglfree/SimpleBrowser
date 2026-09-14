@@ -113,7 +113,9 @@ final class BlockingPolicyTests: XCTestCase {
                     networkBlocking: .disabled,
                     trackerBlocking: .enabled,
                     cosmeticCleanup: .inherit,
-                    autoReader: .enabled
+                    autoReader: .enabled,
+                    darkMode: .disabled,
+                    desktopUserAgent: .enabled
                 )
             ]
         )
@@ -124,7 +126,9 @@ final class BlockingPolicyTests: XCTestCase {
                 networkBlockingEnabled: false,
                 trackerBlockingEnabled: true,
                 cosmeticCleanupEnabled: true,
-                autoReaderEnabled: true
+                autoReaderEnabled: true,
+                webDarkMode: .light,
+                desktopUserAgentEnabled: true
             )
         )
         XCTAssertEqual(
@@ -133,9 +137,22 @@ final class BlockingPolicyTests: XCTestCase {
                 networkBlockingEnabled: true,
                 trackerBlockingEnabled: true,
                 cosmeticCleanupEnabled: true,
-                autoReaderEnabled: false
+                autoReaderEnabled: false,
+                webDarkMode: .system,
+                desktopUserAgentEnabled: false
             )
         )
+    }
+
+    func testSiteControlDecodesLegacyDisplayFieldsAsInherited() throws {
+        let data = #"{"host":"example.com","networkBlocking":2,"trackerBlocking":1,"cosmeticCleanup":0,"autoReader":1}"#
+            .data(using: .utf8)!
+
+        let control = try JSONDecoder().decode(SiteControl.self, from: data)
+
+        XCTAssertEqual(control.darkMode, .inherit)
+        XCTAssertEqual(control.desktopUserAgent, .inherit)
+        XCTAssertTrue(control.hasOverride)
     }
 
     func testNormalizationDropsInheritedControlsAndMergesObservedStats() {

@@ -23,6 +23,8 @@ final class PageIssueDiagnosticTests: XCTestCase {
         var control = SiteControl(host: "private.example")
         control.networkBlocking = .enabled
         control.autoReader = .disabled
+        control.darkMode = .enabled
+        control.desktopUserAgent = .disabled
 
         let diagnostic = PageIssueDiagnostic.create(
             appVersion: "1.2.3 (45)",
@@ -35,7 +37,7 @@ final class PageIssueDiagnosticTests: XCTestCase {
 
         XCTAssertTrue(diagnostic.summary.contains("load_error=timeout"))
         XCTAssertTrue(diagnostic.summary.contains("observable_cleanup_count=3"))
-        XCTAssertTrue(diagnostic.summary.contains("site_overrides=2"))
+        XCTAssertTrue(diagnostic.summary.contains("site_overrides=4"))
         XCTAssertFalse(diagnostic.summary.contains("private.example"))
         XCTAssertFalse(diagnostic.summary.contains("/path"))
     }

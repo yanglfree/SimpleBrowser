@@ -44,7 +44,9 @@ struct PageIssueDiagnostic: Identifiable, Equatable {
                 control.networkBlocking,
                 control.trackerBlocking,
                 control.cosmeticCleanup,
-                control.autoReader
+                control.autoReader,
+                control.darkMode,
+                control.desktopUserAgent
             ].filter { $0 != .inherit }.count
         )
     }

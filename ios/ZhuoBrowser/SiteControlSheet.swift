@@ -10,6 +10,8 @@ struct SiteControlSheet: View {
                 controlPicker("跟踪器清理", keyPath: \.trackerBlocking)
                 controlPicker("页面元素清理", keyPath: \.cosmeticCleanup)
                 controlPicker("自动阅读模式", keyPath: \.autoReader)
+                controlPicker("深色网页", keyPath: \.darkMode)
+                controlPicker("桌面版网站", keyPath: \.desktopUserAgent)
             } header: {
                 Text(URLPolicy.displayHost(session.activeTab?.url ?? ""))
             } footer: {
