@@ -17,7 +17,7 @@ Status values are `complete`, `partial`, `missing`, and `external-gate`.
 | Start page | partial | Persistent quick-site add/edit/remove/reorder, visibility/count, and built-in backgrounds exist. Custom photo and Bing daily background remain. |
 | App appearance | complete | System, light, and dark modes use semantic colors and persist. |
 | Blocking controls | partial | Main toggle and per-host allow-list exist. Rule strength, update status, block-event categories/statistics, and site panel remain. |
-| Navigation/session | partial | Basic tab restore and hibernation exist. Forward/history picker, gestures, keyboard shortcuts, tab expiry/soft limit, scroll/form restoration, and pinning remain. |
+| Navigation/session | partial | Back/forward navigation, history picker, pinned tabs, adjacent close selection, configurable recent-WebView budget, seven-day expiry recovery, soft-limit cleanup, and non-private session restore exist. Gesture actions, keyboard shortcuts, scroll/form restoration, tab reordering, and expired-tab management remain. |
 | Library | partial | Bookmarks/history and suggestions exist. Rename, host deletion, import/export, retention controls, and read-later state remain. |
 | Downloads | partial | WKDownload persistence and sharing exist. Pause/resume/retry/cancel, concurrency, Wi-Fi/large-file policy, missing-file recovery, and completion notice remain. |
 | Reader and articles | partial | Live reader settings exist. Offline article capture/library, reading position, images, full-text search, highlights, notes, topics, and export remain. |

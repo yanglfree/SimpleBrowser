@@ -1,0 +1,80 @@
+import XCTest
+@testable import ZhuoBrowser
+
+final class SessionPolicyTests: XCTestCase {
+    func testLiveTabsUseActiveThenMostRecentNonHomeTabs() {
+        let tabs = [
+            makeTab(id: "old", url: "https://old.example", visitedAt: 10),
+            makeTab(id: "home", url: URLPolicy.homeURL, visitedAt: 50),
+            makeTab(id: "recent", url: "https://recent.example", visitedAt: 40),
+            makeTab(id: "active", url: "https://active.example", visitedAt: 20)
+        ]
+
+        XCTAssertEqual(
+            SessionPolicy.liveTabIDs(tabs: tabs, activeTabID: "active", limit: 3),
+            ["active", "recent", "old"]
+        )
+    }
+
+    func testExpiredTabsArePartitionedByConfiguredAge() {
+        let now: TimeInterval = 1_000_000
+        let tabs = [
+            makeTab(id: "fresh", visitedAt: now - 60),
+            makeTab(id: "expired", visitedAt: now - (8 * 24 * 60 * 60))
+        ]
+
+        let partition = SessionPolicy.partitionExpiredTabs(tabs, expiry: .sevenDays, now: now)
+
+        XCTAssertEqual(partition.active.map(\.id), ["fresh"])
+        XCTAssertEqual(partition.expired.map(\.id), ["expired"])
+        XCTAssertEqual(SessionPolicy.partitionExpiredTabs(tabs, expiry: .never, now: now).active.count, 2)
+    }
+
+    func testSoftLimitCleanupPrefersStaleHomeAndLoadingTabs() {
+        var tabs = (0..<12).map { index in
+            makeTab(id: "tab-\(index)", visitedAt: TimeInterval(index + 1))
+        }
+        tabs[4].url = URLPolicy.homeURL
+        tabs[7].isLoading = true
+
+        let ids = SessionPolicy.softLimitCleanupCandidates(tabs: tabs, activeTabID: "tab-0", limit: 12)
+
+        XCTAssertEqual(ids, ["tab-4"])
+        XCTAssertFalse(ids.contains("tab-0"))
+    }
+
+    func testClosingActiveTabSelectsItsNextNeighbour() {
+        let tabs = [makeTab(id: "a"), makeTab(id: "b"), makeTab(id: "c")]
+
+        XCTAssertEqual(SessionPolicy.selectedTabAfterClosing(tabs, closing: "b"), "c")
+        XCTAssertEqual(SessionPolicy.selectedTabAfterClosing(tabs, closing: "c"), "b")
+    }
+
+    func testLegacyTabDecodesNavigationAndPinDefaults() throws {
+        let data = #"{"id":"old","url":"https://example.com","title":"Example","isPrivate":false,"isLoading":false,"progress":0,"canGoBack":true,"lastVisitedAt":1,"isReader":false,"isDesktop":false}"#.data(using: .utf8)!
+
+        let tab = try JSONDecoder().decode(BrowserTab.self, from: data)
+
+        XCTAssertFalse(tab.canGoForward)
+        XCTAssertFalse(tab.isPinned)
+    }
+
+    private func makeTab(
+        id: String,
+        url: String = "https://example.com",
+        visitedAt: TimeInterval = 1
+    ) -> BrowserTab {
+        BrowserTab(
+            id: id,
+            url: url,
+            title: id,
+            isPrivate: false,
+            isLoading: false,
+            progress: 0,
+            canGoBack: false,
+            lastVisitedAt: visitedAt,
+            isReader: false,
+            isDesktop: false
+        )
+    }
+}

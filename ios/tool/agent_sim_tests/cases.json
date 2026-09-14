@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "suite": "ZhuoBrowser iOS HarmonyOS parity batch 1",
+  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-2",
   "lastRun": {
     "date": "2026-09-14",
     "device": "Jimu QA iPhone 17",
@@ -57,6 +57,43 @@
       "expected": "Primary controls and visible quick sites remain on screen without clipping or overlap.",
       "result": "passed",
       "evidence": "evidence/home-landscape-dark.png"
+    },
+    {
+      "id": "IOS-NAV-001",
+      "title": "Back, forward, and navigation-history selection stay synchronized",
+      "steps": [
+        "Navigate from example.com to the IANA example-domains page",
+        "Go back and verify that Forward becomes enabled",
+        "Open Navigation History and select the forward entry"
+      ],
+      "expected": "The history sheet exposes real WKWebView entries and selecting one navigates to the matching page.",
+      "result": "passed",
+      "evidence": "evidence/navigation-history.png"
+    },
+    {
+      "id": "IOS-TABS-001",
+      "title": "Pinned tabs and adjacent close selection persist",
+      "steps": [
+        "Pin a normal tab from the tab overview",
+        "Create a second tab and close the active tab",
+        "Verify the adjacent pinned tab becomes active",
+        "Terminate and relaunch the app"
+      ],
+      "expected": "The adjacent tab is selected and its pinned state survives relaunch.",
+      "result": "passed",
+      "evidence": "evidence/tab-overview-pinned.png"
+    },
+    {
+      "id": "IOS-TAB-LIMIT-001",
+      "title": "Soft tab limit offers cleanup without blocking creation",
+      "steps": [
+        "Set the tab warning threshold to eight",
+        "Create tabs until the threshold is exceeded",
+        "Choose cleanup of old tabs"
+      ],
+      "expected": "The alert offers Continue and Cleanup, and Cleanup reduces nine tabs to seven while keeping the active tab.",
+      "result": "passed",
+      "evidence": "evidence/tab-soft-limit.png"
     }
   ]
 }

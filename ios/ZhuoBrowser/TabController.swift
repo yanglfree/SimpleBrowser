@@ -46,6 +46,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             session?.update(tabID: id) { tab in
                 tab.isLoading = false
                 tab.canGoBack = false
+                tab.canGoForward = webView.canGoForward
                 tab.title = tab.isPrivate ? "无痕" : "新标签页"
             }
             return
@@ -65,6 +66,40 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         load(URLPolicy.homeURL)
     }
 
+    func goForward() {
+        guard webView.canGoForward else {
+            return
+        }
+        webView.goForward()
+    }
+
+    func navigationHistory() -> [NavigationHistoryEntry] {
+        let back = webView.backForwardList.backList.reversed().enumerated().map { index, item in
+            NavigationHistoryEntry(
+                title: item.title ?? URLPolicy.displayHost(item.url.absoluteString),
+                url: item.url.absoluteString,
+                offset: -(index + 1),
+                direction: .back
+            )
+        }
+        let forward = webView.backForwardList.forwardList.enumerated().map { index, item in
+            NavigationHistoryEntry(
+                title: item.title ?? URLPolicy.displayHost(item.url.absoluteString),
+                url: item.url.absoluteString,
+                offset: index + 1,
+                direction: .forward
+            )
+        }
+        return back + forward
+    }
+
+    func navigateHistory(to offset: Int) {
+        guard offset != 0, let item = webView.backForwardList.item(at: offset) else {
+            return
+        }
+        webView.go(to: item)
+    }
+
     func reload() {
         if URLPolicy.isHomeURL(session?.tab(id)?.url ?? "") {
             return
@@ -76,6 +111,8 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         webView.stopLoading()
         session?.update(tabID: id) { tab in
             tab.isLoading = false
+            tab.canGoBack = webView.canGoBack
+            tab.canGoForward = webView.canGoForward
         }
     }
 
@@ -239,7 +276,8 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             if let url = webView.url?.absoluteString, !url.isEmpty {
                 tab.url = url
             }
-            tab.canGoBack = true
+            tab.canGoBack = webView.canGoBack
+            tab.canGoForward = webView.canGoForward
             tab.lastVisitedAt = Date().timeIntervalSince1970
         }
     }
@@ -253,7 +291,8 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             if let title = webView.title, !title.isEmpty {
                 tab.title = title
             }
-            tab.canGoBack = true
+            tab.canGoBack = webView.canGoBack
+            tab.canGoForward = webView.canGoForward
         }
         applyDesktopViewportIfNeeded()
         if session?.tab(id)?.isReader == true {
@@ -275,12 +314,16 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         session?.update(tabID: id) { tab in
             tab.isLoading = false
+            tab.canGoBack = webView.canGoBack
+            tab.canGoForward = webView.canGoForward
         }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         session?.update(tabID: id) { tab in
             tab.isLoading = false
+            tab.canGoBack = webView.canGoBack
+            tab.canGoForward = webView.canGoForward
         }
     }
 

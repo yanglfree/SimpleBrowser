@@ -68,6 +68,11 @@ struct RootView: View {
             LibrarySheet()
                 .environmentObject(session)
         }
+        .sheet(isPresented: $session.showsNavigationHistory) {
+            NavigationHistorySheet()
+                .environmentObject(session)
+                .presentationDetents([.medium, .large])
+        }
         .sheet(item: $session.permissionPrompt, onDismiss: {
             session.denyPermissionIfPending()
         }) { prompt in
@@ -81,6 +86,18 @@ struct RootView: View {
         .sheet(item: $quickSiteEditor) { request in
             QuickSiteEditorSheet(request: request, onSave: session.saveQuickSite)
                 .preferredColorScheme(preferredColorScheme)
+        }
+        .alert("恢复过期标签页？", isPresented: $session.showsExpiredTabsPrompt) {
+            Button("恢复") { session.restoreExpiredTabs() }
+            Button("稍后处理", role: .cancel) {}
+        } message: {
+            Text("有 \(session.archivedTabs.count) 个标签页超过保留期限。")
+        }
+        .alert("标签页较多", isPresented: $session.showsTabSoftLimitPrompt) {
+            Button("清理旧标签页") { session.cleanupSoftLimitTabs() }
+            Button("继续新建", role: .cancel) {}
+        } message: {
+            Text("已达到 \(session.settings.tabSoftLimit) 个标签页。可以清理较旧的标签页，也可以继续新建。")
         }
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
@@ -149,6 +166,23 @@ struct RootView: View {
             }
             .disabled(!canGoBack)
             .accessibilityIdentifier("nav-back")
+            .onLongPressGesture {
+                session.openNavigationHistory()
+            }
+
+            Button {
+                session.goForward()
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(canGoForward ? DesignTokens.textPrimary : DesignTokens.textSecondary)
+                    .frame(width: 30, height: 36)
+            }
+            .disabled(!canGoForward)
+            .accessibilityIdentifier("nav-forward")
+            .onLongPressGesture {
+                session.openNavigationHistory()
+            }
 
             TextField(session.activeTab?.isPrivate == true ? "无痕搜索或输入网址" : "搜索或输入网址", text: $addressText)
                 .textInputAutocapitalization(.never)
@@ -229,6 +263,10 @@ struct RootView: View {
             Button("书签与历史") {
                 session.openLibrary(.bookmarks)
             }
+            Button("导航历史") {
+                session.openNavigationHistory()
+            }
+            .disabled(session.activeController == nil)
             Button("分享") {
                 session.shareCurrentPage()
             }
@@ -253,6 +291,10 @@ struct RootView: View {
             return false
         }
         return !URLPolicy.isHomeURL(tab.url)
+    }
+
+    private var canGoForward: Bool {
+        session.activeTab?.canGoForward == true
     }
 
     private var setupRequired: Binding<Bool> {

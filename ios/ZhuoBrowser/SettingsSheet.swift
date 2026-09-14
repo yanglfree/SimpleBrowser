@@ -107,6 +107,27 @@ struct SettingsSheet: View {
                     .accessibilityIdentifier("settings-manage-quick-sites")
                 }
 
+                Section("标签页") {
+                    Picker("自动归档", selection: tabExpiryBinding) {
+                        ForEach(TabExpiry.allCases) { expiry in
+                            Text(expiry.label).tag(expiry)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-tab-expiry")
+                    Picker("活动网页数量", selection: liveWebViewLimitBinding) {
+                        ForEach([1, 2, 4, 6], id: \.self) { value in
+                            Text("\(value) 个").tag(value)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-live-webview-limit")
+                    Picker("标签页提醒", selection: tabSoftLimitBinding) {
+                        ForEach([8, 12, 20, 40], id: \.self) { value in
+                            Text("\(value) 个").tag(value)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-tab-soft-limit")
+                }
+
                 Section("书签与历史") {
                     Button("书签与历史") {
                         session.showsSettings = false
@@ -197,6 +218,27 @@ struct SettingsSheet: View {
         Binding(
             get: { session.settings.homeBackgroundStyle },
             set: { session.setHomeBackgroundStyle($0) }
+        )
+    }
+
+    private var tabExpiryBinding: Binding<TabExpiry> {
+        Binding(
+            get: { session.settings.tabExpiry },
+            set: { session.setTabExpiry($0) }
+        )
+    }
+
+    private var liveWebViewLimitBinding: Binding<Int> {
+        Binding(
+            get: { session.settings.liveWebViewLimit },
+            set: { session.setLiveWebViewLimit($0) }
+        )
+    }
+
+    private var tabSoftLimitBinding: Binding<Int> {
+        Binding(
+            get: { session.settings.tabSoftLimit },
+            set: { session.setTabSoftLimit($0) }
         )
     }
 }

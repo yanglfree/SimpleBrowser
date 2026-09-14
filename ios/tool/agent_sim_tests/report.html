@@ -19,7 +19,7 @@
 <body>
   <header>
     <h1>ZhuoBrowser iOS Simulator QA</h1>
-    <p class="pass">4 / 4 scenarios passed</p>
+    <p class="pass">7 / 7 scenarios passed</p>
     <p class="meta">2026-09-14 · Jimu QA iPhone 17 · iOS 26.1 · Debug</p>
   </header>
   <article>
@@ -39,6 +39,21 @@
     <h2><code>IOS-ROTATION-001</code> Landscape layout</h2>
     <p>Browser chrome and the visible quick-site grid remained accessible without clipping or overlap.</p>
     <img src="evidence/home-landscape-dark.png" alt="Native home rendered in landscape dark appearance">
+  </article>
+  <article>
+    <h2><code>IOS-NAV-001</code> Back, forward, and navigation history</h2>
+    <p>Returning from IANA to Example Domain enabled Forward. The history sheet exposed the real WKWebView entries and navigated to the selected entry.</p>
+    <img src="evidence/navigation-history.png" alt="Navigation history showing backward and forward entries">
+  </article>
+  <article>
+    <h2><code>IOS-TABS-001</code> Pinned tab persistence</h2>
+    <p>The explicit pin action updated the card, adjacent close selection returned to that tab, and the pin remained after terminating and relaunching the app.</p>
+    <img src="evidence/tab-overview-pinned.png" alt="Pinned tab in the tab overview">
+  </article>
+  <article>
+    <h2><code>IOS-TAB-LIMIT-001</code> Soft tab limit</h2>
+    <p>The eight-tab threshold did not block creation. It offered Continue and Cleanup; Cleanup reduced nine tabs to seven while preserving the active tab.</p>
+    <img src="evidence/tab-soft-limit.png" alt="Soft tab-limit cleanup alert">
   </article>
 </body>
 </html>

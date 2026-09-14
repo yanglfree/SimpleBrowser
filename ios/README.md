@@ -9,6 +9,9 @@ data store, live-webview hibernation, session restore for non-private tabs,
 a desktop user-agent toggle. First launch now enforces privacy consent and
 onboarding; the start page supports persistent quick-site management, built-in
 backgrounds, and system/light/dark appearance.
+Navigation parity includes forward navigation and back/forward history, pinned
+tabs, adjacent close selection, configurable live-WebView retention, expired-tab
+recovery, and the HarmonyOS-compatible soft tab limit.
 
 ## Setup
 

@@ -8,9 +8,11 @@ struct BrowserTab: Identifiable, Equatable, Codable {
     var isLoading: Bool
     var progress: Double
     var canGoBack: Bool
+    var canGoForward: Bool
     var lastVisitedAt: TimeInterval
     var isReader: Bool
     var isDesktop: Bool
+    var isPinned: Bool
 
     static func home(isPrivate: Bool) -> BrowserTab {
         BrowserTab(
@@ -21,9 +23,11 @@ struct BrowserTab: Identifiable, Equatable, Codable {
             isLoading: false,
             progress: 0,
             canGoBack: false,
+            canGoForward: false,
             lastVisitedAt: Date().timeIntervalSince1970,
             isReader: false,
-            isDesktop: false
+            isDesktop: false,
+            isPinned: false
         )
     }
 
@@ -43,9 +47,11 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         isLoading: Bool,
         progress: Double,
         canGoBack: Bool,
+        canGoForward: Bool = false,
         lastVisitedAt: TimeInterval,
         isReader: Bool,
-        isDesktop: Bool
+        isDesktop: Bool,
+        isPinned: Bool = false
     ) {
         self.id = id
         self.url = url
@@ -54,13 +60,16 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         self.isLoading = isLoading
         self.progress = progress
         self.canGoBack = canGoBack
+        self.canGoForward = canGoForward
         self.lastVisitedAt = lastVisitedAt
         self.isReader = isReader
         self.isDesktop = isDesktop
+        self.isPinned = isPinned
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, url, title, isPrivate, isLoading, progress, canGoBack, lastVisitedAt, isReader, isDesktop
+        case id, url, title, isPrivate, isLoading, progress, canGoBack, canGoForward
+        case lastVisitedAt, isReader, isDesktop, isPinned
     }
 
     init(from decoder: Decoder) throws {
@@ -72,9 +81,11 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         isLoading = try container.decodeIfPresent(Bool.self, forKey: .isLoading) ?? false
         progress = try container.decodeIfPresent(Double.self, forKey: .progress) ?? 0
         canGoBack = try container.decodeIfPresent(Bool.self, forKey: .canGoBack) ?? false
+        canGoForward = try container.decodeIfPresent(Bool.self, forKey: .canGoForward) ?? false
         lastVisitedAt = try container.decode(TimeInterval.self, forKey: .lastVisitedAt)
         isReader = try container.decodeIfPresent(Bool.self, forKey: .isReader) ?? false
         isDesktop = try container.decodeIfPresent(Bool.self, forKey: .isDesktop) ?? false
+        isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -86,9 +97,11 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         try container.encode(isLoading, forKey: .isLoading)
         try container.encode(progress, forKey: .progress)
         try container.encode(canGoBack, forKey: .canGoBack)
+        try container.encode(canGoForward, forKey: .canGoForward)
         try container.encode(lastVisitedAt, forKey: .lastVisitedAt)
         try container.encode(isReader, forKey: .isReader)
         try container.encode(isDesktop, forKey: .isDesktop)
+        try container.encode(isPinned, forKey: .isPinned)
     }
 }
 

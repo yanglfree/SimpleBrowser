@@ -34,6 +34,24 @@ enum HomeBackgroundStyle: Int, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum TabExpiry: Int, Codable, CaseIterable, Identifiable {
+    case never = 0
+    case oneDay = 1
+    case threeDays = 3
+    case sevenDays = 7
+
+    var id: Int { rawValue }
+
+    var label: String {
+        switch self {
+        case .never: return "永不"
+        case .oneDay: return "1 天"
+        case .threeDays: return "3 天"
+        case .sevenDays: return "7 天"
+        }
+    }
+}
+
 struct BrowserSettings: Equatable {
     var searchEngine: SearchEngine = .bing
     var blockAds: Bool = true
@@ -44,6 +62,9 @@ struct BrowserSettings: Equatable {
     var quickSitesEnabled: Bool = true
     var quickSiteLimit: Int = 6
     var homeBackgroundStyle: HomeBackgroundStyle = .forest
+    var tabExpiry: TabExpiry = .sevenDays
+    var liveWebViewLimit: Int = 4
+    var tabSoftLimit: Int = 12
 
     var searchEngineLabel: String {
         switch searchEngine {
@@ -58,6 +79,7 @@ struct BrowserSettings: Equatable {
         case searchEngine, blockAds, searchSuggestionsEnabled
         case privacyConsentAccepted, onboardingCompleted, appearance
         case quickSitesEnabled, quickSiteLimit, homeBackgroundStyle
+        case tabExpiry, liveWebViewLimit, tabSoftLimit
     }
 
     init(
@@ -69,7 +91,10 @@ struct BrowserSettings: Equatable {
         appearance: AppearanceMode = .system,
         quickSitesEnabled: Bool = true,
         quickSiteLimit: Int = 6,
-        homeBackgroundStyle: HomeBackgroundStyle = .forest
+        homeBackgroundStyle: HomeBackgroundStyle = .forest,
+        tabExpiry: TabExpiry = .sevenDays,
+        liveWebViewLimit: Int = 4,
+        tabSoftLimit: Int = 12
     ) {
         self.searchEngine = searchEngine
         self.blockAds = blockAds
@@ -80,6 +105,9 @@ struct BrowserSettings: Equatable {
         self.quickSitesEnabled = quickSitesEnabled
         self.quickSiteLimit = Self.clampedQuickSiteLimit(quickSiteLimit)
         self.homeBackgroundStyle = homeBackgroundStyle
+        self.tabExpiry = tabExpiry
+        self.liveWebViewLimit = Self.clampedLiveWebViewLimit(liveWebViewLimit)
+        self.tabSoftLimit = Self.clampedTabSoftLimit(tabSoftLimit)
     }
 
     init(from decoder: Decoder) throws {
@@ -95,6 +123,13 @@ struct BrowserSettings: Equatable {
             try container.decodeIfPresent(Int.self, forKey: .quickSiteLimit) ?? 6
         )
         homeBackgroundStyle = try container.decodeIfPresent(HomeBackgroundStyle.self, forKey: .homeBackgroundStyle) ?? .forest
+        tabExpiry = try container.decodeIfPresent(TabExpiry.self, forKey: .tabExpiry) ?? .sevenDays
+        liveWebViewLimit = Self.clampedLiveWebViewLimit(
+            try container.decodeIfPresent(Int.self, forKey: .liveWebViewLimit) ?? 4
+        )
+        tabSoftLimit = Self.clampedTabSoftLimit(
+            try container.decodeIfPresent(Int.self, forKey: .tabSoftLimit) ?? 12
+        )
     }
 
     func encode(to encoder: Encoder) throws {
@@ -108,10 +143,27 @@ struct BrowserSettings: Equatable {
         try container.encode(quickSitesEnabled, forKey: .quickSitesEnabled)
         try container.encode(Self.clampedQuickSiteLimit(quickSiteLimit), forKey: .quickSiteLimit)
         try container.encode(homeBackgroundStyle, forKey: .homeBackgroundStyle)
+        try container.encode(tabExpiry, forKey: .tabExpiry)
+        try container.encode(Self.clampedLiveWebViewLimit(liveWebViewLimit), forKey: .liveWebViewLimit)
+        try container.encode(Self.clampedTabSoftLimit(tabSoftLimit), forKey: .tabSoftLimit)
     }
 
     static func clampedQuickSiteLimit(_ value: Int) -> Int {
         min(8, max(4, value))
+    }
+
+    static func clampedLiveWebViewLimit(_ value: Int) -> Int {
+        if value <= 1 { return 1 }
+        if value <= 2 { return 2 }
+        if value <= 4 { return 4 }
+        return 6
+    }
+
+    static func clampedTabSoftLimit(_ value: Int) -> Int {
+        if value <= 8 { return 8 }
+        if value <= 12 { return 12 }
+        if value <= 20 { return 20 }
+        return 40
     }
 }
 

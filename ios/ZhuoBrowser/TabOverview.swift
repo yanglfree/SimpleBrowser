@@ -15,6 +15,17 @@ struct TabOverview: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(DesignTokens.textPrimary)
                 Spacer()
+                if !session.archivedTabs.isEmpty {
+                    Button {
+                        session.showsExpiredTabsPrompt = true
+                    } label: {
+                        Label("\(session.archivedTabs.count)", systemImage: "archivebox")
+                    }
+                    .font(.system(size: 13))
+                    .foregroundStyle(DesignTokens.textSecondary)
+                    .accessibilityLabel("\(session.archivedTabs.count) 个已过期标签页")
+                    .accessibilityIdentifier("expired-tabs")
+                }
                 Button("全部关闭") {
                     session.closeAll()
                     session.showsOverview = false
@@ -73,10 +84,16 @@ struct TabOverview: View {
                         .foregroundStyle(DesignTokens.textPrimary)
                         .lineLimit(2)
                         .padding(.trailing, 28)
+                    if tab.isPinned {
+                        Label("已固定", systemImage: "pin.fill")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(DesignTokens.accent)
+                    }
                     Text(URLPolicy.isHomeURL(tab.url) ? "起始页" : tab.url)
                         .font(.system(size: 11))
                         .foregroundStyle(DesignTokens.textSecondary)
                         .lineLimit(2)
+                        .padding(.trailing, tab.isPrivate ? 0 : 28)
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
@@ -91,6 +108,13 @@ struct TabOverview: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("tab-card-\(tab.id)")
+            .contextMenu {
+                if !tab.isPrivate {
+                    Button(tab.isPinned ? "取消固定" : "固定标签页", systemImage: tab.isPinned ? "pin.slash" : "pin") {
+                        session.toggleTabPinned(tab.id)
+                    }
+                }
+            }
 
             Button {
                 session.closeTab(tab.id)
@@ -102,6 +126,21 @@ struct TabOverview: View {
             }
             .accessibilityIdentifier("close-tab-\(tab.id)")
             .padding(4)
+
+            if !tab.isPrivate {
+                Button {
+                    session.toggleTabPinned(tab.id)
+                } label: {
+                    Image(systemName: tab.isPinned ? "pin.fill" : "pin")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(tab.isPinned ? DesignTokens.accent : DesignTokens.textSecondary)
+                        .frame(width: 28, height: 28)
+                }
+                .accessibilityLabel(tab.isPinned ? "取消固定" : "固定标签页")
+                .accessibilityIdentifier("pin-tab-\(tab.id)")
+                .padding(4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            }
         }
     }
 

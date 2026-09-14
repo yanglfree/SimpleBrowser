@@ -26,6 +26,11 @@ final class BrowserSession: ObservableObject {
     @Published var sitePermissions: [SitePermission] = []
     @Published var permissionPrompt: PermissionPrompt?
     @Published var quickSites: [QuickSite] = []
+    @Published var navigationHistoryEntries: [NavigationHistoryEntry] = []
+    @Published var showsNavigationHistory = false
+    @Published var archivedTabs: [BrowserTab] = []
+    @Published var showsExpiredTabsPrompt = false
+    @Published var showsTabSoftLimitPrompt = false
     let downloads = DownloadStore()
     private var permissionReply: ((Bool) -> Void)?
 
@@ -33,6 +38,7 @@ final class BrowserSession: ObservableObject {
     private var privateStore = WKWebsiteDataStore.nonPersistent()
     private var cancellables: Set<AnyCancellable> = []
     private let defaultsKey = "browser_session"
+    private let archivedTabsKey = "browser_archived_tabs"
 
     var activeTab: BrowserTab? {
         tab(activeTabID)
@@ -43,25 +49,36 @@ final class BrowserSession: ObservableObject {
     }
 
     init() {
-        if let restored = Self.restore() {
-            tabs = restored.tabs
-            activeTabID = restored.activeTabID
+        let loadedSettings = Self.loadSettings()
+        if let restored = Self.restore(settings: loadedSettings) {
+            if restored.tabs.isEmpty {
+                let home = BrowserTab.home(isPrivate: false)
+                tabs = [home]
+                activeTabID = home.id
+            } else {
+                tabs = restored.tabs
+                activeTabID = restored.activeTabID
+            }
+            archivedTabs = Self.mergedArchivedTabs(Self.loadArchivedTabs(), restored.expiredTabs)
         } else {
             let home = BrowserTab.home(isPrivate: false)
             tabs = [home]
             activeTabID = home.id
+            archivedTabs = Self.loadArchivedTabs()
         }
         ContentBlocker.shared.onListsChanged = { [weak self] in
             self?.controllers.values.forEach { $0.applyContentBlocker() }
         }
         ContentBlocker.shared.prepare()
         readerSettings = Self.loadReaderSettings()
-        settings = Self.loadSettings()
+        settings = loadedSettings
         history = Self.loadHistory()
         savedItems = Self.loadSavedItems()
         allowedHosts = Self.loadAllowedHosts()
         sitePermissions = Self.loadSitePermissions()
         quickSites = Self.loadQuickSites()
+        persistArchivedTabs()
+        showsExpiredTabsPrompt = !archivedTabs.isEmpty
         downloads.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -69,6 +86,7 @@ final class BrowserSession: ObservableObject {
             }
             .store(in: &cancellables)
         ensureLive(activeTabID)
+        persist()
     }
 
     func tab(_ id: String) -> BrowserTab? {
@@ -187,6 +205,20 @@ final class BrowserSession: ObservableObject {
         openInActiveTab(URLPolicy.homeURL)
     }
 
+    func goForward() {
+        activeController?.goForward()
+    }
+
+    func openNavigationHistory() {
+        navigationHistoryEntries = activeController?.navigationHistory() ?? []
+        showsNavigationHistory = true
+    }
+
+    func navigateHistory(to offset: Int) {
+        activeController?.navigateHistory(to: offset)
+        showsNavigationHistory = false
+    }
+
     func reloadOrStop() {
         guard let current = activeTab else {
             return
@@ -204,6 +236,9 @@ final class BrowserSession: ObservableObject {
     func createTab(isPrivate: Bool, select: Bool = true) {
         guard tabs.count < SessionPolicy.maxTabCount else {
             return
+        }
+        if tabs.count >= settings.tabSoftLimit {
+            showsTabSoftLimitPrompt = true
         }
         let tab = BrowserTab.home(isPrivate: isPrivate)
         tabs.append(tab)
@@ -228,6 +263,9 @@ final class BrowserSession: ObservableObject {
     }
 
     func closeTab(_ id: String) {
+        let nextActiveID = activeTabID == id
+            ? SessionPolicy.selectedTabAfterClosing(tabs, closing: id)
+            : activeTabID
         controllers[id] = nil
         tabs.removeAll { $0.id == id }
         if tabs.isEmpty {
@@ -235,11 +273,69 @@ final class BrowserSession: ObservableObject {
             tabs = [home]
             activeTabID = home.id
         } else if activeTabID == id {
-            activeTabID = tabs[0].id
+            activeTabID = nextActiveID ?? tabs[0].id
         }
         recyclePrivateStoreIfNeeded()
         ensureLive(activeTabID)
         persist()
+    }
+
+    func toggleTabPinned(_ id: String) {
+        guard let current = tab(id), !current.isPrivate else {
+            return
+        }
+        update(tabID: id) { tab in
+            tab.isPinned.toggle()
+        }
+        let pinned = tabs.filter { !$0.isPrivate && $0.isPinned }
+        let normal = tabs.filter { !$0.isPrivate && !$0.isPinned }
+        let privateTabs = tabs.filter(\.isPrivate)
+        tabs = pinned + normal + privateTabs
+        persist()
+        flash(current.isPinned ? "已取消固定标签页" : "已固定标签页")
+    }
+
+    func cleanupSoftLimitTabs() {
+        let ids = SessionPolicy.softLimitCleanupCandidates(
+            tabs: tabs,
+            activeTabID: activeTabID,
+            limit: settings.tabSoftLimit
+        )
+        guard !ids.isEmpty else {
+            return
+        }
+        let idSet = Set(ids)
+        ids.forEach { controllers[$0] = nil }
+        tabs.removeAll { idSet.contains($0.id) }
+        recyclePrivateStoreIfNeeded()
+        persist()
+        flash("已清理 \(ids.count) 个旧标签页")
+    }
+
+    func restoreExpiredTabs() {
+        let availableCount = max(0, SessionPolicy.maxTabCount - tabs.count)
+        let archivedToRestore = Array(archivedTabs.prefix(availableCount))
+        guard !archivedToRestore.isEmpty else {
+            flash("标签页已达上限")
+            return
+        }
+        let now = Date().timeIntervalSince1970
+        let restored = archivedToRestore.map { archived -> BrowserTab in
+            var tab = archived
+            tab.id = UUID().uuidString
+            tab.isPrivate = false
+            tab.isLoading = false
+            tab.progress = 0
+            tab.canGoBack = false
+            tab.canGoForward = false
+            tab.lastVisitedAt = now
+            return tab
+        }
+        tabs.append(contentsOf: restored)
+        archivedTabs.removeFirst(archivedToRestore.count)
+        persistArchivedTabs()
+        persist()
+        flash("已恢复 \(restored.count) 个过期标签页")
     }
 
     func closeAll() {
@@ -410,6 +506,22 @@ final class BrowserSession: ObservableObject {
 
     func setHomeBackgroundStyle(_ style: HomeBackgroundStyle) {
         settings.homeBackgroundStyle = style
+        persistSettings()
+    }
+
+    func setTabExpiry(_ expiry: TabExpiry) {
+        settings.tabExpiry = expiry
+        persistSettings()
+    }
+
+    func setLiveWebViewLimit(_ limit: Int) {
+        settings.liveWebViewLimit = BrowserSettings.clampedLiveWebViewLimit(limit)
+        trimLive()
+        persistSettings()
+    }
+
+    func setTabSoftLimit(_ limit: Int) {
+        settings.tabSoftLimit = BrowserSettings.clampedTabSoftLimit(limit)
         persistSettings()
     }
 
@@ -615,6 +727,12 @@ final class BrowserSession: ObservableObject {
         }
     }
 
+    func persistArchivedTabs() {
+        if let data = try? JSONEncoder().encode(archivedTabs) {
+            UserDefaults.standard.set(data, forKey: archivedTabsKey)
+        }
+    }
+
     func persist() {
         persistSettings()
         persistReaderSettings()
@@ -627,6 +745,7 @@ final class BrowserSession: ObservableObject {
             copy.isLoading = false
             copy.progress = 0
             copy.canGoBack = false
+            copy.canGoForward = false
             return copy
         }
         let active = persistable.contains(where: { $0.id == activeTabID })
@@ -654,7 +773,11 @@ final class BrowserSession: ObservableObject {
     }
 
     private func trimLive() {
-        let live = SessionPolicy.liveTabIDs(tabs: tabs, activeTabID: activeTabID, limit: SessionPolicy.liveWebViewLimit)
+        let live = SessionPolicy.liveTabIDs(
+            tabs: tabs,
+            activeTabID: activeTabID,
+            limit: settings.liveWebViewLimit
+        )
         for id in controllers.keys where !SessionPolicy.isTabLive(live, id) {
             if let controller = controllers[id], let url = controller.webView.url?.absoluteString {
                 update(tabID: id) { tab in
@@ -676,17 +799,38 @@ final class BrowserSession: ObservableObject {
         privateStore = WKWebsiteDataStore.nonPersistent()
     }
 
-    private static func restore() -> (tabs: [BrowserTab], activeTabID: String)? {
+    private static func restore(settings: BrowserSettings) -> (
+        tabs: [BrowserTab],
+        activeTabID: String,
+        expiredTabs: [BrowserTab]
+    )? {
         guard let data = UserDefaults.standard.data(forKey: "browser_session"),
               let payload = try? JSONDecoder().decode(PersistedSession.self, from: data) else {
             return nil
         }
-        let tabs = SessionPolicy.persistableTabs(payload.tabs)
+        let partition = SessionPolicy.partitionExpiredTabs(
+            SessionPolicy.persistableTabs(payload.tabs),
+            expiry: settings.tabExpiry
+        )
+        let tabs = partition.active
         if tabs.isEmpty {
-            return nil
+            return ([], "", partition.expired)
         }
         let active = tabs.contains(where: { $0.id == payload.activeTabID }) ? payload.activeTabID : tabs[0].id
-        return (tabs, active)
+        return (tabs, active, partition.expired)
+    }
+
+    private static func loadArchivedTabs() -> [BrowserTab] {
+        guard let data = UserDefaults.standard.data(forKey: "browser_archived_tabs"),
+              let tabs = try? JSONDecoder().decode([BrowserTab].self, from: data) else {
+            return []
+        }
+        return SessionPolicy.persistableTabs(tabs)
+    }
+
+    private static func mergedArchivedTabs(_ existing: [BrowserTab], _ newlyExpired: [BrowserTab]) -> [BrowserTab] {
+        var seen = Set<String>()
+        return (newlyExpired + existing).filter { seen.insert($0.id).inserted }
     }
 
     private static func loadSitePermissions() -> [SitePermission] {

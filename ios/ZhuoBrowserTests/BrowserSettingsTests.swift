@@ -10,6 +10,9 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertEqual(settings.appearance, .system)
         XCTAssertTrue(settings.quickSitesEnabled)
         XCTAssertEqual(settings.quickSiteLimit, 6)
+        XCTAssertEqual(settings.tabExpiry, .sevenDays)
+        XCTAssertEqual(settings.liveWebViewLimit, 4)
+        XCTAssertEqual(settings.tabSoftLimit, 12)
     }
 
     func testLegacySettingsDecodeWithSafeNewDefaults() throws {
@@ -20,10 +23,29 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertFalse(settings.blockAds)
         XCTAssertFalse(settings.privacyConsentAccepted)
         XCTAssertEqual(settings.homeBackgroundStyle, .forest)
+        XCTAssertEqual(settings.tabExpiry, .sevenDays)
     }
 
     func testQuickSiteLimitIsClampedDuringInitialization() {
         XCTAssertEqual(BrowserSettings(quickSiteLimit: 1).quickSiteLimit, 4)
         XCTAssertEqual(BrowserSettings(quickSiteLimit: 99).quickSiteLimit, 8)
+    }
+
+    func testTabResourceSettingsUseSupportedValues() {
+        XCTAssertEqual(BrowserSettings(liveWebViewLimit: 3).liveWebViewLimit, 4)
+        XCTAssertEqual(BrowserSettings(liveWebViewLimit: 99).liveWebViewLimit, 6)
+        XCTAssertEqual(BrowserSettings(tabSoftLimit: 9).tabSoftLimit, 12)
+        XCTAssertEqual(BrowserSettings(tabSoftLimit: 99).tabSoftLimit, 40)
+    }
+
+    func testSessionSettingsRoundTrip() throws {
+        let expected = BrowserSettings(tabExpiry: .threeDays, liveWebViewLimit: 2, tabSoftLimit: 20)
+
+        let restored = try JSONDecoder().decode(
+            BrowserSettings.self,
+            from: JSONEncoder().encode(expected)
+        )
+
+        XCTAssertEqual(restored, expected)
     }
 }
