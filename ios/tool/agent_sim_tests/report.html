@@ -19,7 +19,7 @@
 <body>
   <header>
     <h1>ZhuoBrowser iOS Simulator QA</h1>
-    <p class="pass">10 / 10 scenarios passed</p>
+    <p class="pass">11 / 11 scenarios passed</p>
     <p class="meta">2026-09-14 · Jimu QA iPhone 17 · iOS 26.1 · Debug</p>
   </header>
   <article>
@@ -70,6 +70,13 @@
     <p>The local fixture persisted the normal note but not the password. The session payload contained only the <code>note</code> field and a real scroll offset of <code>2548</code>. Cold launch exposed Continue / Start Over; Continue returned to Section 5, while Start Over cleared the stored offset.</p>
     <img src="evidence/page-state-restored-form.png" alt="Restored normal form note with the password field empty">
     <img src="evidence/page-state-restored-scroll.png" alt="Restored final scroll checkpoint after choosing Continue">
+  </article>
+  <article>
+    <h2><code>IOS-LIBRARY-001</code> Read-later and Library management</h2>
+    <p>The page menu created one unified saved item with a visible read-later marker. Native editing persisted the renamed title, and opening that page changed its stored <code>isRead</code> value to <code>true</code>. Settings persisted the 24-hour history-retention choice; HTML import/export actions were visible and the system exporter opened with the default <code>browser-bookmarks</code> filename.</p>
+    <img src="evidence/library-saved-later-renamed.png" alt="Renamed read-later item in the native Library">
+    <img src="evidence/library-settings-transfer.png" alt="History retention and HTML bookmark transfer settings">
+    <img src="evidence/library-exporter.png" alt="System HTML bookmark exporter with the default filename">
   </article>
 </body>
 </html>

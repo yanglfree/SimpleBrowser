@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-4",
+  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-5",
   "lastRun": {
     "date": "2026-09-14",
     "device": "Jimu QA iPhone 17",
@@ -137,6 +137,23 @@
       "result": "passed",
       "evidence": "evidence/page-state-restored-form.png",
       "additionalEvidence": "evidence/page-state-restored-scroll.png"
+    },
+    {
+      "id": "IOS-LIBRARY-001",
+      "title": "Read-later and Library management persist across native surfaces",
+      "steps": [
+        "Add the current local fixture to read later from the page menu",
+        "Open Bookmarks and verify that the same unified item carries a read-later marker",
+        "Open the native edit action, rename the item, and save",
+        "Open the renamed item and verify that its persisted isRead state becomes true",
+        "Open Settings and change history retention from 30 days to 24 hours",
+        "Verify HTML import/export actions and open the system exporter"
+      ],
+      "expected": "Bookmarks and read-later share one durable item, management actions persist, retention is applied immediately, and transfer stays in bounded local HTML files.",
+      "result": "passed",
+      "evidence": "evidence/library-saved-later-renamed.png",
+      "additionalEvidence": "evidence/library-settings-transfer.png",
+      "exportEvidence": "evidence/library-exporter.png"
     }
   ]
 }

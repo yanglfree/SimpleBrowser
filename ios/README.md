@@ -17,6 +17,9 @@ commands, and group-safe tab reordering with explicit accessibility actions.
 The fourth parity batch persists normal and reader scroll positions for 30 days,
 offers Continue / Start Over recovery, and restores bounded form drafts while
 excluding password, hidden, file, one-time-code, and payment fields.
+The fifth parity batch completes the bookmark/history surface with unified
+read-later state, search and calendar grouping, bookmark editing, site-level
+history deletion, retention controls, and bounded Netscape HTML import/export.
 
 ## Setup
 

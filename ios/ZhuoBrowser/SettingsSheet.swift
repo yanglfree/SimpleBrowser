@@ -1,8 +1,19 @@
 import SwiftUI
+import UniformTypeIdentifiers
+
+private struct BookmarkTransferMessage: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+}
 
 struct SettingsSheet: View {
     @EnvironmentObject private var session: BrowserSession
     @Environment(\.dismiss) private var dismiss
+    @State private var isImportingBookmarks = false
+    @State private var isExportingBookmarks = false
+    @State private var exportDocument: BookmarkHTMLDocument?
+    @State private var transferMessage: BookmarkTransferMessage?
 
     var body: some View {
         NavigationStack {
@@ -136,6 +147,21 @@ struct SettingsSheet: View {
                         }
                     }
                     .accessibilityIdentifier("settings-library")
+                    Picker("历史保留时长", selection: historyRetentionBinding) {
+                        ForEach(HistoryRetention.allCases) { retention in
+                            Text(retention.label).tag(retention)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-history-retention")
+                    Button("导入 HTML 书签") {
+                        isImportingBookmarks = true
+                    }
+                    .accessibilityIdentifier("settings-import-bookmarks")
+                    Button("导出 HTML 书签") {
+                        exportDocument = BookmarkHTMLDocument(html: session.bookmarkExportHTML())
+                        isExportingBookmarks = true
+                    }
+                    .accessibilityIdentifier("settings-export-bookmarks")
                 }
 
                 Section("下载") {
@@ -166,7 +192,50 @@ struct SettingsSheet: View {
                 }
             }
         }
+        .fileImporter(
+            isPresented: $isImportingBookmarks,
+            allowedContentTypes: [.html]
+        ) { result in
+            handleBookmarkImport(result)
+        }
+        .fileExporter(
+            isPresented: $isExportingBookmarks,
+            document: exportDocument,
+            contentType: .html,
+            defaultFilename: "browser-bookmarks"
+        ) { result in
+            switch result {
+            case .success:
+                transferMessage = BookmarkTransferMessage(title: "书签已导出", message: "HTML 文件已保存。")
+            case .failure(let error):
+                transferMessage = BookmarkTransferMessage(title: "无法导出书签", message: error.localizedDescription)
+            }
+        }
+        .alert(item: $transferMessage) { message in
+            Alert(title: Text(message.title), message: Text(message.message), dismissButton: .default(Text("好")))
+        }
         .accessibilityIdentifier("settings-sheet")
+    }
+
+    private func handleBookmarkImport(_ result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer {
+                if accessed {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+            let count = try session.importBookmarks(BookmarkTransfer.readImportData(from: url))
+            transferMessage = BookmarkTransferMessage(
+                title: "导入完成",
+                message: "已导入 \(count) 个新书签。"
+            )
+        } catch let error as CocoaError where error.code == .userCancelled {
+            return
+        } catch {
+            transferMessage = BookmarkTransferMessage(title: "无法导入书签", message: error.localizedDescription)
+        }
     }
 
     private func permissionSummary(_ entry: SitePermission) -> String {
@@ -239,6 +308,13 @@ struct SettingsSheet: View {
         Binding(
             get: { session.settings.tabSoftLimit },
             set: { session.setTabSoftLimit($0) }
+        )
+    }
+
+    private var historyRetentionBinding: Binding<HistoryRetention> {
+        Binding(
+            get: { session.settings.historyRetention },
+            set: { session.setHistoryRetention($0) }
         )
     }
 }

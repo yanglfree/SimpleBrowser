@@ -279,6 +279,10 @@ struct RootView: View {
                 session.toggleSaved()
             }
             .disabled(!browsing)
+            Button(session.isCurrentPageSavedForLater() ? "已加入稍后读" : "稍后阅读") {
+                session.saveCurrentPageForLater()
+            }
+            .disabled(!browsing || session.activeTab?.isPrivate == true)
             Button("书签与历史") {
                 session.openLibrary(.bookmarks)
             }

@@ -52,6 +52,24 @@ enum TabExpiry: Int, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum HistoryRetention: Int, Codable, CaseIterable, Identifiable {
+    case never = 0
+    case oneDay = 1
+    case sevenDays = 7
+    case thirtyDays = 30
+
+    var id: Int { rawValue }
+
+    var label: String {
+        switch self {
+        case .never: return "永不"
+        case .oneDay: return "24 小时"
+        case .sevenDays: return "7 天"
+        case .thirtyDays: return "30 天"
+        }
+    }
+}
+
 struct BrowserSettings: Equatable {
     var searchEngine: SearchEngine = .bing
     var blockAds: Bool = true
@@ -63,6 +81,7 @@ struct BrowserSettings: Equatable {
     var quickSiteLimit: Int = 6
     var homeBackgroundStyle: HomeBackgroundStyle = .forest
     var tabExpiry: TabExpiry = .sevenDays
+    var historyRetention: HistoryRetention = .thirtyDays
     var liveWebViewLimit: Int = 4
     var tabSoftLimit: Int = 12
 
@@ -79,7 +98,7 @@ struct BrowserSettings: Equatable {
         case searchEngine, blockAds, searchSuggestionsEnabled
         case privacyConsentAccepted, onboardingCompleted, appearance
         case quickSitesEnabled, quickSiteLimit, homeBackgroundStyle
-        case tabExpiry, liveWebViewLimit, tabSoftLimit
+        case tabExpiry, historyRetentionDays, liveWebViewLimit, tabSoftLimit
     }
 
     init(
@@ -93,6 +112,7 @@ struct BrowserSettings: Equatable {
         quickSiteLimit: Int = 6,
         homeBackgroundStyle: HomeBackgroundStyle = .forest,
         tabExpiry: TabExpiry = .sevenDays,
+        historyRetention: HistoryRetention = .thirtyDays,
         liveWebViewLimit: Int = 4,
         tabSoftLimit: Int = 12
     ) {
@@ -106,6 +126,7 @@ struct BrowserSettings: Equatable {
         self.quickSiteLimit = Self.clampedQuickSiteLimit(quickSiteLimit)
         self.homeBackgroundStyle = homeBackgroundStyle
         self.tabExpiry = tabExpiry
+        self.historyRetention = historyRetention
         self.liveWebViewLimit = Self.clampedLiveWebViewLimit(liveWebViewLimit)
         self.tabSoftLimit = Self.clampedTabSoftLimit(tabSoftLimit)
     }
@@ -124,6 +145,10 @@ struct BrowserSettings: Equatable {
         )
         homeBackgroundStyle = try container.decodeIfPresent(HomeBackgroundStyle.self, forKey: .homeBackgroundStyle) ?? .forest
         tabExpiry = try container.decodeIfPresent(TabExpiry.self, forKey: .tabExpiry) ?? .sevenDays
+        historyRetention = try container.decodeIfPresent(
+            HistoryRetention.self,
+            forKey: .historyRetentionDays
+        ) ?? .thirtyDays
         liveWebViewLimit = Self.clampedLiveWebViewLimit(
             try container.decodeIfPresent(Int.self, forKey: .liveWebViewLimit) ?? 4
         )
@@ -144,6 +169,7 @@ struct BrowserSettings: Equatable {
         try container.encode(Self.clampedQuickSiteLimit(quickSiteLimit), forKey: .quickSiteLimit)
         try container.encode(homeBackgroundStyle, forKey: .homeBackgroundStyle)
         try container.encode(tabExpiry, forKey: .tabExpiry)
+        try container.encode(historyRetention, forKey: .historyRetentionDays)
         try container.encode(Self.clampedLiveWebViewLimit(liveWebViewLimit), forKey: .liveWebViewLimit)
         try container.encode(Self.clampedTabSoftLimit(tabSoftLimit), forKey: .tabSoftLimit)
     }

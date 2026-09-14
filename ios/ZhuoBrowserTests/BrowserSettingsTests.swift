@@ -11,6 +11,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertTrue(settings.quickSitesEnabled)
         XCTAssertEqual(settings.quickSiteLimit, 6)
         XCTAssertEqual(settings.tabExpiry, .sevenDays)
+        XCTAssertEqual(settings.historyRetention, .thirtyDays)
         XCTAssertEqual(settings.liveWebViewLimit, 4)
         XCTAssertEqual(settings.tabSoftLimit, 12)
     }
@@ -24,6 +25,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertFalse(settings.privacyConsentAccepted)
         XCTAssertEqual(settings.homeBackgroundStyle, .forest)
         XCTAssertEqual(settings.tabExpiry, .sevenDays)
+        XCTAssertEqual(settings.historyRetention, .thirtyDays)
     }
 
     func testQuickSiteLimitIsClampedDuringInitialization() {
@@ -39,7 +41,12 @@ final class BrowserSettingsTests: XCTestCase {
     }
 
     func testSessionSettingsRoundTrip() throws {
-        let expected = BrowserSettings(tabExpiry: .threeDays, liveWebViewLimit: 2, tabSoftLimit: 20)
+        let expected = BrowserSettings(
+            tabExpiry: .threeDays,
+            historyRetention: .sevenDays,
+            liveWebViewLimit: 2,
+            tabSoftLimit: 20
+        )
 
         let restored = try JSONDecoder().decode(
             BrowserSettings.self,

@@ -79,7 +79,10 @@ final class BrowserSession: ObservableObject {
         ContentBlocker.shared.prepare()
         readerSettings = Self.loadReaderSettings()
         settings = loadedSettings
-        history = Self.loadHistory()
+        history = LibraryPolicy.applyingHistoryRetention(
+            Self.loadHistory(),
+            retentionDays: loadedSettings.historyRetention.rawValue
+        )
         savedItems = Self.loadSavedItems()
         allowedHosts = Self.loadAllowedHosts()
         sitePermissions = Self.loadSitePermissions()
@@ -142,8 +145,10 @@ final class BrowserSession: ObservableObject {
                 url: tab.url,
                 visitedAt: Date().timeIntervalSince1970,
                 visitCount: 0
-            )
+            ),
+            retentionDays: settings.historyRetention.rawValue
         )
+        savedItems = LibraryPolicy.markSavedItemRead(savedItems, url: tab.url)
         persistLibrary()
     }
 
@@ -179,16 +184,57 @@ final class BrowserSession: ObservableObject {
         persistLibrary()
     }
 
-    func removeSavedItems(at offsets: IndexSet) {
-        let ids = offsets.compactMap { savedItems.indices.contains($0) ? savedItems[$0].id : nil }
-        savedItems = savedItems.filter { !ids.contains($0.id) }
+    func removeSavedItem(_ id: String) {
+        savedItems = LibraryPolicy.removeSavedItem(savedItems, id: id)
         persistLibrary()
     }
 
-    func removeHistory(at offsets: IndexSet) {
-        let ids = offsets.compactMap { history.indices.contains($0) ? history[$0].id : nil }
-        history = history.filter { !ids.contains($0.id) }
+    func renameSavedItem(_ id: String, title: String) {
+        savedItems = LibraryPolicy.renameSavedItem(savedItems, id: id, title: title)
         persistLibrary()
+    }
+
+    func saveCurrentPageForLater() {
+        guard let tab = activeTab, !tab.isPrivate, !URLPolicy.isHomeURL(tab.url) else {
+            return
+        }
+        savedItems = LibraryPolicy.saveForLater(
+            savedItems,
+            url: tab.url,
+            title: tab.displayTitle
+        )
+        persistLibrary()
+        flash("已加入稍后读")
+    }
+
+    func isCurrentPageSavedForLater() -> Bool {
+        guard let tab = activeTab else {
+            return false
+        }
+        return LibraryPolicy.isSavedForLater(savedItems, url: tab.url)
+    }
+
+    func removeHistoryEntry(_ id: String) {
+        history.removeAll { $0.id == id }
+        persistLibrary()
+    }
+
+    func removeHistory(forHost host: String) {
+        history = LibraryPolicy.removeHistoryForHost(history, host: host)
+        persistLibrary()
+    }
+
+    @discardableResult
+    func importBookmarks(_ data: Data) throws -> Int {
+        let imported = try BookmarkTransfer.parse(data)
+        let result = LibraryPolicy.mergeSavedItems(savedItems, imported: imported)
+        savedItems = result.items
+        persistLibrary()
+        return result.importedCount
+    }
+
+    func bookmarkExportHTML() -> String {
+        BookmarkTransfer.export(savedItems)
     }
 
     func suggestions(for query: String) -> [AddressSuggestion] {
@@ -598,6 +644,16 @@ final class BrowserSession: ObservableObject {
     func setTabExpiry(_ expiry: TabExpiry) {
         settings.tabExpiry = expiry
         persistSettings()
+    }
+
+    func setHistoryRetention(_ retention: HistoryRetention) {
+        settings.historyRetention = retention
+        history = LibraryPolicy.applyingHistoryRetention(
+            history,
+            retentionDays: retention.rawValue
+        )
+        persistSettings()
+        persistLibrary()
     }
 
     func setLiveWebViewLimit(_ limit: Int) {
