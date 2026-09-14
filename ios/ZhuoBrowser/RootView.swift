@@ -14,6 +14,7 @@ struct RootView: View {
     @State private var isDraggingSplit = false
     @State private var toolbarHidden = false
     @State private var pageScrollOffsets: [String: CGFloat] = [:]
+    @State private var showsPageActions = false
     @FocusState private var addressFocused: Bool
 
     init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
@@ -72,6 +73,11 @@ struct RootView: View {
         }
         .sheet(isPresented: $session.showsBlockPanel) {
             BlockPanelSheet()
+                .environmentObject(session)
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showsPageActions) {
+            PageActionsSheet()
                 .environmentObject(session)
                 .presentationDetents([.medium, .large])
         }
@@ -575,83 +581,12 @@ struct RootView: View {
                 .fill(DesignTokens.border)
                 .frame(height: 1)
         }
+        .simultaneousGesture(toolbarSwipeGesture)
     }
 
     private var pageActions: some View {
-        let browsing = !(session.activeTab.map { URLPolicy.isHomeURL($0.url) } ?? true)
-        let isSavingArticle = session.activeTab.map { session.articles.capturingURLs.contains($0.url) } ?? false
-        return Menu {
-            Button(session.activeTab?.isReader == true ? "退出阅读模式" : "阅读模式") {
-                session.toggleReader()
-            }
-            .disabled(!browsing)
-            Button("在页面中查找") {
-                session.beginFind()
-            }
-            .disabled(!browsing)
-            Button("网页显示") {
-                session.showsPageSettings = true
-            }
-            .disabled(!browsing)
-            Button("内容拦截") {
-                session.showsBlockPanel = true
-            }
-            .disabled(!browsing)
-            Button("网站安全") {
-                session.openSecurityPanel()
-            }
-            .disabled(!browsing)
-            Button(session.isCurrentPageSaved() ? "取消书签" : "加入书签") {
-                session.toggleSaved()
-            }
-            .disabled(!browsing)
-            Button(session.isCurrentPageSavedForLater() ? "已加入稍后读" : "稍后阅读") {
-                session.saveCurrentPageForLater()
-            }
-            .disabled(!browsing || session.activeTab?.isPrivate == true)
-            Button(isSavingArticle ? "正在保存文章" : "保存离线文章") {
-                session.captureCurrentArticle()
-            }
-            .disabled(!browsing || session.activeTab?.isPrivate == true || isSavingArticle)
-            Button("离线文章库") {
-                session.openArticleLibrary()
-            }
-            Button("书签与历史") {
-                session.openLibrary(.bookmarks)
-            }
-            Button("导航历史") {
-                session.openNavigationHistory()
-            }
-            .disabled(session.activeController == nil)
-            Button("分享") {
-                session.shareCurrentPage()
-            }
-            .disabled(!browsing)
-            Button(session.isGeneratingScreenshot ? "正在生成长截图" : "分享页面长截图") {
-                Task { await session.shareCurrentScreenshot() }
-            }
-            .disabled(!browsing || session.isGeneratingScreenshot)
-            .accessibilityIdentifier("page-share-screenshot")
-            Button("复制链接") {
-                session.copyCurrentLink()
-            }
-            .disabled(!browsing)
-            .accessibilityIdentifier("page-copy-link")
-            Button("访问剪贴板链接") {
-                session.visitClipboardLink()
-            }
-            .accessibilityIdentifier("page-visit-clipboard")
-            Button("报告页面问题") {
-                session.reportPageIssue()
-            }
-            .disabled(!browsing)
-            .accessibilityIdentifier("page-report-issue")
-            Button("下载") {
-                session.showsDownloads = true
-            }
-            Button("设置") {
-                session.showsSettings = true
-            }
+        Button {
+            showsPageActions = true
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 15, weight: .semibold))
@@ -659,6 +594,46 @@ struct RootView: View {
                 .frame(width: 32, height: 36)
         }
         .accessibilityIdentifier("page-actions")
+        .accessibilityLabel("页面工具")
+        .onLongPressGesture(minimumDuration: 0.45) {
+            guard BrowserGesturePolicy.canOpenBlocking(
+                settings: session.settings,
+                isBrowsing: isBrowsing
+            ) else {
+                return
+            }
+            session.showsBlockPanel = true
+        }
+    }
+
+    private var toolbarSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onEnded { value in
+                let action = BrowserGesturePolicy.toolbarAction(
+                    translationX: Double(value.translation.width),
+                    translationY: Double(value.translation.height),
+                    settings: session.settings,
+                    isBrowsing: isBrowsing,
+                    tabCount: session.tabs.count,
+                    isEditingAddress: addressFocused
+                )
+                switch action {
+                case .openActions:
+                    showsPageActions = true
+                case .hideToolbar:
+                    withAnimation(.easeOut(duration: 0.18)) { toolbarHidden = true }
+                case .previousTab:
+                    session.switchAdjacentTab(-1)
+                case .nextTab:
+                    session.switchAdjacentTab(1)
+                case .none:
+                    break
+                }
+            }
+    }
+
+    private var isBrowsing: Bool {
+        !(session.activeTab.map { URLPolicy.isHomeURL($0.url) } ?? true)
     }
 
     private var canGoBack: Bool {

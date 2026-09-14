@@ -122,7 +122,9 @@ struct BrowserSettings: Equatable {
     var blockAds: Bool = true
     var searchSuggestionsEnabled: Bool = true
     var gesturesEnabled: Bool = true
+    var gestureActionsEnabled: Bool = true
     var gestureTabSwitchEnabled: Bool = true
+    var gestureBlockingEnabled: Bool = true
     var autoHideToolbarEnabled: Bool = true
     var privacyConsentAccepted: Bool = false
     var onboardingCompleted: Bool = false
@@ -160,7 +162,8 @@ struct BrowserSettings: Equatable {
 
     enum CodingKeys: String, CodingKey {
         case searchEngine, customSearchTemplate, blockAds, searchSuggestionsEnabled
-        case gesturesEnabled, gestureTabSwitchEnabled, autoHideToolbarEnabled
+        case gesturesEnabled, gestureActionsEnabled, gestureTabSwitchEnabled
+        case gestureBlockingEnabled, autoHideToolbarEnabled
         case privacyConsentAccepted, onboardingCompleted, appearance
         case quickSitesEnabled, quickSiteLimit, homeBackgroundStyle
         case tabExpiry, historyRetentionDays, liveWebViewLimit, tabSoftLimit
@@ -179,7 +182,9 @@ struct BrowserSettings: Equatable {
         blockAds: Bool = true,
         searchSuggestionsEnabled: Bool = true,
         gesturesEnabled: Bool = true,
+        gestureActionsEnabled: Bool = true,
         gestureTabSwitchEnabled: Bool = true,
+        gestureBlockingEnabled: Bool = true,
         autoHideToolbarEnabled: Bool = true,
         privacyConsentAccepted: Bool = false,
         onboardingCompleted: Bool = false,
@@ -211,7 +216,9 @@ struct BrowserSettings: Equatable {
         self.blockAds = blockAds
         self.searchSuggestionsEnabled = searchSuggestionsEnabled
         self.gesturesEnabled = gesturesEnabled
+        self.gestureActionsEnabled = gestureActionsEnabled
         self.gestureTabSwitchEnabled = gestureTabSwitchEnabled
+        self.gestureBlockingEnabled = gestureBlockingEnabled
         self.autoHideToolbarEnabled = autoHideToolbarEnabled
         self.privacyConsentAccepted = privacyConsentAccepted
         self.onboardingCompleted = onboardingCompleted
@@ -248,7 +255,9 @@ struct BrowserSettings: Equatable {
         blockAds = try container.decodeIfPresent(Bool.self, forKey: .blockAds) ?? true
         searchSuggestionsEnabled = try container.decodeIfPresent(Bool.self, forKey: .searchSuggestionsEnabled) ?? true
         gesturesEnabled = try container.decodeIfPresent(Bool.self, forKey: .gesturesEnabled) ?? true
+        gestureActionsEnabled = try container.decodeIfPresent(Bool.self, forKey: .gestureActionsEnabled) ?? true
         gestureTabSwitchEnabled = try container.decodeIfPresent(Bool.self, forKey: .gestureTabSwitchEnabled) ?? true
+        gestureBlockingEnabled = try container.decodeIfPresent(Bool.self, forKey: .gestureBlockingEnabled) ?? true
         autoHideToolbarEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoHideToolbarEnabled) ?? true
         privacyConsentAccepted = try container.decodeIfPresent(Bool.self, forKey: .privacyConsentAccepted) ?? false
         onboardingCompleted = try container.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? false
@@ -318,7 +327,9 @@ struct BrowserSettings: Equatable {
         try container.encode(blockAds, forKey: .blockAds)
         try container.encode(searchSuggestionsEnabled, forKey: .searchSuggestionsEnabled)
         try container.encode(gesturesEnabled, forKey: .gesturesEnabled)
+        try container.encode(gestureActionsEnabled, forKey: .gestureActionsEnabled)
         try container.encode(gestureTabSwitchEnabled, forKey: .gestureTabSwitchEnabled)
+        try container.encode(gestureBlockingEnabled, forKey: .gestureBlockingEnabled)
         try container.encode(autoHideToolbarEnabled, forKey: .autoHideToolbarEnabled)
         try container.encode(privacyConsentAccepted, forKey: .privacyConsentAccepted)
         try container.encode(onboardingCompleted, forKey: .onboardingCompleted)

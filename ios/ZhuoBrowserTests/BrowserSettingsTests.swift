@@ -9,7 +9,9 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertFalse(settings.onboardingCompleted)
         XCTAssertEqual(settings.customSearchTemplate, "")
         XCTAssertTrue(settings.gesturesEnabled)
+        XCTAssertTrue(settings.gestureActionsEnabled)
         XCTAssertTrue(settings.gestureTabSwitchEnabled)
+        XCTAssertTrue(settings.gestureBlockingEnabled)
         XCTAssertTrue(settings.autoHideToolbarEnabled)
         XCTAssertEqual(settings.appearance, .system)
         XCTAssertTrue(settings.quickSitesEnabled)
@@ -44,7 +46,9 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertFalse(settings.privacyConsentAccepted)
         XCTAssertEqual(settings.customSearchTemplate, "")
         XCTAssertTrue(settings.gesturesEnabled)
+        XCTAssertTrue(settings.gestureActionsEnabled)
         XCTAssertTrue(settings.gestureTabSwitchEnabled)
+        XCTAssertTrue(settings.gestureBlockingEnabled)
         XCTAssertTrue(settings.autoHideToolbarEnabled)
         XCTAssertEqual(settings.homeBackgroundStyle, .forest)
         XCTAssertEqual(settings.tabExpiry, .sevenDays)
@@ -68,7 +72,9 @@ final class BrowserSettingsTests: XCTestCase {
         let expected = BrowserSettings(
             customSearchTemplate: " https://search.example/?q=%s ",
             gesturesEnabled: false,
+            gestureActionsEnabled: false,
             gestureTabSwitchEnabled: false,
+            gestureBlockingEnabled: false,
             autoHideToolbarEnabled: false
         )
 

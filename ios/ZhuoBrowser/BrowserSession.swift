@@ -957,8 +957,18 @@ final class BrowserSession: ObservableObject {
         persistSettings()
     }
 
+    func setGestureActionsEnabled(_ enabled: Bool) {
+        settings.gestureActionsEnabled = enabled
+        persistSettings()
+    }
+
     func setGestureTabSwitchEnabled(_ enabled: Bool) {
         settings.gestureTabSwitchEnabled = enabled
+        persistSettings()
+    }
+
+    func setGestureBlockingEnabled(_ enabled: Bool) {
+        settings.gestureBlockingEnabled = enabled
         persistSettings()
     }
 

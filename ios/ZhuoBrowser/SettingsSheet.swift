@@ -107,16 +107,26 @@ struct SettingsSheet: View {
                     Toggle("启用手势", isOn: gesturesEnabledBinding)
                         .tint(DesignTokens.accent)
                         .accessibilityIdentifier("settings-gestures-enabled")
+                    Toggle("上滑打开页面工具", isOn: gestureActionsBinding)
+                        .tint(DesignTokens.accent)
+                        .disabled(!session.settings.gesturesEnabled)
+                        .accessibilityIdentifier("settings-actions-gesture")
                     Toggle("横滑切换标签页", isOn: gestureTabSwitchBinding)
                         .tint(DesignTokens.accent)
                         .disabled(!session.settings.gesturesEnabled)
                         .accessibilityIdentifier("settings-tab-switch-gesture")
+                    Toggle("长按打开内容拦截", isOn: gestureBlockingBinding)
+                        .tint(DesignTokens.accent)
+                        .disabled(!session.settings.gesturesEnabled)
+                        .accessibilityIdentifier("settings-blocking-gesture")
                     Toggle("滚动时自动隐藏工具栏", isOn: autoHideToolbarBinding)
                         .tint(DesignTokens.accent)
                         .accessibilityIdentifier("settings-auto-hide-toolbar")
                     Button("恢复手势默认设置") {
                         session.setGesturesEnabled(true)
+                        session.setGestureActionsEnabled(true)
                         session.setGestureTabSwitchEnabled(true)
+                        session.setGestureBlockingEnabled(true)
                         session.setAutoHideToolbarEnabled(true)
                     }
                     .accessibilityIdentifier("settings-reset-gestures")
@@ -452,6 +462,20 @@ struct SettingsSheet: View {
         Binding(
             get: { session.settings.gestureTabSwitchEnabled },
             set: { session.setGestureTabSwitchEnabled($0) }
+        )
+    }
+
+    private var gestureActionsBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.gestureActionsEnabled },
+            set: { session.setGestureActionsEnabled($0) }
+        )
+    }
+
+    private var gestureBlockingBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.gestureBlockingEnabled },
+            set: { session.setGestureBlockingEnabled($0) }
         )
     }
 
