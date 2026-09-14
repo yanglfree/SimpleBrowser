@@ -20,6 +20,9 @@ excluding password, hidden, file, one-time-code, and payment fields.
 The fifth parity batch completes the bookmark/history surface with unified
 read-later state, search and calendar grouping, bookmark editing, site-level
 history deletion, retention controls, and bounded Netscape HTML import/export.
+The sixth parity batch completes download management with native progress,
+pause/resume/retry/cancel actions, concurrency and network policies, durable
+interruption and missing-file recovery, Quick Look, and completion notices.
 
 ## Setup
 

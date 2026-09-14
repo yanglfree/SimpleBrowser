@@ -172,6 +172,24 @@ struct SettingsSheet: View {
                         }
                     }
                     .accessibilityIdentifier("settings-downloads")
+                    Picker("同时下载", selection: downloadConcurrencyBinding) {
+                        ForEach(1...6, id: \.self) { value in
+                            Text("\(value) 个").tag(value)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-download-concurrency")
+                    Picker("大文件提醒", selection: largeDownloadThresholdBinding) {
+                        ForEach([10, 25, 50, 100, 250], id: \.self) { value in
+                            Text("\(value) MB").tag(value)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-large-download-threshold")
+                    Toggle("仅 Wi-Fi 下载", isOn: wifiOnlyDownloadsBinding)
+                        .tint(DesignTokens.accent)
+                        .accessibilityIdentifier("settings-wifi-only-downloads")
+                    Toggle("下载完成提醒", isOn: downloadNotificationsBinding)
+                        .tint(DesignTokens.accent)
+                        .accessibilityIdentifier("settings-download-notifications")
                 }
 
                 Section("隐私") {
@@ -315,6 +333,34 @@ struct SettingsSheet: View {
         Binding(
             get: { session.settings.historyRetention },
             set: { session.setHistoryRetention($0) }
+        )
+    }
+
+    private var downloadConcurrencyBinding: Binding<Int> {
+        Binding(
+            get: { session.settings.downloadConcurrency },
+            set: { session.setDownloadConcurrency($0) }
+        )
+    }
+
+    private var largeDownloadThresholdBinding: Binding<Int> {
+        Binding(
+            get: { session.settings.largeDownloadThresholdMB },
+            set: { session.setLargeDownloadThresholdMB($0) }
+        )
+    }
+
+    private var wifiOnlyDownloadsBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.wifiOnlyDownloads },
+            set: { session.setWifiOnlyDownloads($0) }
+        )
+    }
+
+    private var downloadNotificationsBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.downloadNotificationsEnabled },
+            set: { session.setDownloadNotificationsEnabled($0) }
         )
     }
 }

@@ -154,6 +154,26 @@
       "evidence": "evidence/library-saved-later-renamed.png",
       "additionalEvidence": "evidence/library-settings-transfer.png",
       "exportEvidence": "evidence/library-exporter.png"
+    },
+    {
+      "id": "IOS-DOWNLOAD-001",
+      "title": "Download management survives pause, interruption, retry, and missing files",
+      "steps": [
+        "Open the local resumable download fixture and start a 100 MB streamed download",
+        "Open Downloads, verify live byte progress, and pause the task",
+        "Resume the task and verify that it returns to downloading",
+        "Terminate and relaunch during the transfer, then verify interrupted recovery and retry",
+        "Open a completed file with Quick Look",
+        "Remove the completed fixture file outside the app and relaunch",
+        "Verify the record changes to a missing-file failure with a retry action",
+        "Open Settings and verify concurrency, large-file, Wi-Fi-only, and completion-notice controls"
+      ],
+      "expected": "Download state is truthful and durable, every recoverable state exposes the correct action, policy settings persist, and missing files are never presented as openable.",
+      "result": "passed",
+      "evidence": "evidence/download-paused.png",
+      "additionalEvidence": "evidence/download-missing-file.png",
+      "settingsEvidence": "evidence/download-settings.png",
+      "previewEvidence": "evidence/download-preview.png"
     }
   ]
 }

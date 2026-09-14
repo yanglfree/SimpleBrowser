@@ -112,6 +112,29 @@ struct RootView: View {
         } message: {
             Text("已达到 \(session.settings.tabSoftLimit) 个标签页。可以清理较旧的标签页，也可以继续新建。")
         }
+        .alert(item: downloadPolicyBinding) { request in
+            switch request.reason {
+            case .wifiRequired:
+                return Alert(
+                    title: Text("需要 Wi-Fi"),
+                    message: Text("“\(request.fileName)”将在连接 Wi-Fi 后才能下载。"),
+                    dismissButton: .cancel(Text("取消下载")) {
+                        session.downloads.cancelPolicy(request.taskID)
+                    }
+                )
+            case .largeFile:
+                return Alert(
+                    title: Text("使用移动网络下载？"),
+                    message: Text("“\(request.fileName)”超过大文件提醒阈值。"),
+                    primaryButton: .default(Text("继续下载")) {
+                        session.downloads.approvePolicy(request.taskID)
+                    },
+                    secondaryButton: .cancel(Text("取消")) {
+                        session.downloads.cancelPolicy(request.taskID)
+                    }
+                )
+            }
+        }
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
         }
@@ -333,6 +356,13 @@ struct RootView: View {
         case .light: return .light
         case .dark: return .dark
         }
+    }
+
+    private var downloadPolicyBinding: Binding<DownloadPolicyRequest?> {
+        Binding(
+            get: { session.downloads.policyRequest },
+            set: { session.downloads.policyRequest = $0 }
+        )
     }
 
     private var browserCommandActions: BrowserCommandActions {

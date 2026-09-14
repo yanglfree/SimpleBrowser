@@ -84,6 +84,10 @@ struct BrowserSettings: Equatable {
     var historyRetention: HistoryRetention = .thirtyDays
     var liveWebViewLimit: Int = 4
     var tabSoftLimit: Int = 12
+    var downloadConcurrency: Int = 2
+    var largeDownloadThresholdMB: Int = 50
+    var wifiOnlyDownloads: Bool = false
+    var downloadNotificationsEnabled: Bool = false
 
     var searchEngineLabel: String {
         switch searchEngine {
@@ -99,6 +103,8 @@ struct BrowserSettings: Equatable {
         case privacyConsentAccepted, onboardingCompleted, appearance
         case quickSitesEnabled, quickSiteLimit, homeBackgroundStyle
         case tabExpiry, historyRetentionDays, liveWebViewLimit, tabSoftLimit
+        case downloadConcurrency, largeDownloadThresholdMB, wifiOnlyDownloads
+        case downloadNotificationsEnabled
     }
 
     init(
@@ -114,7 +120,11 @@ struct BrowserSettings: Equatable {
         tabExpiry: TabExpiry = .sevenDays,
         historyRetention: HistoryRetention = .thirtyDays,
         liveWebViewLimit: Int = 4,
-        tabSoftLimit: Int = 12
+        tabSoftLimit: Int = 12,
+        downloadConcurrency: Int = 2,
+        largeDownloadThresholdMB: Int = 50,
+        wifiOnlyDownloads: Bool = false,
+        downloadNotificationsEnabled: Bool = false
     ) {
         self.searchEngine = searchEngine
         self.blockAds = blockAds
@@ -129,6 +139,10 @@ struct BrowserSettings: Equatable {
         self.historyRetention = historyRetention
         self.liveWebViewLimit = Self.clampedLiveWebViewLimit(liveWebViewLimit)
         self.tabSoftLimit = Self.clampedTabSoftLimit(tabSoftLimit)
+        self.downloadConcurrency = Self.clampedDownloadConcurrency(downloadConcurrency)
+        self.largeDownloadThresholdMB = Self.clampedLargeDownloadThresholdMB(largeDownloadThresholdMB)
+        self.wifiOnlyDownloads = wifiOnlyDownloads
+        self.downloadNotificationsEnabled = downloadNotificationsEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -155,6 +169,17 @@ struct BrowserSettings: Equatable {
         tabSoftLimit = Self.clampedTabSoftLimit(
             try container.decodeIfPresent(Int.self, forKey: .tabSoftLimit) ?? 12
         )
+        downloadConcurrency = Self.clampedDownloadConcurrency(
+            try container.decodeIfPresent(Int.self, forKey: .downloadConcurrency) ?? 2
+        )
+        largeDownloadThresholdMB = Self.clampedLargeDownloadThresholdMB(
+            try container.decodeIfPresent(Int.self, forKey: .largeDownloadThresholdMB) ?? 50
+        )
+        wifiOnlyDownloads = try container.decodeIfPresent(Bool.self, forKey: .wifiOnlyDownloads) ?? false
+        downloadNotificationsEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .downloadNotificationsEnabled
+        ) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -172,6 +197,13 @@ struct BrowserSettings: Equatable {
         try container.encode(historyRetention, forKey: .historyRetentionDays)
         try container.encode(Self.clampedLiveWebViewLimit(liveWebViewLimit), forKey: .liveWebViewLimit)
         try container.encode(Self.clampedTabSoftLimit(tabSoftLimit), forKey: .tabSoftLimit)
+        try container.encode(Self.clampedDownloadConcurrency(downloadConcurrency), forKey: .downloadConcurrency)
+        try container.encode(
+            Self.clampedLargeDownloadThresholdMB(largeDownloadThresholdMB),
+            forKey: .largeDownloadThresholdMB
+        )
+        try container.encode(wifiOnlyDownloads, forKey: .wifiOnlyDownloads)
+        try container.encode(downloadNotificationsEnabled, forKey: .downloadNotificationsEnabled)
     }
 
     static func clampedQuickSiteLimit(_ value: Int) -> Int {
@@ -190,6 +222,14 @@ struct BrowserSettings: Equatable {
         if value <= 12 { return 12 }
         if value <= 20 { return 20 }
         return 40
+    }
+
+    static func clampedDownloadConcurrency(_ value: Int) -> Int {
+        min(6, max(1, value))
+    }
+
+    static func clampedLargeDownloadThresholdMB(_ value: Int) -> Int {
+        min(1_024, max(1, value))
     }
 }
 

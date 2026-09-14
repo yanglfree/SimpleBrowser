@@ -19,7 +19,7 @@
 <body>
   <header>
     <h1>ZhuoBrowser iOS Simulator QA</h1>
-    <p class="pass">11 / 11 scenarios passed</p>
+    <p class="pass">12 / 12 scenarios passed</p>
     <p class="meta">2026-09-14 · Jimu QA iPhone 17 · iOS 26.1 · Debug</p>
   </header>
   <article>
@@ -77,6 +77,14 @@
     <img src="evidence/library-saved-later-renamed.png" alt="Renamed read-later item in the native Library">
     <img src="evidence/library-settings-transfer.png" alt="History retention and HTML bookmark transfer settings">
     <img src="evidence/library-exporter.png" alt="System HTML bookmark exporter with the default filename">
+  </article>
+  <article>
+    <h2><code>IOS-DOWNLOAD-001</code> Durable download management</h2>
+    <p>A 100 MB streamed fixture exposed live byte progress and moved through downloading, paused, resumed, cold-launch interrupted, retrying, and canceled states. A completed fixture opened in Quick Look; after its file was removed outside the app, cold launch changed the record to a missing-file failure instead of offering Open. Settings exposed and persisted concurrency, large-file threshold, Wi-Fi-only, and completion-notice controls.</p>
+    <img src="evidence/download-paused.png" alt="Paused streamed download with progress and resume action">
+    <img src="evidence/download-missing-file.png" alt="Canceled and missing-file download recovery states">
+    <img src="evidence/download-settings.png" alt="Download concurrency and network policy settings">
+    <img src="evidence/download-preview.png" alt="Completed fixture opened with Quick Look">
   </article>
 </body>
 </html>

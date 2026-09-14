@@ -1,8 +1,10 @@
 import Combine
 import Foundation
 import SwiftUI
+import UserNotifications
 import WebKit
 
+@MainActor
 final class BrowserSession: ObservableObject {
     @Published var tabs: [BrowserTab]
     @Published var activeTabID: String
@@ -79,6 +81,13 @@ final class BrowserSession: ObservableObject {
         ContentBlocker.shared.prepare()
         readerSettings = Self.loadReaderSettings()
         settings = loadedSettings
+        downloads.configure(settings: loadedSettings)
+        downloads.onCompletion = { [weak self] task in
+            self?.flash("\(task.fileName) 下载完成")
+        }
+        downloads.onFailure = { [weak self] task in
+            self?.flash("\(task.fileName) 下载失败")
+        }
         history = LibraryPolicy.applyingHistoryRetention(
             Self.loadHistory(),
             retentionDays: loadedSettings.historyRetention.rawValue
@@ -664,6 +673,48 @@ final class BrowserSession: ObservableObject {
 
     func setTabSoftLimit(_ limit: Int) {
         settings.tabSoftLimit = BrowserSettings.clampedTabSoftLimit(limit)
+        persistSettings()
+    }
+
+    func setDownloadConcurrency(_ limit: Int) {
+        settings.downloadConcurrency = BrowserSettings.clampedDownloadConcurrency(limit)
+        persistDownloadSettings()
+    }
+
+    func setLargeDownloadThresholdMB(_ threshold: Int) {
+        settings.largeDownloadThresholdMB = BrowserSettings.clampedLargeDownloadThresholdMB(threshold)
+        persistDownloadSettings()
+    }
+
+    func setWifiOnlyDownloads(_ enabled: Bool) {
+        settings.wifiOnlyDownloads = enabled
+        persistDownloadSettings()
+    }
+
+    func setDownloadNotificationsEnabled(_ enabled: Bool) {
+        guard enabled else {
+            settings.downloadNotificationsEnabled = false
+            persistDownloadSettings()
+            return
+        }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.settings.downloadNotificationsEnabled = granted
+                self.persistDownloadSettings()
+                if !granted {
+                    self.flash("未获得通知权限")
+                }
+            }
+        }
+    }
+
+    func retryDownload(_ id: String) {
+        downloads.retry(id, using: activeController?.webView)
+    }
+
+    private func persistDownloadSettings() {
+        downloads.configure(settings: settings)
         persistSettings()
     }
 
