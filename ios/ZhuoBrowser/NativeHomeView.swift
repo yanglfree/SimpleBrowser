@@ -10,10 +10,12 @@ struct NativeHomeView: View {
     var onAdd: () -> Void = {}
     var onEdit: (QuickSite) -> Void = { _ in }
     var onRemove: (QuickSite) -> Void = { _ in }
+    var onMove: (String, String) -> Void = { _, _ in }
     var onSettings: () -> Void = {}
     var onOpenBackgroundPicker: () -> Void = {}
     var onBookmarks: () -> Void = {}
     var onHistory: () -> Void = {}
+    @State private var isEditingQuickSites = false
 
     private let tileColors: [Color] = [
         Color(red: 0.15, green: 0.39, blue: 0.92),
@@ -32,7 +34,9 @@ struct NativeHomeView: View {
             }
             .ignoresSafeArea()
             if settings.homeBackgroundEnabled {
-                Color.black.opacity(0.16).ignoresSafeArea()
+                Color.black.opacity(0.16)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
@@ -44,7 +48,15 @@ struct NativeHomeView: View {
                 .padding(.bottom, 32)
             }
         }
-        .onLongPressGesture(minimumDuration: 0.5, perform: onOpenBackgroundPicker)
+        .onLongPressGesture(minimumDuration: 0.5) {
+            guard !isEditingQuickSites else { return }
+            onOpenBackgroundPicker()
+        }
+        .onChange(of: settings.quickSitesEnabled) { _, enabled in
+            if !enabled {
+                isEditingQuickSites = false
+            }
+        }
         .accessibilityIdentifier("native-home")
     }
 
@@ -70,41 +82,114 @@ struct NativeHomeView: View {
     }
 
     private var siteGrid: some View {
-        LazyVGrid(
-            columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
-            spacing: 16
-        ) {
-            ForEach(Array(sites.prefix(settings.quickSiteLimit))) { site in
-                Button {
-                    onOpen(site.url)
-                } label: {
-                    siteLabel(site)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("quick-site-\(site.id)")
-                .contextMenu {
-                    Button("编辑", systemImage: "pencil") { onEdit(site) }
-                    Button("移除", systemImage: "trash", role: .destructive) { onRemove(site) }
-                }
-            }
-            if sites.count < QuickSitePolicy.maximumCount {
-                Button(action: onAdd) {
-                    VStack(spacing: 8) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(primaryText)
-                            .frame(width: 48, height: 48)
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        Text("添加")
-                            .font(.system(size: 13))
-                            .foregroundStyle(primaryText)
+        VStack(alignment: .trailing, spacing: 8) {
+            if isEditingQuickSites {
+                Button("完成") {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        isEditingQuickSites = false
                     }
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("quick-site-add")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(primaryText)
+                .accessibilityIdentifier("quick-site-edit-done")
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                spacing: 16
+            ) {
+                ForEach(visibleSites) { site in
+                    quickSiteTile(site)
+                }
+
+                if sites.count < QuickSitePolicy.maximumCount {
+                    Button(action: onAdd) {
+                        VStack(spacing: 8) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(primaryText)
+                                .frame(width: 48, height: 48)
+                                .background(
+                                    .ultraThinMaterial,
+                                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                )
+                            Text("添加")
+                                .font(.system(size: 13))
+                                .foregroundStyle(primaryText)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isEditingQuickSites)
+                    .opacity(isEditingQuickSites ? 0.45 : 1)
+                    .accessibilityIdentifier("quick-site-add")
+                }
             }
         }
         .padding(.horizontal, 24)
+    }
+
+    private var visibleSites: [QuickSite] {
+        Array(sites.prefix(settings.quickSiteLimit))
+    }
+
+    @ViewBuilder
+    private func quickSiteTile(_ site: QuickSite) -> some View {
+        if isEditingQuickSites {
+            quickSiteTileContent(site)
+                .draggable(site.id) {
+                    siteLabel(site)
+                        .frame(width: 88)
+                        .padding(10)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                }
+                .dropDestination(for: String.self) { ids, _ in
+                    guard let sourceID = ids.first, sourceID != site.id else { return false }
+                    onMove(sourceID, site.id)
+                    return true
+                }
+        } else {
+            quickSiteTileContent(site)
+                .highPriorityGesture(
+                    LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            isEditingQuickSites = true
+                        }
+                    }
+                )
+        }
+    }
+
+    private func quickSiteTileContent(_ site: QuickSite) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Button {
+                if isEditingQuickSites {
+                    onEdit(site)
+                } else {
+                    onOpen(site.url)
+                }
+            } label: {
+                siteLabel(site)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("quick-site-\(site.id)")
+
+            if isEditingQuickSites {
+                Button(role: .destructive) {
+                    onRemove(site)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 24, height: 24)
+                        .background(.red, in: Circle())
+                }
+                .offset(x: 4, y: -4)
+                .accessibilityLabel("移除 \(site.title)")
+                .accessibilityIdentifier("quick-site-remove-\(site.id)")
+            }
+        }
+        .accessibilityAction(named: "编辑") { onEdit(site) }
+        .accessibilityAction(named: "移除") { onRemove(site) }
     }
 
     private func siteLabel(_ site: QuickSite) -> some View {

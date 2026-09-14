@@ -23,6 +23,30 @@ final class QuickSitePolicyTests: XCTestCase {
         XCTAssertEqual(moved.map(\.id), [sites[1].id, sites[2].id, sites[0].id, sites[3].id])
     }
 
+    func testVisibleDragReordersVisiblePrefixAndPreservesHiddenTail() {
+        let sites = QuickSite.defaults
+        let moved = QuickSitePolicy.moveVisible(
+            sites,
+            fromID: sites[0].id,
+            toID: sites[3].id,
+            visibleLimit: 4
+        )
+
+        XCTAssertEqual(
+            moved.map(\.id),
+            [sites[1].id, sites[2].id, sites[3].id, sites[0].id, sites[4].id, sites[5].id]
+        )
+        XCTAssertEqual(
+            QuickSitePolicy.moveVisible(
+                sites,
+                fromID: sites[5].id,
+                toID: sites[0].id,
+                visibleLimit: 4
+            ),
+            sites
+        )
+    }
+
     func testNewSiteIsVisibleWithinDefaultHomeLimit() {
         let site = QuickSite(id: "new", title: "New", url: "https://new.example", badge: "N", colorIndex: 0)
         let updated = QuickSitePolicy.upsert(QuickSite.defaults, site: site)

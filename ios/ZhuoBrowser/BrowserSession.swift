@@ -1396,6 +1396,18 @@ final class BrowserSession: ObservableObject {
         persistQuickSites()
     }
 
+    func moveVisibleQuickSite(_ id: String, to targetID: String) {
+        let reordered = QuickSitePolicy.moveVisible(
+            quickSites,
+            fromID: id,
+            toID: targetID,
+            visibleLimit: settings.quickSiteLimit
+        )
+        guard reordered != quickSites else { return }
+        quickSites = reordered
+        persistQuickSites()
+    }
+
     func siteIcon(for url: String) -> UIImage? {
         siteIcons[URLPolicy.rawHost(url)]
     }

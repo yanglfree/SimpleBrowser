@@ -458,6 +458,10 @@ struct RootView: View {
                     session.focusPane(tabID)
                     session.removeQuickSite(site.id)
                 },
+                onMove: { sourceID, targetID in
+                    session.focusPane(tabID)
+                    session.moveVisibleQuickSite(sourceID, to: targetID)
+                },
                 onSettings: {
                     session.focusPane(tabID)
                     showsHomePageSettings = true

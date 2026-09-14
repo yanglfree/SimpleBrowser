@@ -61,4 +61,22 @@ enum QuickSitePolicy {
         copy.insert(contentsOf: moving, at: min(copy.count, destination - removedBeforeDestination))
         return copy
     }
+
+    static func moveVisible(
+        _ sites: [QuickSite],
+        fromID: String,
+        toID: String,
+        visibleLimit: Int
+    ) -> [QuickSite] {
+        let visibleCount = min(max(0, visibleLimit), sites.count)
+        var visible = Array(sites.prefix(visibleCount))
+        guard let sourceIndex = visible.firstIndex(where: { $0.id == fromID }),
+              let targetIndex = visible.firstIndex(where: { $0.id == toID }),
+              sourceIndex != targetIndex else {
+            return sites
+        }
+        let moving = visible.remove(at: sourceIndex)
+        visible.insert(moving, at: min(targetIndex, visible.count))
+        return visible + sites.dropFirst(visibleCount)
+    }
 }
