@@ -124,7 +124,7 @@ struct BrowserSettings: Equatable {
     var searchEngine: SearchEngine = .bing
     var customSearchTemplate: String = ""
     var blockAds: Bool = true
-    var searchSuggestionsEnabled: Bool = true
+    var searchSuggestionsEnabled: Bool = false
     var gesturesEnabled: Bool = true
     var gestureActionsEnabled: Bool = true
     var gestureTabSwitchEnabled: Bool = true
@@ -189,7 +189,7 @@ struct BrowserSettings: Equatable {
         searchEngine: SearchEngine = .bing,
         customSearchTemplate: String = "",
         blockAds: Bool = true,
-        searchSuggestionsEnabled: Bool = true,
+        searchSuggestionsEnabled: Bool = false,
         gesturesEnabled: Bool = true,
         gestureActionsEnabled: Bool = true,
         gestureTabSwitchEnabled: Bool = true,
@@ -272,7 +272,7 @@ struct BrowserSettings: Equatable {
             try container.decodeIfPresent(String.self, forKey: .customSearchTemplate) ?? ""
         )
         blockAds = try container.decodeIfPresent(Bool.self, forKey: .blockAds) ?? true
-        searchSuggestionsEnabled = try container.decodeIfPresent(Bool.self, forKey: .searchSuggestionsEnabled) ?? true
+        searchSuggestionsEnabled = try container.decodeIfPresent(Bool.self, forKey: .searchSuggestionsEnabled) ?? false
         gesturesEnabled = try container.decodeIfPresent(Bool.self, forKey: .gesturesEnabled) ?? true
         gestureActionsEnabled = try container.decodeIfPresent(Bool.self, forKey: .gestureActionsEnabled) ?? true
         gestureTabSwitchEnabled = try container.decodeIfPresent(Bool.self, forKey: .gestureTabSwitchEnabled) ?? true

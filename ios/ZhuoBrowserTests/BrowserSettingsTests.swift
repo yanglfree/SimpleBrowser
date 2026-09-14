@@ -8,6 +8,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertFalse(settings.privacyConsentAccepted)
         XCTAssertFalse(settings.onboardingCompleted)
         XCTAssertEqual(settings.customSearchTemplate, "")
+        XCTAssertFalse(settings.searchSuggestionsEnabled)
         XCTAssertTrue(settings.gesturesEnabled)
         XCTAssertTrue(settings.gestureActionsEnabled)
         XCTAssertTrue(settings.gestureTabSwitchEnabled)
@@ -47,6 +48,7 @@ final class BrowserSettingsTests: XCTestCase {
 
         XCTAssertEqual(settings.searchEngine, .baidu)
         XCTAssertFalse(settings.blockAds)
+        XCTAssertFalse(settings.searchSuggestionsEnabled)
         XCTAssertFalse(settings.privacyConsentAccepted)
         XCTAssertEqual(settings.customSearchTemplate, "")
         XCTAssertTrue(settings.gesturesEnabled)
@@ -68,6 +70,16 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertEqual(settings.webDarkMode, .system)
         XCTAssertEqual(settings.ruleStrength, .standard)
         XCTAssertTrue(settings.siteControls.isEmpty)
+    }
+
+    func testLegacySettingsWithoutSuggestionPreferenceUseHarmonyDefault() throws {
+        let legacy = #"{"searchEngine":0}"#.data(using: .utf8)!
+        let restored = try JSONDecoder().decode(BrowserSettings.self, from: legacy)
+        XCTAssertFalse(restored.searchSuggestionsEnabled)
+
+        let optedIn = #"{"searchSuggestionsEnabled":true}"#.data(using: .utf8)!
+        let optedInSettings = try JSONDecoder().decode(BrowserSettings.self, from: optedIn)
+        XCTAssertTrue(optedInSettings.searchSuggestionsEnabled)
     }
 
     func testQuickSiteLimitIsClampedDuringInitialization() {
