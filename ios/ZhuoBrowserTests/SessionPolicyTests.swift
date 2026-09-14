@@ -61,6 +61,19 @@ final class SessionPolicyTests: XCTestCase {
         )
     }
 
+    func testMemoryPressureLimitKeepsOnlyActiveWebTabWithoutSplit() {
+        let tabs = [
+            makeTab(id: "old", visitedAt: 1),
+            makeTab(id: "recent", visitedAt: 3),
+            makeTab(id: "active", visitedAt: 2)
+        ]
+
+        XCTAssertEqual(
+            SessionPolicy.liveTabIDs(tabs: tabs, activeTabID: "active", limit: 1),
+            ["active"]
+        )
+    }
+
     func testExpiredTabsArePartitionedByConfiguredAge() {
         let now: TimeInterval = 1_000_000
         let tabs = [

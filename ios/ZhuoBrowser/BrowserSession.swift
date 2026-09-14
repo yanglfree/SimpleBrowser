@@ -155,12 +155,10 @@ final class BrowserSession: ObservableObject {
             .store(in: &cancellables)
         readerSettings = Self.loadReaderSettings()
         settings = loadedSettings
-        if isPrimaryWindow {
-            NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)
-                .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.recordMemoryPressure() }
-                .store(in: &cancellables)
-        }
+        NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.recordMemoryPressure() }
+            .store(in: &cancellables)
         tabs = tabs.map { tab in
             var resolved = tab
             if !URLPolicy.isHomeURL(tab.url) {
@@ -1161,9 +1159,12 @@ final class BrowserSession: ObservableObject {
     }
 
     private func recordMemoryPressure() {
-        TelemetryService.shared.recordMemoryPressure(context: telemetryContext())
+        if isPrimaryWindow {
+            TelemetryService.shared.recordMemoryPressure(context: telemetryContext())
+        }
         tabThumbnails.removeAll()
         tabThumbnailTokens.removeAll()
+        trimLive(limit: 1)
     }
 
     private func telemetryContext(tabID: String? = nil) -> TelemetryContext {
@@ -2174,16 +2175,16 @@ final class BrowserSession: ObservableObject {
         return TabController(tab: tab, session: self, dataStore: store)
     }
 
-    private func trimLive() {
+    private func trimLive(limit: Int? = nil) {
         let live = SessionPolicy.liveTabIDs(
             tabs: tabs,
             activeTabID: activeTabID,
-            limit: settings.liveWebViewLimit,
+            limit: limit ?? settings.liveWebViewLimit,
             requiredTabIDs: isSplitActive
                 ? [paneState.primaryTabID, paneState.secondaryTabID].compactMap { $0 }
                 : []
         )
-        for id in controllers.keys where !SessionPolicy.isTabLive(live, id) {
+        for id in Array(controllers.keys) where !SessionPolicy.isTabLive(live, id) {
             if let controller = controllers[id], let url = controller.webView.url?.absoluteString {
                 update(tabID: id) { tab in
                     tab.url = url
