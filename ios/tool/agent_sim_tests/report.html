@@ -19,8 +19,8 @@
 <body>
   <header>
     <h1>ZhuoBrowser iOS Simulator QA</h1>
-    <p class="pass">19 scenarios passed · 1 blocked</p>
-    <p class="meta">2026-09-15 · Jimu QA iPhone 17 · iOS 26.1 · Debug · be9b2f3</p>
+    <p class="pass">20 scenarios passed · 1 blocked</p>
+    <p class="meta">2026-09-15 · Jimu QA iPhone 17 · iOS 26.1 · Debug · ccb9da0</p>
   </header>
   <article>
     <h2><code>IOS-SETUP-001</code> Privacy gate and onboarding</h2>
@@ -126,6 +126,11 @@
     <h2><code>IOS-OMNIBOX-001</code> Omnibox editing shortcuts</h2>
     <p>Focusing the retained IANA URL selected the complete value, hid unrelated browser chrome, and exposed native Clear, explicit Cancel, current-host, <code>.com</code>, <code>.cn</code>, <code>www.</code>, and path controls. <code>.com</code> changed <code>openai</code> to <code>openai.com</code> without navigation; first-result completion wrote the full Bing URL, and Cancel restored the active IANA address after temporary input.</p>
     <img src="evidence/omnibox-shortcuts.png" alt="Selected IANA address with clear, cancel, current-host, and domain editing controls">
+  </article>
+  <article>
+    <h2><code>IOS-SHARE-EXTENSION-001</code> Safari Share Extension round trip</h2>
+    <p>Simulator Safari automatically listed ZhuoBrowser in its share sheet. The extension read Example Domain, displayed all five inbound actions, queued Clean Open through the shared App Group, reported success, and returned to Safari. Foregrounding ZhuoBrowser created a fifth tab at the cleaned <code>https://example.com/</code> URL, and the consumed shared-container queue returned to zero pending files.</p>
+    <img src="evidence/share-extension-clean-open.png" alt="ZhuoBrowser showing the cleaned Example Domain URL after consuming a Share Extension request">
   </article>
 </body>
 </html>

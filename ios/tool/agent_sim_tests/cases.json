@@ -6,9 +6,9 @@
     "device": "Jimu QA iPhone 17",
     "os": "iOS 26.1",
     "configuration": "Debug",
-    "appBuild": "be9b2f3",
+    "appBuild": "ccb9da0",
     "result": "partial",
-    "passed": 19,
+    "passed": 20,
     "blocked": 1,
     "notRun": 0
   },
@@ -295,6 +295,22 @@
       "result": "passed",
       "evidence": "evidence/omnibox-shortcuts.png",
       "notes": "The accessibility tree exposed native Clear plus stable identifiers for Cancel and each shortcut. Focused Simulator tests passed 5/5 for selection edits, ordering, and idempotence."
+    },
+    {
+      "id": "IOS-SHARE-EXTENSION-001",
+      "title": "Safari Share Extension clean-open queue round trip",
+      "steps": [
+        "Share the public Example Domain page from Simulator Safari",
+        "Open the automatically discovered ZhuoBrowser Share Extension",
+        "Verify all five inbound actions and choose Clean Open",
+        "Verify the extension reports enqueue success and returns to Safari",
+        "Open ZhuoBrowser and verify a new tab loads the cleaned Example Domain URL",
+        "Inspect the shared container and verify the consumed queue is empty"
+      ],
+      "expected": "The extension and host app exchange one bounded request through their App Group, the cleaned URL opens only when the host is foregrounded, and the consumed request is removed.",
+      "result": "passed",
+      "evidence": "evidence/share-extension-clean-open.png",
+      "notes": "Simulator acceptance covers Clean Open. Private Open, Read and Close, Save Offline Article, Original Open, physical-device provisioning, and App Store distribution remain separate gates."
     }
   ]
 }
