@@ -2,6 +2,7 @@ import Foundation
 
 enum SessionPolicy {
     static let maxTabCount = 100
+    static let recentTabLimit = 5
 
     static func persistableTabs(_ tabs: [BrowserTab]) -> [BrowserTab] {
         tabs.filter { !$0.isPrivate }
@@ -9,6 +10,27 @@ enum SessionPolicy {
 
     static func shouldRecordHistory(_ isPrivate: Bool) -> Bool {
         isPrivate != true
+    }
+
+    static func recentTabs(
+        _ tabs: [BrowserTab],
+        activeTabID: String,
+        limit: Int = recentTabLimit
+    ) -> [BrowserTab] {
+        guard limit > 0, let active = tabs.first(where: { $0.id == activeTabID }) else {
+            return []
+        }
+        return Array(
+            tabs
+                .filter { $0.isPrivate == active.isPrivate }
+                .sorted { left, right in
+                    if left.id == active.id { return right.id != active.id }
+                    if right.id == active.id { return false }
+                    if left.lastVisitedAt == right.lastVisitedAt { return left.id < right.id }
+                    return left.lastVisitedAt > right.lastVisitedAt
+                }
+                .prefix(limit)
+        )
     }
 
     static func liveTabIDs(

@@ -93,6 +93,11 @@ struct RootView: View {
                 .environmentObject(session)
                 .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $session.showsRecentTabs) {
+            RecentTabsSheet()
+                .environmentObject(session)
+                .presentationDetents([.medium])
+        }
         .sheet(item: $session.permissionPrompt, onDismiss: {
             session.denyPermissionIfPending()
         }) { prompt in
@@ -607,7 +612,7 @@ struct RootView: View {
             .accessibilityIdentifier("tab-launcher")
             .accessibilityLabel("\(session.tabs.count) 个标签页")
             .onLongPressGesture {
-                session.createTab(isPrivate: true)
+                session.showsRecentTabs = true
             }
         }
         .padding(.horizontal, 12)

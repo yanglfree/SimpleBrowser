@@ -52,6 +52,9 @@ struct PageActionsSheet: View {
                     actionButton("书签与历史", telemetryKey: "library") { session.openLibrary(.bookmarks) }
                     actionButton("导航历史", telemetryKey: "navigation_history") { session.openNavigationHistory() }
                         .disabled(session.activeController == nil)
+                    actionButton("最近标签页", telemetryKey: "recent_tabs") {
+                        session.showsRecentTabs = true
+                    }
                 }
 
                 Section("分享与工具") {

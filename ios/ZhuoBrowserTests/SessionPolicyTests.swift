@@ -2,6 +2,33 @@ import XCTest
 @testable import ZhuoBrowser
 
 final class SessionPolicyTests: XCTestCase {
+    func testRecentTabsKeepActiveFirstWithinItsPrivacyMode() {
+        var privateTab = makeTab(id: "private", visitedAt: 100)
+        privateTab.isPrivate = true
+        let tabs = [
+            makeTab(id: "old", visitedAt: 10),
+            makeTab(id: "active", visitedAt: 20),
+            privateTab,
+            makeTab(id: "recent", visitedAt: 90)
+        ]
+
+        XCTAssertEqual(
+            SessionPolicy.recentTabs(tabs, activeTabID: "active").map(\.id),
+            ["active", "recent", "old"]
+        )
+    }
+
+    func testRecentTabsRespectLimitAndMissingActiveTab() {
+        let tabs = (0..<8).map { makeTab(id: "tab-\($0)", visitedAt: TimeInterval($0)) }
+
+        XCTAssertEqual(
+            SessionPolicy.recentTabs(tabs, activeTabID: "tab-0", limit: 3).map(\.id),
+            ["tab-0", "tab-7", "tab-6"]
+        )
+        XCTAssertTrue(SessionPolicy.recentTabs(tabs, activeTabID: "missing").isEmpty)
+        XCTAssertTrue(SessionPolicy.recentTabs(tabs, activeTabID: "tab-0", limit: 0).isEmpty)
+    }
+
     func testLiveTabsUseActiveThenMostRecentNonHomeTabs() {
         let tabs = [
             makeTab(id: "old", url: "https://old.example", visitedAt: 10),

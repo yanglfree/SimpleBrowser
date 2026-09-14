@@ -10,6 +10,7 @@ final class BrowserSession: ObservableObject {
     @Published var tabs: [BrowserTab]
     @Published var activeTabID: String
     @Published var showsOverview = false
+    @Published var showsRecentTabs = false
     @Published var showsFind = false
     @Published var findQuery = ""
     @Published var findCurrent = 0
@@ -85,6 +86,10 @@ final class BrowserSession: ObservableObject {
 
     var canReopenRecentlyClosedTab: Bool {
         !recentlyClosedTabs.isEmpty && tabs.count < SessionPolicy.maxTabCount
+    }
+
+    var recentTabs: [BrowserTab] {
+        SessionPolicy.recentTabs(tabs, activeTabID: activeTabID)
     }
 
     init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
