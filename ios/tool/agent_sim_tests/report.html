@@ -20,7 +20,7 @@
   <header>
     <h1>ZhuoBrowser iOS Simulator QA</h1>
     <p class="pass">19 scenarios passed · 1 blocked</p>
-    <p class="meta">2026-09-15 · Jimu QA iPhone 17 · iOS 26.1 · Debug · 4a701fe</p>
+    <p class="meta">2026-09-15 · Jimu QA iPhone 17 · iOS 26.1 · Debug · be9b2f3</p>
   </header>
   <article>
     <h2><code>IOS-SETUP-001</code> Privacy gate and onboarding</h2>
@@ -124,8 +124,8 @@
   </article>
   <article>
     <h2><code>IOS-OMNIBOX-001</code> Omnibox editing shortcuts</h2>
-    <p>Focusing the retained IANA URL selected the complete value and exposed current-host, <code>.com</code>, <code>.cn</code>, <code>www.</code>, and path shortcuts with stable accessibility identifiers. <code>.com</code> changed <code>openai</code> to <code>openai.com</code> without navigation; the first-result completion action wrote the full Bing URL while editing remained active.</p>
-    <img src="evidence/omnibox-shortcuts.png" alt="Selected IANA address with current-host and domain editing shortcuts">
+    <p>Focusing the retained IANA URL selected the complete value, hid unrelated browser chrome, and exposed native Clear, explicit Cancel, current-host, <code>.com</code>, <code>.cn</code>, <code>www.</code>, and path controls. <code>.com</code> changed <code>openai</code> to <code>openai.com</code> without navigation; first-result completion wrote the full Bing URL, and Cancel restored the active IANA address after temporary input.</p>
+    <img src="evidence/omnibox-shortcuts.png" alt="Selected IANA address with clear, cancel, current-host, and domain editing controls">
   </article>
 </body>
 </html>

@@ -6,7 +6,7 @@
     "device": "Jimu QA iPhone 17",
     "os": "iOS 26.1",
     "configuration": "Debug",
-    "appBuild": "4a701fe",
+    "appBuild": "be9b2f3",
     "result": "partial",
     "passed": 19,
     "blocked": 1,
@@ -286,14 +286,15 @@
       "title": "Selection-aware omnibox editing shortcuts and completion",
       "steps": [
         "Open a retained IANA tab and focus its populated address field",
-        "Verify the existing URL is selected and the current-host, .com, .cn, www., and path shortcuts are visible",
+        "Verify the existing URL is selected; Clear, Cancel, current-host, .com, .cn, www., and path controls are visible",
         "Replace the selection with openai and choose .com",
-        "Replace the text with openai again and choose the first suggestion completion action"
+        "Replace the text with openai again and choose the first suggestion completion action",
+        "Enter temporary text, choose Cancel, and verify the current page address returns"
       ],
-      "expected": "The address field selects its existing value, shortcuts edit without navigating, and first-result completion writes the full URL while keeping editing active.",
+      "expected": "The focused chrome preserves editing space, shortcuts edit without navigating, first-result completion writes the full URL, and Cancel restores the active page address.",
       "result": "passed",
       "evidence": "evidence/omnibox-shortcuts.png",
-      "notes": "The accessibility tree exposed a stable identifier for each shortcut. Focused Simulator tests passed 5/5 for selection edits, ordering, and idempotence."
+      "notes": "The accessibility tree exposed native Clear plus stable identifiers for Cancel and each shortcut. Focused Simulator tests passed 5/5 for selection edits, ordering, and idempotence."
     }
   ]
 }
