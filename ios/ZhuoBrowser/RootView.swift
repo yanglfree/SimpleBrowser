@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var session = BrowserSession()
     @State private var addressText = ""
     @State private var quickSiteEditor: QuickSiteEditorRequest?
@@ -41,6 +42,18 @@ struct RootView: View {
                     }
                     .allowsHitTesting(false)
                     .accessibilityIdentifier("page-notice")
+                }
+                if session.pageResumeRequest?.tabID == session.activeTabID && !session.showsOverview {
+                    VStack {
+                        Spacer()
+                        PageResumePrompt(
+                            onContinue: session.continuePageResume,
+                            onStartOver: session.startPageResumeFromTop
+                        )
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 12)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -108,6 +121,11 @@ struct RootView: View {
         .onChange(of: session.activeTab?.url) { _, newValue in
             if !addressFocused {
                 addressText = displayAddress(newValue ?? "")
+            }
+        }
+        .onChange(of: scenePhase) { _, newValue in
+            if newValue != .active {
+                session.captureActivePageState()
             }
         }
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)

@@ -14,6 +14,9 @@ tabs, adjacent close selection, configurable live-WebView retention, expired-tab
 recovery, and the HarmonyOS-compatible soft tab limit. The third parity batch
 adds recent-closed recovery, cyclic tab switching, common hardware-keyboard
 commands, and group-safe tab reordering with explicit accessibility actions.
+The fourth parity batch persists normal and reader scroll positions for 30 days,
+offers Continue / Start Over recovery, and restores bounded form drafts while
+excluding password, hidden, file, one-time-code, and payment fields.
 
 ## Setup
 

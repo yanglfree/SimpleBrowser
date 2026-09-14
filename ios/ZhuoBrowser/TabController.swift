@@ -1,12 +1,13 @@
 import Foundation
 import WebKit
 
-final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
+final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
     let id: String
     let isPrivate: Bool
     let webView: WKWebView
     weak var session: BrowserSession?
     private var installedRuleLists: Set<String>
+    private let pageStateMessageHandler: WeakScriptMessageHandler
 
     init(tab: BrowserTab, session: BrowserSession, dataStore: WKWebsiteDataStore) {
         self.id = tab.id
@@ -16,18 +17,41 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             dataStore: dataStore,
             blockAds: session.adsBlockEnabled(for: tab.url)
         )
+        let pageStateMessageHandler = WeakScriptMessageHandler()
+        configuration.userContentController.add(
+            pageStateMessageHandler,
+            contentWorld: .defaultClient,
+            name: PageStatePolicy.messageHandlerName
+        )
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: PageStatePolicy.formDraftWatcherScript,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true,
+                in: .defaultClient
+            )
+        )
         self.installedRuleLists = WebKernel.installedRuleLists(from: configuration)
+        self.pageStateMessageHandler = pageStateMessageHandler
         self.webView = WKWebView(frame: .zero, configuration: configuration)
         self.session = session
         super.init()
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
+        pageStateMessageHandler.delegate = self
         applyUserAgent(isDesktop: tab.isDesktop)
         if !URLPolicy.isHomeURL(tab.url) {
             let target = tab.isDesktop ? URLPolicy.desktopURL(for: tab.url) : tab.url
             load(target, rewriteDesktop: false)
         }
+    }
+
+    deinit {
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: PageStatePolicy.messageHandlerName,
+            contentWorld: .defaultClient
+        )
     }
 
     func load(_ raw: String, rewriteDesktop: Bool = true) {
@@ -147,8 +171,42 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
     }
 
-    func exitReader() {
-        webView.evaluateJavaScript(ReaderScripts.exit, completionHandler: nil)
+    func exitReader(completion: (() -> Void)? = nil) {
+        webView.evaluateJavaScript(ReaderScripts.exit) { _, _ in
+            DispatchQueue.main.async {
+                completion?()
+            }
+        }
+    }
+
+    func currentScrollPosition() -> Double {
+        max(0, webView.scrollView.contentOffset.y)
+    }
+
+    func captureFormDraft(completion: @escaping (String) -> Void) {
+        webView.evaluateJavaScript(
+            PageStatePolicy.captureFormDraftScript,
+            in: nil,
+            in: .defaultClient
+        ) { result in
+            let raw = (try? result.get()) as? String ?? ""
+            DispatchQueue.main.async {
+                completion(raw)
+            }
+        }
+    }
+
+    func restoreScrollPosition(_ position: Double) {
+        let offset = CGPoint(x: 0, y: max(0, position))
+        webView.scrollView.setContentOffset(offset, animated: false)
+        webView.evaluateJavaScript(PageStatePolicy.restoreScrollScript(position: position), completionHandler: nil)
+    }
+
+    func restoreFormDraft(_ draft: String) {
+        guard let script = PageStatePolicy.restoreFormDraftScript(draft) else {
+            return
+        }
+        webView.evaluateJavaScript(script, completionHandler: nil)
     }
 
     func countMatches(_ query: String, completion: @escaping (Int) -> Void) {
@@ -188,6 +246,17 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         ContentBlocker.shared.install(on: controller, installed: &installed)
         installedRuleLists = installed
         WebKernel.storeInstalledRuleLists(installed, on: webView.configuration)
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == PageStatePolicy.messageHandlerName,
+              message.frameInfo.isMainFrame,
+              let payload = message.body as? [String: Any],
+              let url = payload["url"] as? String,
+              let rawDraft = payload["draft"] as? String else {
+            return
+        }
+        session?.updateCapturedFormDraft(tabID: id, url: url, rawDraft: rawDraft)
     }
 
     func webView(
@@ -233,6 +302,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         if navigationAction.targetFrame?.isMainFrame == true {
             if let url = navigationAction.request.url?.absoluteString {
                 applyContentBlocker(for: url)
+                session?.prepareNavigation(tabID: id, to: url)
             }
             if navigationAction.navigationType != .reload {
                 switch navigationAction.navigationType {
@@ -298,12 +368,18 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         if session?.tab(id)?.isReader == true {
             let settings = session?.readerSettings ?? ReaderSettings()
             applyReader(settings: settings) { [weak self] ok in
+                guard let self else {
+                    return
+                }
                 if !ok {
-                    self?.session?.update(tabID: self?.id ?? "") { tab in
+                    self.session?.update(tabID: self.id) { tab in
                         tab.isReader = false
                     }
                 }
+                self.session?.restorePageStateAfterLoad(tabID: self.id)
             }
+        } else {
+            session?.restorePageStateAfterLoad(tabID: id)
         }
         if let tab = session?.tab(id) {
             session?.recordVisit(of: tab)
@@ -350,5 +426,13 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             return nil
         }
         return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+}
+
+private final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var delegate: WKScriptMessageHandler?
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        delegate?.userContentController(userContentController, didReceive: message)
     }
 }

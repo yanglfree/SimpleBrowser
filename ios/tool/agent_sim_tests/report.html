@@ -19,7 +19,7 @@
 <body>
   <header>
     <h1>ZhuoBrowser iOS Simulator QA</h1>
-    <p class="pass">9 / 9 scenarios passed</p>
+    <p class="pass">10 / 10 scenarios passed</p>
     <p class="meta">2026-09-14 · Jimu QA iPhone 17 · iOS 26.1 · Debug</p>
   </header>
   <article>
@@ -64,6 +64,12 @@
     <h2><code>IOS-KEYBOARD-001</code> Keyboard commands and recent-closed recovery</h2>
     <p><code>Command-T</code> created a tab, <code>Command-Shift-T</code> restored a tab closed from the overview, and <code>Command-F</code> opened find-in-page. The macOS Simulator host reserves <code>Command-L</code>, <code>Command-W</code>, and <code>Control-Tab</code>, so those bindings are implemented and compiled but are not counted as Simulator interaction acceptance.</p>
     <img src="evidence/keyboard-reopen.png" alt="Restored Example Domain tab after a keyboard command">
+  </article>
+  <article>
+    <h2><code>IOS-PAGE-STATE-001</code> Page-state continuity</h2>
+    <p>The local fixture persisted the normal note but not the password. The session payload contained only the <code>note</code> field and a real scroll offset of <code>2548</code>. Cold launch exposed Continue / Start Over; Continue returned to Section 5, while Start Over cleared the stored offset.</p>
+    <img src="evidence/page-state-restored-form.png" alt="Restored normal form note with the password field empty">
+    <img src="evidence/page-state-restored-scroll.png" alt="Restored final scroll checkpoint after choosing Continue">
   </article>
 </body>
 </html>

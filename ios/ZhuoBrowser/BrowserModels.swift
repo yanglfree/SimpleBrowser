@@ -13,6 +13,11 @@ struct BrowserTab: Identifiable, Equatable, Codable {
     var isReader: Bool
     var isDesktop: Bool
     var isPinned: Bool
+    var scrollY: Double
+    var readerScrollY: Double
+    var scrollSavedAt: TimeInterval
+    var readerScrollSavedAt: TimeInterval
+    var formDraft: String
 
     static func home(isPrivate: Bool) -> BrowserTab {
         BrowserTab(
@@ -27,7 +32,12 @@ struct BrowserTab: Identifiable, Equatable, Codable {
             lastVisitedAt: Date().timeIntervalSince1970,
             isReader: false,
             isDesktop: false,
-            isPinned: false
+            isPinned: false,
+            scrollY: 0,
+            readerScrollY: 0,
+            scrollSavedAt: 0,
+            readerScrollSavedAt: 0,
+            formDraft: ""
         )
     }
 
@@ -51,7 +61,12 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         lastVisitedAt: TimeInterval,
         isReader: Bool,
         isDesktop: Bool,
-        isPinned: Bool = false
+        isPinned: Bool = false,
+        scrollY: Double = 0,
+        readerScrollY: Double = 0,
+        scrollSavedAt: TimeInterval = 0,
+        readerScrollSavedAt: TimeInterval = 0,
+        formDraft: String = ""
     ) {
         self.id = id
         self.url = url
@@ -65,11 +80,17 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         self.isReader = isReader
         self.isDesktop = isDesktop
         self.isPinned = isPinned
+        self.scrollY = scrollY
+        self.readerScrollY = readerScrollY
+        self.scrollSavedAt = scrollSavedAt
+        self.readerScrollSavedAt = readerScrollSavedAt
+        self.formDraft = formDraft
     }
 
     enum CodingKeys: String, CodingKey {
         case id, url, title, isPrivate, isLoading, progress, canGoBack, canGoForward
         case lastVisitedAt, isReader, isDesktop, isPinned
+        case scrollY, readerScrollY, scrollSavedAt, readerScrollSavedAt, formDraft
     }
 
     init(from decoder: Decoder) throws {
@@ -86,6 +107,11 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         isReader = try container.decodeIfPresent(Bool.self, forKey: .isReader) ?? false
         isDesktop = try container.decodeIfPresent(Bool.self, forKey: .isDesktop) ?? false
         isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+        scrollY = try container.decodeIfPresent(Double.self, forKey: .scrollY) ?? 0
+        readerScrollY = try container.decodeIfPresent(Double.self, forKey: .readerScrollY) ?? 0
+        scrollSavedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .scrollSavedAt) ?? 0
+        readerScrollSavedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .readerScrollSavedAt) ?? 0
+        formDraft = try container.decodeIfPresent(String.self, forKey: .formDraft) ?? ""
     }
 
     func encode(to encoder: Encoder) throws {
@@ -102,6 +128,11 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         try container.encode(isReader, forKey: .isReader)
         try container.encode(isDesktop, forKey: .isDesktop)
         try container.encode(isPinned, forKey: .isPinned)
+        try container.encode(scrollY, forKey: .scrollY)
+        try container.encode(readerScrollY, forKey: .readerScrollY)
+        try container.encode(scrollSavedAt, forKey: .scrollSavedAt)
+        try container.encode(readerScrollSavedAt, forKey: .readerScrollSavedAt)
+        try container.encode(formDraft, forKey: .formDraft)
     }
 }
 

@@ -87,6 +87,24 @@ final class SessionPolicyTests: XCTestCase {
 
         XCTAssertFalse(tab.canGoForward)
         XCTAssertFalse(tab.isPinned)
+        XCTAssertEqual(tab.scrollY, 0)
+        XCTAssertEqual(tab.readerScrollY, 0)
+        XCTAssertEqual(tab.scrollSavedAt, 0)
+        XCTAssertEqual(tab.readerScrollSavedAt, 0)
+        XCTAssertEqual(tab.formDraft, "")
+    }
+
+    func testTabPageStateRoundTrips() throws {
+        var tab = makeTab(id: "stateful")
+        tab.scrollY = 320
+        tab.readerScrollY = 640
+        tab.scrollSavedAt = 1_000
+        tab.readerScrollSavedAt = 2_000
+        tab.formDraft = #"[{"key":"note","value":"draft"}]"#
+
+        let decoded = try JSONDecoder().decode(BrowserTab.self, from: JSONEncoder().encode(tab))
+
+        XCTAssertEqual(decoded, tab)
     }
 
     private func makeTab(

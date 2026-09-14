@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page State Fixture</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { margin: 0; padding: 24px; line-height: 1.5; }
+    main { max-width: 640px; margin: 0 auto; }
+    label { display: block; margin: 18px 0; font-weight: 600; }
+    input { display: block; box-sizing: border-box; width: 100%; margin-top: 8px; padding: 12px; font: inherit; }
+    section { min-height: 520px; padding-top: 40px; border-top: 1px solid currentColor; }
+    .marker { display: inline-block; padding: 8px 12px; border-radius: 999px; background: #387d68; color: white; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Page State Fixture</h1>
+    <p>Enter both fields, scroll to the final section, and restore the tab.</p>
+    <label>
+      Restorable note
+      <input id="note" name="note" autocomplete="off" placeholder="This value should return">
+    </label>
+    <label>
+      Password
+      <input id="secret" name="secret" type="password" autocomplete="off" placeholder="This value must stay empty">
+    </label>
+    <section><h2>Section 1</h2><p>Scroll checkpoint one.</p></section>
+    <section><h2>Section 2</h2><p>Scroll checkpoint two.</p></section>
+    <section><h2>Section 3</h2><p>Scroll checkpoint three.</p></section>
+    <section><h2>Section 4</h2><p>Scroll checkpoint four.</p></section>
+    <section><h2>Section 5</h2><p class="marker">Final scroll checkpoint</p></section>
+  </main>
+</body>
+</html>

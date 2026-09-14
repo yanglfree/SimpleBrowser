@@ -31,6 +31,7 @@ final class BrowserSession: ObservableObject {
     @Published var archivedTabs: [BrowserTab] = []
     @Published var showsExpiredTabsPrompt = false
     @Published var showsTabSoftLimitPrompt = false
+    @Published var pageResumeRequest: PageResumeRequest?
     let downloads = DownloadStore()
     private var permissionReply: ((Bool) -> Void)?
 
@@ -38,6 +39,7 @@ final class BrowserSession: ObservableObject {
     private var privateStore = WKWebsiteDataStore.nonPersistent()
     private var recentlyClosedTabs: [BrowserTab] = []
     private var cancellables: Set<AnyCancellable> = []
+    private var resumePromptGeneration = 0
     private let defaultsKey = "browser_session"
     private let archivedTabsKey = "browser_archived_tabs"
 
@@ -107,6 +109,7 @@ final class BrowserSession: ObservableObject {
 
     func openInActiveTab(_ raw: String) {
         let address = URLPolicy.normalizeAddress(raw, engine: settings.searchEngine)
+        prepareNavigation(tabID: activeTabID, to: address)
         update(tabID: activeTabID) { tab in
             tab.url = address
             tab.lastVisitedAt = Date().timeIntervalSince1970
@@ -257,6 +260,10 @@ final class BrowserSession: ObservableObject {
         guard tabs.contains(where: { $0.id == id }) else {
             return
         }
+        if activeTabID != id {
+            capturePageState(activeTabID)
+        }
+        dismissPageResume()
         activeTabID = id
         update(tabID: id) { tab in
             tab.lastVisitedAt = Date().timeIntervalSince1970
@@ -268,6 +275,14 @@ final class BrowserSession: ObservableObject {
     }
 
     func closeTab(_ id: String) {
+        capturePageState(id)
+        finishClosingTab(id)
+    }
+
+    private func finishClosingTab(_ id: String) {
+        guard tab(id) != nil else {
+            return
+        }
         if let closing = tab(id), !closing.isPrivate {
             recentlyClosedTabs.insert(closing, at: 0)
             recentlyClosedTabs = Array(recentlyClosedTabs.prefix(10))
@@ -284,6 +299,7 @@ final class BrowserSession: ObservableObject {
         } else if activeTabID == id {
             activeTabID = nextActiveID ?? tabs[0].id
         }
+        dismissPageResume()
         recyclePrivateStoreIfNeeded()
         ensureLive(activeTabID)
         persist()
@@ -397,6 +413,7 @@ final class BrowserSession: ObservableObject {
     }
 
     func closeAll() {
+        dismissPageResume()
         controllers.removeAll()
         let home = BrowserTab.home(isPrivate: false)
         tabs = [home]
@@ -410,13 +427,23 @@ final class BrowserSession: ObservableObject {
             return
         }
         if current.isReader {
-            activeController?.exitReader()
-            update(tabID: current.id) { tab in
-                tab.isReader = false
+            capturePageState(current.id)
+            guard let controller = controllers[current.id] else {
+                return
             }
-            persist()
+            controller.exitReader { [weak self] in
+                guard let self else {
+                    return
+                }
+                self.update(tabID: current.id) { tab in
+                    tab.isReader = false
+                }
+                self.restoreStoredScroll(tabID: current.id, promptIfActive: false)
+                self.persist()
+            }
             return
         }
+        capturePageState(current.id)
         ensureLive(current.id)
         activeController?.applyReader(settings: readerSettings) { [weak self] ok in
             DispatchQueue.main.async {
@@ -430,6 +457,7 @@ final class BrowserSession: ObservableObject {
                 self.update(tabID: current.id) { tab in
                     tab.isReader = true
                 }
+                self.restoreStoredScroll(tabID: current.id, promptIfActive: true)
                 self.persist()
             }
         }
@@ -733,6 +761,81 @@ final class BrowserSession: ObservableObject {
         }
     }
 
+    func captureActivePageState() {
+        capturePageState(activeTabID)
+    }
+
+    func prepareNavigation(tabID: String, to url: String) {
+        guard let current = tab(tabID), !PageStatePolicy.isSamePage(current.url, url) else {
+            return
+        }
+        dismissPageResume()
+        update(tabID: tabID) { tab in
+            tab.scrollY = 0
+            tab.readerScrollY = 0
+            tab.scrollSavedAt = 0
+            tab.readerScrollSavedAt = 0
+            tab.formDraft = ""
+        }
+    }
+
+    func restorePageStateAfterLoad(tabID: String) {
+        guard let current = tab(tabID), let controller = controllers[tabID] else {
+            return
+        }
+        controller.restoreFormDraft(current.formDraft)
+        restoreStoredScroll(tabID: tabID, promptIfActive: true)
+    }
+
+    func updateCapturedFormDraft(tabID: String, url: String, rawDraft: String) {
+        guard let current = tab(tabID),
+              !URLPolicy.isHomeURL(current.url),
+              PageStatePolicy.isSamePage(current.url, url) else {
+            return
+        }
+        let normalized = PageStatePolicy.normalizedFormDraft(rawDraft)
+        guard normalized != current.formDraft else {
+            return
+        }
+        update(tabID: tabID) { tab in
+            tab.formDraft = normalized
+        }
+        persist()
+    }
+
+    func continuePageResume() {
+        guard let request = pageResumeRequest,
+              request.tabID == activeTabID,
+              let controller = controllers[request.tabID] else {
+            dismissPageResume()
+            return
+        }
+        controller.restoreScrollPosition(request.position)
+        dismissPageResume()
+    }
+
+    func startPageResumeFromTop() {
+        guard let request = pageResumeRequest else {
+            return
+        }
+        update(tabID: request.tabID) { tab in
+            if request.isReader {
+                tab.readerScrollY = 0
+                tab.readerScrollSavedAt = 0
+            } else {
+                tab.scrollY = 0
+                tab.scrollSavedAt = 0
+            }
+        }
+        dismissPageResume()
+        persist()
+    }
+
+    func dismissPageResume() {
+        resumePromptGeneration += 1
+        pageResumeRequest = nil
+    }
+
     func persistReaderSettings() {
         if let data = try? JSONEncoder().encode(readerSettings) {
             UserDefaults.standard.set(data, forKey: "reader_settings")
@@ -846,7 +949,80 @@ final class BrowserSession: ObservableObject {
                     tab.isLoading = false
                 }
             }
+            capturePageState(id)
             controllers[id] = nil
+        }
+    }
+
+    private func capturePageState(_ id: String) {
+        guard let current = tab(id),
+              !URLPolicy.isHomeURL(current.url),
+              let controller = controllers[id] else {
+            return
+        }
+        let capturedURL = current.url
+        let position = controller.currentScrollPosition()
+        let savedAt = Date().timeIntervalSince1970
+        update(tabID: id) { tab in
+            if tab.isReader {
+                tab.readerScrollY = position
+                tab.readerScrollSavedAt = savedAt
+            } else {
+                tab.scrollY = position
+                tab.scrollSavedAt = savedAt
+            }
+        }
+        persist()
+        controller.captureFormDraft { [weak self] rawDraft in
+            guard let self else { return }
+            if let latest = self.tab(id), PageStatePolicy.isSamePage(latest.url, capturedURL) {
+                self.update(tabID: id) { tab in
+                    tab.formDraft = PageStatePolicy.normalizedFormDraft(rawDraft)
+                }
+                self.persist()
+            }
+        }
+    }
+
+    private func restoreStoredScroll(tabID: String, promptIfActive: Bool) {
+        guard let current = tab(tabID), let controller = controllers[tabID] else {
+            return
+        }
+        let position = current.isReader ? current.readerScrollY : current.scrollY
+        let savedAt = current.isReader ? current.readerScrollSavedAt : current.scrollSavedAt
+        guard PageStatePolicy.shouldOfferResume(position: position, savedAt: savedAt) else {
+            if position > 0 || savedAt > 0 {
+                update(tabID: tabID) { tab in
+                    if tab.isReader {
+                        tab.readerScrollY = 0
+                        tab.readerScrollSavedAt = 0
+                    } else {
+                        tab.scrollY = 0
+                        tab.scrollSavedAt = 0
+                    }
+                }
+                persist()
+            }
+            return
+        }
+        if promptIfActive && tabID == activeTabID {
+            pageResumeRequest = PageResumeRequest(tabID: tabID, position: position, isReader: current.isReader)
+            schedulePageResumeDismissal(tabID: tabID)
+            return
+        }
+        controller.restoreScrollPosition(position)
+    }
+
+    private func schedulePageResumeDismissal(tabID: String) {
+        resumePromptGeneration += 1
+        let generation = resumePromptGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + PageStatePolicy.resumePromptDuration) { [weak self] in
+            guard let self,
+                  self.resumePromptGeneration == generation,
+                  self.pageResumeRequest?.tabID == tabID else {
+                return
+            }
+            self.pageResumeRequest = nil
         }
     }
 

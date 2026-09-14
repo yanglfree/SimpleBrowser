@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-3",
+  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-4",
   "lastRun": {
     "date": "2026-09-14",
     "device": "Jimu QA iPhone 17",
@@ -120,6 +120,23 @@
       "expected": "New Tab, Reopen Closed Tab, and Find operate through the scene command routing. Host-reserved Command-L, Command-W, and Control-Tab are excluded from this Simulator result.",
       "result": "passed",
       "evidence": "evidence/keyboard-reopen.png"
+    },
+    {
+      "id": "IOS-PAGE-STATE-001",
+      "title": "Scroll position and safe form drafts resume after cold launch",
+      "steps": [
+        "Open the local page-state fixture",
+        "Enter a restorable note and a password",
+        "Scroll to the final checkpoint and background the app",
+        "Terminate and relaunch the app",
+        "Verify the note returns, the password stays empty, and the resume prompt appears",
+        "Choose Continue and verify that Section 5 returns",
+        "Choose Start Over on a later launch and verify the persisted scroll position is cleared"
+      ],
+      "expected": "Only the bounded non-sensitive draft is persisted; the user explicitly controls whether the fresh page returns to the saved position.",
+      "result": "passed",
+      "evidence": "evidence/page-state-restored-form.png",
+      "additionalEvidence": "evidence/page-state-restored-scroll.png"
     }
   ]
 }
