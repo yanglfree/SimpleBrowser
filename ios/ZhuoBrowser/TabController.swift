@@ -520,6 +520,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         navigationStartedAt = ProcessInfo.processInfo.systemUptime
+        session?.invalidateTabThumbnail(tabID: id)
         session?.resetObservedBlocking(tabID: id)
         session?.update(tabID: id) { tab in
             tab.isLoading = true
@@ -584,6 +585,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         }
         session?.handleFinishedPageLoad(tabID: id)
         resolveSiteIcon()
+        session?.captureTabThumbnail(tabID: id)
         session?.persist()
     }
 

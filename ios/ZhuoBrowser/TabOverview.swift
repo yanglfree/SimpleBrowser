@@ -47,9 +47,16 @@ struct TabOverview: View {
                 .padding(.vertical, 16)
 
                 ScrollView {
-                    LazyVGrid(columns: columns(for: proxy.size.width), spacing: 12) {
-                        ForEach(session.tabs) { tab in
-                            tabCard(tab)
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        tabGrid(normalTabs, width: proxy.size.width)
+
+                        if !privateTabs.isEmpty {
+                            Text("无痕")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(DesignTokens.textSecondary)
+                                .padding(.top, 8)
+                                .accessibilityIdentifier("private-tabs-heading")
+                            tabGrid(privateTabs, width: proxy.size.width)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -89,13 +96,29 @@ struct TabOverview: View {
         )
     }
 
+    private var normalTabs: [BrowserTab] {
+        session.tabs.filter { !$0.isPrivate }
+    }
+
+    private var privateTabs: [BrowserTab] {
+        session.tabs.filter(\.isPrivate)
+    }
+
+    private func tabGrid(_ tabs: [BrowserTab], width: CGFloat) -> some View {
+        LazyVGrid(columns: columns(for: width), spacing: 12) {
+            ForEach(tabs) { tab in
+                tabCard(tab)
+            }
+        }
+    }
+
     private func tabCard(_ tab: BrowserTab) -> some View {
         let selected = tab.id == session.activeTabID
         return ZStack(alignment: .topTrailing) {
             Button {
                 session.selectTab(tab.id)
             } label: {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 7) {
                         if let image = session.siteIcon(for: tab) {
                             SiteIconThumbnail(image: image, size: 18, cornerRadius: 4)
@@ -104,27 +127,20 @@ struct TabOverview: View {
                                 .font(.system(size: 13))
                                 .foregroundStyle(DesignTokens.textSecondary)
                         }
-                        Text(tab.isPrivate ? "无痕" : tab.displayTitle)
+                        Text(cardTitle(tab))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(DesignTokens.textPrimary)
-                            .lineLimit(2)
+                            .lineLimit(1)
                     }
                     .padding(.trailing, 28)
-                    if tab.isPinned {
-                        Label("已固定", systemImage: "pin.fill")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(DesignTokens.accent)
-                    }
-                    Text(URLPolicy.isHomeURL(tab.url) ? "起始页" : tab.url)
-                        .font(.system(size: 11))
-                        .foregroundStyle(DesignTokens.textSecondary)
-                        .lineLimit(2)
-                        .padding(.trailing, tab.isPrivate ? 0 : 28)
+                    .padding(.horizontal, 12)
+                    .frame(height: 46)
+
+                    tabThumbnail(tab)
                 }
-                .padding(12)
-                .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+                .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
                 .background(
-                    tab.isPrivate ? DesignTokens.surfaceSubtle : DesignTokens.surfacePanel,
+                    DesignTokens.surfacePanel,
                     in: RoundedRectangle(cornerRadius: 16, style: .continuous)
                 )
                 .overlay(
@@ -237,6 +253,36 @@ struct TabOverview: View {
         }
     }
 
+    @ViewBuilder
+    private func tabThumbnail(_ tab: BrowserTab) -> some View {
+        ZStack {
+            if let image = session.tabThumbnail(for: tab) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else {
+                TabThumbnailPlaceholder(isPrivate: tab.isPrivate)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 144)
+        .background(DesignTokens.pageBackground)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(DesignTokens.border)
+                .frame(height: 1)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func cardTitle(_ tab: BrowserTab) -> String {
+        guard !URLPolicy.isHomeURL(tab.url) else { return "新标签页" }
+        let host = URLPolicy.displayHost(tab.url)
+        return host.isEmpty ? tab.displayTitle : host
+    }
+
     private var tabSwitchGesture: some Gesture {
         DragGesture(minimumDistance: 24)
             .onEnded { value in
@@ -259,5 +305,31 @@ struct TabOverview: View {
         .foregroundStyle(DesignTokens.textPrimary)
         .frame(maxWidth: .infinity, minHeight: 44)
         .background(DesignTokens.surfaceSubtle, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private struct TabThumbnailPlaceholder: View {
+    let isPrivate: Bool
+
+    var body: some View {
+        GeometryReader { proxy in
+            VStack(alignment: .leading, spacing: 8) {
+                Capsule()
+                    .fill(DesignTokens.border)
+                    .frame(width: proxy.size.width * 0.4, height: 6)
+                Capsule()
+                    .fill(DesignTokens.surfaceSubtle)
+                    .frame(width: proxy.size.width * 0.92, height: 9)
+                Capsule()
+                    .fill(DesignTokens.surfaceSubtle)
+                    .frame(width: proxy.size.width * 0.7, height: 9)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(DesignTokens.surfaceSubtle)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.top, 2)
+            }
+            .padding(12)
+        }
+        .opacity(isPrivate ? 0.5 : 1)
     }
 }

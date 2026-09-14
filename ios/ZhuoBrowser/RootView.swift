@@ -610,7 +610,7 @@ struct RootView: View {
 
             Button {
                 if AdaptiveWorkspacePolicy.sidebarPresentation(width: Double(width)) == .unavailable {
-                    session.showsOverview.toggle()
+                    session.toggleTabOverview()
                 } else {
                     session.showsOverview = false
                     sidebarPanel = .tabs

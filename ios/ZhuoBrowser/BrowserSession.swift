@@ -54,6 +54,7 @@ final class BrowserSession: ObservableObject {
     @Published var homeBackgroundImage: UIImage?
     @Published var isHomeBackgroundLoading = false
     @Published private(set) var siteIcons: [String: UIImage] = [:]
+    @Published private(set) var tabThumbnails: [String: UIImage] = [:]
     let downloads = DownloadStore()
     let articles = ArticleStore()
     let pro = ProBillingService()
@@ -70,6 +71,7 @@ final class BrowserSession: ObservableObject {
     private var pendingWindowTransferIDs: Set<String> = []
     private var siteIconLoadingHosts: Set<String> = []
     private var deferredSiteIconRequests: [String: (pageURL: String, declaredURL: String)] = [:]
+    private var tabThumbnailTokens: [String: UUID] = [:]
     private var cancellables: Set<AnyCancellable> = []
     private var resumePromptGeneration = 0
     private let defaultsKey = "browser_session"
@@ -90,6 +92,22 @@ final class BrowserSession: ObservableObject {
 
     var recentTabs: [BrowserTab] {
         SessionPolicy.recentTabs(tabs, activeTabID: activeTabID)
+    }
+
+    func presentTabOverview() {
+        let tabID = activeTabID
+        captureTabThumbnail(tabID: tabID) { [weak self] in
+            guard let self, self.tab(tabID) != nil else { return }
+            self.showsOverview = true
+        }
+    }
+
+    func toggleTabOverview() {
+        if showsOverview {
+            showsOverview = false
+        } else {
+            presentTabOverview()
+        }
     }
 
     init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
@@ -546,6 +564,7 @@ final class BrowserSession: ObservableObject {
             ? SessionPolicy.selectedTabAfterClosing(tabs, closing: id)
             : activeTabID
         controllers[id] = nil
+        removeTabThumbnail(tabID: id)
         tabBlockStats[id] = nil
         blockEvents.removeAll { $0.tabID == id }
         disposableReaderTabIDs.remove(id)
@@ -573,6 +592,7 @@ final class BrowserSession: ObservableObject {
             return
         }
         if activeTabID != id {
+            captureTabThumbnail(tabID: activeTabID)
             capturePageState(activeTabID)
         }
         dismissPageResume()
@@ -691,6 +711,7 @@ final class BrowserSession: ObservableObject {
             ? SessionPolicy.selectedTabAfterClosing(tabs, closing: id)
             : activeTabID
         controllers[id] = nil
+        removeTabThumbnail(tabID: id)
         tabBlockStats[id] = nil
         blockEvents.removeAll { $0.tabID == id }
         disposableReaderTabIDs.remove(id)
@@ -791,6 +812,7 @@ final class BrowserSession: ObservableObject {
         }
         let idSet = Set(ids)
         ids.forEach { controllers[$0] = nil }
+        ids.forEach { removeTabThumbnail(tabID: $0) }
         tabs.removeAll { idSet.contains($0.id) }
         recyclePrivateStoreIfNeeded()
         persist()
@@ -827,6 +849,8 @@ final class BrowserSession: ObservableObject {
         let shouldClearCookies = settings.clearCookiesOnTabClose && tabs.contains { !$0.isPrivate }
         dismissPageResume()
         controllers.removeAll()
+        tabThumbnails.removeAll()
+        tabThumbnailTokens.removeAll()
         disposableReaderTabIDs.removeAll()
         pendingArticleCaptureTabIDs.removeAll()
         pendingWindowTransferIDs.removeAll()
@@ -1138,6 +1162,8 @@ final class BrowserSession: ObservableObject {
 
     private func recordMemoryPressure() {
         TelemetryService.shared.recordMemoryPressure(context: telemetryContext())
+        tabThumbnails.removeAll()
+        tabThumbnailTokens.removeAll()
     }
 
     private func telemetryContext(tabID: String? = nil) -> TelemetryContext {
@@ -1334,6 +1360,65 @@ final class BrowserSession: ObservableObject {
 
     func siteIcon(for tab: BrowserTab) -> UIImage? {
         tab.isPrivate ? nil : siteIcon(for: tab.url)
+    }
+
+    func tabThumbnail(for tab: BrowserTab) -> UIImage? {
+        tab.isPrivate ? nil : tabThumbnails[tab.id]
+    }
+
+    func captureTabThumbnail(tabID: String, completion: @escaping () -> Void = {}) {
+        guard let tab = tab(tabID), let controller = controllers[tabID] else {
+            completion()
+            return
+        }
+        let webView = controller.webView
+        let bounds = webView.bounds
+        guard TabThumbnailPolicy.shouldCapture(
+            url: tab.url,
+            isPrivate: tab.isPrivate,
+            isAttached: webView.window != nil,
+            viewWidth: Double(bounds.width),
+            viewHeight: Double(bounds.height)
+        ) else {
+            completion()
+            return
+        }
+        let token = UUID()
+        tabThumbnailTokens[tabID] = token
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = CGRect(
+            x: 0,
+            y: 0,
+            width: bounds.width,
+            height: CGFloat(
+                TabThumbnailPolicy.visibleSnapshotHeight(
+                    viewWidth: Double(bounds.width),
+                    viewHeight: Double(bounds.height)
+                )
+            )
+        )
+        configuration.snapshotWidth = NSNumber(value: TabThumbnailPolicy.snapshotWidth)
+        webView.takeSnapshot(with: configuration) { [weak self] image, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if self.tabThumbnailTokens[tabID] == token,
+                   self.tab(tabID) != nil,
+                   let image {
+                    self.tabThumbnails[tabID] = image
+                }
+                completion()
+            }
+        }
+    }
+
+    func invalidateTabThumbnail(tabID: String) {
+        tabThumbnailTokens[tabID] = UUID()
+        tabThumbnails[tabID] = nil
+    }
+
+    private func removeTabThumbnail(tabID: String) {
+        tabThumbnailTokens[tabID] = nil
+        tabThumbnails[tabID] = nil
     }
 
     func refreshSiteIcons() {
@@ -1902,6 +1987,7 @@ final class BrowserSession: ObservableObject {
     }
 
     func captureActivePageState() {
+        captureTabThumbnail(tabID: activeTabID)
         capturePageState(activeTabID)
     }
 
@@ -1909,6 +1995,7 @@ final class BrowserSession: ObservableObject {
         guard let current = tab(tabID), !PageStatePolicy.isSamePage(current.url, url) else {
             return
         }
+        invalidateTabThumbnail(tabID: tabID)
         dismissPageResume()
         resetObservedBlocking(tabID: tabID)
         update(tabID: tabID) { tab in

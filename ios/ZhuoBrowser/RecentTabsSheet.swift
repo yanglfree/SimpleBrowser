@@ -29,7 +29,7 @@ struct RecentTabsSheet: View {
                     Button("全部标签页") {
                         dismiss()
                         DispatchQueue.main.async {
-                            session.showsOverview = true
+                            session.presentTabOverview()
                         }
                     }
                     .accessibilityIdentifier("recent-tabs-all")
