@@ -93,11 +93,20 @@ struct TabOverview: View {
                 session.selectTab(tab.id)
             } label: {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(tab.isPrivate ? "无痕" : tab.displayTitle)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(DesignTokens.textPrimary)
-                        .lineLimit(2)
-                        .padding(.trailing, 28)
+                    HStack(spacing: 7) {
+                        if let image = session.siteIcon(for: tab) {
+                            SiteIconThumbnail(image: image, size: 18, cornerRadius: 4)
+                        } else {
+                            Image(systemName: tab.isPrivate ? "eyeglasses" : "globe")
+                                .font(.system(size: 13))
+                                .foregroundStyle(DesignTokens.textSecondary)
+                        }
+                        Text(tab.isPrivate ? "无痕" : tab.displayTitle)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(DesignTokens.textPrimary)
+                            .lineLimit(2)
+                    }
+                    .padding(.trailing, 28)
                     if tab.isPinned {
                         Label("已固定", systemImage: "pin.fill")
                             .font(.system(size: 11, weight: .medium))

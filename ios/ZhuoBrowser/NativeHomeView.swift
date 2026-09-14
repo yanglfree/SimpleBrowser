@@ -5,6 +5,7 @@ struct NativeHomeView: View {
     let sites: [QuickSite]
     let settings: BrowserSettings
     let backgroundImage: UIImage?
+    let siteIcons: [String: UIImage]
     let onOpen: (String) -> Void
     var onAdd: () -> Void = {}
     var onEdit: (QuickSite) -> Void = { _ in }
@@ -104,11 +105,15 @@ struct NativeHomeView: View {
     private func siteLabel(_ site: QuickSite) -> some View {
         let colorIndex = ((site.colorIndex % tileColors.count) + tileColors.count) % tileColors.count
         return VStack(spacing: 8) {
-            Text(site.badge)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 48, height: 48)
-                .background(tileColors[colorIndex], in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            if let image = siteIcons[URLPolicy.rawHost(site.url)] {
+                SiteIconThumbnail(image: image, size: 48, cornerRadius: 14)
+            } else {
+                Text(site.badge)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .background(tileColors[colorIndex], in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
             Text(site.title)
                 .font(.system(size: 13))
                 .foregroundStyle(primaryText)

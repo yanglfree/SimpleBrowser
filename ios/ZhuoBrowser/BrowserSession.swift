@@ -52,6 +52,7 @@ final class BrowserSession: ObservableObject {
     @Published var paneState = BrowserPaneState(primaryTabID: "")
     @Published var homeBackgroundImage: UIImage?
     @Published var isHomeBackgroundLoading = false
+    @Published private(set) var siteIcons: [String: UIImage] = [:]
     let downloads = DownloadStore()
     let articles = ArticleStore()
     let pro = ProBillingService()
@@ -66,6 +67,8 @@ final class BrowserSession: ObservableObject {
     private var disposableReaderTabIDs: Set<String> = []
     private var pendingArticleCaptureTabIDs: Set<String> = []
     private var pendingWindowTransferIDs: Set<String> = []
+    private var siteIconLoadingHosts: Set<String> = []
+    private var deferredSiteIconRequests: [String: (pageURL: String, declaredURL: String)] = [:]
     private var cancellables: Set<AnyCancellable> = []
     private var resumePromptGeneration = 0
     private let defaultsKey = "browser_session"
@@ -184,6 +187,7 @@ final class BrowserSession: ObservableObject {
         ensureLive(activeTabID)
         persist()
         refreshHomeBackground()
+        refreshSiteIcons()
         if isPrimaryWindow {
             let milliseconds = (ProcessInfo.processInfo.systemUptime - initializationStartedAt) * 1_000
             TelemetryService.shared.recordStartup(
@@ -1041,6 +1045,7 @@ final class BrowserSession: ObservableObject {
     func acceptPrivacyConsent() {
         settings.privacyConsentAccepted = true
         persistSettings()
+        refreshSiteIcons()
     }
 
     func finishOnboarding() {
@@ -1061,6 +1066,7 @@ final class BrowserSession: ObservableObject {
     func setQuickSiteLimit(_ limit: Int) {
         settings.quickSiteLimit = BrowserSettings.clampedQuickSiteLimit(limit)
         persistSettings()
+        refreshSiteIcons()
     }
 
     func setHomeBackgroundStyle(_ style: HomeBackgroundStyle) {
@@ -1186,6 +1192,7 @@ final class BrowserSession: ObservableObject {
         }
         quickSites = QuickSitePolicy.upsert(quickSites, site: site)
         persistQuickSites()
+        refreshSiteIcons()
         return true
     }
 
@@ -1197,6 +1204,63 @@ final class BrowserSession: ObservableObject {
     func moveQuickSites(from offsets: IndexSet, to destination: Int) {
         quickSites = QuickSitePolicy.move(quickSites, from: offsets, to: destination)
         persistQuickSites()
+    }
+
+    func siteIcon(for url: String) -> UIImage? {
+        siteIcons[URLPolicy.rawHost(url)]
+    }
+
+    func siteIcon(for tab: BrowserTab) -> UIImage? {
+        tab.isPrivate ? nil : siteIcon(for: tab.url)
+    }
+
+    func refreshSiteIcons() {
+        guard settings.privacyConsentAccepted else { return }
+        var requests = quickSites.prefix(settings.quickSiteLimit).map {
+            SiteIconRequest(url: $0.url, isPrivate: false)
+        }
+        requests.append(contentsOf: tabs.map { SiteIconRequest(url: $0.url, isPrivate: $0.isPrivate) })
+        for request in SiteIconPolicy.targets(requests) {
+            requestSiteIcon(pageURL: request.url)
+        }
+    }
+
+    func refreshSiteIcon(tabID: String, declaredURL: String) {
+        guard settings.privacyConsentAccepted,
+              let tab = tab(tabID),
+              !tab.isPrivate,
+              !URLPolicy.isHomeURL(tab.url) else {
+            return
+        }
+        requestSiteIcon(pageURL: tab.url, declaredURL: declaredURL)
+    }
+
+    private func requestSiteIcon(pageURL: String, declaredURL: String = "") {
+        let host = URLPolicy.rawHost(pageURL)
+        guard !host.isEmpty, siteIcons[host] == nil else { return }
+        if siteIconLoadingHosts.contains(host) {
+            if !declaredURL.isEmpty {
+                deferredSiteIconRequests[host] = (pageURL, declaredURL)
+            }
+            return
+        }
+        siteIconLoadingHosts.insert(host)
+        Task { [weak self] in
+            let data = await SiteIconStore.shared.iconData(
+                for: pageURL,
+                declaredURL: declaredURL.isEmpty ? nil : declaredURL
+            )
+            guard let self else { return }
+            self.siteIconLoadingHosts.remove(host)
+            if let data, let image = SiteIconImage.decode(data) {
+                self.siteIcons[host] = image
+                self.deferredSiteIconRequests.removeValue(forKey: host)
+                return
+            }
+            if let deferred = self.deferredSiteIconRequests.removeValue(forKey: host) {
+                self.requestSiteIcon(pageURL: deferred.pageURL, declaredURL: deferred.declaredURL)
+            }
+        }
     }
 
     func requestSitePermission(

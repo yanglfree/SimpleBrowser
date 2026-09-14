@@ -525,6 +525,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             session?.recordVisit(of: tab)
         }
         session?.handleFinishedPageLoad(tabID: id)
+        resolveSiteIcon()
         session?.persist()
     }
 
@@ -562,6 +563,14 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
 
     private static func originString(_ origin: WKSecurityOrigin) -> String {
         SitePermissionPolicy.origin(protocol: origin.protocol, host: origin.host, port: Int(origin.port))
+    }
+
+    private func resolveSiteIcon() {
+        guard !isPrivate, let script = WebKernel.loadScript(named: "read-favicon") else { return }
+        webView.evaluateJavaScript(script) { [weak self] result, _ in
+            guard let self else { return }
+            self.session?.refreshSiteIcon(tabID: self.id, declaredURL: result as? String ?? "")
+        }
     }
 
     private static func shouldDownload(_ response: WKNavigationResponse) -> Bool {

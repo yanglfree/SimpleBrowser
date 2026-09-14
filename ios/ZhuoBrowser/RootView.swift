@@ -383,6 +383,7 @@ struct RootView: View {
                 sites: session.quickSites,
                 settings: session.settings,
                 backgroundImage: session.homeBackgroundImage,
+                siteIcons: session.siteIcons,
                 onOpen: { url in
                     session.focusPane(tabID)
                     session.openInActiveTab(url)

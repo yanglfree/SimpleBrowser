@@ -115,8 +115,12 @@ struct BrowserWorkspaceSidebar: View {
                             session.selectTab(tab.id)
                         } label: {
                             HStack(spacing: 10) {
-                                Image(systemName: tab.isPrivate ? "eyeglasses" : "globe")
-                                    .foregroundStyle(tab.id == session.activeTabID ? DesignTokens.accent : DesignTokens.textSecondary)
+                                if let image = session.siteIcon(for: tab) {
+                                    SiteIconThumbnail(image: image, size: 18, cornerRadius: 4)
+                                } else {
+                                    Image(systemName: tab.isPrivate ? "eyeglasses" : "globe")
+                                        .foregroundStyle(tab.id == session.activeTabID ? DesignTokens.accent : DesignTokens.textSecondary)
+                                }
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(tab.displayTitle).lineLimit(1)
                                     Text(URLPolicy.isHomeURL(tab.url) ? "起始页" : URLPolicy.displayHost(tab.url))
