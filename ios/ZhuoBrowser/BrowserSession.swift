@@ -85,6 +85,7 @@ final class BrowserSession: ObservableObject {
     }
 
     init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
+        let initializationStartedAt = ProcessInfo.processInfo.systemUptime
         self.isPrimaryWindow = isPrimaryWindow
         let decodedTransfer = windowRequest?.tab
         acceptedWindowRequestID = decodedTransfer == nil ? nil : windowRequest?.id
@@ -128,6 +129,12 @@ final class BrowserSession: ObservableObject {
             .store(in: &cancellables)
         readerSettings = Self.loadReaderSettings()
         settings = loadedSettings
+        if isPrimaryWindow {
+            NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.recordMemoryPressure() }
+                .store(in: &cancellables)
+        }
         tabs = tabs.map { tab in
             var resolved = tab
             if !URLPolicy.isHomeURL(tab.url) {
@@ -177,6 +184,13 @@ final class BrowserSession: ObservableObject {
         ensureLive(activeTabID)
         persist()
         refreshHomeBackground()
+        if isPrimaryWindow {
+            let milliseconds = (ProcessInfo.processInfo.systemUptime - initializationStartedAt) * 1_000
+            TelemetryService.shared.recordStartup(
+                milliseconds: milliseconds,
+                context: telemetryContext()
+            )
+        }
         ContentBlocker.shared.prepare { [weak self] success, usedCachedRules in
             guard let self, success,
                   self.settings.privacyConsentAccepted,
@@ -975,6 +989,38 @@ final class BrowserSession: ObservableObject {
     func setAutoHideToolbarEnabled(_ enabled: Bool) {
         settings.autoHideToolbarEnabled = enabled
         persistSettings()
+    }
+
+    func setTelemetryEnabled(_ enabled: Bool) {
+        settings.telemetryEnabled = enabled
+        persistSettings()
+    }
+
+    func recordPageLoad(milliseconds: Double, tabID: String) {
+        TelemetryService.shared.recordPageLoad(
+            milliseconds: milliseconds,
+            context: telemetryContext(tabID: tabID)
+        )
+    }
+
+    func recordActionUsage(_ action: String, tabID: String? = nil) {
+        TelemetryService.shared.recordActionUsage(
+            action,
+            context: telemetryContext(tabID: tabID)
+        )
+    }
+
+    private func recordMemoryPressure() {
+        TelemetryService.shared.recordMemoryPressure(context: telemetryContext())
+    }
+
+    private func telemetryContext(tabID: String? = nil) -> TelemetryContext {
+        let target = tabID.flatMap { tab($0) } ?? activeTab
+        return TelemetryContext(
+            consentAccepted: settings.privacyConsentAccepted,
+            enabled: settings.telemetryEnabled,
+            isPrivate: target?.isPrivate == true
+        )
     }
 
     func openLibrary(_ tab: LibraryTab) {

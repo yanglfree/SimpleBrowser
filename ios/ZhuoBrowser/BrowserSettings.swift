@@ -126,6 +126,7 @@ struct BrowserSettings: Equatable {
     var gestureTabSwitchEnabled: Bool = true
     var gestureBlockingEnabled: Bool = true
     var autoHideToolbarEnabled: Bool = true
+    var telemetryEnabled: Bool = false
     var privacyConsentAccepted: Bool = false
     var onboardingCompleted: Bool = false
     var appearance: AppearanceMode = .system
@@ -163,7 +164,7 @@ struct BrowserSettings: Equatable {
     enum CodingKeys: String, CodingKey {
         case searchEngine, customSearchTemplate, blockAds, searchSuggestionsEnabled
         case gesturesEnabled, gestureActionsEnabled, gestureTabSwitchEnabled
-        case gestureBlockingEnabled, autoHideToolbarEnabled
+        case gestureBlockingEnabled, autoHideToolbarEnabled, telemetryEnabled
         case privacyConsentAccepted, onboardingCompleted, appearance
         case quickSitesEnabled, quickSiteLimit, homeBackgroundStyle
         case tabExpiry, historyRetentionDays, liveWebViewLimit, tabSoftLimit
@@ -186,6 +187,7 @@ struct BrowserSettings: Equatable {
         gestureTabSwitchEnabled: Bool = true,
         gestureBlockingEnabled: Bool = true,
         autoHideToolbarEnabled: Bool = true,
+        telemetryEnabled: Bool = false,
         privacyConsentAccepted: Bool = false,
         onboardingCompleted: Bool = false,
         appearance: AppearanceMode = .system,
@@ -220,6 +222,7 @@ struct BrowserSettings: Equatable {
         self.gestureTabSwitchEnabled = gestureTabSwitchEnabled
         self.gestureBlockingEnabled = gestureBlockingEnabled
         self.autoHideToolbarEnabled = autoHideToolbarEnabled
+        self.telemetryEnabled = telemetryEnabled
         self.privacyConsentAccepted = privacyConsentAccepted
         self.onboardingCompleted = onboardingCompleted
         self.appearance = appearance
@@ -259,6 +262,7 @@ struct BrowserSettings: Equatable {
         gestureTabSwitchEnabled = try container.decodeIfPresent(Bool.self, forKey: .gestureTabSwitchEnabled) ?? true
         gestureBlockingEnabled = try container.decodeIfPresent(Bool.self, forKey: .gestureBlockingEnabled) ?? true
         autoHideToolbarEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoHideToolbarEnabled) ?? true
+        telemetryEnabled = try container.decodeIfPresent(Bool.self, forKey: .telemetryEnabled) ?? false
         privacyConsentAccepted = try container.decodeIfPresent(Bool.self, forKey: .privacyConsentAccepted) ?? false
         onboardingCompleted = try container.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? false
         appearance = try container.decodeIfPresent(AppearanceMode.self, forKey: .appearance) ?? .system
@@ -331,6 +335,7 @@ struct BrowserSettings: Equatable {
         try container.encode(gestureTabSwitchEnabled, forKey: .gestureTabSwitchEnabled)
         try container.encode(gestureBlockingEnabled, forKey: .gestureBlockingEnabled)
         try container.encode(autoHideToolbarEnabled, forKey: .autoHideToolbarEnabled)
+        try container.encode(telemetryEnabled, forKey: .telemetryEnabled)
         try container.encode(privacyConsentAccepted, forKey: .privacyConsentAccepted)
         try container.encode(onboardingCompleted, forKey: .onboardingCompleted)
         try container.encode(appearance, forKey: .appearance)

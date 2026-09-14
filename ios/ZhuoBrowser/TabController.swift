@@ -7,6 +7,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     let webView: WKWebView
     weak var session: BrowserSession?
     private var installedRuleLists: Set<String>
+    private var navigationStartedAt: TimeInterval?
     private let pageStateMessageHandler: WeakScriptMessageHandler
     private let securityMessageHandler: WeakScriptMessageHandler
 
@@ -460,6 +461,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        navigationStartedAt = ProcessInfo.processInfo.systemUptime
         session?.resetObservedBlocking(tabID: id)
         session?.update(tabID: id) { tab in
             tab.isLoading = true
@@ -477,6 +479,13 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if let startedAt = navigationStartedAt {
+            session?.recordPageLoad(
+                milliseconds: (ProcessInfo.processInfo.systemUptime - startedAt) * 1_000,
+                tabID: id
+            )
+        }
+        navigationStartedAt = nil
         session?.update(tabID: id) { tab in
             tab.isLoading = false
             if let url = webView.url?.absoluteString, !url.isEmpty {
@@ -520,6 +529,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        navigationStartedAt = nil
         let loadError = PageLoadErrorKind.classify(error)
         session?.update(tabID: id) { tab in
             tab.isLoading = false
@@ -535,6 +545,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        navigationStartedAt = nil
         let loadError = PageLoadErrorKind.classify(error)
         session?.update(tabID: id) { tab in
             tab.isLoading = false

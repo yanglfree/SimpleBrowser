@@ -326,6 +326,12 @@ struct SettingsSheet: View {
                     Toggle("关闭标签时清除 Cookie", isOn: clearCookiesOnTabCloseBinding)
                         .tint(DesignTokens.accent)
                         .accessibilityIdentifier("settings-clear-cookies-on-close")
+                    Toggle("本机性能与使用统计", isOn: telemetryBinding)
+                        .tint(DesignTokens.accent)
+                        .accessibilityIdentifier("settings-telemetry")
+                    Text("默认关闭。开启后只向 Apple Unified Logging 写入启动、页面耗时、内存告警和操作名称；不记录网址、标题、查询或文章内容，无痕标签始终不写入。")
+                        .font(.caption)
+                        .foregroundStyle(DesignTokens.textSecondary)
                     Button("清除浏览数据", role: .destructive) {
                         showsClearBrowsingData = true
                     }
@@ -615,6 +621,13 @@ struct SettingsSheet: View {
         Binding(
             get: { session.settings.clearCookiesOnTabClose },
             set: { session.setClearCookiesOnTabClose($0) }
+        )
+    }
+
+    private var telemetryBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.telemetryEnabled },
+            set: { session.setTelemetryEnabled($0) }
         )
     }
 }

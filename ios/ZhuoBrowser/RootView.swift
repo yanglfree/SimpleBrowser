@@ -602,6 +602,7 @@ struct RootView: View {
             ) else {
                 return
             }
+            session.recordActionUsage("blocking")
             session.showsBlockPanel = true
         }
     }

@@ -9,57 +9,72 @@ struct PageActionsSheet: View {
         NavigationStack {
             List {
                 Section("阅读与显示") {
-                    actionButton(session.activeTab?.isReader == true ? "退出阅读模式" : "阅读模式") {
+                    actionButton(
+                        session.activeTab?.isReader == true ? "退出阅读模式" : "阅读模式",
+                        telemetryKey: "reader"
+                    ) {
                         session.toggleReader()
                     }
                     .disabled(!isBrowsing)
-                    actionButton("在页面中查找") { session.beginFind() }
+                    actionButton("在页面中查找", telemetryKey: "find") { session.beginFind() }
                         .disabled(!isBrowsing)
-                    actionButton("网页显示") { session.showsPageSettings = true }
+                    actionButton("网页显示", telemetryKey: "page_settings") { session.showsPageSettings = true }
                         .disabled(!isBrowsing)
-                    actionButton("内容拦截") { session.showsBlockPanel = true }
+                    actionButton("内容拦截", telemetryKey: "blocking") { session.showsBlockPanel = true }
                         .disabled(!isBrowsing)
-                    actionButton("网站安全") { session.openSecurityPanel() }
+                    actionButton("网站安全", telemetryKey: "security") { session.openSecurityPanel() }
                         .disabled(!isBrowsing)
                 }
 
                 Section("收藏与文章") {
-                    actionButton(session.isCurrentPageSaved() ? "取消书签" : "加入书签") {
+                    actionButton(
+                        session.isCurrentPageSaved() ? "取消书签" : "加入书签",
+                        telemetryKey: "bookmark"
+                    ) {
                         session.toggleSaved()
                     }
                     .disabled(!isBrowsing)
-                    actionButton(session.isCurrentPageSavedForLater() ? "已加入稍后读" : "稍后阅读") {
+                    actionButton(
+                        session.isCurrentPageSavedForLater() ? "已加入稍后读" : "稍后阅读",
+                        telemetryKey: "read_later"
+                    ) {
                         session.saveCurrentPageForLater()
                     }
                     .disabled(!isBrowsing || isPrivate)
-                    actionButton(isSavingArticle ? "正在保存文章" : "保存离线文章") {
+                    actionButton(
+                        isSavingArticle ? "正在保存文章" : "保存离线文章",
+                        telemetryKey: "article_save"
+                    ) {
                         session.captureCurrentArticle()
                     }
                     .disabled(!isBrowsing || isPrivate || isSavingArticle)
-                    actionButton("离线文章库") { session.openArticleLibrary() }
-                    actionButton("书签与历史") { session.openLibrary(.bookmarks) }
-                    actionButton("导航历史") { session.openNavigationHistory() }
+                    actionButton("离线文章库", telemetryKey: "article_library") { session.openArticleLibrary() }
+                    actionButton("书签与历史", telemetryKey: "library") { session.openLibrary(.bookmarks) }
+                    actionButton("导航历史", telemetryKey: "navigation_history") { session.openNavigationHistory() }
                         .disabled(session.activeController == nil)
                 }
 
                 Section("分享与工具") {
-                    actionButton("分享") { session.shareCurrentPage() }
+                    actionButton("分享", telemetryKey: "share") { session.shareCurrentPage() }
                         .disabled(!isBrowsing)
-                    actionButton(session.isGeneratingScreenshot ? "正在生成长截图" : "分享页面长截图") {
+                    actionButton(
+                        session.isGeneratingScreenshot ? "正在生成长截图" : "分享页面长截图",
+                        telemetryKey: "long_screenshot"
+                    ) {
                         Task { await session.shareCurrentScreenshot() }
                     }
                     .disabled(!isBrowsing || session.isGeneratingScreenshot)
                     .accessibilityIdentifier("page-share-screenshot")
-                    actionButton("复制链接") { session.copyCurrentLink() }
+                    actionButton("复制链接", telemetryKey: "copy_link") { session.copyCurrentLink() }
                         .disabled(!isBrowsing)
                         .accessibilityIdentifier("page-copy-link")
-                    actionButton("访问剪贴板链接") { session.visitClipboardLink() }
+                    actionButton("访问剪贴板链接", telemetryKey: "clipboard_visit") { session.visitClipboardLink() }
                         .accessibilityIdentifier("page-visit-clipboard")
-                    actionButton("报告页面问题") { session.reportPageIssue() }
+                    actionButton("报告页面问题", telemetryKey: "report_issue") { session.reportPageIssue() }
                         .disabled(!isBrowsing)
                         .accessibilityIdentifier("page-report-issue")
-                    actionButton("下载") { session.showsDownloads = true }
-                    actionButton("设置") { session.showsSettings = true }
+                    actionButton("下载", telemetryKey: "downloads") { session.showsDownloads = true }
+                    actionButton("设置", telemetryKey: "settings") { session.showsSettings = true }
                 }
             }
             .scrollContentBackground(.hidden)
@@ -87,8 +102,13 @@ struct PageActionsSheet: View {
         session.activeTab.map { session.articles.capturingURLs.contains($0.url) } ?? false
     }
 
-    private func actionButton(_ title: String, action: @escaping () -> Void) -> some View {
+    private func actionButton(
+        _ title: String,
+        telemetryKey: String,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(title) {
+            session.recordActionUsage(telemetryKey)
             dismiss()
             DispatchQueue.main.async(execute: action)
         }

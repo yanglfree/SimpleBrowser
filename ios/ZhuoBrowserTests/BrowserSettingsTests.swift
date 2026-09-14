@@ -13,6 +13,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertTrue(settings.gestureTabSwitchEnabled)
         XCTAssertTrue(settings.gestureBlockingEnabled)
         XCTAssertTrue(settings.autoHideToolbarEnabled)
+        XCTAssertFalse(settings.telemetryEnabled)
         XCTAssertEqual(settings.appearance, .system)
         XCTAssertTrue(settings.quickSitesEnabled)
         XCTAssertEqual(settings.quickSiteLimit, 6)
@@ -50,6 +51,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertTrue(settings.gestureTabSwitchEnabled)
         XCTAssertTrue(settings.gestureBlockingEnabled)
         XCTAssertTrue(settings.autoHideToolbarEnabled)
+        XCTAssertFalse(settings.telemetryEnabled)
         XCTAssertEqual(settings.homeBackgroundStyle, .forest)
         XCTAssertEqual(settings.tabExpiry, .sevenDays)
         XCTAssertEqual(settings.historyRetention, .thirtyDays)
@@ -75,7 +77,8 @@ final class BrowserSettingsTests: XCTestCase {
             gestureActionsEnabled: false,
             gestureTabSwitchEnabled: false,
             gestureBlockingEnabled: false,
-            autoHideToolbarEnabled: false
+            autoHideToolbarEnabled: false,
+            telemetryEnabled: true
         )
 
         XCTAssertEqual(expected.customSearchTemplate, "https://search.example/?q=%s")
