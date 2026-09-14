@@ -422,6 +422,28 @@ final class BrowserSession: ObservableObject {
         }
     }
 
+    func refreshPage(tabID: String) {
+        guard let current = tab(tabID),
+              PageRefreshPolicy.isEnabled(
+                  isBrowsing: !URLPolicy.isHomeURL(current.url),
+                  isReader: current.isReader,
+                  isLoading: current.isLoading,
+                  hasLoadError: current.loadError != .none
+              ),
+              let controller = controllers[tabID] else {
+            return
+        }
+        update(tabID: tabID) { tab in
+            tab.isLoading = true
+            tab.progress = 0
+        }
+        if !controller.reload() {
+            update(tabID: tabID) { tab in
+                tab.isLoading = false
+            }
+        }
+    }
+
     @discardableResult
     func createTab(isPrivate: Bool, select: Bool = true) -> String? {
         guard tabs.count < SessionPolicy.maxTabCount else {

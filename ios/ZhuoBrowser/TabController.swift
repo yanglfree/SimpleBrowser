@@ -142,11 +142,12 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         webView.go(to: item)
     }
 
-    func reload() {
+    @discardableResult
+    func reload() -> Bool {
         if URLPolicy.isHomeURL(session?.tab(id)?.url ?? "") {
-            return
+            return false
         }
-        webView.reload()
+        return webView.reload() != nil
     }
 
     func stop() {

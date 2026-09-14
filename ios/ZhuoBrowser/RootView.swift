@@ -420,8 +420,16 @@ struct RootView: View {
         } else if let controller = session.controller(for: tabID) {
             BrowserWebView(
                 webView: controller.webView,
+                isPageLoading: tab?.isLoading == true,
+                isRefreshEnabled: PageRefreshPolicy.isEnabled(
+                    isBrowsing: !URLPolicy.isHomeURL(tab?.url ?? URLPolicy.homeURL),
+                    isReader: tab?.isReader == true,
+                    isLoading: tab?.isLoading == true,
+                    hasLoadError: tab?.loadError != .none
+                ),
                 onFocus: { session.focusPane(tabID) },
-                onScroll: { offset in handlePageScroll(tabID: tabID, offset: offset) }
+                onScroll: { offset in handlePageScroll(tabID: tabID, offset: offset) },
+                onRefresh: { session.refreshPage(tabID: tabID) }
             )
             .id(tabID)
             .overlay {
