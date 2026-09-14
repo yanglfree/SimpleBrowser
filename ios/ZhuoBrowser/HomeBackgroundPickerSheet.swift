@@ -41,7 +41,8 @@ struct HomeBackgroundPickerSheet: View {
                 HStack(spacing: 14) {
                     option(
                         title: "每日美图",
-                        selected: session.settings.homeBackgroundStyle == .daily,
+                        selected: session.settings.homeBackgroundEnabled &&
+                            session.settings.homeBackgroundStyle == .daily,
                         identifier: "home-background-daily",
                         action: {
                             session.setHomeBackgroundStyle(.daily)
@@ -64,10 +65,10 @@ struct HomeBackgroundPickerSheet: View {
 
                     option(
                         title: "无背景",
-                        selected: session.settings.homeBackgroundStyle == .plain,
+                        selected: !session.settings.homeBackgroundEnabled,
                         identifier: "home-background-none",
                         action: {
-                            session.setHomeBackgroundStyle(.plain)
+                            session.setHomeBackgroundEnabled(false)
                             dismiss()
                         }
                     ) {
@@ -92,7 +93,8 @@ struct HomeBackgroundPickerSheet: View {
                     } else {
                         option(
                             title: "自定义",
-                            selected: session.settings.homeBackgroundStyle == .custom,
+                            selected: session.settings.homeBackgroundEnabled &&
+                                session.settings.homeBackgroundStyle == .custom,
                             identifier: "home-background-custom",
                             action: {
                                 session.setHomeBackgroundStyle(.custom)

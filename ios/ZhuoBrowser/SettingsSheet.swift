@@ -229,13 +229,17 @@ struct SettingsSheet: View {
                     }
                     .disabled(!session.settings.quickSitesEnabled)
                     .accessibilityIdentifier("settings-quick-site-limit")
+                    Toggle("显示首页背景", isOn: homeBackgroundEnabledBinding)
+                        .tint(DesignTokens.accent)
+                        .accessibilityIdentifier("settings-home-background-enabled")
                     Picker("首页背景", selection: homeBackgroundBinding) {
                         ForEach(HomeBackgroundStyle.selectableCases) { style in
                             Text(style.label).tag(style)
                         }
                     }
+                    .disabled(!session.settings.homeBackgroundEnabled)
                     .accessibilityIdentifier("settings-home-background")
-                    if session.settings.homeBackgroundStyle.isBuiltIn {
+                    if session.settings.homeBackgroundEnabled && session.settings.homeBackgroundStyle.isBuiltIn {
                         Picker("竖屏图片", selection: homePortraitPresetBinding) {
                             ForEach(HomePortraitBackgroundPreset.allCases) { preset in
                                 Text(preset.label).tag(preset)
@@ -609,6 +613,13 @@ struct SettingsSheet: View {
         Binding(
             get: { session.settings.homeBackgroundStyle },
             set: { session.setHomeBackgroundStyle($0) }
+        )
+    }
+
+    private var homeBackgroundEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.homeBackgroundEnabled },
+            set: { session.setHomeBackgroundEnabled($0) }
         )
     }
 

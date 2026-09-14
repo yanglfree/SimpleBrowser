@@ -1225,13 +1225,25 @@ final class BrowserSession: ObservableObject {
     }
 
     func setHomeBackgroundStyle(_ style: HomeBackgroundStyle) {
-        settings.homeBackgroundStyle = style.isBuiltIn ? .forest : style
+        if style == .plain {
+            settings.homeBackgroundEnabled = false
+        } else {
+            settings.homeBackgroundEnabled = true
+            settings.homeBackgroundStyle = style.isBuiltIn ? .forest : style
+        }
+        persistSettings()
+        refreshHomeBackground()
+    }
+
+    func setHomeBackgroundEnabled(_ enabled: Bool) {
+        settings.homeBackgroundEnabled = enabled
         persistSettings()
         refreshHomeBackground()
     }
 
     func setHomePortraitPreset(_ preset: HomePortraitBackgroundPreset) {
         settings.homePortraitPreset = preset
+        settings.homeBackgroundEnabled = true
         settings.homeBackgroundStyle = .forest
         persistSettings()
         refreshHomeBackground()
@@ -1239,6 +1251,7 @@ final class BrowserSession: ObservableObject {
 
     func setHomeLandscapePreset(_ preset: HomeLandscapeBackgroundPreset) {
         settings.homeLandscapePreset = preset
+        settings.homeBackgroundEnabled = true
         settings.homeBackgroundStyle = .forest
         persistSettings()
         refreshHomeBackground()
@@ -1250,6 +1263,7 @@ final class BrowserSession: ObservableObject {
                 try HomeBackgroundService.importCustomImage(data)
             }.value
             homeBackgroundImage = UIImage(data: normalized)
+            settings.homeBackgroundEnabled = true
             settings.homeBackgroundStyle = .custom
             persistSettings()
         } catch {
@@ -1258,6 +1272,11 @@ final class BrowserSession: ObservableObject {
     }
 
     func refreshHomeBackground() {
+        guard settings.homeBackgroundEnabled else {
+            homeBackgroundImage = nil
+            isHomeBackgroundLoading = false
+            return
+        }
         let style = settings.homeBackgroundStyle
         if style != .daily && style != .custom {
             homeBackgroundImage = nil
@@ -1275,7 +1294,9 @@ final class BrowserSession: ObservableObject {
         isHomeBackgroundLoading = true
         Task { [weak self] in
             let data = await HomeBackgroundService.dailyImageData()
-            guard let self, self.settings.homeBackgroundStyle == .daily else { return }
+            guard let self,
+                  self.settings.homeBackgroundEnabled,
+                  self.settings.homeBackgroundStyle == .daily else { return }
             self.homeBackgroundImage = data.flatMap(UIImage.init(data:))
             self.isHomeBackgroundLoading = false
         }

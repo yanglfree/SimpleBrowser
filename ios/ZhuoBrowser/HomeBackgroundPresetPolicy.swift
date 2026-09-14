@@ -61,7 +61,7 @@ enum HomeBackgroundPresetChoice: Equatable, Identifiable {
     }
 
     func isSelected(in settings: BrowserSettings) -> Bool {
-        guard settings.homeBackgroundStyle.isBuiltIn else { return false }
+        guard settings.homeBackgroundEnabled, settings.homeBackgroundStyle.isBuiltIn else { return false }
         switch self {
         case let .portrait(preset): return settings.homePortraitPreset == preset
         case let .landscape(preset): return settings.homeLandscapePreset == preset

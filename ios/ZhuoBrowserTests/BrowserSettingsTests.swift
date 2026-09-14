@@ -17,6 +17,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertEqual(settings.appearance, .system)
         XCTAssertTrue(settings.quickSitesEnabled)
         XCTAssertEqual(settings.quickSiteLimit, 6)
+        XCTAssertTrue(settings.homeBackgroundEnabled)
         XCTAssertEqual(settings.homeBackgroundStyle, .forest)
         XCTAssertEqual(settings.homePortraitPreset, .mountain)
         XCTAssertEqual(settings.homeLandscapePreset, .arch)
@@ -103,6 +104,28 @@ final class BrowserSettingsTests: XCTestCase {
             )
             XCTAssertEqual(restored.homeBackgroundStyle, style)
         }
+    }
+
+    func testBackgroundEnablementPreservesSourceAndMigratesLegacyPlainStyle() throws {
+        let disabled = BrowserSettings(
+            homeBackgroundEnabled: false,
+            homeBackgroundStyle: .daily,
+            homePortraitPreset: .river,
+            homeLandscapePreset: .wood
+        )
+        let restored = try JSONDecoder().decode(
+            BrowserSettings.self,
+            from: JSONEncoder().encode(disabled)
+        )
+
+        XCTAssertEqual(restored, disabled)
+        XCTAssertFalse(restored.homeBackgroundEnabled)
+        XCTAssertEqual(restored.homeBackgroundStyle, .daily)
+
+        let legacyPlain = #"{"homeBackgroundStyle":0}"#.data(using: .utf8)!
+        let migrated = try JSONDecoder().decode(BrowserSettings.self, from: legacyPlain)
+        XCTAssertFalse(migrated.homeBackgroundEnabled)
+        XCTAssertEqual(migrated.homeBackgroundStyle, .forest)
     }
 
     func testHomeBackgroundPresetsRoundTripAndMigrateLegacyStyles() throws {

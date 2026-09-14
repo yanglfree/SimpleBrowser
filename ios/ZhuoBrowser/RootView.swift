@@ -16,6 +16,7 @@ struct RootView: View {
     @State private var pageScrollOffsets: [String: CGFloat] = [:]
     @State private var showsPageActions = false
     @State private var showsHomeBackgroundPicker = false
+    @State private var showsHomePageSettings = false
     @FocusState private var addressFocused: Bool
 
     init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
@@ -88,6 +89,18 @@ struct RootView: View {
             HomeBackgroundPickerSheet()
                 .environmentObject(session)
                 .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showsHomePageSettings) {
+            HomePageSettingsSheet(
+                onOpenBackgroundPicker: {
+                    showsHomeBackgroundPicker = true
+                },
+                onOpenSettings: { section in
+                    session.openSettings(section)
+                }
+            )
+            .environmentObject(session)
+            .presentationDetents([.medium])
         }
         .sheet(isPresented: $session.showsShare) {
             ShareSheet(items: session.shareItems)
@@ -442,7 +455,7 @@ struct RootView: View {
                 },
                 onSettings: {
                     session.focusPane(tabID)
-                    session.showsSettings = true
+                    showsHomePageSettings = true
                 },
                 onOpenBackgroundPicker: {
                     session.focusPane(tabID)

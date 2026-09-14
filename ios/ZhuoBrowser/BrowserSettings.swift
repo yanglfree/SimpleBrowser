@@ -68,7 +68,7 @@ enum HomeBackgroundStyle: Int, Codable, CaseIterable, Identifiable {
 
     var id: Int { rawValue }
 
-    static let selectableCases: [HomeBackgroundStyle] = [.plain, .forest, .daily, .custom]
+    static let selectableCases: [HomeBackgroundStyle] = [.forest, .daily, .custom]
 
     var isBuiltIn: Bool {
         self == .forest || self == .dusk || self == .ocean
@@ -136,6 +136,7 @@ struct BrowserSettings: Equatable {
     var appearance: AppearanceMode = .system
     var quickSitesEnabled: Bool = true
     var quickSiteLimit: Int = 6
+    var homeBackgroundEnabled: Bool = true
     var homeBackgroundStyle: HomeBackgroundStyle = .forest
     var homePortraitPreset: HomePortraitBackgroundPreset = .mountain
     var homeLandscapePreset: HomeLandscapeBackgroundPreset = .arch
@@ -172,7 +173,7 @@ struct BrowserSettings: Equatable {
         case gesturesEnabled, gestureActionsEnabled, gestureTabSwitchEnabled
         case gestureBlockingEnabled, autoHideToolbarEnabled, telemetryEnabled
         case privacyConsentAccepted, onboardingCompleted, appearance
-        case quickSitesEnabled, quickSiteLimit, homeBackgroundStyle
+        case quickSitesEnabled, quickSiteLimit, homeBackgroundEnabled, homeBackgroundStyle
         case homePortraitPreset, homeLandscapePreset
         case tabExpiry, historyRetentionDays, liveWebViewLimit, tabSoftLimit
         case downloadConcurrency, largeDownloadThresholdMB, wifiOnlyDownloads
@@ -200,6 +201,7 @@ struct BrowserSettings: Equatable {
         appearance: AppearanceMode = .system,
         quickSitesEnabled: Bool = true,
         quickSiteLimit: Int = 6,
+        homeBackgroundEnabled: Bool? = nil,
         homeBackgroundStyle: HomeBackgroundStyle = .forest,
         homePortraitPreset: HomePortraitBackgroundPreset = .mountain,
         homeLandscapePreset: HomeLandscapeBackgroundPreset = .arch,
@@ -237,7 +239,10 @@ struct BrowserSettings: Equatable {
         self.appearance = appearance
         self.quickSitesEnabled = quickSitesEnabled
         self.quickSiteLimit = Self.clampedQuickSiteLimit(quickSiteLimit)
-        self.homeBackgroundStyle = homeBackgroundStyle.isBuiltIn ? .forest : homeBackgroundStyle
+        self.homeBackgroundEnabled = homeBackgroundEnabled ?? (homeBackgroundStyle != .plain)
+        self.homeBackgroundStyle = homeBackgroundStyle == .plain || homeBackgroundStyle.isBuiltIn
+            ? .forest
+            : homeBackgroundStyle
         self.homePortraitPreset = homePortraitPreset
         self.homeLandscapePreset = homeLandscapePreset
         self.tabExpiry = tabExpiry
@@ -285,7 +290,13 @@ struct BrowserSettings: Equatable {
             HomeBackgroundStyle.self,
             forKey: .homeBackgroundStyle
         ) ?? .forest
-        homeBackgroundStyle = decodedBackgroundStyle.isBuiltIn ? .forest : decodedBackgroundStyle
+        homeBackgroundEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .homeBackgroundEnabled
+        ) ?? (decodedBackgroundStyle != .plain)
+        homeBackgroundStyle = decodedBackgroundStyle == .plain || decodedBackgroundStyle.isBuiltIn
+            ? .forest
+            : decodedBackgroundStyle
         homePortraitPreset = try container.decodeIfPresent(
             HomePortraitBackgroundPreset.self,
             forKey: .homePortraitPreset
@@ -364,6 +375,7 @@ struct BrowserSettings: Equatable {
         try container.encode(appearance, forKey: .appearance)
         try container.encode(quickSitesEnabled, forKey: .quickSitesEnabled)
         try container.encode(Self.clampedQuickSiteLimit(quickSiteLimit), forKey: .quickSiteLimit)
+        try container.encode(homeBackgroundEnabled, forKey: .homeBackgroundEnabled)
         try container.encode(homeBackgroundStyle, forKey: .homeBackgroundStyle)
         try container.encode(homePortraitPreset, forKey: .homePortraitPreset)
         try container.encode(homeLandscapePreset, forKey: .homeLandscapePreset)

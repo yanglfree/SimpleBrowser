@@ -31,7 +31,7 @@ struct NativeHomeView: View {
                     .frame(width: proxy.size.width, height: proxy.size.height)
             }
             .ignoresSafeArea()
-            if settings.homeBackgroundStyle != .plain {
+            if settings.homeBackgroundEnabled {
                 Color.black.opacity(0.16).ignoresSafeArea()
             }
             ScrollView {
@@ -138,6 +138,15 @@ struct NativeHomeView: View {
 
     @ViewBuilder
     private func background(isLandscape: Bool) -> some View {
+        if !settings.homeBackgroundEnabled {
+            DesignTokens.pageBackground
+        } else {
+            enabledBackground(isLandscape: isLandscape)
+        }
+    }
+
+    @ViewBuilder
+    private func enabledBackground(isLandscape: Bool) -> some View {
         switch settings.homeBackgroundStyle {
         case .plain:
             DesignTokens.pageBackground
@@ -170,10 +179,10 @@ struct NativeHomeView: View {
     }
 
     private var primaryText: Color {
-        settings.homeBackgroundStyle == .plain ? DesignTokens.textPrimary : .white
+        settings.homeBackgroundEnabled ? .white : DesignTokens.textPrimary
     }
 
     private var secondaryText: Color {
-        settings.homeBackgroundStyle == .plain ? DesignTokens.textSecondary : .white.opacity(0.78)
+        settings.homeBackgroundEnabled ? .white.opacity(0.78) : DesignTokens.textSecondary
     }
 }

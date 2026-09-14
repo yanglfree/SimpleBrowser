@@ -41,6 +41,7 @@ enum SettingsSearchPolicy {
         .init(section: .blocking, label: "网站权限与允许列表", keywords: "相机 麦克风 位置 恢复拦截"),
         .init(section: .addressBar, label: "显示搜索建议", keywords: "地址栏 本地 历史 收藏 快捷项"),
         .init(section: .startPage, label: "显示快捷站点", keywords: "起始页 主页 常访问 数量 管理"),
+        .init(section: .startPage, label: "显示首页背景", keywords: "开启 关闭 保留 来源"),
         .init(section: .startPage, label: "首页背景", keywords: "每日美图 自定义照片 内置图片 竖屏 横屏 山色 静巷 河岸 拱廊 屋顶 木纹"),
         .init(section: .tabs, label: "自动归档", keywords: "标签页 清理 过期"),
         .init(section: .tabs, label: "活动网页数量", keywords: "WebView 存活 内存"),
