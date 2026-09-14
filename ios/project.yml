@@ -24,6 +24,12 @@ targets:
       - path: ZhuoBrowser/Resources/rules
         buildPhase: resources
         type: folder
+      - path: Shared
+    dependencies:
+      - target: ZhuoBrowserShareExtension
+        embed: true
+    entitlements:
+      path: ZhuoBrowser/ZhuoBrowser.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.youdroid.zhuobrowser
@@ -33,6 +39,21 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         INFOPLIST_FILE: ZhuoBrowser/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: 卓阅
+  ZhuoBrowserShareExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ZhuoBrowserShareExtension
+      - path: Shared
+    entitlements:
+      path: ZhuoBrowserShareExtension/ZhuoBrowserShareExtension.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.youdroid.zhuobrowser.share
+        PRODUCT_NAME: ZhuoBrowserShareExtension
+        GENERATE_INFOPLIST_FILE: false
+        INFOPLIST_FILE: ZhuoBrowserShareExtension/Info.plist
+        APPLICATION_EXTENSION_API_ONLY: true
   ZhuoBrowserTests:
     type: bundle.unit-test
     platform: iOS

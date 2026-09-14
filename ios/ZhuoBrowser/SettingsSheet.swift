@@ -15,6 +15,7 @@ struct SettingsSheet: View {
     @State private var exportDocument: BookmarkHTMLDocument?
     @State private var transferMessage: BookmarkTransferMessage?
     @State private var showsClearBrowsingData = false
+    @State private var showsFeedback = false
 
     var body: some View {
         NavigationStack {
@@ -260,6 +261,19 @@ struct SettingsSheet: View {
                     }
                     .accessibilityIdentifier("settings-clear-data")
                 }
+
+                Section("关于") {
+                    Button("意见反馈") {
+                        showsFeedback = true
+                    }
+                    .accessibilityIdentifier("settings-feedback")
+                    HStack {
+                        Text("版本")
+                        Spacer()
+                        Text(Self.versionLabel)
+                            .foregroundStyle(DesignTokens.textSecondary)
+                    }
+                }
             }
             .scrollContentBackground(.hidden)
             .background(DesignTokens.pageBackground)
@@ -297,6 +311,9 @@ struct SettingsSheet: View {
         .sheet(isPresented: $showsClearBrowsingData) {
             ClearBrowsingDataSheet()
                 .environmentObject(session)
+        }
+        .sheet(isPresented: $showsFeedback) {
+            FeedbackSheet()
         }
         .accessibilityIdentifier("settings-sheet")
     }
@@ -358,6 +375,12 @@ struct SettingsSheet: View {
         formatter.dateStyle = .short
         formatter.timeStyle = .short
         return formatter
+    }()
+
+    private static let versionLabel: String = {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        return "\(version) (\(build))"
     }()
 
     private var appearanceBinding: Binding<AppearanceMode> {

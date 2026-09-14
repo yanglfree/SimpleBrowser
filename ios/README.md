@@ -23,6 +23,10 @@ history deletion, retention controls, and bounded Netscape HTML import/export.
 The sixth parity batch completes download management with native progress,
 pause/resume/retry/cancel actions, concurrency and network policies, durable
 interruption and missing-file recovery, Quick Look, and completion notices.
+Later parity batches add the offline article workspace, StoreKit 2 entitlement
+verification, advanced site controls, confirmed external-protocol handoff,
+bounded long-screenshot sharing, page diagnostics, gateway feedback, and an
+iOS Share Extension for queued webpage actions.
 
 ## Setup
 
@@ -35,6 +39,10 @@ xed .
 ```
 
 From the repo root, `./run_release.sh ios -s` builds the Simulator destination and launches `com.youdroid.zhuobrowser`. Physical devices need a signing team (`DEVELOPMENT_TEAM`).
+
+The app and `ZhuoBrowserShareExtension` targets both require the App Group
+`group.com.youdroid.zhuobrowser`. Register it in the Apple Developer portal and
+include it in both provisioning profiles before signed-device or archive QA.
 
 Re-run `sync-core.sh` after Harmony script or filter-list changes.
 
@@ -50,6 +58,8 @@ In:
 
 - Settings (search engine, blocking toggle, clear site data)
 - Share the current page and download attachments via `WKDownload`
+- Share bounded long screenshots and receive webpage links through the Share Extension
+- Submit privacy-bounded product feedback through the shared gateway
 - Bookmarks, history, and address-bar suggestions (private tabs never record)
 
 - Per-site allow-list that turns off `WKContentRuleList` for that host
@@ -58,4 +68,4 @@ In:
 
 The live catch-up ledger is [`../docs/ios-harmony-parity.md`](../docs/ios-harmony-parity.md).
 
-Out until later milestones: IAP, default-browser entitlement.
+Out until later milestones: iPad workspace parity and the default-browser entitlement.

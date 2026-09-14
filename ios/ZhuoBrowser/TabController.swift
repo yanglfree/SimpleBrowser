@@ -503,7 +503,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         if let tab = session?.tab(id) {
             session?.recordVisit(of: tab)
         }
-        session?.applyAutomaticReaderIfNeeded(tabID: id)
+        session?.handleFinishedPageLoad(tabID: id)
         session?.persist()
     }
 

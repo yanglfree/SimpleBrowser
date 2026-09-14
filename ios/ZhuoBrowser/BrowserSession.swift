@@ -56,6 +56,8 @@ final class BrowserSession: ObservableObject {
     private var controllers: [String: TabController] = [:]
     private var privateStore = WKWebsiteDataStore.nonPersistent()
     private var recentlyClosedTabs: [BrowserTab] = []
+    private var disposableReaderTabIDs: Set<String> = []
+    private var pendingArticleCaptureTabIDs: Set<String> = []
     private var cancellables: Set<AnyCancellable> = []
     private var resumePromptGeneration = 0
     private let defaultsKey = "browser_session"
@@ -340,9 +342,10 @@ final class BrowserSession: ObservableObject {
         activeController?.reload()
     }
 
-    func createTab(isPrivate: Bool, select: Bool = true) {
+    @discardableResult
+    func createTab(isPrivate: Bool, select: Bool = true) -> String? {
         guard tabs.count < SessionPolicy.maxTabCount else {
-            return
+            return nil
         }
         if tabs.count >= settings.tabSoftLimit {
             showsTabSoftLimitPrompt = true
@@ -353,6 +356,7 @@ final class BrowserSession: ObservableObject {
             selectTab(tab.id)
         }
         persist()
+        return tab.id
     }
 
     func selectTab(_ id: String) {
@@ -392,6 +396,8 @@ final class BrowserSession: ObservableObject {
         controllers[id] = nil
         tabBlockStats[id] = nil
         blockEvents.removeAll { $0.tabID == id }
+        disposableReaderTabIDs.remove(id)
+        pendingArticleCaptureTabIDs.remove(id)
         tabs.removeAll { $0.id == id }
         if tabs.isEmpty {
             let home = BrowserTab.home(isPrivate: false)
@@ -520,6 +526,8 @@ final class BrowserSession: ObservableObject {
         let shouldClearCookies = settings.clearCookiesOnTabClose && tabs.contains { !$0.isPrivate }
         dismissPageResume()
         controllers.removeAll()
+        disposableReaderTabIDs.removeAll()
+        pendingArticleCaptureTabIDs.removeAll()
         let home = BrowserTab.home(isPrivate: false)
         tabs = [home]
         activeTabID = home.id
@@ -545,6 +553,10 @@ final class BrowserSession: ObservableObject {
                 }
                 self.update(tabID: current.id) { tab in
                     tab.isReader = false
+                }
+                if self.disposableReaderTabIDs.contains(current.id) {
+                    self.closeTab(current.id)
+                    return
                 }
                 self.restoreStoredScroll(tabID: current.id, promptIfActive: false)
                 self.persist()
@@ -1063,13 +1075,26 @@ final class BrowserSession: ObservableObject {
 
     func applyAutomaticReaderIfNeeded(tabID: String) {
         guard let current = tab(tabID), !current.isReader,
-              effectiveSiteControl(for: current.url).autoReaderEnabled,
+              disposableReaderTabIDs.contains(tabID) || effectiveSiteControl(for: current.url).autoReaderEnabled,
               let controller = controllers[tabID] else { return }
         controller.applyReader(settings: readerSettings) { [weak self] success in
-            guard let self, success else { return }
+            guard let self else { return }
+            guard success else {
+                if self.disposableReaderTabIDs.contains(tabID) {
+                    self.closeTab(tabID)
+                }
+                return
+            }
             self.update(tabID: tabID) { $0.isReader = true }
             self.persist()
         }
+    }
+
+    func handleFinishedPageLoad(tabID: String) {
+        if pendingArticleCaptureTabIDs.remove(tabID) != nil {
+            captureArticle(tabID: tabID)
+        }
+        applyAutomaticReaderIfNeeded(tabID: tabID)
     }
 
     func isCurrentHostAllowed() -> Bool {
@@ -1224,16 +1249,60 @@ final class BrowserSession: ObservableObject {
         externalProtocolRequest = nil
     }
 
+    func consumeInboundShares() {
+        guard settings.privacyConsentAccepted, settings.onboardingCompleted else { return }
+        do {
+            let pending = try InboundShareQueue.pending()
+            var consumed = 0
+            for request in pending {
+                guard applyInboundShare(request) else { break }
+                try InboundShareQueue.remove(request)
+                consumed += 1
+            }
+            if consumed > 0 {
+                flash("已处理 \(consumed) 个分享链接")
+            }
+        } catch {
+            #if DEBUG
+            print("Inbound share inbox unavailable: \(error)")
+            #endif
+        }
+    }
+
+    private func applyInboundShare(_ request: InboundShareRequest) -> Bool {
+        let isPrivate = request.action == .privateOpen || request.action == .readAndClose
+        guard let tabID = createTab(isPrivate: isPrivate) else {
+            flash("标签页已达上限，分享链接仍保留在收件箱")
+            return false
+        }
+        if request.action == .readAndClose {
+            disposableReaderTabIDs.insert(tabID)
+        }
+        if request.action == .saveArticle {
+            pendingArticleCaptureTabIDs.insert(tabID)
+        }
+        let target = request.action == .originalOpen ? request.rawURL : request.cleanURL
+        openInActiveTab(target)
+        if !request.title.isEmpty {
+            update(tabID: tabID) { tab in tab.title = request.title }
+        }
+        return true
+    }
+
     func captureCurrentArticle() {
+        captureArticle(tabID: activeTabID)
+    }
+
+    private func captureArticle(tabID: String) {
         guard pro.isPro else {
             showsProPaywall = true
             flash("保存离线文章需要卓阅 Pro")
             return
         }
-        guard let tab = activeTab,
+        guard let tab = tab(tabID),
               !tab.isPrivate,
               !URLPolicy.isHomeURL(tab.url),
-              let webView = activeController?.webView else {
+              let webView = controllers[tabID]?.webView else {
             return
         }
         let expectedURL = tab.url

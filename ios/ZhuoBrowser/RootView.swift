@@ -206,6 +206,7 @@ struct RootView: View {
         }
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
+            session.consumeInboundShares()
         }
         .task {
             await session.pro.activate()
@@ -223,6 +224,12 @@ struct RootView: View {
                 session.captureActivePageState()
             } else {
                 Task { await session.pro.refreshForForeground() }
+                session.consumeInboundShares()
+            }
+        }
+        .onChange(of: session.settings.onboardingCompleted) { _, completed in
+            if completed {
+                session.consumeInboundShares()
             }
         }
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
