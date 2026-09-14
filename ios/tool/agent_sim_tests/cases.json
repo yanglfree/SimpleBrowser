@@ -6,9 +6,9 @@
     "device": "Jimu QA iPhone 17",
     "os": "iOS 26.1",
     "configuration": "Debug",
-    "appBuild": "328a4f5",
+    "appBuild": "4a701fe",
     "result": "partial",
-    "passed": 18,
+    "passed": 19,
     "blocked": 1,
     "notRun": 0
   },
@@ -280,6 +280,20 @@
       "expected": "Each persisted permission decision can be changed independently while whole-origin removal remains available.",
       "result": "blocked",
       "notes": "The retained Simulator container had an empty site_permissions array. No new camera, microphone, or location request was triggered solely to manufacture QA state; policy behavior is covered by focused executable tests."
+    },
+    {
+      "id": "IOS-OMNIBOX-001",
+      "title": "Selection-aware omnibox editing shortcuts and completion",
+      "steps": [
+        "Open a retained IANA tab and focus its populated address field",
+        "Verify the existing URL is selected and the current-host, .com, .cn, www., and path shortcuts are visible",
+        "Replace the selection with openai and choose .com",
+        "Replace the text with openai again and choose the first suggestion completion action"
+      ],
+      "expected": "The address field selects its existing value, shortcuts edit without navigating, and first-result completion writes the full URL while keeping editing active.",
+      "result": "passed",
+      "evidence": "evidence/omnibox-shortcuts.png",
+      "notes": "The accessibility tree exposed a stable identifier for each shortcut. Focused Simulator tests passed 5/5 for selection edits, ordering, and idempotence."
     }
   ]
 }
