@@ -36,7 +36,12 @@ struct QuickSiteManagerView: View {
             }
         }
         .sheet(item: $editor) { request in
-            QuickSiteEditorSheet(request: request, onSave: session.saveQuickSite)
+            QuickSiteEditorSheet(
+                request: request,
+                savedItems: session.savedItems,
+                history: session.history,
+                onSave: session.saveQuickSite
+            )
         }
     }
 }

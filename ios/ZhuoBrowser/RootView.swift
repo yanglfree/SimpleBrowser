@@ -130,7 +130,12 @@ struct RootView: View {
             .presentationDetents([.medium])
         }
         .sheet(item: $quickSiteEditor) { request in
-            QuickSiteEditorSheet(request: request, onSave: session.saveQuickSite)
+            QuickSiteEditorSheet(
+                request: request,
+                savedItems: session.savedItems,
+                history: session.history,
+                onSave: session.saveQuickSite
+            )
                 .preferredColorScheme(preferredColorScheme)
         }
         .alert("恢复过期标签页？", isPresented: $session.showsExpiredTabsPrompt) {
