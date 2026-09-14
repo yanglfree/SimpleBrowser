@@ -32,6 +32,10 @@ family and uses live 600/840-point breakpoints for an adaptive browser sidebar,
 tab grid, bounded reader, and article inspector. Its workspace also supports
 same-privacy side-by-side web panes and typed independent windows with
 destination-acknowledged tab transfer.
+Content blocking can refresh the same five upstream subscriptions used by the
+HarmonyOS app. Required sources and WebKit compilation adopt atomically, while
+optional-source failures retain all other successful coverage and cached rules
+survive relaunch.
 
 ## Setup
 

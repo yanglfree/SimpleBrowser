@@ -286,6 +286,14 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         WebKernel.storeInstalledRuleLists(installed, on: webView.configuration)
     }
 
+    func replaceContentBlockerLists() {
+        let controller = webView.configuration.userContentController
+        controller.removeAllContentRuleLists()
+        installedRuleLists = []
+        WebKernel.storeInstalledRuleLists([], on: webView.configuration)
+        applyContentBlocker()
+    }
+
     func runObservableBlockingPass(for rawURL: String) {
         guard let session, !session.isBlockingAllowListed(for: rawURL) else { return }
         let control = session.effectiveSiteControl(for: rawURL)

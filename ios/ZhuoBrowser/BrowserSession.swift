@@ -117,7 +117,7 @@ final class BrowserSession: ObservableObject {
         NotificationCenter.default.publisher(for: ContentBlocker.listsDidChangeNotification)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.controllers.values.forEach { $0.applyContentBlocker() }
+                self?.controllers.values.forEach { $0.replaceContentBlockerLists() }
             }
             .store(in: &cancellables)
         NotificationCenter.default.publisher(for: .browserWindowDidOpen)
@@ -126,7 +126,6 @@ final class BrowserSession: ObservableObject {
                 self?.completeWindowTransfer(notification)
             }
             .store(in: &cancellables)
-        ContentBlocker.shared.prepare()
         readerSettings = Self.loadReaderSettings()
         settings = loadedSettings
         tabs = tabs.map { tab in
@@ -178,6 +177,16 @@ final class BrowserSession: ObservableObject {
         ensureLive(activeTabID)
         persist()
         refreshHomeBackground()
+        ContentBlocker.shared.prepare { [weak self] success, usedCachedRules in
+            guard let self, success,
+                  self.settings.privacyConsentAccepted,
+                  self.settings.onboardingCompleted,
+                  self.settings.blockAds,
+                  (!usedCachedRules || RemoteRuleStore.shouldUpdate(
+                    lastUpdatedAt: self.settings.rulesLastUpdatedAt
+                  )) else { return }
+            self.updateRemoteRules(manual: false)
+        }
     }
 
     func tab(_ id: String) -> BrowserTab? {
@@ -1191,18 +1200,20 @@ final class BrowserSession: ObservableObject {
         activeController?.reload()
     }
 
-    func reloadBundledRules() {
+    func updateRemoteRules(manual: Bool = true) {
         guard !isRulesUpdating else { return }
         isRulesUpdating = true
-        ContentBlocker.shared.reloadBundledRules { [weak self] success in
+        ContentBlocker.shared.updateRemoteRules(
+            allowsExpensiveNetworkAccess: manual
+        ) { [weak self] success, updatedAt in
             guard let self else { return }
             self.isRulesUpdating = false
-            if success {
-                self.settings.rulesLastUpdatedAt = Date().timeIntervalSince1970
+            if success, let updatedAt {
+                self.settings.rulesLastUpdatedAt = updatedAt.timeIntervalSince1970
                 self.persistSettings()
-                self.flash("内置拦截规则已重新加载")
-            } else {
-                self.flash("内置拦截规则加载失败")
+                if manual { self.flash("拦截规则已更新") }
+            } else if manual {
+                self.flash("规则更新失败，已保留当前规则")
             }
         }
     }

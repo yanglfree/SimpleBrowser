@@ -97,10 +97,10 @@ struct SettingsSheet: View {
                     .disabled(!session.settings.blockAds)
                     .accessibilityIdentifier("settings-rule-strength")
                     Button {
-                        session.reloadBundledRules()
+                        session.updateRemoteRules()
                     } label: {
                         HStack {
-                            Text("重新加载内置规则")
+                            Text("更新拦截规则")
                             Spacer()
                             if session.isRulesUpdating {
                                 ProgressView()

@@ -3,14 +3,18 @@ import Foundation
 import WebKit
 
 /// Compiles bundled EasyList JSON into one atomic `WKContentRuleList` batch.
-final class ContentBlocker {
+final class ContentBlocker: @unchecked Sendable {
     static let shared = ContentBlocker()
     static let listsDidChangeNotification = Notification.Name("com.youdroid.zhuobrowser.content-lists-changed")
 
     private let queue = DispatchQueue(label: "com.youdroid.zhuobrowser.content-blocker")
     private var lists: [WKContentRuleList] = []
-    private var reloadCompletions: [(Bool) -> Void] = []
-    private var isReloading = false
+    private var prepareCompletions: [(Bool, Bool) -> Void] = []
+    private var isPreparing = false
+    private var isPrepared = false
+    private var preparedWithCachedRules = false
+    private var remoteUpdateCompletions: [(Bool, Date?) -> Void] = []
+    private var isRemoteUpdating = false
 
     func currentLists() -> [WKContentRuleList] {
         queue.sync { lists }
@@ -26,62 +30,151 @@ final class ContentBlocker {
         }
     }
 
-    func prepare() {
-        reloadBundledRules(completion: nil)
-    }
-
-    /// Reloads the immutable rules bundled with the app. Concurrent callers join
-    /// the same work so the UI cannot start competing WebKit compiles.
-    func reloadBundledRules(completion: ((Bool) -> Void)?) {
+    func prepare(completion: ((Bool, Bool) -> Void)? = nil) {
         queue.async { [weak self] in
             guard let self else { return }
-            if let completion {
-                self.reloadCompletions.append(completion)
-            }
-            if self.isReloading {
+            if self.isPrepared {
+                if let completion {
+                    let usedCachedRules = self.preparedWithCachedRules
+                    DispatchQueue.main.async { completion(true, usedCachedRules) }
+                }
                 return
             }
-            self.isReloading = true
-            let identifiers = ["supplement", "easylistchina", "easylist"]
-            let group = DispatchGroup()
-            let compiled = CompiledRuleLists()
-            for identifier in identifiers {
-                group.enter()
-                self.compileList(identifier) { list in
-                    if let list {
-                        compiled.append(list)
+            if let completion { self.prepareCompletions.append(completion) }
+            guard !self.isPreparing else { return }
+            self.isPreparing = true
+            if let snapshot = RemoteRuleStore.cachedSnapshot(),
+               let supplement = self.bundledJSON(identifier: "supplement") {
+                let artifacts = snapshot.artifacts + [
+                    RemoteRuleArtifact(identifier: "supplement", json: supplement, count: 0, truncated: false)
+                ]
+                self.compileArtifacts(artifacts) { ready in
+                    if ready.count == artifacts.count {
+                        self.lists = ready
+                        self.postListsChanged()
+                        self.finishPrepare(success: true, usedCachedRules: true)
+                    } else {
+                        self.compileBundledForPrepare()
                     }
-                    group.leave()
                 }
+            } else {
+                self.compileBundledForPrepare()
             }
-            group.notify(queue: self.queue) {
-                let ready = compiled.snapshot()
-                let success = ready.count == identifiers.count
-                if success {
-                    self.lists = ready
+        }
+    }
+
+    private func compileBundledForPrepare() {
+        let artifacts = ["supplement", "easylistchina", "easylist"].compactMap { identifier -> RemoteRuleArtifact? in
+            guard let json = bundledJSON(identifier: identifier) else { return nil }
+            return RemoteRuleArtifact(identifier: identifier, json: json, count: 0, truncated: false)
+        }
+        compileArtifacts(artifacts) { ready in
+            let success = ready.count == 3
+            if success {
+                self.lists = ready
+                self.postListsChanged()
+            }
+            self.finishPrepare(success: success, usedCachedRules: false)
+        }
+    }
+
+    private func finishPrepare(success: Bool, usedCachedRules: Bool) {
+        isPreparing = false
+        isPrepared = success
+        preparedWithCachedRules = success && usedCachedRules
+        let completions = prepareCompletions
+        prepareCompletions = []
+        DispatchQueue.main.async {
+            completions.forEach { $0(success, usedCachedRules) }
+        }
+    }
+
+    func updateRemoteRules(
+        allowsExpensiveNetworkAccess: Bool,
+        completion: @escaping (Bool, Date?) -> Void
+    ) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            if self.isPreparing {
+                self.prepareCompletions.append { [weak self] _, _ in
+                    self?.updateRemoteRules(
+                        allowsExpensiveNetworkAccess: allowsExpensiveNetworkAccess,
+                        completion: completion
+                    )
                 }
-                self.isReloading = false
-                let completions = self.reloadCompletions
-                self.reloadCompletions = []
-                DispatchQueue.main.async {
-                    if success {
-                        NotificationCenter.default.post(name: Self.listsDidChangeNotification, object: self)
+                return
+            }
+            self.remoteUpdateCompletions.append(completion)
+            guard !self.isRemoteUpdating else { return }
+            self.isRemoteUpdating = true
+            Task {
+                do {
+                    let snapshot = try await RemoteRuleStore.fetchSnapshot(
+                        allowsExpensiveNetworkAccess: allowsExpensiveNetworkAccess
+                    )
+                    self.queue.async {
+                        guard let supplement = self.bundledJSON(identifier: "supplement") else {
+                            self.finishRemoteUpdate(success: false, updatedAt: nil)
+                            return
+                        }
+                        let artifacts = snapshot.artifacts + [
+                            RemoteRuleArtifact(identifier: "supplement", json: supplement, count: 0, truncated: false)
+                        ]
+                        self.compileArtifacts(artifacts) { compiled in
+                            guard compiled.count == artifacts.count else {
+                                self.finishRemoteUpdate(success: false, updatedAt: nil)
+                                return
+                            }
+                            do {
+                                try RemoteRuleStore.persist(snapshot)
+                                self.lists = compiled
+                                self.isPrepared = true
+                                self.preparedWithCachedRules = true
+                                self.postListsChanged()
+                                self.finishRemoteUpdate(success: true, updatedAt: snapshot.updatedAt)
+                            } catch {
+                                self.finishRemoteUpdate(success: false, updatedAt: nil)
+                            }
+                        }
                     }
-                    completions.forEach { $0(success) }
+                } catch {
+                    self.queue.async {
+                        self.finishRemoteUpdate(success: false, updatedAt: nil)
+                    }
                 }
             }
         }
     }
 
-    private func compileList(_ identifier: String, completion: @escaping (WKContentRuleList?) -> Void) {
+    private func bundledJSON(identifier: String) -> String? {
         guard let url = Bundle.main.url(forResource: identifier, withExtension: "json", subdirectory: "rules")
             ?? Bundle.main.url(forResource: identifier, withExtension: "json"),
             let json = try? String(contentsOf: url, encoding: .utf8) else {
-            completion(nil)
-            return
+            return nil
         }
+        return json
+    }
+
+    private func compileArtifacts(
+        _ artifacts: [RemoteRuleArtifact],
+        completion: @escaping ([WKContentRuleList]) -> Void
+    ) {
+        let group = DispatchGroup()
+        let compiled = CompiledRuleLists()
+        for artifact in artifacts {
+            group.enter()
+            compile(artifact) { list in
+                if let list { compiled.append(list) }
+                group.leave()
+            }
+        }
+        group.notify(queue: queue) { completion(compiled.snapshot()) }
+    }
+
+    private func compile(_ artifact: RemoteRuleArtifact, completion: @escaping (WKContentRuleList?) -> Void) {
+        let json = artifact.json
         let digest = SHA256.hash(data: Data(json.utf8)).prefix(8).map { String(format: "%02x", Int($0)) }.joined()
-        let storeIdentifier = "zhuo.\(identifier).\(digest)"
+        let storeIdentifier = "zhuo.\(artifact.identifier).\(digest)"
         let store = WKContentRuleListStore.default()
         store?.lookUpContentRuleList(forIdentifier: storeIdentifier) { existing, _ in
             if let existing {
@@ -94,6 +187,21 @@ final class ContentBlocker {
         }
         if store == nil {
             completion(nil)
+        }
+    }
+
+    private func finishRemoteUpdate(success: Bool, updatedAt: Date?) {
+        isRemoteUpdating = false
+        let completions = remoteUpdateCompletions
+        remoteUpdateCompletions = []
+        DispatchQueue.main.async {
+            completions.forEach { $0(success, updatedAt) }
+        }
+    }
+
+    private func postListsChanged() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: Self.listsDidChangeNotification, object: self)
         }
     }
 }
