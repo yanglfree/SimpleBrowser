@@ -19,8 +19,8 @@
 <body>
   <header>
     <h1>ZhuoBrowser iOS Simulator QA</h1>
-    <p class="pass">16 / 16 scenarios passed</p>
-    <p class="meta">2026-09-15 · Jimu QA iPhone 17 · iOS 26.1 · Debug</p>
+    <p class="pass">18 scenarios passed · 1 blocked</p>
+    <p class="meta">2026-09-15 · Jimu QA iPhone 17 · iOS 26.1 · Debug · 328a4f5</p>
   </header>
   <article>
     <h2><code>IOS-SETUP-001</code> Privacy gate and onboarding</h2>
@@ -107,6 +107,20 @@
     <p>The page menu exposed one-shot Mobile/Desktop actions plus per-site and global user-agent policy. Example Domain immediately applied 125% zoom and retained both Desktop and 125% after a cold launch. Global Settings exposed system/light/dark webpage appearance and 12/14/16/18 pt minimum-font choices; the selected 18 pt value was visible before relaunch. Focused tests cover legacy defaults, normalization, resolution, and round-trip persistence.</p>
     <img src="evidence/web-display-site-policy.png" alt="Persisted per-site Desktop user-agent and 125 percent zoom settings">
     <img src="evidence/web-display-global-settings.png" alt="Global webpage appearance and minimum font size controls">
+  </article>
+  <article>
+    <h2><code>IOS-SITE-CONTROL-001</code> Six-rule site controls</h2>
+    <p>Example Domain exposed all six Harmony-matched per-site policies: network rules, tracker cleanup, element cleanup, automatic reader mode, dark web pages, and desktop website. The retained record stayed inherited; focused executable tests cover persistence, precedence, and legacy decoding.</p>
+    <img src="evidence/site-control-six-rules.png" alt="Six per-site policy controls for Example Domain">
+  </article>
+  <article>
+    <h2><code>IOS-ABOUT-001</code> Persistent About surface</h2>
+    <p>Settings showed the current <code>1.0.0 (1)</code> version and opened a persistent About surface containing the product message, user agreement, privacy policy, support entry, and filing number.</p>
+    <img src="evidence/about-surface.png" alt="About surface with product, legal, support, and filing information">
+  </article>
+  <article>
+    <h2><code>IOS-SITE-PERMISSIONS-001</code> Per-kind site permission editing</h2>
+    <p>The scenario is blocked because the retained Simulator container has no saved site permission records. Camera, microphone, and location access was not requested merely to manufacture QA state. Independent mutation and preservation behavior remains covered by focused executable tests.</p>
   </article>
 </body>
 </html>

@@ -1,12 +1,16 @@
 {
   "schemaVersion": 1,
-  "suite": "ZhuoBrowser iOS HarmonyOS parity batches 1-9",
+  "suite": "ZhuoBrowser iOS HarmonyOS parity",
   "lastRun": {
     "date": "2026-09-15",
     "device": "Jimu QA iPhone 17",
     "os": "iOS 26.1",
     "configuration": "Debug",
-    "result": "passed"
+    "appBuild": "328a4f5",
+    "result": "partial",
+    "passed": 18,
+    "blocked": 1,
+    "notRun": 0
   },
   "cases": [
     {
@@ -239,6 +243,43 @@
       "evidence": "evidence/web-display-site-policy.png",
       "additionalEvidence": "evidence/web-display-global-settings.png",
       "notes": "The Simulator accessibility tree confirmed the persisted Desktop and 125% selections after relaunch. Policy normalization and legacy defaults are covered by focused tests."
+    },
+    {
+      "id": "IOS-SITE-CONTROL-001",
+      "title": "Harmony-matched six-rule site control surface",
+      "steps": [
+        "Open Example Domain and choose Content Blocking from the page menu",
+        "Expand the current-site section and open Detailed Controls",
+        "Inspect every per-site policy picker"
+      ],
+      "expected": "Network rules, tracker cleanup, element cleanup, automatic reader mode, dark web pages, and desktop website controls are all visible for the active host.",
+      "result": "passed",
+      "evidence": "evidence/site-control-six-rules.png",
+      "notes": "The retained Example Domain record remained on inherited values; persisted policy resolution and legacy four-rule decoding are covered by focused executable tests."
+    },
+    {
+      "id": "IOS-ABOUT-001",
+      "title": "Persistent product, legal, support, and filing information",
+      "steps": [
+        "Open full Settings from the native home",
+        "Scroll to About and verify the current version summary",
+        "Open About and inspect the product message, legal links, support entry, and filing number"
+      ],
+      "expected": "About remains available after onboarding and exposes the canonical product, version, legal, support, and filing information.",
+      "result": "passed",
+      "evidence": "evidence/about-surface.png"
+    },
+    {
+      "id": "IOS-SITE-PERMISSIONS-001",
+      "title": "Per-kind persisted site permission editing",
+      "steps": [
+        "Open Settings with an existing site permission record",
+        "Inspect the separate camera, microphone, and location rows",
+        "Toggle one decision and verify unrelated decisions remain unchanged"
+      ],
+      "expected": "Each persisted permission decision can be changed independently while whole-origin removal remains available.",
+      "result": "blocked",
+      "notes": "The retained Simulator container had an empty site_permissions array. No new camera, microphone, or location request was triggered solely to manufacture QA state; policy behavior is covered by focused executable tests."
     }
   ]
 }
