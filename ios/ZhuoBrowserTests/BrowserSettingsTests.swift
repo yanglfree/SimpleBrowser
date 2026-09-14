@@ -19,7 +19,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertTrue(settings.quickSitesEnabled)
         XCTAssertEqual(settings.quickSiteLimit, 6)
         XCTAssertTrue(settings.homeBackgroundEnabled)
-        XCTAssertEqual(settings.homeBackgroundStyle, .forest)
+        XCTAssertEqual(settings.homeBackgroundStyle, .daily)
         XCTAssertEqual(settings.homePortraitPreset, .mountain)
         XCTAssertEqual(settings.homeLandscapePreset, .arch)
         XCTAssertEqual(settings.tabExpiry, .sevenDays)
@@ -57,7 +57,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertTrue(settings.gestureBlockingEnabled)
         XCTAssertTrue(settings.autoHideToolbarEnabled)
         XCTAssertFalse(settings.telemetryEnabled)
-        XCTAssertEqual(settings.homeBackgroundStyle, .forest)
+        XCTAssertEqual(settings.homeBackgroundStyle, .daily)
         XCTAssertEqual(settings.homePortraitPreset, .mountain)
         XCTAssertEqual(settings.homeLandscapePreset, .arch)
         XCTAssertEqual(settings.tabExpiry, .sevenDays)
@@ -116,6 +116,14 @@ final class BrowserSettingsTests: XCTestCase {
             )
             XCTAssertEqual(restored.homeBackgroundStyle, style)
         }
+    }
+
+    func testLegacySettingsWithoutBackgroundSourceUseHarmonyDailyDefault() throws {
+        let legacy = #"{"homeBackgroundEnabled":true}"#.data(using: .utf8)!
+        let restored = try JSONDecoder().decode(BrowserSettings.self, from: legacy)
+
+        XCTAssertTrue(restored.homeBackgroundEnabled)
+        XCTAssertEqual(restored.homeBackgroundStyle, .daily)
     }
 
     func testBackgroundEnablementPreservesSourceAndMigratesLegacyPlainStyle() throws {

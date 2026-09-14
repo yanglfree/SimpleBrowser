@@ -2,6 +2,30 @@ import XCTest
 @testable import ZhuoBrowser
 
 final class HomeBackgroundPolicyTests: XCTestCase {
+    func testDailyRefreshRequiresSelectionAndCompletedPrivacyFlow() {
+        XCTAssertTrue(
+            BingDailyWallpaperPolicy.shouldRefresh(
+                backgroundEnabled: true,
+                dailySelected: true,
+                privacyConsentAccepted: true,
+                onboardingCompleted: true
+            )
+        )
+
+        for blocked in 0..<4 {
+            var conditions = [true, true, true, true]
+            conditions[blocked] = false
+            XCTAssertFalse(
+                BingDailyWallpaperPolicy.shouldRefresh(
+                    backgroundEnabled: conditions[0],
+                    dailySelected: conditions[1],
+                    privacyConsentAccepted: conditions[2],
+                    onboardingCompleted: conditions[3]
+                )
+            )
+        }
+    }
+
     func testBingArchiveResolvesOnlyExpectedImageEndpoint() throws {
         let payload = #"{"images":[{"url":"/th?id=OHR.Example_ZH-CN123.jpg&rf=LaDigue_1920x1080.jpg"}]}"#
         let url = try XCTUnwrap(BingDailyWallpaperPolicy.resolveImageURL(from: Data(payload.utf8)))

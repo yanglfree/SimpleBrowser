@@ -1201,6 +1201,7 @@ final class BrowserSession: ObservableObject {
     func finishOnboarding() {
         settings.onboardingCompleted = true
         persistSettings()
+        refreshHomeBackground()
     }
 
     func setAppearance(_ appearance: AppearanceMode) {
@@ -1288,9 +1289,12 @@ final class BrowserSession: ObservableObject {
         } else {
             homeBackgroundImage = nil
         }
-        guard style == .daily,
-              settings.privacyConsentAccepted,
-              settings.onboardingCompleted else { return }
+        guard BingDailyWallpaperPolicy.shouldRefresh(
+            backgroundEnabled: settings.homeBackgroundEnabled,
+            dailySelected: style == .daily,
+            privacyConsentAccepted: settings.privacyConsentAccepted,
+            onboardingCompleted: settings.onboardingCompleted
+        ) else { return }
         isHomeBackgroundLoading = true
         Task { [weak self] in
             let data = await HomeBackgroundService.dailyImageData()

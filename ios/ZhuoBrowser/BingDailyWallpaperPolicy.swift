@@ -6,6 +6,15 @@ enum BingDailyWallpaperPolicy {
     )!
     static let maximumImageBytes = 20 * 1_024 * 1_024
 
+    static func shouldRefresh(
+        backgroundEnabled: Bool,
+        dailySelected: Bool,
+        privacyConsentAccepted: Bool,
+        onboardingCompleted: Bool
+    ) -> Bool {
+        backgroundEnabled && dailySelected && privacyConsentAccepted && onboardingCompleted
+    }
+
     static func resolveImageURL(from data: Data) -> URL? {
         guard let archive = try? JSONDecoder().decode(BingArchive.self, from: data),
               let path = archive.images.first?.url,

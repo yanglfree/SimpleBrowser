@@ -137,7 +137,7 @@ struct BrowserSettings: Equatable {
     var quickSitesEnabled: Bool = true
     var quickSiteLimit: Int = 6
     var homeBackgroundEnabled: Bool = true
-    var homeBackgroundStyle: HomeBackgroundStyle = .forest
+    var homeBackgroundStyle: HomeBackgroundStyle = .daily
     var homePortraitPreset: HomePortraitBackgroundPreset = .mountain
     var homeLandscapePreset: HomeLandscapeBackgroundPreset = .arch
     var tabExpiry: TabExpiry = .sevenDays
@@ -202,7 +202,7 @@ struct BrowserSettings: Equatable {
         quickSitesEnabled: Bool = true,
         quickSiteLimit: Int = 6,
         homeBackgroundEnabled: Bool? = nil,
-        homeBackgroundStyle: HomeBackgroundStyle = .forest,
+        homeBackgroundStyle: HomeBackgroundStyle = .daily,
         homePortraitPreset: HomePortraitBackgroundPreset = .mountain,
         homeLandscapePreset: HomeLandscapeBackgroundPreset = .arch,
         tabExpiry: TabExpiry = .sevenDays,
@@ -289,7 +289,7 @@ struct BrowserSettings: Equatable {
         let decodedBackgroundStyle = try container.decodeIfPresent(
             HomeBackgroundStyle.self,
             forKey: .homeBackgroundStyle
-        ) ?? .forest
+        ) ?? .daily
         homeBackgroundEnabled = try container.decodeIfPresent(
             Bool.self,
             forKey: .homeBackgroundEnabled
