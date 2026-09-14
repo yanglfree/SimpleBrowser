@@ -4,11 +4,13 @@ enum BrowserLayoutClass: Int, Equatable {
     case compact = 0
     case medium = 1
     case expanded = 2
+    case desktop = 3
 
     static func resolve(width: Double) -> BrowserLayoutClass {
         if width < 600 { return .compact }
         if width < 840 { return .medium }
-        return .expanded
+        if width < 1_440 { return .expanded }
+        return .desktop
     }
 }
 
@@ -27,6 +29,7 @@ enum ArticleWorkbenchMode: Equatable {
 enum AdaptiveWorkspacePolicy {
     static let mediumMinimumWidth = 600.0
     static let expandedMinimumWidth = 840.0
+    static let desktopMinimumWidth = 1_440.0
     static let articleInspectorWidth = 320.0
     static let articleReaderMaximumWidth = 760.0
 
@@ -34,7 +37,7 @@ enum AdaptiveWorkspacePolicy {
         switch BrowserLayoutClass.resolve(width: width) {
         case .compact: return .unavailable
         case .medium: return .overlay
-        case .expanded: return .inline
+        case .expanded, .desktop: return .inline
         }
     }
 
@@ -48,7 +51,7 @@ enum AdaptiveWorkspacePolicy {
         switch BrowserLayoutClass.resolve(width: width) {
         case .compact: return .compact
         case .medium: return .switchableInspector
-        case .expanded: return .fixedInspector
+        case .expanded, .desktop: return .fixedInspector
         }
     }
 
@@ -70,7 +73,25 @@ enum AdaptiveWorkspacePolicy {
         switch BrowserLayoutClass.resolve(width: width) {
         case .compact: return 2
         case .medium: return 3
-        case .expanded: return 4
+        case .expanded, .desktop: return 4
         }
+    }
+
+    static func showsDesktopTabStrip(width: Double) -> Bool {
+        BrowserLayoutClass.resolve(width: width) == .desktop
+    }
+
+    static func desktopTabWidth(
+        availableWidth: Double,
+        tabCount: Int,
+        pinnedCount: Int
+    ) -> Double {
+        let safeCount = max(0, tabCount)
+        let safePinned = min(max(0, pinnedCount), safeCount)
+        let regularCount = safeCount - safePinned
+        guard regularCount > 0 else { return 88 }
+        let itemGaps = Double(safeCount) * 4
+        let regularWidth = availableWidth - 16 - 36 - itemGaps - Double(safePinned) * 52
+        return min(240, max(88, floor(regularWidth / Double(regularCount))))
     }
 }

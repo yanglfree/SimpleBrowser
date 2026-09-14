@@ -7,6 +7,8 @@ final class AdaptiveWorkspacePolicyTests: XCTestCase {
         XCTAssertEqual(AdaptiveWorkspacePolicy.sidebarPresentation(width: 600), .overlay)
         XCTAssertEqual(AdaptiveWorkspacePolicy.sidebarPresentation(width: 839), .overlay)
         XCTAssertEqual(AdaptiveWorkspacePolicy.sidebarPresentation(width: 840), .inline)
+        XCTAssertEqual(BrowserLayoutClass.resolve(width: 1_439), .expanded)
+        XCTAssertEqual(BrowserLayoutClass.resolve(width: 1_440), .desktop)
     }
 
     func testSidebarWidthMatchesHarmonyPaneWidths() {
@@ -37,6 +39,43 @@ final class AdaptiveWorkspacePolicyTests: XCTestCase {
         XCTAssertEqual(AdaptiveWorkspacePolicy.tabColumnCount(width: 390), 2)
         XCTAssertEqual(AdaptiveWorkspacePolicy.tabColumnCount(width: 700), 3)
         XCTAssertEqual(AdaptiveWorkspacePolicy.tabColumnCount(width: 1_024), 4)
+    }
+
+    func testDesktopTabStripMatchesHarmonySizingContract() {
+        XCTAssertFalse(AdaptiveWorkspacePolicy.showsDesktopTabStrip(width: 1_439))
+        XCTAssertTrue(AdaptiveWorkspacePolicy.showsDesktopTabStrip(width: 1_440))
+        XCTAssertEqual(
+            AdaptiveWorkspacePolicy.desktopTabWidth(
+                availableWidth: 1_000,
+                tabCount: 5,
+                pinnedCount: 1
+            ),
+            219
+        )
+        XCTAssertEqual(
+            AdaptiveWorkspacePolicy.desktopTabWidth(
+                availableWidth: 400,
+                tabCount: 6,
+                pinnedCount: 0
+            ),
+            88
+        )
+        XCTAssertEqual(
+            AdaptiveWorkspacePolicy.desktopTabWidth(
+                availableWidth: 2_000,
+                tabCount: 2,
+                pinnedCount: 0
+            ),
+            240
+        )
+        XCTAssertEqual(
+            AdaptiveWorkspacePolicy.desktopTabWidth(
+                availableWidth: 1_000,
+                tabCount: 3,
+                pinnedCount: 3
+            ),
+            88
+        )
     }
 
     func testPaneSelectionReplacesOnlyTheFocusedPane() {

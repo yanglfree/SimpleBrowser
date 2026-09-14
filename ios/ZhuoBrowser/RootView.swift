@@ -219,10 +219,10 @@ struct RootView: View {
         let presentation = AdaptiveWorkspacePolicy.sidebarPresentation(width: Double(width))
         switch presentation {
         case .unavailable:
-            browserSurface
+            browserSurface(workspaceWidth: width)
         case .overlay:
             ZStack(alignment: .trailing) {
-                browserSurface
+                browserSurface(workspaceWidth: width)
                 if sidebarVisible {
                     Color.black.opacity(0.12)
                         .ignoresSafeArea()
@@ -234,7 +234,7 @@ struct RootView: View {
             }
         case .inline:
             HStack(spacing: 0) {
-                browserSurface
+                browserSurface(workspaceWidth: width)
                 if sidebarVisible {
                     sidebar(width: width)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -243,9 +243,23 @@ struct RootView: View {
         }
     }
 
-    private var browserSurface: some View {
+    private func browserSurface(workspaceWidth: CGFloat) -> some View {
         GeometryReader { proxy in
             VStack(spacing: 0) {
+                if AdaptiveWorkspacePolicy.showsDesktopTabStrip(width: Double(workspaceWidth)) {
+                    DesktopTabStrip(
+                        availableWidth: proxy.size.width,
+                        onOpenBeside: { tabID in
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                _ = session.openTabBeside(tabID)
+                            }
+                        },
+                        onMoveToWindow: { tabID in
+                            guard let request = session.makeWindowRequest(for: tabID) else { return }
+                            openWindow(id: "browser-window", value: request)
+                        }
+                    )
+                }
                 if !toolbarHidden || !session.settings.autoHideToolbarEnabled {
                     addressBar(width: proxy.size.width)
                         .transition(.move(edge: .top).combined(with: .opacity))
