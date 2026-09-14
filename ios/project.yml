@@ -33,6 +33,9 @@ targets:
         embed: true
     entitlements:
       path: ZhuoBrowser/ZhuoBrowser.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.youdroid.zhuobrowser
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.youdroid.zhuobrowser
@@ -50,6 +53,9 @@ targets:
       - path: Shared
     entitlements:
       path: ZhuoBrowserShareExtension/ZhuoBrowserShareExtension.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.youdroid.zhuobrowser
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.youdroid.zhuobrowser.share
