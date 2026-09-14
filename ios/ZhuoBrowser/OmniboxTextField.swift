@@ -19,7 +19,7 @@ struct OmniboxTextField: UIViewRepresentable {
         field.autocorrectionType = .no
         field.keyboardType = .URL
         field.returnKeyType = .go
-        field.clearButtonMode = .never
+        field.clearButtonMode = .whileEditing
         field.borderStyle = .none
         field.font = .systemFont(ofSize: 15)
         field.textColor = .label

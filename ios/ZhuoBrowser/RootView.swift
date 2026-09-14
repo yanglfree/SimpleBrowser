@@ -603,32 +603,34 @@ struct RootView: View {
 
     private func addressBar(width: CGFloat) -> some View {
         HStack(spacing: 6) {
-            Button {
-                session.goBack()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(canGoBack ? DesignTokens.textPrimary : DesignTokens.textSecondary)
-                    .frame(width: 32, height: 36)
-            }
-            .disabled(!canGoBack)
-            .accessibilityIdentifier("nav-back")
-            .onLongPressGesture {
-                session.openNavigationHistory()
-            }
+            if !addressFocused {
+                Button {
+                    session.goBack()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(canGoBack ? DesignTokens.textPrimary : DesignTokens.textSecondary)
+                        .frame(width: 32, height: 36)
+                }
+                .disabled(!canGoBack)
+                .accessibilityIdentifier("nav-back")
+                .onLongPressGesture {
+                    session.openNavigationHistory()
+                }
 
-            Button {
-                session.goForward()
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(canGoForward ? DesignTokens.textPrimary : DesignTokens.textSecondary)
-                    .frame(width: 30, height: 36)
-            }
-            .disabled(!canGoForward)
-            .accessibilityIdentifier("nav-forward")
-            .onLongPressGesture {
-                session.openNavigationHistory()
+                Button {
+                    session.goForward()
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(canGoForward ? DesignTokens.textPrimary : DesignTokens.textSecondary)
+                        .frame(width: 30, height: 36)
+                }
+                .disabled(!canGoForward)
+                .accessibilityIdentifier("nav-forward")
+                .onLongPressGesture {
+                    session.openNavigationHistory()
+                }
             }
 
             OmniboxTextField(
@@ -645,37 +647,46 @@ struct RootView: View {
                 .frame(height: 36)
                 .background(DesignTokens.surfaceSubtle, in: Capsule())
 
-            pageActions
-
-            Button {
-                session.reloadOrStop()
-            } label: {
-                Image(systemName: session.activeTab?.isLoading == true ? "xmark" : "arrow.clockwise")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(DesignTokens.textPrimary)
-                    .frame(width: 32, height: 36)
-            }
-            .accessibilityIdentifier("nav-reload")
-
-            Button {
-                if AdaptiveWorkspacePolicy.sidebarPresentation(width: Double(width)) == .unavailable {
-                    session.toggleTabOverview()
-                } else {
-                    session.showsOverview = false
-                    sidebarPanel = .tabs
-                    withAnimation(.easeInOut(duration: 0.2)) { sidebarVisible.toggle() }
+            if addressFocused {
+                Button("取消") {
+                    cancelAddressEditing()
                 }
-            } label: {
-                Text("\(session.tabs.count)")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(DesignTokens.textPrimary)
-                    .frame(minWidth: 32, minHeight: 36)
-                    .background(DesignTokens.surfaceSubtle, in: Capsule())
-            }
-            .accessibilityIdentifier("tab-launcher")
-            .accessibilityLabel("\(session.tabs.count) 个标签页")
-            .onLongPressGesture {
-                session.showsRecentTabs = true
+                .font(.system(size: 15))
+                .foregroundStyle(DesignTokens.textSecondary)
+                .accessibilityIdentifier("omni-cancel")
+            } else {
+                pageActions
+
+                Button {
+                    session.reloadOrStop()
+                } label: {
+                    Image(systemName: session.activeTab?.isLoading == true ? "xmark" : "arrow.clockwise")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(DesignTokens.textPrimary)
+                        .frame(width: 32, height: 36)
+                }
+                .accessibilityIdentifier("nav-reload")
+
+                Button {
+                    if AdaptiveWorkspacePolicy.sidebarPresentation(width: Double(width)) == .unavailable {
+                        session.toggleTabOverview()
+                    } else {
+                        session.showsOverview = false
+                        sidebarPanel = .tabs
+                        withAnimation(.easeInOut(duration: 0.2)) { sidebarVisible.toggle() }
+                    }
+                } label: {
+                    Text("\(session.tabs.count)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DesignTokens.textPrimary)
+                        .frame(minWidth: 32, minHeight: 36)
+                        .background(DesignTokens.surfaceSubtle, in: Capsule())
+                }
+                .accessibilityIdentifier("tab-launcher")
+                .accessibilityLabel("\(session.tabs.count) 个标签页")
+                .onLongPressGesture {
+                    session.showsRecentTabs = true
+                }
             }
         }
         .padding(.horizontal, 12)
@@ -818,6 +829,13 @@ struct RootView: View {
         addressText = result.text
         addressSelection = result.selection
         addressFocused = true
+    }
+
+    private func cancelAddressEditing() {
+        addressText = displayAddress(session.activeTab?.url ?? "")
+        let caret = (addressText as NSString).length
+        addressSelection = OmniboxSelection(start: caret, end: caret)
+        addressFocused = false
     }
 
     private func displayAddress(_ url: String) -> String {
