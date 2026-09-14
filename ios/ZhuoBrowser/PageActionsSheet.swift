@@ -8,6 +8,26 @@ struct PageActionsSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("浏览") {
+                    actionButton("首页", telemetryKey: "home") {
+                        session.openInActiveTab(URLPolicy.homeURL)
+                    }
+                    .disabled(context.isHome)
+                    .accessibilityIdentifier("page-go-home")
+                    actionButton("新建无痕标签页", telemetryKey: "private_tab") {
+                        session.createTab(isPrivate: true)
+                    }
+                    .accessibilityIdentifier("page-new-private-tab")
+                    actionButton(
+                        context.isDesktop ? "切换到移动版" : "切换到桌面版",
+                        telemetryKey: "desktop"
+                    ) {
+                        session.applyUserAgentOnce(context.isDesktop ? .mobile : .desktop)
+                    }
+                    .disabled(context.isHome)
+                    .accessibilityIdentifier("page-toggle-desktop")
+                }
+
                 Section("阅读与显示") {
                     actionButton(
                         session.activeTab?.isReader == true ? "退出阅读模式" : "阅读模式",
@@ -94,11 +114,19 @@ struct PageActionsSheet: View {
     }
 
     private var isBrowsing: Bool {
-        !(session.activeTab.map { URLPolicy.isHomeURL($0.url) } ?? true)
+        context.isBrowsing
     }
 
     private var isPrivate: Bool {
-        session.activeTab?.isPrivate == true
+        context.isPrivate
+    }
+
+    private var context: PageActionContext {
+        PageActionContext(
+            url: session.activeTab?.url ?? URLPolicy.homeURL,
+            isPrivate: session.activeTab?.isPrivate == true,
+            isDesktop: session.activeTab?.isDesktop == true
+        )
     }
 
     private var isSavingArticle: Bool {
