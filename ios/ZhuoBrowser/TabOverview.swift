@@ -2,6 +2,9 @@ import SwiftUI
 
 struct TabOverview: View {
     @EnvironmentObject private var session: BrowserSession
+    let allowsWorkspaceActions: Bool
+    let onOpenBeside: (String) -> Void
+    let onMoveToWindow: (String) -> Void
 
     var body: some View {
         GeometryReader { proxy in
@@ -132,6 +135,26 @@ struct TabOverview: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("tab-card-\(tab.id)")
             .contextMenu {
+                Button("关闭标签页", systemImage: "xmark", role: .destructive) {
+                    session.closeTab(tab.id)
+                }
+                Button("关闭其他标签页", systemImage: "rectangle.stack.badge.minus") {
+                    session.closeOtherTabs(keeping: tab.id)
+                }
+                .disabled(!session.canCloseOtherTabs(keeping: tab.id))
+                Button("复制链接", systemImage: "doc.on.doc") {
+                    session.copyTabLink(tab.id)
+                }
+                .disabled(URLPolicy.isHomeURL(tab.url))
+                if allowsWorkspaceActions {
+                    Button("在右侧打开", systemImage: "rectangle.split.2x1") {
+                        onOpenBeside(tab.id)
+                    }
+                    .disabled(!session.canOpenTabBeside(tab.id))
+                    Button("移到新窗口", systemImage: "macwindow.badge.plus") {
+                        onMoveToWindow(tab.id)
+                    }
+                }
                 if !tab.isPrivate {
                     Button(tab.isPinned ? "取消固定" : "固定标签页", systemImage: tab.isPinned ? "pin.slash" : "pin") {
                         session.toggleTabPinned(tab.id)
@@ -159,6 +182,12 @@ struct TabOverview: View {
             }
             .accessibilityAction(named: "向后移动") {
                 session.reorderTab(tab.id, direction: 1)
+            }
+            .accessibilityAction(named: "复制链接") {
+                session.copyTabLink(tab.id)
+            }
+            .accessibilityAction(named: "关闭其他标签页") {
+                session.closeOtherTabs(keeping: tab.id)
             }
 
             Button {

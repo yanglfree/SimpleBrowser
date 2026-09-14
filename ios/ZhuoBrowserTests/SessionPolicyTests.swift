@@ -68,6 +68,20 @@ final class SessionPolicyTests: XCTestCase {
         XCTAssertEqual(SessionPolicy.selectedTabAfterClosing(tabs, closing: "c"), "b")
     }
 
+    func testCloseOthersStaysInsidePrivacyGroup() {
+        let normalA = makeTab(id: "normal-a")
+        let normalB = makeTab(id: "normal-b")
+        var privateA = makeTab(id: "private-a")
+        privateA.isPrivate = true
+        var privateB = makeTab(id: "private-b")
+        privateB.isPrivate = true
+        let tabs = [normalA, normalB, privateA, privateB]
+
+        XCTAssertEqual(SessionPolicy.otherTabIDs(in: tabs, keeping: "normal-a"), ["normal-b"])
+        XCTAssertEqual(SessionPolicy.otherTabIDs(in: tabs, keeping: "private-a"), ["private-b"])
+        XCTAssertEqual(SessionPolicy.otherTabIDs(in: tabs, keeping: "missing"), [])
+    }
+
     func testAdjacentTabSelectionWrapsInBothDirections() {
         let tabs = [makeTab(id: "a"), makeTab(id: "b"), makeTab(id: "c")]
 

@@ -84,6 +84,15 @@ enum SessionPolicy {
         return remaining[min(index, remaining.count - 1)].id
     }
 
+    static func otherTabIDs(in tabs: [BrowserTab], keeping id: String) -> [String] {
+        guard let target = tabs.first(where: { $0.id == id }) else {
+            return []
+        }
+        return tabs
+            .filter { $0.id != id && $0.isPrivate == target.isPrivate }
+            .map(\.id)
+    }
+
     static func adjacentTabID(_ tabs: [BrowserTab], activeTabID: String, direction: Int) -> String? {
         guard tabs.count > 1,
               direction != 0,

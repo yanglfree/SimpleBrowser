@@ -261,7 +261,20 @@ struct RootView: View {
                         }
                     }
                     if session.showsOverview {
-                        TabOverview()
+                        TabOverview(
+                            allowsWorkspaceActions: proxy.size.width >= CGFloat(
+                                AdaptiveWorkspacePolicy.mediumMinimumWidth
+                            ),
+                            onOpenBeside: { tabID in
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    _ = session.openTabBeside(tabID)
+                                }
+                            },
+                            onMoveToWindow: { tabID in
+                                guard let request = session.makeWindowRequest(for: tabID) else { return }
+                                openWindow(id: "browser-window", value: request)
+                            }
+                        )
                     }
                     pageOverlays
                 }

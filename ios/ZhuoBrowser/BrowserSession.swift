@@ -593,7 +593,36 @@ final class BrowserSession: ObservableObject {
         finishClosingTab(id)
     }
 
-    private func finishClosingTab(_ id: String) {
+    func canCloseOtherTabs(keeping id: String) -> Bool {
+        !SessionPolicy.otherTabIDs(in: tabs, keeping: id).isEmpty
+    }
+
+    func closeOtherTabs(keeping id: String) {
+        guard let target = tab(id) else { return }
+        let closeIDs = SessionPolicy.otherTabIDs(in: tabs, keeping: id)
+        guard !closeIDs.isEmpty else { return }
+        selectTab(id)
+        for closeID in closeIDs {
+            capturePageState(closeID)
+            finishClosingTab(closeID, clearCookiesIfNeeded: false)
+        }
+        if !target.isPrivate && settings.clearCookiesOnTabClose {
+            clearCookies()
+        }
+        flash("已关闭其他标签页")
+    }
+
+    func copyTabLink(_ id: String) {
+        guard let target = tab(id),
+              !URLPolicy.isHomeURL(target.url),
+              let url = URL(string: target.url) else {
+            return
+        }
+        UIPasteboard.general.url = url
+        flash("链接已复制")
+    }
+
+    private func finishClosingTab(_ id: String, clearCookiesIfNeeded: Bool = true) {
         guard let closingTab = tab(id) else {
             return
         }
@@ -626,7 +655,7 @@ final class BrowserSession: ObservableObject {
         recyclePrivateStoreIfNeeded()
         ensureLive(activeTabID)
         persist()
-        if !closingTab.isPrivate && settings.clearCookiesOnTabClose {
+        if clearCookiesIfNeeded && !closingTab.isPrivate && settings.clearCookiesOnTabClose {
             clearCookies()
         }
     }
