@@ -3,6 +3,13 @@ import XCTest
 @testable import ZhuoBrowser
 
 final class SettingsSearchPolicyTests: XCTestCase {
+    func testInitialQueryTargetsRequestedSettingsSection() {
+        XCTAssertEqual(SettingsSearchPolicy.initialQuery(for: .appearance), "应用外观")
+        XCTAssertEqual(SettingsSearchPolicy.visibleSections(for: "应用外观"), [.appearance])
+        XCTAssertEqual(SettingsSearchPolicy.initialQuery(for: .search), "搜索引擎")
+        XCTAssertEqual(SettingsSearchPolicy.visibleSections(for: "搜索引擎"), [.search])
+    }
+
     func testEmptyQueryShowsEverySection() {
         XCTAssertEqual(
             SettingsSearchPolicy.visibleSections(for: "   "),

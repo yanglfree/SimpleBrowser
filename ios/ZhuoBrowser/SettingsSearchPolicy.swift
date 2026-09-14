@@ -68,6 +68,10 @@ enum SettingsSearchPolicy {
         return Set(entries.lazy.filter { matches($0, normalizedQuery: query) }.map(\.section))
     }
 
+    static func initialQuery(for section: SettingsSection) -> String {
+        entries.first(where: { $0.section == section })?.label ?? ""
+    }
+
     static func matches(_ entry: SettingsSearchEntry, query rawQuery: String) -> Bool {
         matches(entry, normalizedQuery: normalized(rawQuery))
     }

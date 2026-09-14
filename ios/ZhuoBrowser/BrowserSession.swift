@@ -19,6 +19,7 @@ final class BrowserSession: ObservableObject {
     @Published var notice: String?
     @Published var settings = BrowserSettings()
     @Published var showsSettings = false
+    @Published var settingsInitialSection: SettingsSection? = nil
     @Published var showsDownloads = false
     @Published var showsArticles = false
     @Published var pendingArticleSelectionID: String? = nil
@@ -1210,6 +1211,11 @@ final class BrowserSession: ObservableObject {
     func setQuickSitesEnabled(_ enabled: Bool) {
         settings.quickSitesEnabled = enabled
         persistSettings()
+    }
+
+    func openSettings(_ section: SettingsSection? = nil) {
+        settingsInitialSection = section
+        showsSettings = true
     }
 
     func setQuickSiteLimit(_ limit: Int) {

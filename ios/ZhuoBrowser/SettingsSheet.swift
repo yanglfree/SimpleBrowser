@@ -22,6 +22,12 @@ struct SettingsSheet: View {
     @State private var searchTemplateError: String?
     @State private var searchQuery = ""
 
+    init(initialSection: SettingsSection? = nil) {
+        _searchQuery = State(
+            initialValue: initialSection.map(SettingsSearchPolicy.initialQuery(for:)) ?? ""
+        )
+    }
+
     var body: some View {
         NavigationStack {
             List {

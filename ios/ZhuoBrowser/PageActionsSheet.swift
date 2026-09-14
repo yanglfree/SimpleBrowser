@@ -26,6 +26,14 @@ struct PageActionsSheet: View {
                     }
                     .disabled(context.isHome)
                     .accessibilityIdentifier("page-toggle-desktop")
+                    actionButton("网页深色模式", telemetryKey: "web_dark_mode") {
+                        session.openSettings(.appearance)
+                    }
+                    .accessibilityIdentifier("page-web-dark-mode")
+                    actionButton("默认搜索引擎", telemetryKey: "search_engine") {
+                        session.openSettings(.search)
+                    }
+                    .accessibilityIdentifier("page-search-engine")
                 }
 
                 Section("阅读与显示") {
@@ -97,7 +105,7 @@ struct PageActionsSheet: View {
                         .disabled(!isBrowsing)
                         .accessibilityIdentifier("page-report-issue")
                     actionButton("下载", telemetryKey: "downloads") { session.showsDownloads = true }
-                    actionButton("设置", telemetryKey: "settings") { session.showsSettings = true }
+                    actionButton("设置", telemetryKey: "settings") { session.openSettings() }
                 }
             }
             .scrollContentBackground(.hidden)

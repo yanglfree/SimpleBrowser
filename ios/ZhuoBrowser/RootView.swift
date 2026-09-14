@@ -44,8 +44,10 @@ struct RootView: View {
                 .environmentObject(session)
                 .preferredColorScheme(preferredColorScheme)
         }
-        .sheet(isPresented: $session.showsSettings) {
-            SettingsSheet()
+        .sheet(isPresented: $session.showsSettings, onDismiss: {
+            session.settingsInitialSection = nil
+        }) {
+            SettingsSheet(initialSection: session.settingsInitialSection)
                 .environmentObject(session)
         }
         .sheet(isPresented: $session.showsDownloads) {
