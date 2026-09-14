@@ -217,6 +217,10 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         max(0, webView.scrollView.contentOffset.y)
     }
 
+    func captureLongScreenshot() async throws -> LongScreenshotResult {
+        try await LongScreenshotService.capture(webView, isReader: session?.tab(id)?.isReader == true)
+    }
+
     func captureFormDraft(completion: @escaping (String) -> Void) {
         webView.evaluateJavaScript(
             PageStatePolicy.captureFormDraftScript,
@@ -453,6 +457,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             tab.canGoBack = webView.canGoBack
             tab.canGoForward = webView.canGoForward
             tab.lastVisitedAt = Date().timeIntervalSince1970
+            tab.loadError = .none
             tab.securityState = SiteSecurityPolicy.provisionalState(
                 for: webView.url?.absoluteString ?? tab.url
             )
@@ -470,6 +475,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             }
             tab.canGoBack = webView.canGoBack
             tab.canGoForward = webView.canGoForward
+            tab.loadError = .none
             tab.securityState = SiteSecurityPolicy.state(
                 for: webView.url?.absoluteString ?? tab.url,
                 hasOnlySecureContent: webView.hasOnlySecureContent
@@ -502,22 +508,30 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        let loadError = PageLoadErrorKind.classify(error)
         session?.update(tabID: id) { tab in
             tab.isLoading = false
             tab.canGoBack = webView.canGoBack
             tab.canGoForward = webView.canGoForward
-            if SiteSecurityPolicy.isCertificateError(error) {
+            if loadError != .none {
+                tab.loadError = loadError
+            }
+            if loadError == .certificate || SiteSecurityPolicy.isCertificateError(error) {
                 tab.securityState = .certificateError
             }
         }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        let loadError = PageLoadErrorKind.classify(error)
         session?.update(tabID: id) { tab in
             tab.isLoading = false
             tab.canGoBack = webView.canGoBack
             tab.canGoForward = webView.canGoForward
-            if SiteSecurityPolicy.isCertificateError(error) {
+            if loadError != .none {
+                tab.loadError = loadError
+            }
+            if loadError == .certificate || SiteSecurityPolicy.isCertificateError(error) {
                 tab.securityState = .certificateError
             }
         }

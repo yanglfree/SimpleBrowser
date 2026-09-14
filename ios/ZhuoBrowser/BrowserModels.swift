@@ -1,5 +1,36 @@
 import Foundation
 
+enum PageLoadErrorKind: String, Codable, Equatable {
+    case none
+    case offline
+    case timeout
+    case dns
+    case certificate
+    case unknown
+
+    static func classify(_ error: Error) -> PageLoadErrorKind {
+        let code = (error as? URLError)?.code
+        switch code {
+        case .cancelled:
+            return .none
+        case .notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost,
+             .internationalRoamingOff, .dataNotAllowed:
+            return .offline
+        case .timedOut:
+            return .timeout
+        case .cannotFindHost, .dnsLookupFailed:
+            return .dns
+        case .secureConnectionFailed, .serverCertificateHasBadDate,
+             .serverCertificateUntrusted, .serverCertificateHasUnknownRoot,
+             .serverCertificateNotYetValid, .clientCertificateRejected,
+             .clientCertificateRequired:
+            return .certificate
+        default:
+            return .unknown
+        }
+    }
+}
+
 struct BrowserTab: Identifiable, Equatable, Codable {
     var id: String
     var url: String
@@ -19,6 +50,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
     var readerScrollSavedAt: TimeInterval
     var formDraft: String
     var securityState: SiteSecurityState
+    var loadError: PageLoadErrorKind
 
     static func home(isPrivate: Bool) -> BrowserTab {
         BrowserTab(
@@ -39,7 +71,8 @@ struct BrowserTab: Identifiable, Equatable, Codable {
             scrollSavedAt: 0,
             readerScrollSavedAt: 0,
             formDraft: "",
-            securityState: .unknown
+            securityState: .unknown,
+            loadError: .none
         )
     }
 
@@ -69,7 +102,8 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         scrollSavedAt: TimeInterval = 0,
         readerScrollSavedAt: TimeInterval = 0,
         formDraft: String = "",
-        securityState: SiteSecurityState = .unknown
+        securityState: SiteSecurityState = .unknown,
+        loadError: PageLoadErrorKind = .none
     ) {
         self.id = id
         self.url = url
@@ -89,12 +123,13 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         self.readerScrollSavedAt = readerScrollSavedAt
         self.formDraft = formDraft
         self.securityState = securityState
+        self.loadError = loadError
     }
 
     enum CodingKeys: String, CodingKey {
         case id, url, title, isPrivate, isLoading, progress, canGoBack, canGoForward
         case lastVisitedAt, isReader, isDesktop, isPinned
-        case scrollY, readerScrollY, scrollSavedAt, readerScrollSavedAt, formDraft, securityState
+        case scrollY, readerScrollY, scrollSavedAt, readerScrollSavedAt, formDraft, securityState, loadError
     }
 
     init(from decoder: Decoder) throws {
@@ -117,6 +152,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         readerScrollSavedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .readerScrollSavedAt) ?? 0
         formDraft = try container.decodeIfPresent(String.self, forKey: .formDraft) ?? ""
         securityState = try container.decodeIfPresent(SiteSecurityState.self, forKey: .securityState) ?? .unknown
+        loadError = try container.decodeIfPresent(PageLoadErrorKind.self, forKey: .loadError) ?? .none
     }
 
     func encode(to encoder: Encoder) throws {
@@ -139,6 +175,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         try container.encode(readerScrollSavedAt, forKey: .readerScrollSavedAt)
         try container.encode(formDraft, forKey: .formDraft)
         try container.encode(securityState, forKey: .securityState)
+        try container.encode(loadError, forKey: .loadError)
     }
 }
 

@@ -43,6 +43,22 @@ struct RootView: View {
                     .allowsHitTesting(false)
                     .accessibilityIdentifier("page-notice")
                 }
+                if session.isGeneratingScreenshot {
+                    ZStack {
+                        Color.black.opacity(0.12)
+                        VStack(spacing: 10) {
+                            ProgressView()
+                            Text("正在生成长截图…")
+                                .font(.subheadline)
+                        }
+                        .padding(.horizontal, 22)
+                        .padding(.vertical, 18)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .accessibilityIdentifier("screenshot-progress")
+                }
                 if session.pageResumeRequest?.tabID == session.activeTabID && !session.showsOverview {
                     VStack {
                         Spacer()
@@ -176,6 +192,16 @@ struct RootView: View {
                 secondaryButton: .cancel(Text("取消")) {
                     session.cancelPendingExternalProtocol()
                 }
+            )
+        }
+        .alert(item: $session.pageIssueDiagnostic) { diagnostic in
+            Alert(
+                title: Text("页面问题诊断"),
+                message: Text(diagnostic.summary),
+                primaryButton: .default(Text("复制诊断信息")) {
+                    session.copyPageIssueDiagnostic(diagnostic)
+                },
+                secondaryButton: .cancel(Text("取消"))
             )
         }
         .onAppear {
@@ -377,6 +403,11 @@ struct RootView: View {
                 session.shareCurrentPage()
             }
             .disabled(!browsing)
+            Button(session.isGeneratingScreenshot ? "正在生成长截图" : "分享页面长截图") {
+                Task { await session.shareCurrentScreenshot() }
+            }
+            .disabled(!browsing || session.isGeneratingScreenshot)
+            .accessibilityIdentifier("page-share-screenshot")
             Button("复制链接") {
                 session.copyCurrentLink()
             }
@@ -386,6 +417,11 @@ struct RootView: View {
                 session.visitClipboardLink()
             }
             .accessibilityIdentifier("page-visit-clipboard")
+            Button("报告页面问题") {
+                session.reportPageIssue()
+            }
+            .disabled(!browsing)
+            .accessibilityIdentifier("page-report-issue")
             Button("下载") {
                 session.showsDownloads = true
             }

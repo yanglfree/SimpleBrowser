@@ -92,6 +92,7 @@ final class SessionPolicyTests: XCTestCase {
         XCTAssertEqual(tab.scrollSavedAt, 0)
         XCTAssertEqual(tab.readerScrollSavedAt, 0)
         XCTAssertEqual(tab.formDraft, "")
+        XCTAssertEqual(tab.loadError, .none)
     }
 
     func testTabPageStateRoundTrips() throws {
@@ -101,6 +102,7 @@ final class SessionPolicyTests: XCTestCase {
         tab.scrollSavedAt = 1_000
         tab.readerScrollSavedAt = 2_000
         tab.formDraft = #"[{"key":"note","value":"draft"}]"#
+        tab.loadError = .timeout
 
         let decoded = try JSONDecoder().decode(BrowserTab.self, from: JSONEncoder().encode(tab))
 

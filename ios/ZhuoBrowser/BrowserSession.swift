@@ -22,6 +22,7 @@ final class BrowserSession: ObservableObject {
     @Published var showsArticles = false
     @Published var showsShare = false
     @Published var shareItems: [Any] = []
+    @Published var isGeneratingScreenshot = false
     @Published var showsLibrary = false
     @Published var libraryTab: LibraryTab = .bookmarks
     @Published var history: [HistoryEntry] = []
@@ -46,6 +47,7 @@ final class BrowserSession: ObservableObject {
     @Published var siteBlockStats: [SiteBlockStats] = []
     @Published var securityWarning: SiteSecurityWarning?
     @Published var externalProtocolRequest: ExternalProtocolRequest?
+    @Published var pageIssueDiagnostic: PageIssueDiagnostic?
     let downloads = DownloadStore()
     let articles = ArticleStore()
     let pro = ProBillingService()
@@ -1121,6 +1123,57 @@ final class BrowserSession: ObservableObject {
         }
         shareItems = items
         showsShare = true
+    }
+
+    func shareCurrentScreenshot() async {
+        guard !isGeneratingScreenshot,
+              let tab = activeTab,
+              !URLPolicy.isHomeURL(tab.url),
+              let controller = activeController else {
+            return
+        }
+        let expectedTabID = tab.id
+        let expectedURL = tab.url
+        isGeneratingScreenshot = true
+        defer { isGeneratingScreenshot = false }
+
+        do {
+            let result = try await controller.captureLongScreenshot()
+            guard activeTabID == expectedTabID, activeTab?.url == expectedURL else {
+                flash("页面已切换，截图未分享")
+                return
+            }
+            shareItems = [result.image]
+            if result.usedViewportFallback {
+                flash("长截图生成失败，已改为分享当前画面")
+            } else if result.wasTruncated {
+                flash("页面过长，已生成前 40 屏")
+            }
+            showsShare = true
+        } catch {
+            flash("无法生成页面截图")
+        }
+    }
+
+    func reportPageIssue() {
+        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url) else { return }
+        let bounds = activeController?.webView.window?.bounds ?? activeController?.webView.bounds ?? UIScreen.main.bounds
+        let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        pageIssueDiagnostic = PageIssueDiagnostic.create(
+            appVersion: "\(shortVersion) (\(build))",
+            width: bounds.width,
+            height: bounds.height,
+            loadError: tab.loadError,
+            events: observedEventsForActiveTab(),
+            control: currentSiteControl()
+        )
+    }
+
+    func copyPageIssueDiagnostic(_ diagnostic: PageIssueDiagnostic) {
+        UIPasteboard.general.string = diagnostic.summary
+        pageIssueDiagnostic = nil
+        flash("诊断信息已复制")
     }
 
     func copyCurrentLink() {
