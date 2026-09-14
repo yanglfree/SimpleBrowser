@@ -167,6 +167,12 @@ enum BlockingPolicy {
         }
     }
 
+    static func cumulativeStats(_ entries: [SiteBlockStats]) -> BlockStats {
+        entries.reduce(into: BlockStats()) { result, entry in
+            result.add(entry.stats)
+        }
+    }
+
     private static func resolve(_ mode: SiteControlMode, fallback: Bool) -> Bool {
         switch mode {
         case .inherit: return fallback

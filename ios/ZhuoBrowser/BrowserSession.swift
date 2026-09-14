@@ -1619,6 +1619,10 @@ final class BrowserSession: ObservableObject {
         return siteBlockStats.first(where: { $0.host == host })?.stats ?? BlockStats()
     }
 
+    func observedCumulativeStats() -> BlockStats {
+        BlockingPolicy.cumulativeStats(siteBlockStats)
+    }
+
     func observedEventsForActiveTab() -> [BlockEvent] {
         BlockEventPresentationPolicy.visibleEvents(blockEvents, tabID: activeTabID)
     }

@@ -241,6 +241,7 @@ struct BrowserWorkspaceSidebar: View {
 
     private var blockingPanel: some View {
         let page = session.observedStatsForActiveTab()
+        let cumulative = session.observedCumulativeStats()
         return VStack(alignment: .leading, spacing: 14) {
             Text(URLPolicy.displayHost(session.activeTab?.url ?? ""))
                 .font(.subheadline)
@@ -249,6 +250,13 @@ struct BrowserWorkspaceSidebar: View {
                 .font(.system(size: 48, weight: .medium, design: .rounded))
             Text("本页可观察清理")
                 .foregroundStyle(DesignTokens.textSecondary)
+            Divider()
+            Text("\(cumulative.total)")
+                .font(.system(size: 24, weight: .medium, design: .rounded))
+            Text("全局累计可观察清理")
+                .font(.caption)
+                .foregroundStyle(DesignTokens.textSecondary)
+                .accessibilityIdentifier("sidebar-block-cumulative-total")
             Divider()
             Button("查看详细控制") { session.showsBlockPanel = true }
                 .buttonStyle(.borderedProminent)

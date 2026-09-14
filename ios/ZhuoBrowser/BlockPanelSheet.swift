@@ -37,11 +37,18 @@ struct BlockPanelSheet: View {
                             .environmentObject(session)
                     }
                     HStack {
-                        Text("累计可观察清理")
+                        Text("本站累计可观察清理")
                         Spacer()
                         Text("\(siteStats.total)")
                             .foregroundStyle(DesignTokens.textSecondary)
                     }
+                    HStack {
+                        Text("全局累计可观察清理")
+                        Spacer()
+                        Text("\(cumulativeStats.total)")
+                            .foregroundStyle(DesignTokens.textSecondary)
+                    }
+                    .accessibilityIdentifier("block-cumulative-total")
                     NavigationLink {
                         BlockEventSheet(events: events)
                     } label: {
@@ -79,6 +86,7 @@ struct BlockPanelSheet: View {
 
     private var pageStats: BlockStats { session.observedStatsForActiveTab() }
     private var siteStats: BlockStats { session.observedStatsForCurrentSite() }
+    private var cumulativeStats: BlockStats { session.observedCumulativeStats() }
     private var events: [BlockEvent] { session.observedEventsForActiveTab() }
 
     private var siteBlockingBinding: Binding<Bool> {

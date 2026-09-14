@@ -95,6 +95,13 @@ final class BlockingPolicyTests: XCTestCase {
             stats,
             [SiteBlockStats(host: "example.com", stats: BlockStats(ads: 2, trackers: 1, popups: 3, cookieBanners: 4))]
         )
+        XCTAssertEqual(
+            BlockingPolicy.cumulativeStats([
+                SiteBlockStats(host: "example.com", stats: BlockStats(ads: 2, trackers: 1)),
+                SiteBlockStats(host: "other.example", stats: BlockStats(ads: -5, popups: 3))
+            ]),
+            BlockStats(ads: 2, trackers: 1, popups: 3, cookieBanners: 0)
+        )
     }
 
     func testBlockStatsOnlyAddsNonnegativeCounts() {
