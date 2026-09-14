@@ -1,8 +1,10 @@
 import SwiftUI
+import UIKit
 
 struct NativeHomeView: View {
     let sites: [QuickSite]
     let settings: BrowserSettings
+    let backgroundImage: UIImage?
     let onOpen: (String) -> Void
     var onAdd: () -> Void = {}
     var onEdit: (QuickSite) -> Void = { _ in }
@@ -135,6 +137,14 @@ struct NativeHomeView: View {
             LinearGradient(colors: [Color(hex: "#574765"), Color(hex: "#C48675")], startPoint: .top, endPoint: .bottomTrailing)
         case .ocean:
             LinearGradient(colors: [Color(hex: "#245A73"), Color(hex: "#86B8BE")], startPoint: .topLeading, endPoint: .bottom)
+        case .daily, .custom:
+            if let backgroundImage {
+                Image(uiImage: backgroundImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                LinearGradient(colors: [Color(hex: "#31584D"), Color(hex: "#91AA91")], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
         }
     }
 

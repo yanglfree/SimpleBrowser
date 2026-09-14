@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import UniformTypeIdentifiers
 
 private struct BookmarkTransferMessage: Identifiable {
@@ -16,6 +17,7 @@ struct SettingsSheet: View {
     @State private var transferMessage: BookmarkTransferMessage?
     @State private var showsClearBrowsingData = false
     @State private var showsFeedback = false
+    @State private var selectedHomePhoto: PhotosPickerItem?
 
     var body: some View {
         NavigationStack {
@@ -171,6 +173,25 @@ struct SettingsSheet: View {
                         }
                     }
                     .accessibilityIdentifier("settings-home-background")
+                    PhotosPicker(selection: $selectedHomePhoto, matching: .images) {
+                        Label(
+                            session.settings.homeBackgroundStyle == .custom ? "更换自定义照片" : "选择自定义照片",
+                            systemImage: "photo"
+                        )
+                    }
+                    .accessibilityIdentifier("settings-home-background-photo")
+                    if session.settings.homeBackgroundStyle == .daily && session.isHomeBackgroundLoading {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("正在更新每日美图…")
+                                .foregroundStyle(DesignTokens.textSecondary)
+                        }
+                        .accessibilityIdentifier("settings-home-background-loading")
+                    } else if session.settings.homeBackgroundStyle == .custom && session.homeBackgroundImage == nil {
+                        Text("请选择一张照片；图片会保存到应用私有目录。")
+                            .font(.caption)
+                            .foregroundStyle(DesignTokens.textSecondary)
+                    }
                     NavigationLink("管理快捷站点") {
                         QuickSiteManagerView()
                             .environmentObject(session)
@@ -314,6 +335,17 @@ struct SettingsSheet: View {
         }
         .sheet(isPresented: $showsFeedback) {
             FeedbackSheet()
+        }
+        .onChange(of: selectedHomePhoto) { _, item in
+            guard let item else { return }
+            Task {
+                defer { selectedHomePhoto = nil }
+                guard let data = try? await item.loadTransferable(type: Data.self) else {
+                    session.flash("无法读取这张图片")
+                    return
+                }
+                await session.importCustomHomeBackground(data)
+            }
         }
         .accessibilityIdentifier("settings-sheet")
     }

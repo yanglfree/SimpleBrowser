@@ -10,6 +10,7 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertEqual(settings.appearance, .system)
         XCTAssertTrue(settings.quickSitesEnabled)
         XCTAssertEqual(settings.quickSiteLimit, 6)
+        XCTAssertEqual(settings.homeBackgroundStyle, .forest)
         XCTAssertEqual(settings.tabExpiry, .sevenDays)
         XCTAssertEqual(settings.historyRetention, .thirtyDays)
         XCTAssertEqual(settings.liveWebViewLimit, 4)
@@ -53,6 +54,17 @@ final class BrowserSettingsTests: XCTestCase {
     func testQuickSiteLimitIsClampedDuringInitialization() {
         XCTAssertEqual(BrowserSettings(quickSiteLimit: 1).quickSiteLimit, 4)
         XCTAssertEqual(BrowserSettings(quickSiteLimit: 99).quickSiteLimit, 8)
+    }
+
+    func testDailyAndCustomBackgroundStylesRoundTrip() throws {
+        for style in [HomeBackgroundStyle.daily, .custom] {
+            let expected = BrowserSettings(homeBackgroundStyle: style)
+            let restored = try JSONDecoder().decode(
+                BrowserSettings.self,
+                from: JSONEncoder().encode(expected)
+            )
+            XCTAssertEqual(restored.homeBackgroundStyle, style)
+        }
     }
 
     func testTabResourceSettingsUseSupportedValues() {

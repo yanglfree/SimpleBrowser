@@ -63,6 +63,8 @@ enum HomeBackgroundStyle: Int, Codable, CaseIterable, Identifiable {
     case forest = 1
     case dusk = 2
     case ocean = 3
+    case daily = 4
+    case custom = 5
 
     var id: Int { rawValue }
 
@@ -72,6 +74,8 @@ enum HomeBackgroundStyle: Int, Codable, CaseIterable, Identifiable {
         case .forest: return "松林"
         case .dusk: return "暮色"
         case .ocean: return "远海"
+        case .daily: return "每日美图"
+        case .custom: return "自定义照片"
         }
     }
 }

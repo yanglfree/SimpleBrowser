@@ -50,6 +50,8 @@ final class BrowserSession: ObservableObject {
     @Published var externalProtocolRequest: ExternalProtocolRequest?
     @Published var pageIssueDiagnostic: PageIssueDiagnostic?
     @Published var paneState = BrowserPaneState(primaryTabID: "")
+    @Published var homeBackgroundImage: UIImage?
+    @Published var isHomeBackgroundLoading = false
     let downloads = DownloadStore()
     let articles = ArticleStore()
     let pro = ProBillingService()
@@ -175,6 +177,7 @@ final class BrowserSession: ObservableObject {
             .store(in: &cancellables)
         ensureLive(activeTabID)
         persist()
+        refreshHomeBackground()
     }
 
     func tab(_ id: String) -> BrowserTab? {
@@ -970,6 +973,44 @@ final class BrowserSession: ObservableObject {
     func setHomeBackgroundStyle(_ style: HomeBackgroundStyle) {
         settings.homeBackgroundStyle = style
         persistSettings()
+        refreshHomeBackground()
+    }
+
+    func importCustomHomeBackground(_ data: Data) async {
+        do {
+            let normalized = try await Task.detached(priority: .userInitiated) {
+                try HomeBackgroundService.importCustomImage(data)
+            }.value
+            homeBackgroundImage = UIImage(data: normalized)
+            settings.homeBackgroundStyle = .custom
+            persistSettings()
+        } catch {
+            flash("无法使用这张图片")
+        }
+    }
+
+    func refreshHomeBackground() {
+        let style = settings.homeBackgroundStyle
+        if style != .daily && style != .custom {
+            homeBackgroundImage = nil
+            isHomeBackgroundLoading = false
+            return
+        }
+        if let cached = HomeBackgroundService.cachedImageData(for: style) {
+            homeBackgroundImage = UIImage(data: cached)
+        } else {
+            homeBackgroundImage = nil
+        }
+        guard style == .daily,
+              settings.privacyConsentAccepted,
+              settings.onboardingCompleted else { return }
+        isHomeBackgroundLoading = true
+        Task { [weak self] in
+            let data = await HomeBackgroundService.dailyImageData()
+            guard let self, self.settings.homeBackgroundStyle == .daily else { return }
+            self.homeBackgroundImage = data.flatMap(UIImage.init(data:))
+            self.isHomeBackgroundLoading = false
+        }
     }
 
     func setTabExpiry(_ expiry: TabExpiry) {

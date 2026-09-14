@@ -367,6 +367,7 @@ struct RootView: View {
             NativeHomeView(
                 sites: session.quickSites,
                 settings: session.settings,
+                backgroundImage: session.homeBackgroundImage,
                 onOpen: { url in
                     session.focusPane(tabID)
                     session.openInActiveTab(url)
