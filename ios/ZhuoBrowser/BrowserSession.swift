@@ -201,7 +201,11 @@ final class BrowserSession: ObservableObject {
     }
 
     func openInActiveTab(_ raw: String) {
-        let address = URLPolicy.normalizeAddress(raw, engine: settings.searchEngine)
+        let address = URLPolicy.normalizeAddress(
+            raw,
+            engine: settings.searchEngine,
+            customTemplate: settings.customSearchTemplate
+        )
         let usesDesktop = WebAppearancePolicy.usesDesktopUserAgent(for: address, settings: settings)
         prepareNavigation(tabID: activeTabID, to: address)
         update(tabID: activeTabID) { tab in
@@ -335,7 +339,11 @@ final class BrowserSession: ObservableObject {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let search = URLPolicy.looksLikeURL(trimmed)
             ? ""
-            : URLPolicy.searchURL(trimmed, engine: settings.searchEngine)
+            : URLPolicy.searchURL(
+                trimmed,
+                engine: settings.searchEngine,
+                customTemplate: settings.customSearchTemplate
+            )
         return LibraryPolicy.suggestions(
             query: query,
             history: history,
@@ -936,6 +944,26 @@ final class BrowserSession: ObservableObject {
 
     func setSearchEngine(_ engine: SearchEngine) {
         settings.searchEngine = engine
+        persistSettings()
+    }
+
+    func setCustomSearchTemplate(_ template: String) {
+        settings.customSearchTemplate = BrowserSettings.normalizedSearchTemplate(template)
+        persistSettings()
+    }
+
+    func setGesturesEnabled(_ enabled: Bool) {
+        settings.gesturesEnabled = enabled
+        persistSettings()
+    }
+
+    func setGestureTabSwitchEnabled(_ enabled: Bool) {
+        settings.gestureTabSwitchEnabled = enabled
+        persistSettings()
+    }
+
+    func setAutoHideToolbarEnabled(_ enabled: Bool) {
+        settings.autoHideToolbarEnabled = enabled
         persistSettings()
     }
 

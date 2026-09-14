@@ -7,6 +7,10 @@ final class BrowserSettingsTests: XCTestCase {
 
         XCTAssertFalse(settings.privacyConsentAccepted)
         XCTAssertFalse(settings.onboardingCompleted)
+        XCTAssertEqual(settings.customSearchTemplate, "")
+        XCTAssertTrue(settings.gesturesEnabled)
+        XCTAssertTrue(settings.gestureTabSwitchEnabled)
+        XCTAssertTrue(settings.autoHideToolbarEnabled)
         XCTAssertEqual(settings.appearance, .system)
         XCTAssertTrue(settings.quickSitesEnabled)
         XCTAssertEqual(settings.quickSiteLimit, 6)
@@ -38,6 +42,10 @@ final class BrowserSettingsTests: XCTestCase {
         XCTAssertEqual(settings.searchEngine, .baidu)
         XCTAssertFalse(settings.blockAds)
         XCTAssertFalse(settings.privacyConsentAccepted)
+        XCTAssertEqual(settings.customSearchTemplate, "")
+        XCTAssertTrue(settings.gesturesEnabled)
+        XCTAssertTrue(settings.gestureTabSwitchEnabled)
+        XCTAssertTrue(settings.autoHideToolbarEnabled)
         XCTAssertEqual(settings.homeBackgroundStyle, .forest)
         XCTAssertEqual(settings.tabExpiry, .sevenDays)
         XCTAssertEqual(settings.historyRetention, .thirtyDays)
@@ -54,6 +62,23 @@ final class BrowserSettingsTests: XCTestCase {
     func testQuickSiteLimitIsClampedDuringInitialization() {
         XCTAssertEqual(BrowserSettings(quickSiteLimit: 1).quickSiteLimit, 4)
         XCTAssertEqual(BrowserSettings(quickSiteLimit: 99).quickSiteLimit, 8)
+    }
+
+    func testSearchAndGestureSettingsRoundTrip() throws {
+        let expected = BrowserSettings(
+            customSearchTemplate: " https://search.example/?q=%s ",
+            gesturesEnabled: false,
+            gestureTabSwitchEnabled: false,
+            autoHideToolbarEnabled: false
+        )
+
+        XCTAssertEqual(expected.customSearchTemplate, "https://search.example/?q=%s")
+        let restored = try JSONDecoder().decode(
+            BrowserSettings.self,
+            from: JSONEncoder().encode(expected)
+        )
+        XCTAssertEqual(restored, expected)
+        XCTAssertEqual(BrowserSettings(customSearchTemplate: "https://invalid.example").customSearchTemplate, "")
     }
 
     func testDailyAndCustomBackgroundStylesRoundTrip() throws {

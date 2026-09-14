@@ -118,8 +118,12 @@ enum HistoryRetention: Int, Codable, CaseIterable, Identifiable {
 
 struct BrowserSettings: Equatable {
     var searchEngine: SearchEngine = .bing
+    var customSearchTemplate: String = ""
     var blockAds: Bool = true
     var searchSuggestionsEnabled: Bool = true
+    var gesturesEnabled: Bool = true
+    var gestureTabSwitchEnabled: Bool = true
+    var autoHideToolbarEnabled: Bool = true
     var privacyConsentAccepted: Bool = false
     var onboardingCompleted: Bool = false
     var appearance: AppearanceMode = .system
@@ -155,7 +159,8 @@ struct BrowserSettings: Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case searchEngine, blockAds, searchSuggestionsEnabled
+        case searchEngine, customSearchTemplate, blockAds, searchSuggestionsEnabled
+        case gesturesEnabled, gestureTabSwitchEnabled, autoHideToolbarEnabled
         case privacyConsentAccepted, onboardingCompleted, appearance
         case quickSitesEnabled, quickSiteLimit, homeBackgroundStyle
         case tabExpiry, historyRetentionDays, liveWebViewLimit, tabSoftLimit
@@ -170,8 +175,12 @@ struct BrowserSettings: Equatable {
 
     init(
         searchEngine: SearchEngine = .bing,
+        customSearchTemplate: String = "",
         blockAds: Bool = true,
         searchSuggestionsEnabled: Bool = true,
+        gesturesEnabled: Bool = true,
+        gestureTabSwitchEnabled: Bool = true,
+        autoHideToolbarEnabled: Bool = true,
         privacyConsentAccepted: Bool = false,
         onboardingCompleted: Bool = false,
         appearance: AppearanceMode = .system,
@@ -198,8 +207,12 @@ struct BrowserSettings: Equatable {
         rulesLastUpdatedAt: TimeInterval = 0
     ) {
         self.searchEngine = searchEngine
+        self.customSearchTemplate = Self.normalizedSearchTemplate(customSearchTemplate)
         self.blockAds = blockAds
         self.searchSuggestionsEnabled = searchSuggestionsEnabled
+        self.gesturesEnabled = gesturesEnabled
+        self.gestureTabSwitchEnabled = gestureTabSwitchEnabled
+        self.autoHideToolbarEnabled = autoHideToolbarEnabled
         self.privacyConsentAccepted = privacyConsentAccepted
         self.onboardingCompleted = onboardingCompleted
         self.appearance = appearance
@@ -229,8 +242,14 @@ struct BrowserSettings: Equatable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         searchEngine = try container.decodeIfPresent(SearchEngine.self, forKey: .searchEngine) ?? .bing
+        customSearchTemplate = Self.normalizedSearchTemplate(
+            try container.decodeIfPresent(String.self, forKey: .customSearchTemplate) ?? ""
+        )
         blockAds = try container.decodeIfPresent(Bool.self, forKey: .blockAds) ?? true
         searchSuggestionsEnabled = try container.decodeIfPresent(Bool.self, forKey: .searchSuggestionsEnabled) ?? true
+        gesturesEnabled = try container.decodeIfPresent(Bool.self, forKey: .gesturesEnabled) ?? true
+        gestureTabSwitchEnabled = try container.decodeIfPresent(Bool.self, forKey: .gestureTabSwitchEnabled) ?? true
+        autoHideToolbarEnabled = try container.decodeIfPresent(Bool.self, forKey: .autoHideToolbarEnabled) ?? true
         privacyConsentAccepted = try container.decodeIfPresent(Bool.self, forKey: .privacyConsentAccepted) ?? false
         onboardingCompleted = try container.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? false
         appearance = try container.decodeIfPresent(AppearanceMode.self, forKey: .appearance) ?? .system
@@ -295,8 +314,12 @@ struct BrowserSettings: Equatable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(searchEngine, forKey: .searchEngine)
+        try container.encode(Self.normalizedSearchTemplate(customSearchTemplate), forKey: .customSearchTemplate)
         try container.encode(blockAds, forKey: .blockAds)
         try container.encode(searchSuggestionsEnabled, forKey: .searchSuggestionsEnabled)
+        try container.encode(gesturesEnabled, forKey: .gesturesEnabled)
+        try container.encode(gestureTabSwitchEnabled, forKey: .gestureTabSwitchEnabled)
+        try container.encode(autoHideToolbarEnabled, forKey: .autoHideToolbarEnabled)
         try container.encode(privacyConsentAccepted, forKey: .privacyConsentAccepted)
         try container.encode(onboardingCompleted, forKey: .onboardingCompleted)
         try container.encode(appearance, forKey: .appearance)
@@ -360,6 +383,11 @@ struct BrowserSettings: Equatable {
 
     static func clampedMinimumFontSize(_ value: Int) -> Int {
         [12, 14, 16, 18].min(by: { abs($0 - value) < abs($1 - value) }) ?? 14
+    }
+
+    static func normalizedSearchTemplate(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty || trimmed.contains("%s") ? trimmed : ""
     }
 }
 

@@ -32,7 +32,11 @@ enum URLPolicy {
         return isAddressHost(addressHost(value))
     }
 
-    static func normalizeAddress(_ input: String, engine: SearchEngine = .bing) -> String {
+    static func normalizeAddress(
+        _ input: String,
+        engine: SearchEngine = .bing,
+        customTemplate: String = ""
+    ) -> String {
         let value = input.trimmingCharacters(in: .whitespacesAndNewlines)
         if value.isEmpty {
             return homeURL
@@ -41,7 +45,7 @@ enum URLPolicy {
         if !normalized.isEmpty {
             return normalized
         }
-        return searchURL(value, engine: engine)
+        return searchURL(value, engine: engine, customTemplate: customTemplate)
     }
 
     static func desktopURL(for url: String) -> String {
@@ -91,28 +95,41 @@ enum URLPolicy {
         return searchEndpoints[0]
     }
 
-    static func searchURL(_ query: String, engine: SearchEngine) -> String {
+    static func searchURL(
+        _ query: String,
+        engine: SearchEngine,
+        customTemplate: String = ""
+    ) -> String {
         let value = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let parts = value.split { $0.isWhitespace }.map(String.init)
         var resolved = engine
         var terms = value
+        var hasPrefix = false
         if parts.count > 1 {
             switch parts[0].lowercased() {
             case "g":
                 resolved = .google
                 terms = String(value.dropFirst(parts[0].count)).trimmingCharacters(in: .whitespaces)
+                hasPrefix = true
             case "b":
                 resolved = .baidu
                 terms = String(value.dropFirst(parts[0].count)).trimmingCharacters(in: .whitespaces)
+                hasPrefix = true
             case "ddg":
                 resolved = .duckDuckGo
                 terms = String(value.dropFirst(parts[0].count)).trimmingCharacters(in: .whitespaces)
+                hasPrefix = true
             case "bing":
                 resolved = .bing
                 terms = String(value.dropFirst(parts[0].count)).trimmingCharacters(in: .whitespaces)
+                hasPrefix = true
             default:
                 break
             }
+        }
+        let template = BrowserSettings.normalizedSearchTemplate(customTemplate)
+        if !hasPrefix, !template.isEmpty, let placeholder = template.range(of: "%s") {
+            return template.replacingCharacters(in: placeholder, with: encodeURIComponent(terms))
         }
         return searchEndpoint(resolved) + encodeURIComponent(terms)
     }

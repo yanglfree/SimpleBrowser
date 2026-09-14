@@ -202,7 +202,9 @@ struct TabOverview: View {
     private var tabSwitchGesture: some Gesture {
         DragGesture(minimumDistance: 24)
             .onEnded { value in
-                guard abs(value.translation.width) > abs(value.translation.height) * 1.5,
+                guard session.settings.gesturesEnabled,
+                      session.settings.gestureTabSwitchEnabled,
+                      abs(value.translation.width) > abs(value.translation.height) * 1.5,
                       abs(value.translation.width) >= 56 else {
                     return
                 }

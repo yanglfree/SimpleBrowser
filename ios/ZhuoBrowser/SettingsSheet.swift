@@ -18,6 +18,8 @@ struct SettingsSheet: View {
     @State private var showsClearBrowsingData = false
     @State private var showsFeedback = false
     @State private var selectedHomePhoto: PhotosPickerItem?
+    @State private var customSearchTemplate = ""
+    @State private var searchTemplateError: String?
 
     var body: some View {
         NavigationStack {
@@ -81,6 +83,43 @@ struct SettingsSheet: View {
                         }
                         .accessibilityIdentifier("search-engine-\(engine.rawValue)")
                     }
+                    TextField("https://example.com/search?q=%s", text: $customSearchTemplate)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                        .accessibilityIdentifier("settings-custom-search-template")
+                    Button("保存自定义搜索模板") {
+                        saveCustomSearchTemplate()
+                    }
+                    .accessibilityIdentifier("settings-save-search-template")
+                    if let searchTemplateError {
+                        Text(searchTemplateError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    } else {
+                        Text("留空使用所选引擎；自定义地址必须包含 %s。g、b、ddg、bing 前缀仍可临时指定引擎。")
+                            .font(.caption)
+                            .foregroundStyle(DesignTokens.textSecondary)
+                    }
+                }
+
+                Section("手势与工具栏") {
+                    Toggle("启用手势", isOn: gesturesEnabledBinding)
+                        .tint(DesignTokens.accent)
+                        .accessibilityIdentifier("settings-gestures-enabled")
+                    Toggle("横滑切换标签页", isOn: gestureTabSwitchBinding)
+                        .tint(DesignTokens.accent)
+                        .disabled(!session.settings.gesturesEnabled)
+                        .accessibilityIdentifier("settings-tab-switch-gesture")
+                    Toggle("滚动时自动隐藏工具栏", isOn: autoHideToolbarBinding)
+                        .tint(DesignTokens.accent)
+                        .accessibilityIdentifier("settings-auto-hide-toolbar")
+                    Button("恢复手势默认设置") {
+                        session.setGesturesEnabled(true)
+                        session.setGestureTabSwitchEnabled(true)
+                        session.setAutoHideToolbarEnabled(true)
+                    }
+                    .accessibilityIdentifier("settings-reset-gestures")
                 }
 
                 Section("内容拦截") {
@@ -347,6 +386,9 @@ struct SettingsSheet: View {
                 await session.importCustomHomeBackground(data)
             }
         }
+        .onAppear {
+            customSearchTemplate = session.settings.customSearchTemplate
+        }
         .accessibilityIdentifier("settings-sheet")
     }
 
@@ -381,10 +423,42 @@ struct SettingsSheet: View {
         }.joined(separator: " · ")
     }
 
+    private func saveCustomSearchTemplate() {
+        let trimmed = customSearchTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty || trimmed.contains("%s") else {
+            searchTemplateError = "自定义搜索模板必须包含 %s。"
+            return
+        }
+        session.setCustomSearchTemplate(trimmed)
+        customSearchTemplate = session.settings.customSearchTemplate
+        searchTemplateError = nil
+    }
+
     private var searchSuggestionsBinding: Binding<Bool> {
         Binding(
             get: { session.settings.searchSuggestionsEnabled },
             set: { session.setSearchSuggestionsEnabled($0) }
+        )
+    }
+
+    private var gesturesEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.gesturesEnabled },
+            set: { session.setGesturesEnabled($0) }
+        )
+    }
+
+    private var gestureTabSwitchBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.gestureTabSwitchEnabled },
+            set: { session.setGestureTabSwitchEnabled($0) }
+        )
+    }
+
+    private var autoHideToolbarBinding: Binding<Bool> {
+        Binding(
+            get: { session.settings.autoHideToolbarEnabled },
+            set: { session.setAutoHideToolbarEnabled($0) }
         )
     }
 

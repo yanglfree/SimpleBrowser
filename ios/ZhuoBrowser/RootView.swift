@@ -12,6 +12,8 @@ struct RootView: View {
     @State private var sidebarPresentation: SidebarPresentation = .unavailable
     @State private var splitDragStartRatio = 0.5
     @State private var isDraggingSplit = false
+    @State private var toolbarHidden = false
+    @State private var pageScrollOffsets: [String: CGFloat] = [:]
     @FocusState private var addressFocused: Bool
 
     init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
@@ -175,6 +177,10 @@ struct RootView: View {
         }
         .onChange(of: session.activeTabID) { _, _ in
             addressText = displayAddress(session.activeTab?.url ?? "")
+            toolbarHidden = false
+        }
+        .onChange(of: session.settings.autoHideToolbarEnabled) { _, enabled in
+            if !enabled { toolbarHidden = false }
         }
         .onChange(of: session.activeTab?.url) { _, newValue in
             if !addressFocused {
@@ -229,7 +235,10 @@ struct RootView: View {
     private var browserSurface: some View {
         GeometryReader { proxy in
             VStack(spacing: 0) {
-                addressBar(width: proxy.size.width)
+                if !toolbarHidden || !session.settings.autoHideToolbarEnabled {
+                    addressBar(width: proxy.size.width)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 if session.showsFind {
                     FindBar()
                 }
@@ -402,9 +411,11 @@ struct RootView: View {
                     .allowsHitTesting(false)
             }
         } else if let controller = session.controller(for: tabID) {
-            BrowserWebView(webView: controller.webView) {
-                session.focusPane(tabID)
-            }
+            BrowserWebView(
+                webView: controller.webView,
+                onFocus: { session.focusPane(tabID) },
+                onScroll: { offset in handlePageScroll(tabID: tabID, offset: offset) }
+            )
             .id(tabID)
             .overlay {
                 paneFocusBorder(tabID: tabID)
@@ -412,6 +423,24 @@ struct RootView: View {
             }
         } else {
             pageBackground
+        }
+    }
+
+    private func handlePageScroll(tabID: String, offset: CGFloat) {
+        let previous = pageScrollOffsets[tabID] ?? offset
+        pageScrollOffsets[tabID] = offset
+        guard tabID == session.activeTabID,
+              session.settings.autoHideToolbarEnabled,
+              !session.showsOverview,
+              !URLPolicy.isHomeURL(session.tab(tabID)?.url ?? URLPolicy.homeURL) else {
+            return
+        }
+        let delta = offset - previous
+        if offset <= 8 || delta < -4 {
+            withAnimation(.easeOut(duration: 0.18)) { toolbarHidden = false }
+        } else if offset > 36 && delta > 4 {
+            addressFocused = false
+            withAnimation(.easeOut(duration: 0.18)) { toolbarHidden = true }
         }
     }
 

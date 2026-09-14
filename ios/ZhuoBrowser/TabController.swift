@@ -68,7 +68,11 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func load(_ raw: String, rewriteDesktop: Bool = true) {
-        var address = URLPolicy.normalizeAddress(raw, engine: session?.settings.searchEngine ?? .bing)
+        var address = URLPolicy.normalizeAddress(
+            raw,
+            engine: session?.settings.searchEngine ?? .bing,
+            customTemplate: session?.settings.customSearchTemplate ?? ""
+        )
         let desktop = session?.tab(id)?.isDesktop == true
         if rewriteDesktop && desktop {
             address = URLPolicy.desktopURL(for: address)
