@@ -176,14 +176,7 @@ struct SettingsSheet: View {
                     }
                     if !session.sitePermissions.isEmpty {
                         ForEach(session.sitePermissions) { entry in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(entry.origin)
-                                    .foregroundStyle(DesignTokens.textPrimary)
-                                    .lineLimit(1)
-                                Text(permissionSummary(entry))
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(DesignTokens.textSecondary)
-                            }
+                            sitePermissionRow(entry)
                             .accessibilityIdentifier("site-permission-\(entry.origin)")
                         }
                         .onDelete { offsets in
@@ -484,14 +477,56 @@ struct SettingsSheet: View {
         visibleSections.contains(section)
     }
 
-    private func permissionSummary(_ entry: SitePermission) -> String {
-        SitePermissionKind.allCases.compactMap { kind in
-            let decision = entry.decision(for: kind)
-            guard decision != .prompt else {
-                return nil
+    private func sitePermissionRow(_ entry: SitePermission) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                Text(entry.origin)
+                    .foregroundStyle(DesignTokens.textPrimary)
+                    .lineLimit(1)
+                Spacer()
+                Button(role: .destructive) {
+                    session.removeSitePermission(entry.origin)
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("移除 \(entry.origin) 的权限设置")
             }
-            return "\(kind.label)\(decision == .allow ? "允许" : "拒绝")"
-        }.joined(separator: " · ")
+
+            ForEach(SitePermissionKind.allCases, id: \.self) { kind in
+                let decision = entry.decision(for: kind)
+                Button {
+                    session.toggleSitePermissionDecision(origin: entry.origin, kind: kind)
+                } label: {
+                    HStack(spacing: 8) {
+                        Text(kind.label)
+                            .foregroundStyle(DesignTokens.textSecondary)
+                        Spacer()
+                        Text(decision.label)
+                            .foregroundStyle(permissionColor(decision))
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(DesignTokens.textSecondary)
+                    }
+                    .font(.system(size: 13))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(entry.origin) \(kind.label)")
+                .accessibilityValue(decision.label)
+                .accessibilityHint("双击切换允许或拒绝")
+                .accessibilityIdentifier("site-permission-\(entry.origin)-\(kind.rawValue)")
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func permissionColor(_ decision: SitePermissionDecision) -> Color {
+        switch decision {
+        case .prompt: return DesignTokens.textSecondary
+        case .allow: return DesignTokens.accent
+        case .deny: return .red
+        }
     }
 
     private func saveCustomSearchTemplate() {

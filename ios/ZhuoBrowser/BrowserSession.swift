@@ -1573,6 +1573,19 @@ final class BrowserSession: ObservableObject {
         persistSitePermissions()
     }
 
+    func toggleSitePermissionDecision(origin: String, kind: SitePermissionKind) {
+        guard let stored = sitePermissions.first(where: { $0.origin == origin }) else {
+            return
+        }
+        sitePermissions = SitePermissionPolicy.apply(
+            sitePermissions,
+            origin: origin,
+            kinds: [kind],
+            decision: SitePermissionPolicy.toggledDecision(from: stored.decision(for: kind))
+        )
+        persistSitePermissions()
+    }
+
     func adsBlockEnabled(for url: String) -> Bool {
         let effective = BlockingPolicy.effectiveControl(for: url, settings: settings)
         return effective.networkBlockingEnabled && effective.trackerBlockingEnabled &&

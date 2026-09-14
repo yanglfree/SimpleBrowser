@@ -4,6 +4,14 @@ enum SitePermissionDecision: Int, Codable {
     case prompt = 0
     case allow = 1
     case deny = 2
+
+    var label: String {
+        switch self {
+        case .prompt: return "询问"
+        case .allow: return "允许"
+        case .deny: return "拒绝"
+        }
+    }
 }
 
 enum SitePermissionKind: String, Codable, CaseIterable {
@@ -50,6 +58,10 @@ struct SitePermission: Identifiable, Equatable, Codable {
 }
 
 enum SitePermissionPolicy {
+    static func toggledDecision(from current: SitePermissionDecision) -> SitePermissionDecision {
+        current == .allow ? .deny : .allow
+    }
+
     static func decision(stored: SitePermission?, kinds: [SitePermissionKind]) -> SitePermissionDecision {
         guard let stored else {
             return .prompt
