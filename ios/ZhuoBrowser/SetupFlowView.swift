@@ -43,12 +43,12 @@ private struct PrivacyConsentView: View {
                     legalRow(
                         title: "用户协议",
                         summary: "浏览服务、内容责任和付费能力边界",
-                        url: URL(string: "https://browser.youdroid.top/terms.html")!
+                        url: AppInformation.termsURL
                     )
                     legalRow(
                         title: "隐私政策",
                         summary: "本地数据、无痕浏览、权限与数据删除",
-                        url: URL(string: "https://browser.youdroid.top/privacy.html")!
+                        url: AppInformation.privacyURL
                     )
 
                     Toggle(isOn: $agreed) {

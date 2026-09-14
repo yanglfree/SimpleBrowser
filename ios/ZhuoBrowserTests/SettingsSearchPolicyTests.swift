@@ -24,6 +24,7 @@ final class SettingsSearchPolicyTests: XCTestCase {
         XCTAssertEqual(SettingsSearchPolicy.visibleSections(for: "遥测"), [.privacy])
         XCTAssertEqual(SettingsSearchPolicy.visibleSections(for: "横屏木纹"), [.startPage])
         XCTAssertEqual(SettingsSearchPolicy.visibleSections(for: "关闭首页背景"), [.startPage])
+        XCTAssertEqual(SettingsSearchPolicy.visibleSections(for: "备案号"), [.about])
     }
 
     func testMatchingIgnoresCaseAndWhitespace() {

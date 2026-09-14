@@ -189,9 +189,9 @@ struct ProPaywallView: View {
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 14) {
-                Link("用户协议", destination: URL(string: "https://browser.youdroid.top/terms.html")!)
-                Link("隐私政策", destination: URL(string: "https://browser.youdroid.top/privacy.html")!)
-                Link("联系支持", destination: URL(string: "mailto:youdroid2048@gmail.com")!)
+                Link("用户协议", destination: AppInformation.termsURL)
+                Link("隐私政策", destination: AppInformation.privacyURL)
+                Link("联系支持", destination: AppInformation.supportURL)
             }
             .font(.system(size: 12))
         }

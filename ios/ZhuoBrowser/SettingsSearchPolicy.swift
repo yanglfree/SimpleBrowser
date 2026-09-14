@@ -57,8 +57,8 @@ enum SettingsSearchPolicy {
         .init(section: .privacy, label: "关闭标签时清除 Cookie", keywords: "隐私 数据"),
         .init(section: .privacy, label: "本机性能与使用统计", keywords: "遥测 崩溃 日志"),
         .init(section: .privacy, label: "清除浏览数据", keywords: "历史 Cookie 缓存 权限"),
+        .init(section: .about, label: "关于卓阅", keywords: "版本 应用 build 标语 备案号 ICP 用户协议 隐私政策 支持 联系"),
         .init(section: .about, label: "意见反馈", keywords: "用户反馈 问题 建议 联系"),
-        .init(section: .about, label: "版本", keywords: "关于 应用 build"),
     ]
 
     static func visibleSections(for rawQuery: String) -> Set<SettingsSection> {

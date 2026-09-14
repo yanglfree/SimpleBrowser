@@ -17,6 +17,7 @@ struct SettingsSheet: View {
     @State private var transferMessage: BookmarkTransferMessage?
     @State private var showsClearBrowsingData = false
     @State private var showsFeedback = false
+    @State private var showsAbout = false
     @State private var selectedHomePhoto: PhotosPickerItem?
     @State private var customSearchTemplate = ""
     @State private var searchTemplateError: String?
@@ -48,7 +49,7 @@ struct SettingsSheet: View {
                         }
                     }
                     .accessibilityIdentifier("settings-pro")
-                    Link("联系支持", destination: URL(string: "mailto:youdroid2048@gmail.com")!)
+                    Link("联系支持", destination: AppInformation.supportURL)
                         .accessibilityIdentifier("settings-support")
                 }
                 .settingsSearchVisible(isVisible(.pro))
@@ -368,16 +369,21 @@ struct SettingsSheet: View {
                 .settingsSearchVisible(isVisible(.privacy))
 
                 Section("关于") {
+                    Button {
+                        showsAbout = true
+                    } label: {
+                        HStack {
+                            Text("关于卓阅")
+                            Spacer()
+                            Text(AppInformation.versionLabel())
+                                .foregroundStyle(DesignTokens.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-about")
                     Button("意见反馈") {
                         showsFeedback = true
                     }
                     .accessibilityIdentifier("settings-feedback")
-                    HStack {
-                        Text("版本")
-                        Spacer()
-                        Text(Self.versionLabel)
-                            .foregroundStyle(DesignTokens.textSecondary)
-                    }
                 }
                 .settingsSearchVisible(isVisible(.about))
 
@@ -430,6 +436,9 @@ struct SettingsSheet: View {
         }
         .sheet(isPresented: $showsFeedback) {
             FeedbackSheet()
+        }
+        .sheet(isPresented: $showsAbout) {
+            AboutSheet(versionLabel: AppInformation.versionLabel())
         }
         .onChange(of: selectedHomePhoto) { _, item in
             guard let item else { return }
@@ -601,12 +610,6 @@ struct SettingsSheet: View {
         formatter.dateStyle = .short
         formatter.timeStyle = .short
         return formatter
-    }()
-
-    private static let versionLabel: String = {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
-        return "\(version) (\(build))"
     }()
 
     private var appearanceBinding: Binding<AppearanceMode> {
