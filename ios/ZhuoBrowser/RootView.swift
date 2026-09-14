@@ -5,74 +5,18 @@ struct RootView: View {
     @StateObject private var session = BrowserSession()
     @State private var addressText = ""
     @State private var quickSiteEditor: QuickSiteEditorRequest?
+    @State private var sidebarPanel: BrowserSidebarPanel = .tabs
+    @State private var sidebarVisible = false
+    @State private var sidebarPresentation: SidebarPresentation = .unavailable
     @FocusState private var addressFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            addressBar
-            if session.showsFind {
-                FindBar()
-            }
-            if session.activeTab?.isReader == true && !session.showsOverview {
-                ReaderBar()
-            }
-            ZStack {
-                pageBody
-                if addressFocused && !session.showsOverview {
-                    SuggestionList(suggestions: session.suggestions(for: addressText)) { item in
-                        addressFocused = false
-                        addressText = displayAddress(item.url)
-                        session.openInActiveTab(item.url)
-                    }
+        GeometryReader { proxy in
+            adaptiveWorkspace(width: proxy.size.width)
+                .onAppear { updateLayout(width: proxy.size.width) }
+                .onChange(of: proxy.size.width) { _, width in
+                    updateLayout(width: width)
                 }
-                if session.showsOverview {
-                    TabOverview()
-                }
-                if let notice = session.notice {
-                    VStack {
-                        Text(notice)
-                            .font(.system(size: 14))
-                            .foregroundStyle(DesignTokens.textPrimary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(DesignTokens.surfacePanel, in: Capsule())
-                            .shadow(color: Color.black.opacity(0.08), radius: 8, y: 2)
-                            .padding(.top, 16)
-                        Spacer()
-                    }
-                    .allowsHitTesting(false)
-                    .accessibilityIdentifier("page-notice")
-                }
-                if session.isGeneratingScreenshot {
-                    ZStack {
-                        Color.black.opacity(0.12)
-                        VStack(spacing: 10) {
-                            ProgressView()
-                            Text("正在生成长截图…")
-                                .font(.subheadline)
-                        }
-                        .padding(.horizontal, 22)
-                        .padding(.vertical, 18)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                    .accessibilityIdentifier("screenshot-progress")
-                }
-                if session.pageResumeRequest?.tabID == session.activeTabID && !session.showsOverview {
-                    VStack {
-                        Spacer()
-                        PageResumePrompt(
-                            onContinue: session.continuePageResume,
-                            onStartOver: session.startPageResumeFromTop
-                        )
-                        .padding(.horizontal, 14)
-                        .padding(.bottom, 12)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(pageBackground)
         .environmentObject(session)
@@ -90,9 +34,10 @@ struct RootView: View {
             DownloadSheet()
                 .environmentObject(session)
         }
-        .sheet(isPresented: $session.showsArticles) {
+        .fullScreenCover(isPresented: $session.showsArticles) {
             ArticleLibrarySheet()
                 .environmentObject(session)
+                .preferredColorScheme(preferredColorScheme)
         }
         .sheet(isPresented: $session.showsProPaywall) {
             ProPaywallView()
@@ -235,6 +180,129 @@ struct RootView: View {
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
     }
 
+    @ViewBuilder
+    private func adaptiveWorkspace(width: CGFloat) -> some View {
+        let presentation = AdaptiveWorkspacePolicy.sidebarPresentation(width: Double(width))
+        switch presentation {
+        case .unavailable:
+            browserSurface(width: width)
+        case .overlay:
+            ZStack(alignment: .trailing) {
+                browserSurface(width: width)
+                if sidebarVisible {
+                    Color.black.opacity(0.12)
+                        .ignoresSafeArea()
+                        .onTapGesture { sidebarVisible = false }
+                    sidebar(width: width)
+                        .shadow(color: Color.black.opacity(0.12), radius: 16, x: -3)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+        case .inline:
+            HStack(spacing: 0) {
+                browserSurface(width: width)
+                if sidebarVisible {
+                    sidebar(width: width)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+        }
+    }
+
+    private func browserSurface(width: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            addressBar(width: width)
+            if session.showsFind {
+                FindBar()
+            }
+            if session.activeTab?.isReader == true && !session.showsOverview {
+                ReaderBar()
+            }
+            ZStack {
+                pageBody
+                if addressFocused && !session.showsOverview {
+                    SuggestionList(suggestions: session.suggestions(for: addressText)) { item in
+                        addressFocused = false
+                        addressText = displayAddress(item.url)
+                        session.openInActiveTab(item.url)
+                    }
+                }
+                if session.showsOverview {
+                    TabOverview()
+                }
+                pageOverlays
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var pageOverlays: some View {
+        ZStack {
+            if let notice = session.notice {
+                VStack {
+                    Text(notice)
+                        .font(.system(size: 14))
+                        .foregroundStyle(DesignTokens.textPrimary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(DesignTokens.surfacePanel, in: Capsule())
+                        .shadow(color: Color.black.opacity(0.08), radius: 8, y: 2)
+                        .padding(.top, 16)
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+                .accessibilityIdentifier("page-notice")
+            }
+            if session.isGeneratingScreenshot {
+                ZStack {
+                    Color.black.opacity(0.12)
+                    VStack(spacing: 10) {
+                        ProgressView()
+                        Text("正在生成长截图…").font(.subheadline)
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 18)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                }
+                .contentShape(Rectangle())
+                .accessibilityIdentifier("screenshot-progress")
+            }
+            if session.pageResumeRequest?.tabID == session.activeTabID && !session.showsOverview {
+                VStack {
+                    Spacer()
+                    PageResumePrompt(
+                        onContinue: session.continuePageResume,
+                        onStartOver: session.startPageResumeFromTop
+                    )
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func sidebar(width: CGFloat) -> some View {
+        BrowserWorkspaceSidebar(panel: $sidebarPanel) {
+            withAnimation(.easeInOut(duration: 0.2)) { sidebarVisible = false }
+        }
+        .environmentObject(session)
+        .frame(width: CGFloat(AdaptiveWorkspacePolicy.sidebarWidth(width: Double(width))))
+    }
+
+    private func updateLayout(width: CGFloat) {
+        let next = AdaptiveWorkspacePolicy.sidebarPresentation(width: Double(width))
+        if next == .unavailable {
+            sidebarVisible = false
+            session.showsOverview = false
+        } else if next == .inline && sidebarPresentation != .inline {
+            sidebarVisible = true
+        }
+        sidebarPresentation = next
+    }
+
     private var pageBackground: Color {
         if session.activeTab?.isReader == true {
             return Color(hex: ReaderTheme.theme(for: session.readerSettings.paper).background)
@@ -277,7 +345,7 @@ struct RootView: View {
         }
     }
 
-    private var addressBar: some View {
+    private func addressBar(width: CGFloat) -> some View {
         HStack(spacing: 6) {
             Button {
                 session.goBack()
@@ -336,7 +404,13 @@ struct RootView: View {
             .accessibilityIdentifier("nav-reload")
 
             Button {
-                session.showsOverview.toggle()
+                if AdaptiveWorkspacePolicy.sidebarPresentation(width: Double(width)) == .unavailable {
+                    session.showsOverview.toggle()
+                } else {
+                    session.showsOverview = false
+                    sidebarPanel = .tabs
+                    withAnimation(.easeInOut(duration: 0.2)) { sidebarVisible.toggle() }
+                }
             } label: {
                 Text("\(session.tabs.count)")
                     .font(.system(size: 13, weight: .semibold))
@@ -397,7 +471,7 @@ struct RootView: View {
             }
             .disabled(!browsing || session.activeTab?.isPrivate == true || isSavingArticle)
             Button("离线文章库") {
-                session.showsArticles = true
+                session.openArticleLibrary()
             }
             Button("书签与历史") {
                 session.openLibrary(.bookmarks)

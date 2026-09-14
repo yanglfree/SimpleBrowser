@@ -26,7 +26,9 @@ interruption and missing-file recovery, Quick Look, and completion notices.
 Later parity batches add the offline article workspace, StoreKit 2 entitlement
 verification, advanced site controls, confirmed external-protocol handoff,
 bounded long-screenshot sharing, page diagnostics, gateway feedback, and an
-iOS Share Extension for queued webpage actions.
+iOS Share Extension for queued webpage actions. iPad is a supported device
+family and uses live 600/840-point breakpoints for an adaptive browser sidebar,
+tab grid, bounded reader, and article inspector.
 
 ## Setup
 
@@ -68,4 +70,5 @@ In:
 
 The live catch-up ledger is [`../docs/ios-harmony-parity.md`](../docs/ios-harmony-parity.md).
 
-Out until later milestones: iPad workspace parity and the default-browser entitlement.
+Out until later milestones: independent browser windows, side-by-side web panes,
+and the default-browser entitlement.

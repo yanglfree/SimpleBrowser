@@ -3,83 +3,87 @@ import SwiftUI
 struct TabOverview: View {
     @EnvironmentObject private var session: BrowserSession
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
-    ]
-
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("\(session.tabs.count) 个标签页")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(DesignTokens.textPrimary)
-                Spacer()
-                if !session.archivedTabs.isEmpty {
-                    Button {
-                        session.showsExpiredTabsPrompt = true
-                    } label: {
-                        Label("\(session.archivedTabs.count)", systemImage: "archivebox")
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                HStack {
+                    Text("\(session.tabs.count) 个标签页")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DesignTokens.textPrimary)
+                    Spacer()
+                    if !session.archivedTabs.isEmpty {
+                        Button {
+                            session.showsExpiredTabsPrompt = true
+                        } label: {
+                            Label("\(session.archivedTabs.count)", systemImage: "archivebox")
+                        }
+                        .font(.system(size: 13))
+                        .foregroundStyle(DesignTokens.textSecondary)
+                        .accessibilityLabel("\(session.archivedTabs.count) 个已过期标签页")
+                        .accessibilityIdentifier("expired-tabs")
                     }
-                    .font(.system(size: 13))
-                    .foregroundStyle(DesignTokens.textSecondary)
-                    .accessibilityLabel("\(session.archivedTabs.count) 个已过期标签页")
-                    .accessibilityIdentifier("expired-tabs")
-                }
-                if session.canReopenRecentlyClosedTab {
-                    Button {
-                        session.reopenRecentlyClosedTab()
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
+                    if session.canReopenRecentlyClosedTab {
+                        Button {
+                            session.reopenRecentlyClosedTab()
+                        } label: {
+                            Image(systemName: "arrow.uturn.backward")
+                        }
+                        .foregroundStyle(DesignTokens.textSecondary)
+                        .accessibilityLabel("恢复关闭的标签页")
+                        .accessibilityIdentifier("reopen-closed-tab")
                     }
-                    .foregroundStyle(DesignTokens.textSecondary)
-                    .accessibilityLabel("恢复关闭的标签页")
-                    .accessibilityIdentifier("reopen-closed-tab")
-                }
-                Button("全部关闭") {
-                    session.closeAll()
-                    session.showsOverview = false
-                }
-                .font(.system(size: 15))
-                .foregroundStyle(DesignTokens.accent)
-                .accessibilityIdentifier("close-all-tabs")
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(session.tabs) { tab in
-                        tabCard(tab)
+                    Button("全部关闭") {
+                        session.closeAll()
+                        session.showsOverview = false
                     }
+                    .font(.system(size: 15))
+                    .foregroundStyle(DesignTokens.accent)
+                    .accessibilityIdentifier("close-all-tabs")
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 24)
-            }
+                .padding(.vertical, 16)
 
-            HStack(spacing: 12) {
-                Button {
-                    session.createTab(isPrivate: false)
-                    session.showsOverview = false
-                } label: {
-                    labelButton(title: "新建标签页", systemImage: "plus")
+                ScrollView {
+                    LazyVGrid(columns: columns(for: proxy.size.width), spacing: 12) {
+                        ForEach(session.tabs) { tab in
+                            tabCard(tab)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
                 }
-                .accessibilityIdentifier("new-tab")
 
-                Button {
-                    session.createTab(isPrivate: true)
-                    session.showsOverview = false
-                } label: {
-                    labelButton(title: "无痕标签页", systemImage: "eyeglasses")
+                HStack(spacing: 12) {
+                    Button {
+                        session.createTab(isPrivate: false)
+                        session.showsOverview = false
+                    } label: {
+                        labelButton(title: "新建标签页", systemImage: "plus")
+                    }
+                    .accessibilityIdentifier("new-tab")
+
+                    Button {
+                        session.createTab(isPrivate: true)
+                        session.showsOverview = false
+                    } label: {
+                        labelButton(title: "无痕标签页", systemImage: "eyeglasses")
+                    }
+                    .accessibilityIdentifier("new-private-tab")
                 }
-                .accessibilityIdentifier("new-private-tab")
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(DesignTokens.surfacePanel)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(DesignTokens.surfacePanel)
         }
         .background(DesignTokens.pageBackground)
         .accessibilityIdentifier("tab-overview")
+    }
+
+    private func columns(for width: CGFloat) -> [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: 12),
+            count: AdaptiveWorkspacePolicy.tabColumnCount(width: Double(width))
+        )
     }
 
     private func tabCard(_ tab: BrowserTab) -> some View {

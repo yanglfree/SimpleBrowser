@@ -1,17 +1,5 @@
 import Foundation
 
-enum BrowserLayoutClass: Int, Equatable {
-    case compact = 0
-    case medium = 1
-    case expanded = 2
-
-    static func resolve(width: Double) -> BrowserLayoutClass {
-        if width < 600 { return .compact }
-        if width < 840 { return .medium }
-        return .expanded
-    }
-}
-
 struct PageIssueDiagnostic: Identifiable, Equatable {
     let id = UUID()
     let appVersion: String

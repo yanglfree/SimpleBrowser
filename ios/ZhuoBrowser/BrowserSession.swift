@@ -20,6 +20,7 @@ final class BrowserSession: ObservableObject {
     @Published var showsSettings = false
     @Published var showsDownloads = false
     @Published var showsArticles = false
+    @Published var pendingArticleSelectionID: String? = nil
     @Published var showsShare = false
     @Published var shareItems: [Any] = []
     @Published var isGeneratingScreenshot = false
@@ -787,6 +788,11 @@ final class BrowserSession: ObservableObject {
     func openLibrary(_ tab: LibraryTab) {
         libraryTab = tab
         showsLibrary = true
+    }
+
+    func openArticleLibrary(selecting articleID: String? = nil) {
+        pendingArticleSelectionID = articleID
+        showsArticles = true
     }
 
     func setSearchSuggestionsEnabled(_ enabled: Bool) {

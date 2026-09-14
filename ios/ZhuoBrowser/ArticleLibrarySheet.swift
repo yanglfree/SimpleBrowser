@@ -6,9 +6,10 @@ struct ArticleLibrarySheet: View {
     @State private var query = ""
     @State private var showsArchived = false
     @State private var deletion: SavedArticle?
+    @State private var path: [String] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if articles.isEmpty {
                     ContentUnavailableView(
@@ -33,6 +34,8 @@ struct ArticleLibrarySheet: View {
                     .listStyle(.plain)
                 }
             }
+            .frame(maxWidth: 720, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(DesignTokens.pageBackground)
             .navigationTitle("离线文章")
             .navigationBarTitleDisplayMode(.inline)
@@ -67,11 +70,22 @@ struct ArticleLibrarySheet: View {
         } message: {
             Text("正文、图片、笔记和高亮将一并删除。")
         }
+        .onAppear { consumePendingSelection() }
+        .onChange(of: session.pendingArticleSelectionID) { _, _ in
+            consumePendingSelection()
+        }
         .accessibilityIdentifier("article-library-sheet")
     }
 
     private var articles: [SavedArticle] {
         ArticlePolicy.filtered(session.articles.articles, query: query, archived: showsArchived)
+    }
+
+    private func consumePendingSelection() {
+        guard let id = session.pendingArticleSelectionID,
+              session.articles.articles.contains(where: { $0.id == id }) else { return }
+        path = [id]
+        session.pendingArticleSelectionID = nil
     }
 }
 
@@ -118,42 +132,19 @@ struct ArticleDetailView: View {
     @State private var editorArticle: SavedArticle?
     @State private var shareFile: ArticleShareFile?
     @State private var exportError = ""
+    @State private var inspectorRequested = false
 
     var body: some View {
-        Group {
-            if let article, let fileURL = session.articles.htmlURL(for: article) {
-                OfflineArticleReader(
-                    article: article,
-                    fileURL: fileURL,
-                    onSelection: { selection = $0 },
-                    onPositionChange: { session.articles.updateReadingPosition(article.id, position: $0) },
-                    onOpenExternal: {
-                        session.openInActiveTab($0)
-                        session.showsArticles = false
-                    }
-                )
-                .ignoresSafeArea(edges: .bottom)
-                .navigationTitle(article.title)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { detailToolbar(article) }
-                .safeAreaInset(edge: .bottom) {
-                    if selection != nil {
-                        Button {
-                            guard let selection else { return }
-                            session.articles.addHighlight(article.id, selection: selection)
-                            self.selection = nil
-                        } label: {
-                            Label("高亮所选内容", systemImage: "highlighter")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .padding(12)
-                        .background(.ultraThinMaterial)
-                        .accessibilityIdentifier("article-add-highlight")
-                    }
+        GeometryReader { proxy in
+            Group {
+                if let article, let fileURL = session.articles.htmlURL(for: article) {
+                    detailSurface(article: article, fileURL: fileURL, width: proxy.size.width)
+                        .navigationTitle(article.title)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar { detailToolbar(article, width: proxy.size.width) }
+                } else {
+                    ContentUnavailableView("文章文件不可用", systemImage: "doc.badge.ellipsis")
                 }
-            } else {
-                ContentUnavailableView("文章文件不可用", systemImage: "doc.badge.ellipsis")
             }
         }
         .sheet(item: $editorArticle) { article in
@@ -169,9 +160,72 @@ struct ArticleDetailView: View {
         )) { Button("好", role: .cancel) {} } message: { Text(exportError) }
     }
 
+    private func detailSurface(article: SavedArticle, fileURL: URL, width: CGFloat) -> some View {
+        let showsInspector = AdaptiveWorkspacePolicy.showsArticleInspector(
+            width: Double(width),
+            requested: inspectorRequested
+        )
+        let readerMaximum = AdaptiveWorkspacePolicy.articleReaderMaximumWidth(
+            availableWidth: Double(width),
+            inspectorVisible: showsInspector
+        )
+        return HStack(spacing: 0) {
+            OfflineArticleReader(
+                article: article,
+                fileURL: fileURL,
+                onSelection: { selection = $0 },
+                onPositionChange: { session.articles.updateReadingPosition(article.id, position: $0) },
+                onOpenExternal: {
+                    session.openInActiveTab($0)
+                    session.showsArticles = false
+                }
+            )
+            .frame(maxWidth: CGFloat(readerMaximum))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea(edges: .bottom)
+            .safeAreaInset(edge: .bottom) {
+                if selection != nil {
+                    Button {
+                        guard let selection else { return }
+                        session.articles.addHighlight(article.id, selection: selection)
+                        self.selection = nil
+                    } label: {
+                        Label("高亮所选内容", systemImage: "highlighter")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignTokens.accent)
+                    .padding(12)
+                    .background(.ultraThinMaterial)
+                    .accessibilityIdentifier("article-add-highlight")
+                }
+            }
+
+            if showsInspector {
+                Divider()
+                ArticleInspectorPane(article: article) {
+                    editorArticle = article
+                }
+                .frame(width: CGFloat(AdaptiveWorkspacePolicy.articleInspectorWidth))
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+        .background(DesignTokens.pageBackground)
+        .accessibilityIdentifier("article-workbench")
+    }
+
     @ToolbarContentBuilder
-    private func detailToolbar(_ article: SavedArticle) -> some ToolbarContent {
+    private func detailToolbar(_ article: SavedArticle, width: CGFloat) -> some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
+            if AdaptiveWorkspacePolicy.articleWorkbenchMode(width: Double(width)) == .switchableInspector {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { inspectorRequested.toggle() }
+                } label: {
+                    Image(systemName: "sidebar.trailing")
+                }
+                .accessibilityLabel(inspectorRequested ? "隐藏文章检查器" : "显示文章检查器")
+                .accessibilityIdentifier("article-inspector-toggle")
+            }
             Button { editorArticle = article } label: { Image(systemName: "square.and.pencil") }
                 .accessibilityLabel("编辑文章信息")
                 .accessibilityIdentifier("article-edit")
@@ -197,6 +251,97 @@ struct ArticleDetailView: View {
             shareFile = ArticleShareFile(url: try session.articles.exportURL(for: article, format: format))
         } catch {
             exportError = error.localizedDescription
+        }
+    }
+}
+
+private struct ArticleInspectorPane: View {
+    let article: SavedArticle
+    let onEdit: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack {
+                    Text("文章检查器").font(.headline)
+                    Spacer()
+                    Button("编辑", action: onEdit)
+                        .font(.subheadline)
+                        .accessibilityIdentifier("article-inspector-edit")
+                }
+
+                inspectorSection("来源") {
+                    Text(URLPolicy.displayHost(article.sourceUrl))
+                    if !article.author.isEmpty { Text(article.author) }
+                    Text(article.updatedAt.formattedRelative)
+                }
+
+                inspectorSection("标签") {
+                    labelFlow(article.tags, emptyText: "尚未添加标签")
+                }
+
+                inspectorSection("主题") {
+                    labelFlow(article.topics, emptyText: "尚未添加主题")
+                }
+
+                inspectorSection("笔记") {
+                    if article.notes.isEmpty {
+                        Text("尚未添加笔记")
+                    } else {
+                        ForEach(article.notes) { note in
+                            Text(note.text).textSelection(.enabled)
+                        }
+                    }
+                }
+
+                inspectorSection("高亮") {
+                    if article.highlights.isEmpty {
+                        Text("尚未添加高亮")
+                    } else {
+                        ForEach(article.highlights) { highlight in
+                            Text(highlight.quote)
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(DesignTokens.surfaceSubtle, in: RoundedRectangle(cornerRadius: 10))
+                        }
+                    }
+                }
+            }
+            .padding(18)
+        }
+        .background(DesignTokens.surfacePanel)
+        .accessibilityIdentifier("article-inspector")
+    }
+
+    private func inspectorSection<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(DesignTokens.textSecondary)
+                .textCase(.uppercase)
+            content()
+                .font(.subheadline)
+                .foregroundStyle(DesignTokens.textPrimary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func labelFlow(_ labels: [String], emptyText: String) -> some View {
+        if labels.isEmpty {
+            Text(emptyText)
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(labels, id: \.self) { label in
+                    Text(label)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(DesignTokens.surfaceSubtle, in: Capsule())
+                }
+            }
         }
     }
 }
