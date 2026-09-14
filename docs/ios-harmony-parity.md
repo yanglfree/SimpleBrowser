@@ -25,7 +25,7 @@ Status values are `complete`, `partial`, `missing`, and `external-gate`.
 | Web appearance and UA | partial | One-shot desktop UA exists. Global/site UA policy, web dark mode exclusions, minimum font size, and per-site zoom remain. |
 | System integration | partial | Page/download share exists. Screenshot share, external-link routing, clipboard visit/copy, diagnostics, and feedback remain. |
 | Default browser | external-gate | Requires Apple's default-browser entitlement and approval before the system flow can ship. |
-| Pro commerce | partial | StoreKit 2 products, transaction updates, explicit restore, subscription management, agreement-gated paywall, short-lived server-entitlement cache, and server-authoritative feature gating are implemented. App Store Connect setup, deployed iOS gateway catalog, notification routing, and Sandbox/TestFlight purchase/renewal/refund acceptance remain. |
+| Pro commerce | partial | StoreKit 2 products, transaction updates, explicit restore, subscription management, agreement-gated paywall, short-lived server-entitlement cache, server-authoritative feature gating, and the production iOS gateway catalog are implemented. App Store Connect product setup, notification routing, and Sandbox/TestFlight purchase/renewal/refund acceptance remain. |
 | Large-screen workspace | missing | iPad adaptive chrome, sidebar, multi-window/split panes, and article workspace remain. |
 
 ## Delivery order

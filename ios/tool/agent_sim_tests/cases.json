@@ -207,7 +207,7 @@
       "result": "passed",
       "evidence": "evidence/pro-paywall-unavailable.png",
       "additionalEvidence": "evidence/pro-settings-entry.png",
-      "notes": "The Simulator has no StoreKit account and the production iOS catalog is not deployed yet. Restore and purchase were not invoked; Sandbox/TestFlight transaction acceptance remains open."
+      "notes": "The Simulator has no StoreKit account or available App Store products. The production gateway catalog was verified separately. Restore and purchase were not invoked; Sandbox/TestFlight transaction acceptance remains open."
     }
   ]
 }
