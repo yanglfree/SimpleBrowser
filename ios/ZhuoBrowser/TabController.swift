@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import WebKit
 
 final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
@@ -437,6 +438,62 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         }
         load(rawURL)
         return nil
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        contextMenuConfigurationForElement elementInfo: WKContextMenuElementInfo,
+        completionHandler: @escaping (UIContextMenuConfiguration?) -> Void
+    ) {
+        let linkURL = WebLinkActionPolicy.webURL(elementInfo.linkURL)
+        let configuration = UIContextMenuConfiguration(
+            identifier: nil,
+            previewProvider: nil
+        ) { [weak self, weak webView] suggestedActions in
+            guard let self, let linkURL else {
+                return UIMenu(children: suggestedActions)
+            }
+            var productActions: [UIMenuElement] = [
+                UIAction(
+                    title: "在后台标签页打开",
+                    image: UIImage(systemName: "plus.square.on.square")
+                ) { [weak self] _ in
+                    guard let self else { return }
+                    self.session?.openLinkInBackground(linkURL, sourceTabID: self.id)
+                }
+            ]
+            if self.canOpenLinkBeside(in: webView) {
+                productActions.append(
+                    UIAction(
+                        title: "在右侧打开",
+                        image: UIImage(systemName: "rectangle.split.2x1")
+                    ) { [weak self] _ in
+                        guard let self else { return }
+                        self.session?.openLinkBeside(linkURL, sourceTabID: self.id)
+                    }
+                )
+            }
+            if WebLinkActionPolicy.canSaveForLater(isPrivate: self.isPrivate) {
+                productActions.append(
+                    UIAction(
+                        title: "加入稍后读",
+                        image: UIImage(systemName: "text.badge.plus")
+                    ) { [weak self] _ in
+                        guard let self else { return }
+                        self.session?.saveLinkForLater(linkURL, sourceTabID: self.id)
+                    }
+                )
+            }
+            let productMenu = UIMenu(options: .displayInline, children: productActions)
+            return UIMenu(children: [productMenu] + suggestedActions)
+        }
+        completionHandler(configuration)
+    }
+
+    private func canOpenLinkBeside(in webView: WKWebView?) -> Bool {
+        guard session?.isSplitActive != true else { return false }
+        let width = webView?.window?.bounds.width ?? webView?.bounds.width ?? 0
+        return width >= CGFloat(AdaptiveWorkspacePolicy.mediumMinimumWidth)
     }
 
     func webView(

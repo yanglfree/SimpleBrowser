@@ -622,6 +622,57 @@ final class BrowserSession: ObservableObject {
         flash("链接已复制")
     }
 
+    func openLinkInBackground(_ url: URL, sourceTabID: String) {
+        guard let source = tab(sourceTabID),
+              let targetURL = WebLinkActionPolicy.webURL(url),
+              let newTabID = createTab(isPrivate: source.isPrivate, select: false) else {
+            return
+        }
+        prepareLinkedTab(newTabID, url: targetURL.absoluteString)
+        flash("已在后台标签页打开")
+    }
+
+    func openLinkBeside(_ url: URL, sourceTabID: String) {
+        guard let source = tab(sourceTabID),
+              let targetURL = WebLinkActionPolicy.webURL(url),
+              let newTabID = createTab(isPrivate: source.isPrivate, select: false) else {
+            return
+        }
+        prepareLinkedTab(newTabID, url: targetURL.absoluteString)
+        selectTab(sourceTabID)
+        if !openTabBeside(newTabID) {
+            flash("已在后台标签页打开")
+        }
+    }
+
+    func saveLinkForLater(_ url: URL, sourceTabID: String) {
+        guard let source = tab(sourceTabID),
+              WebLinkActionPolicy.canSaveForLater(isPrivate: source.isPrivate),
+              let targetURL = WebLinkActionPolicy.webURL(url) else {
+            return
+        }
+        let rawURL = targetURL.absoluteString
+        savedItems = LibraryPolicy.saveForLater(
+            savedItems,
+            url: rawURL,
+            title: URLPolicy.displayHost(rawURL)
+        )
+        persistLibrary()
+        flash("已加入稍后读")
+    }
+
+    private func prepareLinkedTab(_ tabID: String, url: String) {
+        let usesDesktop = WebAppearancePolicy.usesDesktopUserAgent(for: url, settings: settings)
+        update(tabID: tabID) { tab in
+            tab.url = url
+            tab.title = URLPolicy.displayHost(url)
+            tab.isDesktop = usesDesktop
+            tab.lastVisitedAt = Date().timeIntervalSince1970
+        }
+        ensureLive(tabID)
+        persist()
+    }
+
     private func finishClosingTab(_ id: String, clearCookiesIfNeeded: Bool = true) {
         guard let closingTab = tab(id) else {
             return
