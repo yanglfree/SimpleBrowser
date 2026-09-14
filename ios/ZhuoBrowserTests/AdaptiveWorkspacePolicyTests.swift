@@ -38,4 +38,35 @@ final class AdaptiveWorkspacePolicyTests: XCTestCase {
         XCTAssertEqual(AdaptiveWorkspacePolicy.tabColumnCount(width: 700), 3)
         XCTAssertEqual(AdaptiveWorkspacePolicy.tabColumnCount(width: 1_024), 4)
     }
+
+    func testPaneSelectionReplacesOnlyTheFocusedPane() {
+        let ids: Set<String> = ["a", "b", "c"]
+        var state = BrowserPaneState(primaryTabID: "a")
+        state.beginSplit(primaryTabID: "a", secondaryTabID: "b")
+
+        state.select("c", existingTabIDs: ids)
+
+        XCTAssertEqual(state.primaryTabID, "a")
+        XCTAssertEqual(state.secondaryTabID, "c")
+        XCTAssertEqual(state.focusedTabID, "c")
+    }
+
+    func testPaneRepairPromotesSurvivingSecondaryTab() {
+        var state = BrowserPaneState(primaryTabID: "a")
+        state.beginSplit(primaryTabID: "a", secondaryTabID: "b")
+
+        state.repair(existingTabIDs: ["b"], fallbackTabID: "b")
+
+        XCTAssertEqual(state.primaryTabID, "b")
+        XCTAssertNil(state.secondaryTabID)
+        XCTAssertEqual(state.focusedSlot, .primary)
+    }
+
+    func testSplitRatioIsClampedToUsablePaneBounds() {
+        var state = BrowserPaneState(primaryTabID: "a")
+        state.setPrimaryRatio(0.1)
+        XCTAssertEqual(state.primaryRatio, 0.3)
+        state.setPrimaryRatio(0.9)
+        XCTAssertEqual(state.primaryRatio, 0.7)
+    }
 }

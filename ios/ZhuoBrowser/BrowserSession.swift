@@ -49,9 +49,13 @@ final class BrowserSession: ObservableObject {
     @Published var securityWarning: SiteSecurityWarning?
     @Published var externalProtocolRequest: ExternalProtocolRequest?
     @Published var pageIssueDiagnostic: PageIssueDiagnostic?
+    @Published var paneState = BrowserPaneState(primaryTabID: "")
     let downloads = DownloadStore()
     let articles = ArticleStore()
     let pro = ProBillingService()
+    let sessionID = UUID().uuidString
+    let isPrimaryWindow: Bool
+    let acceptedWindowRequestID: String?
     private var permissionReply: ((Bool) -> Void)?
 
     private var controllers: [String: TabController] = [:]
@@ -59,6 +63,7 @@ final class BrowserSession: ObservableObject {
     private var recentlyClosedTabs: [BrowserTab] = []
     private var disposableReaderTabIDs: Set<String> = []
     private var pendingArticleCaptureTabIDs: Set<String> = []
+    private var pendingWindowTransferIDs: Set<String> = []
     private var cancellables: Set<AnyCancellable> = []
     private var resumePromptGeneration = 0
     private let defaultsKey = "browser_session"
@@ -77,9 +82,20 @@ final class BrowserSession: ObservableObject {
         !recentlyClosedTabs.isEmpty && tabs.count < SessionPolicy.maxTabCount
     }
 
-    init() {
+    init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
+        self.isPrimaryWindow = isPrimaryWindow
+        let decodedTransfer = windowRequest?.tab
+        acceptedWindowRequestID = decodedTransfer == nil ? nil : windowRequest?.id
         let loadedSettings = Self.loadSettings()
-        if let restored = Self.restore(settings: loadedSettings) {
+        if var transferredTab = decodedTransfer {
+            transferredTab.isLoading = false
+            transferredTab.progress = 0
+            transferredTab.canGoBack = false
+            transferredTab.canGoForward = false
+            tabs = [transferredTab]
+            activeTabID = transferredTab.id
+            archivedTabs = []
+        } else if isPrimaryWindow, let restored = Self.restore(settings: loadedSettings) {
             if restored.tabs.isEmpty {
                 let home = BrowserTab.home(isPrivate: false)
                 tabs = [home]
@@ -93,11 +109,21 @@ final class BrowserSession: ObservableObject {
             let home = BrowserTab.home(isPrivate: false)
             tabs = [home]
             activeTabID = home.id
-            archivedTabs = Self.loadArchivedTabs()
+            archivedTabs = isPrimaryWindow ? Self.loadArchivedTabs() : []
         }
-        ContentBlocker.shared.onListsChanged = { [weak self] in
-            self?.controllers.values.forEach { $0.applyContentBlocker() }
-        }
+        paneState = BrowserPaneState(primaryTabID: activeTabID)
+        NotificationCenter.default.publisher(for: ContentBlocker.listsDidChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.controllers.values.forEach { $0.applyContentBlocker() }
+            }
+            .store(in: &cancellables)
+        NotificationCenter.default.publisher(for: .browserWindowDidOpen)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] notification in
+                self?.completeWindowTransfer(notification)
+            }
+            .store(in: &cancellables)
         ContentBlocker.shared.prepare()
         readerSettings = Self.loadReaderSettings()
         settings = loadedSettings
@@ -128,7 +154,7 @@ final class BrowserSession: ObservableObject {
         quickSites = Self.loadQuickSites()
         siteBlockStats = Self.loadSiteBlockStats()
         persistArchivedTabs()
-        showsExpiredTabsPrompt = !archivedTabs.isEmpty
+        showsExpiredTabsPrompt = isPrimaryWindow && !archivedTabs.isEmpty
         downloads.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -360,14 +386,123 @@ final class BrowserSession: ObservableObject {
         return tab.id
     }
 
+    var existingTabIDs: Set<String> {
+        Set(tabs.map(\.id))
+    }
+
+    var isSplitActive: Bool {
+        paneState.isSplit(existingTabIDs: existingTabIDs)
+    }
+
+    var splitTabIDs: (primary: String, secondary: String)? {
+        guard isSplitActive, let secondary = paneState.secondaryTabID else { return nil }
+        return (paneState.primaryTabID, secondary)
+    }
+
+    func controller(for tabID: String) -> TabController? {
+        controllers[tabID]
+    }
+
+    func canOpenTabBeside(_ id: String) -> Bool {
+        guard let activeTab, let target = tab(id) else { return false }
+        return target.id != activeTab.id && target.isPrivate == activeTab.isPrivate
+    }
+
+    @discardableResult
+    func openTabBeside(_ requestedID: String) -> Bool {
+        guard let primary = activeTab,
+              let target = tab(requestedID),
+              target.id != primary.id,
+              target.isPrivate == primary.isPrivate else { return false }
+        paneState.beginSplit(primaryTabID: primary.id, secondaryTabID: target.id)
+        ensureLive(primary.id)
+        ensureLive(target.id)
+        selectTab(target.id)
+        return true
+    }
+
+    func focusPane(_ tabID: String) {
+        guard paneState.contains(tabID) else { return }
+        selectTab(tabID)
+    }
+
+    func closeSplit() {
+        paneState.closeSplit(focusedTabID: activeTabID)
+        trimLive()
+    }
+
+    func setSplitRatio(_ ratio: Double) {
+        paneState.setPrimaryRatio(ratio)
+    }
+
+    func makeWindowRequest(for tabID: String) -> BrowserWindowRequest? {
+        guard let current = tab(tabID) else { return nil }
+        capturePageState(tabID)
+        var snapshot = tab(tabID) ?? current
+        snapshot.isLoading = false
+        snapshot.progress = 0
+        snapshot.canGoBack = false
+        snapshot.canGoForward = false
+        guard let request = BrowserWindowRequest(sourceSessionID: sessionID, tab: snapshot) else {
+            return nil
+        }
+        pendingWindowTransferIDs.insert(request.id)
+        return request
+    }
+
+    private func completeWindowTransfer(_ notification: Notification) {
+        guard let requestID = notification.userInfo?["requestID"] as? String,
+              let sourceSessionID = notification.userInfo?["sourceSessionID"] as? String,
+              let sourceTabID = notification.userInfo?["sourceTabID"] as? String,
+              sourceSessionID == sessionID,
+              pendingWindowTransferIDs.remove(requestID) != nil else { return }
+        detachTransferredTab(sourceTabID)
+    }
+
+    private func detachTransferredTab(_ id: String) {
+        guard tab(id) != nil else { return }
+        let wasPane = paneState.contains(id)
+        let nextActiveID = activeTabID == id
+            ? SessionPolicy.selectedTabAfterClosing(tabs, closing: id)
+            : activeTabID
+        controllers[id] = nil
+        tabBlockStats[id] = nil
+        blockEvents.removeAll { $0.tabID == id }
+        disposableReaderTabIDs.remove(id)
+        pendingArticleCaptureTabIDs.remove(id)
+        tabs.removeAll { $0.id == id }
+        if tabs.isEmpty {
+            let home = BrowserTab.home(isPrivate: false)
+            tabs = [home]
+            activeTabID = home.id
+        } else if activeTabID == id {
+            activeTabID = nextActiveID ?? tabs[0].id
+        }
+        paneState.repair(existingTabIDs: existingTabIDs, fallbackTabID: activeTabID)
+        if wasPane {
+            activeTabID = paneState.focusedTabID
+        }
+        dismissPageResume()
+        recyclePrivateStoreIfNeeded()
+        ensureLive(activeTabID)
+        persist()
+    }
+
     func selectTab(_ id: String) {
-        guard tabs.contains(where: { $0.id == id }) else {
+        guard let selectedTab = tab(id) else {
             return
         }
         if activeTabID != id {
             capturePageState(activeTabID)
         }
         dismissPageResume()
+        if isSplitActive,
+           let primaryTab = tab(paneState.primaryTabID),
+           selectedTab.isPrivate != primaryTab.isPrivate {
+            paneState.closeSplit(focusedTabID: id)
+        } else {
+            paneState.select(id, existingTabIDs: existingTabIDs)
+        }
         activeTabID = id
         update(tabID: id) { tab in
             tab.lastVisitedAt = Date().timeIntervalSince1970
@@ -387,6 +522,7 @@ final class BrowserSession: ObservableObject {
         guard let closingTab = tab(id) else {
             return
         }
+        let wasPane = paneState.contains(id)
         if !closingTab.isPrivate {
             recentlyClosedTabs.insert(closingTab, at: 0)
             recentlyClosedTabs = Array(recentlyClosedTabs.prefix(10))
@@ -406,6 +542,10 @@ final class BrowserSession: ObservableObject {
             activeTabID = home.id
         } else if activeTabID == id {
             activeTabID = nextActiveID ?? tabs[0].id
+        }
+        paneState.repair(existingTabIDs: existingTabIDs, fallbackTabID: activeTabID)
+        if wasPane {
+            activeTabID = paneState.focusedTabID
         }
         dismissPageResume()
         recyclePrivateStoreIfNeeded()
@@ -529,9 +669,11 @@ final class BrowserSession: ObservableObject {
         controllers.removeAll()
         disposableReaderTabIDs.removeAll()
         pendingArticleCaptureTabIDs.removeAll()
+        pendingWindowTransferIDs.removeAll()
         let home = BrowserTab.home(isPrivate: false)
         tabs = [home]
         activeTabID = home.id
+        paneState = BrowserPaneState(primaryTabID: home.id)
         privateStore = WKWebsiteDataStore.nonPersistent()
         persist()
         if shouldClearCookies {
@@ -1256,7 +1398,7 @@ final class BrowserSession: ObservableObject {
     }
 
     func consumeInboundShares() {
-        guard settings.privacyConsentAccepted, settings.onboardingCompleted else { return }
+        guard isPrimaryWindow, settings.privacyConsentAccepted, settings.onboardingCompleted else { return }
         do {
             let pending = try InboundShareQueue.pending()
             var consumed = 0
@@ -1573,6 +1715,7 @@ final class BrowserSession: ObservableObject {
     }
 
     func persistArchivedTabs() {
+        guard isPrimaryWindow else { return }
         if let data = try? JSONEncoder().encode(archivedTabs) {
             UserDefaults.standard.set(data, forKey: archivedTabsKey)
         }
@@ -1585,6 +1728,7 @@ final class BrowserSession: ObservableObject {
         persistAllowList()
         persistSitePermissions()
         persistQuickSites()
+        guard isPrimaryWindow else { return }
         let persistable = SessionPolicy.persistableTabs(tabs).map { tab -> BrowserTab in
             var copy = tab
             copy.isLoading = false
@@ -1621,7 +1765,10 @@ final class BrowserSession: ObservableObject {
         let live = SessionPolicy.liveTabIDs(
             tabs: tabs,
             activeTabID: activeTabID,
-            limit: settings.liveWebViewLimit
+            limit: settings.liveWebViewLimit,
+            requiredTabIDs: isSplitActive
+                ? [paneState.primaryTabID, paneState.secondaryTabID].compactMap { $0 }
+                : []
         )
         for id in controllers.keys where !SessionPolicy.isTabLive(live, id) {
             if let controller = controllers[id], let url = controller.webView.url?.absoluteString {

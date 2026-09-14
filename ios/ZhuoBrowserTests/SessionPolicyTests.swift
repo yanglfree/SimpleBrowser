@@ -16,6 +16,24 @@ final class SessionPolicyTests: XCTestCase {
         )
     }
 
+    func testLiveTabsKeepBothRequiredSplitPanes() {
+        let tabs = [
+            makeTab(id: "primary", visitedAt: 1),
+            makeTab(id: "secondary", visitedAt: 2),
+            makeTab(id: "active", visitedAt: 3)
+        ]
+
+        XCTAssertEqual(
+            SessionPolicy.liveTabIDs(
+                tabs: tabs,
+                activeTabID: "active",
+                limit: 1,
+                requiredTabIDs: ["primary", "secondary"]
+            ),
+            ["primary", "secondary", "active"]
+        )
+    }
+
     func testExpiredTabsArePartitionedByConfiguredAge() {
         let now: TimeInterval = 1_000_000
         let tabs = [
@@ -107,6 +125,18 @@ final class SessionPolicyTests: XCTestCase {
         let decoded = try JSONDecoder().decode(BrowserTab.self, from: JSONEncoder().encode(tab))
 
         XCTAssertEqual(decoded, tab)
+    }
+
+    func testWindowRequestCarriesAValidatedTabSnapshot() throws {
+        var tab = makeTab(id: "window-tab", url: "https://example.com/article")
+        tab.scrollY = 240
+        tab.formDraft = #"[{"key":"note","value":"draft"}]"#
+
+        let request = try XCTUnwrap(BrowserWindowRequest(sourceSessionID: "source", tab: tab))
+
+        XCTAssertEqual(request.sourceSessionID, "source")
+        XCTAssertEqual(request.sourceTabID, tab.id)
+        XCTAssertEqual(request.tab, tab)
     }
 
     private func makeTab(

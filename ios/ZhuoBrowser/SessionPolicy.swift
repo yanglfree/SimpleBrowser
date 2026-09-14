@@ -11,11 +11,20 @@ enum SessionPolicy {
         isPrivate != true
     }
 
-    static func liveTabIDs(tabs: [BrowserTab], activeTabID: String, limit: Int) -> [String] {
-        let bounded = max(1, limit)
-        var ids: [String] = []
+    static func liveTabIDs(
+        tabs: [BrowserTab],
+        activeTabID: String,
+        limit: Int,
+        requiredTabIDs: [String] = []
+    ) -> [String] {
+        let available = Set(tabs.filter { !URLPolicy.isHomeURL($0.url) }.map(\.id))
+        var ids = requiredTabIDs.filter(available.contains)
+        ids = ids.reduce(into: []) { result, id in
+            if !result.contains(id) { result.append(id) }
+        }
+        let bounded = max(1, max(limit, ids.count))
         if let active = tabs.first(where: { $0.id == activeTabID }), !URLPolicy.isHomeURL(active.url) {
-            ids.append(activeTabID)
+            if !ids.contains(activeTabID) { ids.append(activeTabID) }
         }
         for tab in tabs.sorted(by: { $0.lastVisitedAt > $1.lastVisitedAt }) {
             if ids.count >= bounded {

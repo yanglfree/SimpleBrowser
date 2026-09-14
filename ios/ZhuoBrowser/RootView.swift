@@ -2,13 +2,27 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @StateObject private var session = BrowserSession()
+    @Environment(\.openWindow) private var openWindow
+    @StateObject private var session: BrowserSession
+    private let windowRequest: BrowserWindowRequest?
     @State private var addressText = ""
     @State private var quickSiteEditor: QuickSiteEditorRequest?
     @State private var sidebarPanel: BrowserSidebarPanel = .tabs
     @State private var sidebarVisible = false
     @State private var sidebarPresentation: SidebarPresentation = .unavailable
+    @State private var splitDragStartRatio = 0.5
+    @State private var isDraggingSplit = false
     @FocusState private var addressFocused: Bool
+
+    init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
+        self.windowRequest = windowRequest
+        _session = StateObject(
+            wrappedValue: BrowserSession(
+                windowRequest: windowRequest,
+                isPrimaryWindow: isPrimaryWindow
+            )
+        )
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -152,6 +166,9 @@ struct RootView: View {
         .onAppear {
             addressText = displayAddress(session.activeTab?.url ?? "")
             session.consumeInboundShares()
+            if let windowRequest, session.acceptedWindowRequestID == windowRequest.id {
+                BrowserWindowTransfer.acknowledge(windowRequest)
+            }
         }
         .task {
             await session.pro.activate()
@@ -185,10 +202,10 @@ struct RootView: View {
         let presentation = AdaptiveWorkspacePolicy.sidebarPresentation(width: Double(width))
         switch presentation {
         case .unavailable:
-            browserSurface(width: width)
+            browserSurface
         case .overlay:
             ZStack(alignment: .trailing) {
-                browserSurface(width: width)
+                browserSurface
                 if sidebarVisible {
                     Color.black.opacity(0.12)
                         .ignoresSafeArea()
@@ -200,7 +217,7 @@ struct RootView: View {
             }
         case .inline:
             HStack(spacing: 0) {
-                browserSurface(width: width)
+                browserSurface
                 if sidebarVisible {
                     sidebar(width: width)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -209,32 +226,34 @@ struct RootView: View {
         }
     }
 
-    private func browserSurface(width: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            addressBar(width: width)
-            if session.showsFind {
-                FindBar()
-            }
-            if session.activeTab?.isReader == true && !session.showsOverview {
-                ReaderBar()
-            }
-            ZStack {
-                pageBody
-                if addressFocused && !session.showsOverview {
-                    SuggestionList(suggestions: session.suggestions(for: addressText)) { item in
-                        addressFocused = false
-                        addressText = displayAddress(item.url)
-                        session.openInActiveTab(item.url)
+    private var browserSurface: some View {
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                addressBar(width: proxy.size.width)
+                if session.showsFind {
+                    FindBar()
+                }
+                if session.activeTab?.isReader == true && !session.showsOverview {
+                    ReaderBar()
+                }
+                ZStack {
+                    pageArea(width: proxy.size.width)
+                    if addressFocused && !session.showsOverview {
+                        SuggestionList(suggestions: session.suggestions(for: addressText)) { item in
+                            addressFocused = false
+                            addressText = displayAddress(item.url)
+                            session.openInActiveTab(item.url)
+                        }
                     }
+                    if session.showsOverview {
+                        TabOverview()
+                    }
+                    pageOverlays
                 }
-                if session.showsOverview {
-                    TabOverview()
-                }
-                pageOverlays
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var pageOverlays: some View {
@@ -285,9 +304,19 @@ struct RootView: View {
     }
 
     private func sidebar(width: CGFloat) -> some View {
-        BrowserWorkspaceSidebar(panel: $sidebarPanel) {
-            withAnimation(.easeInOut(duration: 0.2)) { sidebarVisible = false }
-        }
+        BrowserWorkspaceSidebar(
+            panel: $sidebarPanel,
+            onDismiss: {
+                withAnimation(.easeInOut(duration: 0.2)) { sidebarVisible = false }
+            },
+            onOpenBeside: { tabID in
+                withAnimation(.easeInOut(duration: 0.2)) { _ = session.openTabBeside(tabID) }
+            },
+            onOpenWindow: { tabID in
+                guard let request = session.makeWindowRequest(for: tabID) else { return }
+                openWindow(id: "browser-window", value: request)
+            }
+        )
         .environmentObject(session)
         .frame(width: CGFloat(AdaptiveWorkspacePolicy.sidebarWidth(width: Double(width))))
     }
@@ -311,38 +340,122 @@ struct RootView: View {
     }
 
     @ViewBuilder
-    private var pageBody: some View {
-        if URLPolicy.isHomeURL(session.activeTab?.url ?? URLPolicy.homeURL) {
+    private func pageArea(width: CGFloat) -> some View {
+        if width >= CGFloat(AdaptiveWorkspacePolicy.mediumMinimumWidth),
+           let split = session.splitTabIDs {
+            ZStack(alignment: .leading) {
+                HStack(spacing: 0) {
+                    pageBody(tabID: split.primary)
+                        .frame(width: width * CGFloat(session.paneState.primaryRatio))
+                    pageBody(tabID: split.secondary)
+                        .frame(width: width * CGFloat(1 - session.paneState.primaryRatio))
+                }
+                splitDivider(totalWidth: width)
+                    .offset(x: width * CGFloat(session.paneState.primaryRatio) - 14)
+            }
+            .clipped()
+            .accessibilityIdentifier("browser-split-view")
+        } else {
+            pageBody(tabID: session.activeTabID)
+        }
+    }
+
+    @ViewBuilder
+    private func pageBody(tabID: String) -> some View {
+        let tab = session.tab(tabID)
+        if URLPolicy.isHomeURL(tab?.url ?? URLPolicy.homeURL) {
             NativeHomeView(
                 sites: session.quickSites,
                 settings: session.settings,
                 onOpen: { url in
+                    session.focusPane(tabID)
                     session.openInActiveTab(url)
                 },
                 onAdd: {
+                    session.focusPane(tabID)
                     quickSiteEditor = .add
                 },
                 onEdit: { site in
+                    session.focusPane(tabID)
                     quickSiteEditor = .edit(site)
                 },
                 onRemove: { site in
+                    session.focusPane(tabID)
                     session.removeQuickSite(site.id)
                 },
                 onSettings: {
+                    session.focusPane(tabID)
                     session.showsSettings = true
                 },
                 onBookmarks: {
+                    session.focusPane(tabID)
                     session.openLibrary(.bookmarks)
                 },
                 onHistory: {
+                    session.focusPane(tabID)
                     session.openLibrary(.history)
                 }
             )
-        } else if let controller = session.activeController {
-            BrowserWebView(webView: controller.webView)
+            .overlay {
+                paneFocusBorder(tabID: tabID)
+                    .allowsHitTesting(false)
+            }
+        } else if let controller = session.controller(for: tabID) {
+            BrowserWebView(webView: controller.webView) {
+                session.focusPane(tabID)
+            }
+            .id(tabID)
+            .overlay {
+                paneFocusBorder(tabID: tabID)
+                    .allowsHitTesting(false)
+            }
         } else {
             pageBackground
         }
+    }
+
+    @ViewBuilder
+    private func paneFocusBorder(tabID: String) -> some View {
+        if session.isSplitActive && tabID == session.activeTabID {
+            Rectangle()
+                .stroke(DesignTokens.accent.opacity(0.55), lineWidth: 2)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private func splitDivider(totalWidth: CGFloat) -> some View {
+        VStack(spacing: 8) {
+            ForEach([0.3, 0.5, 0.7], id: \.self) { ratio in
+                Button("\(Int(ratio * 100))") {
+                    withAnimation(.easeInOut(duration: 0.2)) { session.setSplitRatio(ratio) }
+                }
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(DesignTokens.textSecondary)
+            }
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { session.closeSplit() }
+            } label: {
+                Image(systemName: "xmark").font(.system(size: 11, weight: .semibold))
+            }
+            .accessibilityLabel("关闭双栏")
+        }
+        .frame(width: 28)
+        .padding(.vertical, 10)
+        .background(DesignTokens.surfacePanel, in: Capsule())
+        .overlay(Capsule().stroke(DesignTokens.border, lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.08), radius: 8, y: 2)
+        .gesture(
+            DragGesture(minimumDistance: 4)
+                .onChanged { value in
+                    if !isDraggingSplit {
+                        splitDragStartRatio = session.paneState.primaryRatio
+                        isDraggingSplit = true
+                    }
+                    session.setSplitRatio(splitDragStartRatio + Double(value.translation.width / max(1, totalWidth)))
+                }
+                .onEnded { _ in isDraggingSplit = false }
+        )
+        .accessibilityIdentifier("browser-split-divider")
     }
 
     private func addressBar(width: CGFloat) -> some View {

@@ -5,12 +5,12 @@ import WebKit
 /// Compiles bundled EasyList JSON into one atomic `WKContentRuleList` batch.
 final class ContentBlocker {
     static let shared = ContentBlocker()
+    static let listsDidChangeNotification = Notification.Name("com.youdroid.zhuobrowser.content-lists-changed")
 
     private let queue = DispatchQueue(label: "com.youdroid.zhuobrowser.content-blocker")
     private var lists: [WKContentRuleList] = []
     private var reloadCompletions: [(Bool) -> Void] = []
     private var isReloading = false
-    var onListsChanged: (() -> Void)?
 
     func currentLists() -> [WKContentRuleList] {
         queue.sync { lists }
@@ -65,7 +65,7 @@ final class ContentBlocker {
                 self.reloadCompletions = []
                 DispatchQueue.main.async {
                     if success {
-                        self.onListsChanged?()
+                        NotificationCenter.default.post(name: Self.listsDidChangeNotification, object: self)
                     }
                     completions.forEach { $0(success) }
                 }

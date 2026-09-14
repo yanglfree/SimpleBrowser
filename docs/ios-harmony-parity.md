@@ -26,7 +26,7 @@ Status values are `complete`, `partial`, `missing`, and `external-gate`.
 | System integration | partial | Page/download share, bounded 40-screen long-screenshot share with scroll restoration, privacy-bounded page diagnostics, explicit link copy/clipboard visit, safe new-window routing, confirmed third-party protocol handoff, gateway feedback, and a queued Share Extension with Clean/Private/Read-and-Close/Save/Original actions exist. App Group registration plus real host-app/share-sheet and live feedback acceptance remain. iOS correctly defers queued actions until the containing app is opened because Share extensions cannot launch it. |
 | Default browser | external-gate | Requires Apple's default-browser entitlement and approval before the system flow can ship. |
 | Pro commerce | partial | StoreKit 2 products, transaction updates, explicit restore, subscription management, agreement-gated paywall, short-lived server-entitlement cache, server-authoritative feature gating, and the production iOS gateway catalog are implemented. App Store Connect product setup, notification routing, and Sandbox/TestFlight purchase/renewal/refund acceptance remain. |
-| Large-screen workspace | partial | iPad is now a supported device family. Live 600/840pt breakpoints preserve compact behavior, add a switchable medium-width sidebar and inline expanded sidebar, scale the tab grid, constrain article lists/readers, and provide the Harmony-style switchable/fixed article inspector. Independent browser windows and side-by-side web panes remain; iPad rotation, Stage Manager, Split View, keyboard/trackpad, and touch behavior still need Simulator/device acceptance. |
+| Large-screen workspace | partial | iPad is a supported device family. Live 600/840pt breakpoints preserve compact behavior, add switchable/inline sidebars, scale the tab grid, constrain article surfaces, and provide the Harmony-style inspector. Two same-privacy tabs can now stay live side by side with focus-aware replacement and a draggable 30–70% divider. A tab can move into an independent typed SwiftUI window only after the destination scene accepts its snapshot. iPad rotation, Stage Manager, Split View, multiwindow restoration, keyboard/trackpad, and touch behavior still need Simulator/device acceptance. |
 
 ## Delivery order
 
@@ -34,7 +34,7 @@ Status values are `complete`, `partial`, `missing`, and `external-gate`.
 2. Close navigation, session, library, and download journeys.
 3. Port offline article library and its Pro boundary.
 4. Add StoreKit 2 and server-verified entitlement recovery.
-5. Add iPad adaptive workspace, then pursue default-browser entitlement.
+5. Finish iPad and multiwindow runtime acceptance, then pursue default-browser entitlement.
 
 Each batch must add focused tests, pass shared-core tests and an iOS build, run
 fresh Simulator interaction QA, and land as a task-only commit.

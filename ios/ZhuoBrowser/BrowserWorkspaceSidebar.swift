@@ -37,6 +37,8 @@ struct BrowserWorkspaceSidebar: View {
     @EnvironmentObject private var session: BrowserSession
     @Binding var panel: BrowserSidebarPanel
     let onDismiss: () -> Void
+    var onOpenBeside: (String) -> Void = { _ in }
+    var onOpenWindow: (String) -> Void = { _ in }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -103,11 +105,11 @@ struct BrowserWorkspaceSidebar: View {
 
     private var tabsPanel: some View {
         VStack(spacing: 0) {
-            sidebarHeader("标签页", count: session.tabs.count) {
+            sidebarHeader("标签页", count: visibleTabs.count) {
                 session.createTab(isPrivate: session.activeTab?.isPrivate == true)
             }
             List {
-                ForEach(session.tabs) { tab in
+                ForEach(visibleTabs) { tab in
                     HStack(spacing: 10) {
                         Button {
                             session.selectTab(tab.id)
@@ -128,6 +130,21 @@ struct BrowserWorkspaceSidebar: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("sidebar-tab-\(tab.id)")
+                        .contextMenu {
+                            Button("在右侧打开", systemImage: "rectangle.split.2x1") {
+                                onOpenBeside(tab.id)
+                            }
+                            .disabled(!session.canOpenTabBeside(tab.id))
+                            Button("移到新窗口", systemImage: "macwindow.badge.plus") {
+                                onOpenWindow(tab.id)
+                            }
+                        }
+                        .accessibilityAction(named: "在右侧打开") {
+                            if session.canOpenTabBeside(tab.id) { onOpenBeside(tab.id) }
+                        }
+                        .accessibilityAction(named: "移到新窗口") {
+                            onOpenWindow(tab.id)
+                        }
 
                         Button {
                             session.closeTab(tab.id)
@@ -245,6 +262,11 @@ struct BrowserWorkspaceSidebar: View {
         session.activeTab?.isPrivate == true
             ? []
             : Array(session.history.sorted { $0.visitedAt > $1.visitedAt }.prefix(50))
+    }
+
+    private var visibleTabs: [BrowserTab] {
+        guard let isPrivate = session.activeTab?.isPrivate else { return session.tabs }
+        return session.tabs.filter { $0.isPrivate == isPrivate }
     }
 
     private func sidebarHeader(_ title: String, count: Int, action: (() -> Void)? = nil) -> some View {

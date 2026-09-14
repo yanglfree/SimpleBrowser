@@ -28,7 +28,9 @@ verification, advanced site controls, confirmed external-protocol handoff,
 bounded long-screenshot sharing, page diagnostics, gateway feedback, and an
 iOS Share Extension for queued webpage actions. iPad is a supported device
 family and uses live 600/840-point breakpoints for an adaptive browser sidebar,
-tab grid, bounded reader, and article inspector.
+tab grid, bounded reader, and article inspector. Its workspace also supports
+same-privacy side-by-side web panes and typed independent windows with
+destination-acknowledged tab transfer.
 
 ## Setup
 
@@ -68,7 +70,8 @@ In:
 
 - Per-origin camera, microphone, and location decisions (Prompt / Allow / Deny)
 
+- iPad adaptive workspace, side-by-side web panes, and independent windows
+
 The live catch-up ledger is [`../docs/ios-harmony-parity.md`](../docs/ios-harmony-parity.md).
 
-Out until later milestones: independent browser windows, side-by-side web panes,
-and the default-browser entitlement.
+Out until later milestones: the default-browser entitlement.
