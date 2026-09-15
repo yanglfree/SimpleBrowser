@@ -577,16 +577,18 @@ export const BLOCKED_LINK_GUARD_SCRIPT: string = `
       return;
     }
 
-    // Clicked outside any language dropdown -> close all open dropdowns and blur active element
+    // Clicked outside any language dropdown -> close open dropdowns without unfocusing page inputs
     var openContainers = document.querySelectorAll('[data-zhuo-dropdown="open"]');
+    if (!openContainers || !openContainers.length) return;
     for (var i = 0; i < openContainers.length; i++) {
-      openContainers[i].setAttribute('data-zhuo-dropdown', 'closed');
+      var container = openContainers[i];
+      container.setAttribute('data-zhuo-dropdown', 'closed');
+      try {
+        if (document.activeElement && document.activeElement.blur && container.contains(document.activeElement)) {
+          document.activeElement.blur();
+        }
+      } catch (_e) {}
     }
-    try {
-      if (document.activeElement && document.activeElement.blur && document.activeElement !== document.body) {
-        document.activeElement.blur();
-      }
-    } catch (_e) {}
   }
   document.addEventListener('click', handleDropdownClick, true);
 

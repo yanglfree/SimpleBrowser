@@ -79,6 +79,72 @@ test('reader extraction core stays a closed IIFE', async () => {
   assert.match(core, /window\.__zhuoReaderExtract/);
 });
 
+test('blocked link guard dropdown click handler does not blur external input fields', async () => {
+  const script = await extractTemplateConst('BLOCKED_LINK_GUARD_SCRIPT');
+  let blurCalled = false;
+  const inputElement = {
+    tagName: 'INPUT',
+    blur() { blurCalled = true; }
+  };
+  const listeners = {};
+  const document = {
+    activeElement: inputElement,
+    addEventListener(type, handler) { listeners[type] = handler; },
+    querySelectorAll(selector) {
+      if (selector === '[data-zhuo-dropdown="open"]') {
+        return [];
+      }
+      return [];
+    },
+    getElementById() { return null; },
+    createElement() { return { set textContent(_) {} }; },
+    head: { appendChild() {} }
+  };
+  const window = {};
+
+  const run = Function('document', 'window', `return ${script.trim()}`);
+  run(document, window);
+
+  assert.ok(typeof listeners.click === 'function');
+  // Simulate clicking an input element while activeElement is the input
+  listeners.click({ target: inputElement });
+  assert.equal(blurCalled, false, 'inputElement should not be blurred when no dropdown is open');
+
+  // Now test with an open dropdown that does NOT contain activeElement
+  let containerClosed = false;
+  const openContainer = {
+    setAttribute(name, value) {
+      if (name === 'data-zhuo-dropdown' && value === 'closed') {
+        containerClosed = true;
+      }
+    },
+    contains(node) {
+      return node !== inputElement;
+    }
+  };
+  document.querySelectorAll = (selector) => {
+    if (selector === '[data-zhuo-dropdown="open"]') {
+      return [openContainer];
+    }
+    return [];
+  };
+
+  listeners.click({ target: inputElement });
+  assert.equal(containerClosed, true, 'open dropdown should be closed');
+  assert.equal(blurCalled, false, 'external inputElement should still not be blurred');
+
+  // Only active elements contained inside the container should be blurred
+  let innerBlurCalled = false;
+  const innerElement = {
+    blur() { innerBlurCalled = true; }
+  };
+  document.activeElement = innerElement;
+  openContainer.contains = (node) => node === innerElement;
+
+  listeners.click({ target: inputElement });
+  assert.equal(innerBlurCalled, true, 'inner element inside closed dropdown should be blurred');
+});
+
 test('exported js snapshot matches AppConstants', async () => {
   await writeExportedScripts();
   const drift = await checkExportedScripts();

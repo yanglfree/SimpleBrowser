@@ -130,6 +130,7 @@ export default function browserReportedBugsTest(): void {
       expect(script.includes('header-lang[data-zhuo-dropdown="open"]')).assertTrue();
       expect(script.includes('header-lang[data-zhuo-dropdown="closed"]')).assertTrue();
       expect(script.includes('handleDropdownClick')).assertTrue();
+      expect(script.includes('container.contains(document.activeElement)')).assertTrue();
       expect(script.includes('document.activeElement.blur()')).assertTrue();
     });
   });
