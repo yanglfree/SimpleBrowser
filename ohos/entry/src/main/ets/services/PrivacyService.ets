@@ -13,10 +13,11 @@ export class PrivacyService {
   static onWebControllerAttached(): void {
     PrivacyService.webEngineReady = true;
     try {
+      webview.WebviewController.setWebDebuggingAccess(true);
       webview.WebCookieManager.putAcceptCookieEnabled(true);
       webview.WebCookieManager.putAcceptThirdPartyCookieEnabled(true);
     } catch (error) {
-      Logger.warn(TAG, `Failed to configure cookies: ${String(error)}`);
+      Logger.warn(TAG, `Failed to configure cookies or debugging: ${String(error)}`);
     }
     if (PrivacyService.pendingCookieClear) {
       PrivacyService.pendingCookieClear = false;

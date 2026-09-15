@@ -75,7 +75,7 @@ export struct BrowserWebView {
       .databaseAccess(true)
       .fileAccess(true)
       .mixedMode(MixedMode.All)
-      .multiWindowAccess(true)
+      .multiWindowAccess(false)
       .onlineImageAccess(true)
       .imageAccess(true)
       .zoomAccess(true)
@@ -109,7 +109,10 @@ export struct BrowserWebView {
         this.registerSecurityBridge();
       })
       .onPageBegin((event: OnPageBeginEvent) => this.kernelCallbacks.onPageBegin(event.url))
-      .onPageEnd((event: OnPageEndEvent) => this.kernelCallbacks.onPageEnd(event.url))
+      .onPageEnd((event: OnPageEndEvent) => {
+        PrivacyService.flushCookies();
+        this.kernelCallbacks.onPageEnd(event.url);
+      })
       .onNavigationEntryCommitted((details: LoadCommittedDetails) => {
         if (WebKernelService.shouldRefreshNavigationState(details.isMainFrame)) {
           this.kernelCallbacks.onNavigationStateChange();

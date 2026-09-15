@@ -69,6 +69,22 @@
     };
   } catch (_e) {}
 
+  // Fallback for blank OAuth transition pages (e.g. Huawei Alliance handleAllianceLogin.html)
+  // that fail to redirect and leave an empty document.
+  try {
+    if (window.location.pathname.indexOf('/service/josp/agc/handleAllianceLogin.html') !== -1) {
+      setTimeout(function() {
+        if (window.location.pathname.indexOf('/service/josp/agc/handleAllianceLogin.html') !== -1) {
+          var body = document.body;
+          var hasContent = body && (body.innerText || '').trim().length > 0;
+          if (!hasContent) {
+            window.location.href = window.location.origin + '/consumer/cn/service/josp/agc/index.html';
+          }
+        }
+      }, 2500);
+    }
+  } catch (_e) {}
+
   // Touch / pointer hover toggle helper:
   // When an element uses CSS :hover to show dropdowns (like .header-lang),
   // tapping on touch devices leaves :hover active indefinitely.
