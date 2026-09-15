@@ -54,4 +54,46 @@ final class InboundSharePolicyTests: XCTestCase {
         XCTAssertEqual(decoded.title, "Article")
         XCTAssertEqual(decoded.cleanURL, "https://example.com/?id=42")
     }
+
+    func testOriginalActionOnlyAppearsWhenCleaningChangedTheURL() throws {
+        let tracked = try XCTUnwrap(
+            InboundSharePolicy.create(
+                rawURL: "https://example.com/?utm_source=share&id=42",
+                action: .cleanOpen
+            )
+        )
+        let clean = try XCTUnwrap(
+            InboundSharePolicy.create(
+                rawURL: "https://example.com/?id=42",
+                action: .cleanOpen
+            )
+        )
+
+        XCTAssertEqual(
+            InboundSharePolicy.availableActions(for: tracked),
+            [.cleanOpen, .privateOpen, .readAndClose, .saveArticle, .originalOpen]
+        )
+        XCTAssertEqual(
+            InboundSharePolicy.availableActions(for: clean),
+            [.cleanOpen, .privateOpen, .readAndClose, .saveArticle]
+        )
+    }
+
+    func testActionDispatchMatchesHarmonySemantics() throws {
+        let request = try XCTUnwrap(
+            InboundSharePolicy.create(
+                rawURL: "https://example.com/?utm_source=share&id=42",
+                action: .cleanOpen
+            )
+        )
+
+        XCTAssertFalse(InboundShareAction.cleanOpen.usesPrivateTab)
+        XCTAssertTrue(InboundShareAction.privateOpen.usesPrivateTab)
+        XCTAssertTrue(InboundShareAction.readAndClose.usesPrivateTab)
+        XCTAssertTrue(InboundShareAction.readAndClose.opensDisposableReader)
+        XCTAssertTrue(InboundShareAction.saveArticle.requiresPro)
+        XCTAssertTrue(InboundShareAction.saveArticle.shouldCaptureArticle)
+        XCTAssertEqual(InboundShareAction.cleanOpen.targetURL(in: request), "https://example.com/?id=42")
+        XCTAssertEqual(InboundShareAction.originalOpen.targetURL(in: request), request.rawURL)
+    }
 }

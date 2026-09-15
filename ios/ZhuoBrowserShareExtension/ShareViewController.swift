@@ -34,21 +34,6 @@ final class ShareViewController: UIViewController {
         actionStack.axis = .vertical
         actionStack.spacing = 10
         actionStack.isHidden = true
-        [
-            ("清理跟踪参数后打开", InboundShareAction.cleanOpen),
-            ("无痕打开", InboundShareAction.privateOpen),
-            ("阅读并关闭", InboundShareAction.readAndClose),
-            ("保存离线文章", InboundShareAction.saveArticle),
-            ("打开原始链接", InboundShareAction.originalOpen)
-        ].forEach { label, action in
-            var configuration = UIButton.Configuration.tinted()
-            configuration.title = label
-            configuration.cornerStyle = .medium
-            let button = UIButton(configuration: configuration)
-            button.contentHorizontalAlignment = .leading
-            button.addAction(UIAction { [weak self] _ in self?.enqueue(action) }, for: .touchUpInside)
-            actionStack.addArrangedSubview(button)
-        }
 
         var cancelConfiguration = UIButton.Configuration.plain()
         cancelConfiguration.title = "取消"
@@ -70,6 +55,33 @@ final class ShareViewController: UIViewController {
         ])
     }
 
+    private func configureActions(for request: InboundShareRequest) {
+        actionStack.arrangedSubviews.forEach { view in
+            actionStack.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        InboundSharePolicy.availableActions(for: request).forEach { action in
+            var configuration = UIButton.Configuration.tinted()
+            configuration.title = label(for: action)
+            configuration.cornerStyle = .medium
+            let button = UIButton(configuration: configuration)
+            button.contentHorizontalAlignment = .leading
+            button.addAction(UIAction { [weak self] _ in self?.enqueue(action) }, for: .touchUpInside)
+            actionStack.addArrangedSubview(button)
+        }
+        actionStack.isHidden = false
+    }
+
+    private func label(for action: InboundShareAction) -> String {
+        switch action {
+        case .cleanOpen: "清理跟踪参数后打开"
+        case .privateOpen: "无痕打开"
+        case .readAndClose: "阅读并关闭"
+        case .saveArticle: "保存离线文章"
+        case .originalOpen: "打开原始链接"
+        }
+    }
+
     @MainActor
     private func loadSharedContent() async {
         guard let content = await firstSharedContent() else {
@@ -80,7 +92,12 @@ final class ShareViewController: UIViewController {
         rawURL = content.url
         sharedTitle = content.title
         detailLabel.text = URL(string: content.url)?.host ?? content.url
-        actionStack.isHidden = false
+        guard let request = InboundSharePolicy.create(rawURL: content.url, action: .cleanOpen) else {
+            detailLabel.text = "没有找到可访问的 HTTP 或 HTTPS 链接。"
+            statusLabel.text = "请返回并分享网页链接或包含网页链接的文本。"
+            return
+        }
+        configureActions(for: request)
     }
 
     private func enqueue(_ action: InboundShareAction) {

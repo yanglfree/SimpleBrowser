@@ -6,6 +6,26 @@ enum InboundShareAction: String, Codable, CaseIterable {
     case readAndClose
     case saveArticle
     case originalOpen
+
+    var usesPrivateTab: Bool {
+        self == .privateOpen || self == .readAndClose
+    }
+
+    var opensDisposableReader: Bool {
+        self == .readAndClose
+    }
+
+    var requiresPro: Bool {
+        self == .saveArticle
+    }
+
+    var shouldCaptureArticle: Bool {
+        self == .saveArticle
+    }
+
+    func targetURL(in request: InboundShareRequest) -> String {
+        self == .originalOpen ? request.rawURL : request.cleanURL
+    }
 }
 
 struct InboundShareRequest: Codable, Identifiable, Equatable {
@@ -53,6 +73,19 @@ enum InboundSharePolicy {
         let trailing = CharacterSet(charactersIn: ")]}>.,;!，。；！")
         let candidate = String(value[range]).trimmingCharacters(in: trailing)
         return isHTTPURL(candidate) ? candidate : nil
+    }
+
+    static func availableActions(for request: InboundShareRequest) -> [InboundShareAction] {
+        var actions: [InboundShareAction] = [
+            .cleanOpen,
+            .privateOpen,
+            .readAndClose,
+            .saveArticle
+        ]
+        if !request.removedTrackingParameters.isEmpty {
+            actions.append(.originalOpen)
+        }
+        return actions
     }
 
     private static func removeMarketingParameters(from rawURL: String) -> (url: String, removed: [String]) {

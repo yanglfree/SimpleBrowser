@@ -1906,18 +1906,22 @@ final class BrowserSession: ObservableObject {
     }
 
     private func applyInboundShare(_ request: InboundShareRequest) -> Bool {
-        let isPrivate = request.action == .privateOpen || request.action == .readAndClose
-        guard let tabID = createTab(isPrivate: isPrivate) else {
+        if request.action.requiresPro, !pro.isPro {
+            showsProPaywall = true
+            flash("保存离线文章需要卓阅 Pro")
+            return true
+        }
+        guard let tabID = createTab(isPrivate: request.action.usesPrivateTab) else {
             flash("标签页已达上限，分享链接仍保留在收件箱")
             return false
         }
-        if request.action == .readAndClose {
+        if request.action.opensDisposableReader {
             disposableReaderTabIDs.insert(tabID)
         }
-        if request.action == .saveArticle {
+        if request.action.shouldCaptureArticle {
             pendingArticleCaptureTabIDs.insert(tabID)
         }
-        let target = request.action == .originalOpen ? request.rawURL : request.cleanURL
+        let target = request.action.targetURL(in: request)
         openInActiveTab(target)
         if !request.title.isEmpty {
             update(tabID: tabID) { tab in tab.title = request.title }
