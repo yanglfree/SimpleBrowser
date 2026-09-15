@@ -124,6 +124,14 @@ export default function browserReportedBugsTest(): void {
       expect(script.includes('window.location.href = u')).assertTrue();
     });
 
+    it('recovers stale Huawei OAuth callback shells without interrupting valid state', 0, (): void => {
+      const script: string = BLOCKED_LINK_GUARD_SCRIPT;
+      expect(script.includes('/service/josp/agc/')).assertTrue();
+      expect(script.includes('/hdc-console/')).assertTrue();
+      expect(script.includes('hasValidLoginState')).assertTrue();
+      expect(script.includes('window.location.origin + recoveryPath')).assertTrue();
+    });
+
     it('provides touch and pointer hover dropdown toggle with data-zhuo-dropdown state', 0, (): void => {
       const script: string = BLOCKED_LINK_GUARD_SCRIPT;
       expect(script.includes('data-zhuo-dropdown')).assertTrue();

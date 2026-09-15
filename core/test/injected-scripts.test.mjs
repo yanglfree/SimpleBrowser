@@ -145,6 +145,53 @@ test('blocked link guard dropdown click handler does not blur external input fie
   assert.equal(innerBlurCalled, true, 'inner element inside closed dropdown should be blurred');
 });
 
+test('blank Huawei OAuth callbacks recover only when login state is missing or stale', async () => {
+  const script = await extractTemplateConst('BLOCKED_LINK_GUARD_SCRIPT');
+  const runCallback = (pathname, search, cookie) => {
+    const timers = [];
+    const listeners = {};
+    const location = {
+      origin: 'https://developer.huawei.com',
+      pathname,
+      search,
+      href: `https://developer.huawei.com${pathname}${search}`
+    };
+    const document = {
+      activeElement: null,
+      body: { innerText: '' },
+      cookie,
+      addEventListener(type, handler) { listeners[type] = handler; },
+      querySelectorAll() { return []; },
+      getElementById() { return null; },
+      createElement() { return { set textContent(_) {} }; },
+      head: { appendChild() {} }
+    };
+    const window = { location };
+    const setTimeout = (callback) => timers.push(callback);
+    const run = Function('document', 'window', 'setTimeout', `return ${script.trim()}`);
+    run(document, window, setTimeout);
+    for (const callback of timers) callback();
+    return location.href;
+  };
+
+  assert.equal(
+    runCallback('/consumer/cn/hdc-console/handleAllianceLogin.html', '?state=123', ''),
+    'https://developer.huawei.com/consumer/cn/hdc-console/'
+  );
+  assert.equal(
+    runCallback('/consumer/cn/service/josp/agc/handleAllianceLogin.html', '?state=123', 'state=stale'),
+    'https://developer.huawei.com/consumer/cn/service/josp/agc/index.html'
+  );
+  assert.equal(
+    runCallback('/consumer/cn/hdc-console/handleAllianceLogin.html', '?state=123', 'other=value; state=123'),
+    'https://developer.huawei.com/consumer/cn/hdc-console/handleAllianceLogin.html?state=123'
+  );
+  assert.equal(
+    runCallback('/consumer/cn/ordinary-blank.html', '?state=123', ''),
+    'https://developer.huawei.com/consumer/cn/ordinary-blank.html?state=123'
+  );
+});
+
 test('exported js snapshot matches AppConstants', async () => {
   await writeExportedScripts();
   const drift = await checkExportedScripts();

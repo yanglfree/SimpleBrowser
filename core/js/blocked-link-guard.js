@@ -69,16 +69,32 @@
     };
   } catch (_e) {}
 
-  // Fallback for blank OAuth transition pages (e.g. Huawei Alliance handleAllianceLogin.html)
-  // that fail to redirect and leave an empty document.
+  // Huawei's callback shells only contain scripts. When a callback arrives from
+  // another browser, its state and return-location cookies are absent, so the
+  // site's own code cannot recover and leaves a permanently blank document.
+  // Keep this scoped to the two observed Huawei callbacks, and never interrupt
+  // a callback whose state cookie still proves an in-browser login flow.
   try {
-    if (window.location.pathname.indexOf('/service/josp/agc/handleAllianceLogin.html') !== -1) {
+    var callbackPath = window.location.pathname || '';
+    var callbackFile = 'handleAllianceLogin.html';
+    var recoveryPath = '';
+    if (callbackPath.indexOf('/service/josp/agc/' + callbackFile) !== -1) {
+      recoveryPath = callbackPath.substring(0, callbackPath.length - callbackFile.length) + 'index.html';
+    } else if (callbackPath.indexOf('/hdc-console/' + callbackFile) !== -1) {
+      recoveryPath = callbackPath.substring(0, callbackPath.length - callbackFile.length);
+    }
+    if (recoveryPath) {
       setTimeout(function() {
-        if (window.location.pathname.indexOf('/service/josp/agc/handleAllianceLogin.html') !== -1) {
+        if (window.location.pathname === callbackPath) {
           var body = document.body;
           var hasContent = body && (body.innerText || '').trim().length > 0;
-          if (!hasContent) {
-            window.location.href = window.location.origin + '/consumer/cn/service/josp/agc/index.html';
+          var stateMatch = (window.location.search || '').match(/[?&]state=([^&]+)/);
+          var cookieMatch = (document.cookie || '').match(/(?:^|;\s*)state=([^;]+)/);
+          var queryState = stateMatch ? decodeURIComponent(stateMatch[1]) : '';
+          var cookieState = cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
+          var hasValidLoginState = queryState && cookieState && queryState === cookieState;
+          if (!hasContent && !hasValidLoginState) {
+            window.location.href = window.location.origin + recoveryPath;
           }
         }
       }, 2500);
