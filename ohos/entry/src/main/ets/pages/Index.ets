@@ -2612,7 +2612,28 @@ struct Index {
       if (selected !== undefined) {
         await this.prepareScrollResume(selected);
       }
+    } else if (this.viewModel.canCreateTabOnSwipe(offset)) {
+      await this.createTabOnSwipe(offset);
     }
+  }
+
+  private async createTabOnSwipe(direction: number): Promise<void> {
+    const currentTabId: string = this.activeTabId;
+    await this.captureScrollPosition(currentTabId);
+    await this.captureThumbnail(currentTabId);
+    this.dismissResumePrompt();
+    if (this.viewModel.isTabSoftLimitReached()) {
+      this.promptTabSoftLimit();
+    }
+    const isPrivate: boolean = this.activeTab()?.isPrivate === true;
+    const tab: BrowserTab | undefined = this.viewModel.addTab(HOME_URL, isPrivate);
+    if (tab === undefined) {
+      return;
+    }
+    await this.activateTab(tab.id);
+    this.sheet = Overlay.None;
+    this.isCapsuleHidden = false;
+    await this.animateTabSwitch(tab.id, direction);
   }
 
   private async animateTabSwitch(next: string, direction: number): Promise<void> {

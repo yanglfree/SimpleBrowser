@@ -663,6 +663,15 @@ export class BrowserViewModel {
     return this.tabs[next].id;
   }
 
+  isLastTabActive(): boolean {
+    const index: number = this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId);
+    return index >= 0 && index === this.tabs.length - 1;
+  }
+
+  canCreateTabOnSwipe(offset: number): boolean {
+    return offset > 0 && this.isLastTabActive();
+  }
+
   /** Current tab first, followed by recently visited tabs from the same privacy mode. */
   recentTabs(limit: number): BrowserTab[] {
     const active: BrowserTab | undefined = this.getActiveTab();

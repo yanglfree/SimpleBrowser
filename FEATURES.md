@@ -45,7 +45,8 @@ service stay out of scope on every platform (`README.md`).
 - Tab pinning (`toggleTabPinned`); pinned tabs stay ordered ahead of unpinned ones
   and drag reorder is clamped within the pinned/unpinned, private/normal group.
 - Address-bar horizontal swipe to switch tabs, with a dot indicator on the address
-  capsule (shown only with ≥2 tabs and the gesture enabled).
+  capsule (shown only with ≥2 tabs and the gesture enabled); swiping forward past the
+  last tab directly creates and switches to a new tab matching TabOverview behavior.
 - Session persistence and restore across launches (`BrowserRepository`,
   `SESSION_KEY`), scoped per window (`setSessionScope`) for multi-window.
 - Tab archival/expiry: tabs older than `tabExpiryDays` (1/3/7 days, or Never) are

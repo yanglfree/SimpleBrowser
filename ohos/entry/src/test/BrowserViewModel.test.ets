@@ -67,6 +67,50 @@ export default function browserViewModelTest(): void {
     });
   });
 
+  describe('BrowserViewModel tab swipe navigation', (): void => {
+    it('detects the last tab and allows creating a tab only on forward swipe', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const first: BrowserTab = viewModel.createTab('https://first.example', false);
+      const second: BrowserTab = viewModel.createTab('https://second.example', false);
+      const last: BrowserTab = viewModel.createTab('https://last.example', false);
+      viewModel.tabs = [first, second, last];
+
+      viewModel.activeTabId = first.id;
+      expect(viewModel.isLastTabActive()).assertFalse();
+      expect(viewModel.canCreateTabOnSwipe(1)).assertFalse();
+      expect(viewModel.canCreateTabOnSwipe(-1)).assertFalse();
+
+      viewModel.activeTabId = second.id;
+      expect(viewModel.isLastTabActive()).assertFalse();
+      expect(viewModel.canCreateTabOnSwipe(1)).assertFalse();
+
+      viewModel.activeTabId = last.id;
+      expect(viewModel.isLastTabActive()).assertTrue();
+      expect(viewModel.canCreateTabOnSwipe(1)).assertTrue();
+      expect(viewModel.canCreateTabOnSwipe(-1)).assertFalse();
+    });
+
+    it('treats a single active tab as the last tab for forward swipe', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const only: BrowserTab = viewModel.createTab('https://only.example', false);
+      viewModel.tabs = [only];
+      viewModel.activeTabId = only.id;
+
+      expect(viewModel.isLastTabActive()).assertTrue();
+      expect(viewModel.canCreateTabOnSwipe(1)).assertTrue();
+      expect(viewModel.canCreateTabOnSwipe(-1)).assertFalse();
+    });
+
+    it('returns false when no active tab exists or tab list is empty', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      viewModel.tabs = [];
+      viewModel.activeTabId = 'non-existent';
+
+      expect(viewModel.isLastTabActive()).assertFalse();
+      expect(viewModel.canCreateTabOnSwipe(1)).assertFalse();
+    });
+  });
+
   describe('BrowserViewModel local search shortcut', (): void => {
     it('shows one typed-query search action when the shortcut setting is enabled', 0, (): void => {
       const viewModel: BrowserViewModel = new BrowserViewModel();
