@@ -69,6 +69,38 @@
     };
   } catch (_e) {}
 
+  // Huawei's callback shells only contain scripts. When a callback arrives from
+  // another browser, its state and return-location cookies are absent, so the
+  // site's own code cannot recover and leaves a permanently blank document.
+  // Keep this scoped to the two observed Huawei callbacks, and never interrupt
+  // a callback whose state cookie still proves an in-browser login flow.
+  try {
+    var callbackPath = window.location.pathname || '';
+    var callbackFile = 'handleAllianceLogin.html';
+    var recoveryPath = '';
+    if (callbackPath.indexOf('/service/josp/agc/' + callbackFile) !== -1) {
+      recoveryPath = callbackPath.substring(0, callbackPath.length - callbackFile.length) + 'index.html';
+    } else if (callbackPath.indexOf('/hdc-console/' + callbackFile) !== -1) {
+      recoveryPath = callbackPath.substring(0, callbackPath.length - callbackFile.length);
+    }
+    if (recoveryPath) {
+      setTimeout(function() {
+        if (window.location.pathname === callbackPath) {
+          var body = document.body;
+          var hasContent = body && (body.innerText || '').trim().length > 0;
+          var stateMatch = (window.location.search || '').match(/[?&]state=([^&]+)/);
+          var cookieMatch = (document.cookie || '').match(/(?:^|;\s*)state=([^;]+)/);
+          var queryState = stateMatch ? decodeURIComponent(stateMatch[1]) : '';
+          var cookieState = cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
+          var hasValidLoginState = queryState && cookieState && queryState === cookieState;
+          if (!hasContent && !hasValidLoginState) {
+            window.location.href = window.location.origin + recoveryPath;
+          }
+        }
+      }, 2500);
+    }
+  } catch (_e) {}
+
   // Touch / pointer hover toggle helper:
   // When an element uses CSS :hover to show dropdowns (like .header-lang),
   // tapping on touch devices leaves :hover active indefinitely.

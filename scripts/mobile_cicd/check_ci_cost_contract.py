@@ -69,6 +69,23 @@ for legacy_source in ("harmony_signing_profile:", "build-profile.release.json5",
 ci = (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
 if "schedule:" not in ci or "signing-source.mjs changed" not in ci:
     fail("device profile refresh trigger is missing")
+for fragment in (
+    "name: Validate shared contracts",
+    "name: Test and build iOS app",
+    "name: Test and build Android app",
+    "name: Test and build HarmonyOS app",
+    "xcodebuild test",
+    ":app:lintDebug",
+    ":app:testDebugUnitTest",
+    ":app:assembleDebug",
+    "build_harmony_artifacts.sh",
+):
+    if fragment not in ci:
+        fail(f"ci.yml is missing multi-platform gate: {fragment}")
+harmony_builder = (ROOT / "scripts" / "mobile_cicd" / "build_harmony_artifacts.sh").read_text(encoding="utf-8")
+for fragment in ("harmony-tests.log", 'grep -Fq "ERROR: Error in"', "Harmony test assertions failed"):
+    if fragment not in harmony_builder:
+        fail(f"Harmony test failure detection is missing: {fragment}")
 for store_action in ("upload_to_app_gallery", "submit_for_review", "agc upload", "appgallery upload"):
     if store_action in all_workflows:
         fail(f"automated store action is forbidden: {store_action}")

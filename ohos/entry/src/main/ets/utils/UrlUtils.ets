@@ -223,7 +223,8 @@ export function siteBadge(title: string, url: string): string {
   if (source.length === 0) {
     source = displayHost(url);
   }
-  const stripped: string = source.replace(/^[\s\[\]【】()（）《》<>{}:：·.,!?！？#@_—\-]+/g, '').trim();
+  const withoutLabel: string = source.replace(/^(?:\[[^\]]*\]|【[^】]*】)\s*/, '');
+  const stripped: string = withoutLabel.replace(/^[\s\[\]【】()（）《》<>{}:：·.,!?！？#@_—\-]+/g, '').trim();
   const effective: string = stripped.length > 0 ? stripped : source;
   return effective.length === 0 ? '·' : effective.substring(0, 1).toUpperCase();
 }

@@ -11,7 +11,10 @@ function fixture() {
   const service = runInNewContext(stripTypeScriptTypes(`${source}\nPrivacyService;`), {
     Logger: { warn: () => calls.push('warning') },
     webview: {
+      WebviewController: { setWebDebuggingAccess: () => {} },
       WebCookieManager: {
+        putAcceptCookieEnabled: () => {},
+        putAcceptThirdPartyCookieEnabled: () => {},
         saveCookieSync: () => calls.push('save'),
         clearAllCookiesSync: (privateMode = false) => calls.push(`clear:${privateMode}`)
       },

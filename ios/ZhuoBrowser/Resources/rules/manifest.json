@@ -31,5 +31,10 @@
       "cosmetic": 10218,
       "skipped": 23367
     }
-  ]
+  ],
+  "androidNetwork": {
+    "file": "android-network.json",
+    "sha256": "e7ffc52949bbb2b11acd65ae7da516b222a835263e984c60a4e52a4d3d6fbbad",
+    "count": 50000
+  }
 }

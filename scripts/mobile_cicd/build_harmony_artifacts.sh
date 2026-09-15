@@ -71,7 +71,11 @@ fi
 (
   cd "${OHOS_ROOT}"
   if [[ "${RUN_HARMONY_TESTS:-0}" == "1" ]]; then
-    "${HVIGOR_BIN}" test
+    TEST_LOG="${BACKUP_DIR}/harmony-tests.log"
+    "${HVIGOR_BIN}" test 2>&1 | tee "${TEST_LOG}"
+    if grep -Fq "ERROR: Error in" "${TEST_LOG}"; then
+      die "Harmony test assertions failed"
+    fi
   fi
   if [[ "${SIGNING_CHANNEL}" == app_gallery ]]; then
     "${HVIGOR_BIN}" assembleApp -p buildMode=release

@@ -39,12 +39,12 @@ jobs:
           fi
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
-  verify:
+  quality:
     needs: inspect
     if: needs.inspect.outputs.changed == 'true'
-    name: Test and build HarmonyOS app
+    name: Validate shared contracts
     runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
-    timeout-minutes: 60
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -54,18 +54,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify trusted runner and capacity
+      - name: Verify trusted runner
         run: |
           set -euo pipefail
           test "$(uname -m)" = "arm64"
-          test -x "$HVIGOR_BIN"
-          command -v ohpm
           command -v node
           command -v actionlint
-          test -f "$HARMONY_SIGNING_SOURCE"
-          test "$(stat -f '%OLp' "$HARMONY_SIGNING_SOURCE")" = "600"
-          "$HVIGOR_BIN" --version
-          ohpm --version
           df -Pk . | awk 'NR == 2 { if ($4 < 4194304) { print "At least 4 GiB free disk is required."; exit 1 } }'
 
       - name: Validate CI/CD contracts
@@ -94,8 +88,105 @@ jobs:
           npm test
           npm run verify:worker
 
+  ios:
+    needs: [inspect, quality]
+    if: needs.inspect.outputs.changed == 'true'
+    name: Test and build iOS app
+    runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Verify iOS toolchain
+        run: |
+          set -euo pipefail
+          command -v xcodegen
+          xcodebuild -version
+          xcrun simctl list devices available | grep -q 'iPhone 17 Pro Max'
+
+      - name: Verify shared resources are synchronized
+        run: |
+          set -euo pipefail
+          ios/Scripts/sync-core.sh
+          git diff --exit-code -- ios/ZhuoBrowser/Resources
+
+      - name: Generate project and run iOS tests
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodegen generate --spec project.yml
+          caffeinate -dimsu xcodebuild test \
+            -project ZhuoBrowser.xcodeproj \
+            -scheme ZhuoBrowser \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=latest'
+
+  android:
+    needs: [inspect, quality]
+    if: needs.inspect.outputs.changed == 'true'
+    name: Test and build Android app
+    runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Verify Android toolchain
+        run: |
+          set -euo pipefail
+          command -v java
+          test -n "${ANDROID_HOME:-}"
+          test -d "$ANDROID_HOME/platforms/android-35"
+          java -version
+
+      - name: Verify shared resources are synchronized
+        run: |
+          set -euo pipefail
+          android/Scripts/sync-core.sh
+          git diff --exit-code -- android/app/src/main/assets
+
+      - name: Run Android checks and build debug APK
+        working-directory: android
+        run: |
+          set -euo pipefail
+          caffeinate -dimsu ./gradlew --no-daemon \
+            :app:lintDebug \
+            :app:testDebugUnitTest \
+            :app:assembleDebug
+
+  harmony:
+    needs: [inspect, quality]
+    if: needs.inspect.outputs.changed == 'true'
+    name: Test and build HarmonyOS app
+    runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify HarmonyOS toolchain and signing source
+        run: |
+          set -euo pipefail
+          test -x "$HVIGOR_BIN"
+          command -v ohpm
+          test -f "$HARMONY_SIGNING_SOURCE"
+          test "$(stat -f '%OLp' "$HARMONY_SIGNING_SOURCE")" = "600"
+          "$HVIGOR_BIN" --version
+          ohpm --version
+
       - name: Run tests and build release HAP
         env:
           RUN_HARMONY_TESTS: "1"
         run: |
-          scripts/mobile_cicd/build_harmony_artifacts.sh "$RUNNER_TEMP/zhuobrowser-harmony-ci"
+          caffeinate -dimsu scripts/mobile_cicd/build_harmony_artifacts.sh "$RUNNER_TEMP/zhuobrowser-harmony-ci"

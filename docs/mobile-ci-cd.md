@@ -6,14 +6,17 @@ activation sequence, and recovery rules are in
 The dated audit below records the pre-migration state, not proof of activation.
 
 ZhuoBrowser uses GitHub Actions only for orchestration and status. A trusted
-Apple Silicon self-hosted runner performs HarmonyOS tests, signing, and HAP
-builds. Cloudflare R2 retains immutable artifacts, D1 records build and checksum
-metadata, and a product-isolated Worker provides authenticated upload plus an
-unlisted download/status surface.
+Apple Silicon self-hosted runner validates the shared core and builds the native
+iOS, Android, and HarmonyOS clients. The CI workflow exposes each platform as a
+separate required gate so failures identify the affected toolchain directly.
+Cloudflare R2 retains immutable HarmonyOS artifacts, D1 records build and
+checksum metadata, and a product-isolated Worker provides authenticated upload
+plus an unlisted download/status surface.
 
 ```text
 push main or manual CI
-  -> CI on [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
+  -> shared contracts and browser regression tests
+  -> iOS xcodebuild tests + Android lint/tests/APK + HarmonyOS signed build
   -> successful workflow_run.head_sha
   -> signed HAP + store App Pack + checksums + release-metadata.json
   -> authenticated Worker upload
@@ -26,6 +29,9 @@ push main or manual CI
 - The automatic receiver always checks out the successful CI
   `workflow_run.head_sha`; it never rebuilds a moving `main` tip.
 - Failed or skipped CI cannot upload artifacts.
+- iOS and Android are CI build gates. Their signing, retained artifact, and
+  store-distribution channels are not configured by this HarmonyOS delivery
+  workflow.
 - GitHub-hosted compute, Actions cache, and Actions artifacts are not used.
 - The runner-local release signing profile is stored at
   `~/.config/zhuobrowser/signing.json` with mode `600` and is
@@ -41,8 +47,9 @@ push main or manual CI
 - AppGallery Connect upload, release association, submission, review, and
   publication remain manual.
 
-The repository currently has no iOS/Xcode target, so there is no iOS archive,
-Ad Hoc installation, TestFlight, or App Store workflow in this migration.
+The repository has native iOS and Android targets. CI verifies both, but there
+is no iOS archive/Ad Hoc/TestFlight/App Store workflow or Android retained/store
+publication workflow in this migration.
 
 ## Required external state
 
@@ -82,6 +89,12 @@ python3 scripts/mobile_cicd/check_ci_cost_contract.py
 node --test scripts/mobile_cicd/verify_harmony_signing.test.mjs
 actionlint -color
 for script in scripts/mobile_cicd/*.sh; do bash -n "$script"; done
+cd ios
+xcodegen generate --spec project.yml
+xcodebuild test -project ZhuoBrowser.xcodeproj -scheme ZhuoBrowser \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=latest'
+cd ../android
+./gradlew --no-daemon :app:lintDebug :app:testDebugUnitTest :app:assembleDebug
 cd cloudflare/mobile-distribution
 npm ci
 npm run typecheck
