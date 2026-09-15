@@ -106,8 +106,8 @@ export struct OnboardingSheet {
       .index(this.page)
       .indicator(false)
       .loop(false)
-      .duration(280)
-      .curve(Curve.EaseOut)
+      .duration(320)
+      .curve(Curve.FastOutSlowIn)
       .onChange((index: number): void => {
         this.page = index;
       })
@@ -183,8 +183,8 @@ export struct OnboardingSheet {
       .index(this.page)
       .indicator(false)
       .loop(false)
-      .duration(280)
-      .curve(Curve.EaseOut)
+      .duration(320)
+      .curve(Curve.FastOutSlowIn)
       .onChange((index: number): void => {
         this.page = index;
       })
@@ -256,6 +256,7 @@ export struct OnboardingSheet {
         .onClick(() => this.prev())
         .borderRadius(24)
         .backgroundColor($r('app.color.surface_subtle'))
+        .transition(TransitionEffect.OPACITY.animation({ duration: 250, curve: Curve.EaseOut }))
       }
 
       Text(this.page === ONBOARDING_PAGE_COUNT - 1
@@ -274,23 +275,25 @@ export struct OnboardingSheet {
         .onClick(() => this.next())
     }
     .width(this.isWide ? 236 : '100%')
+    .animation({ duration: 250, curve: Curve.EaseOut })
   }
 
   @Builder
   private PageDots() {
     Row({ space: 8 }) {
-      ForEach(this.pageDots(), (active: boolean, index: number) => {
+      ForEach([0, 1, 2], (index: number) => {
         Row()
-          .width(active ? 24 : 8)
+          .width(index === this.page ? 24 : 8)
           .height(8)
           .borderRadius(4)
-          .backgroundColor(active ? $r('app.color.accent') : $r('app.color.border'))
-          .animation({ duration: 250, curve: Curve.EaseOut })
+          .backgroundColor(index === this.page ? $r('app.color.accent') : $r('app.color.border'))
+          .animation({ duration: 300, curve: Curve.FastOutSlowIn })
           .onClick(() => {
-            this.page = index;
-            this.swiperController.changeIndex(index, true);
+            if (this.page !== index) {
+              this.swiperController.changeIndex(index, true);
+            }
           })
-      }, (active: boolean, index: number) => `onboarding-dot-${index}-${active}`)
+      }, (index: number) => `onboarding-dot-${index}`)
     }
     .id('onboarding-page-indicator')
   }
@@ -339,14 +342,12 @@ export struct OnboardingSheet {
       this.onFinish();
       return;
     }
-    this.page += 1;
-    this.swiperController.changeIndex(this.page, true);
+    this.swiperController.showNext();
   }
 
   private prev(): void {
     if (this.page > 0) {
-      this.page -= 1;
-      this.swiperController.changeIndex(this.page, true);
+      this.swiperController.showPrevious();
     }
   }
 
@@ -368,9 +369,5 @@ export struct OnboardingSheet {
       return $r('app.string.onboarding_privacy_message');
     }
     return $r('app.string.onboarding_reader_message');
-  }
-
-  private pageDots(): boolean[] {
-    return [this.page === 0, this.page === 1, this.page === 2];
   }
 }
