@@ -2,7 +2,7 @@ import { BrowserSettings, SearchEngine } from '../models/BrowserModels';
 import { AppIcon, IconName } from './AppIcon';
 import { OnboardingIllustration } from './OnboardingIllustration';
 
-const ONBOARDING_PAGE_COUNT: number = 3;
+const ONBOARDING_PAGE_COUNT: number = 4;
 const WIDE_CONTENT_MAX_WIDTH: number = 1180;
 const WIDE_COPY_WIDTH: number = 460;
 const COMPACT_CONTENT_MAX_WIDTH: number = 520;
@@ -97,7 +97,7 @@ export struct OnboardingSheet {
   private WideContent() {
     Column({ space: 24 }) {
       Swiper(this.swiperController) {
-        ForEach([0, 1, 2], (index: number) => {
+        ForEach([0, 1, 2, 3], (index: number) => {
           this.WidePage(index)
         }, (index: number) => `onboarding-wide-slide-${index}`)
       }
@@ -160,7 +160,7 @@ export struct OnboardingSheet {
   private CompactContent() {
     Column({ space: 16 }) {
       Swiper(this.swiperController) {
-        ForEach([0, 1, 2], (index: number) => {
+        ForEach([0, 1, 2, 3], (index: number) => {
           if (this.isHeightConstrained) {
             Scroll() {
               this.CompactPage(index)
@@ -232,7 +232,9 @@ export struct OnboardingSheet {
         ? $r('app.string.onboarding_step_gestures')
         : index === 1
           ? $r('app.string.onboarding_step_privacy')
-          : $r('app.string.onboarding_step_reading'))
+          : index === 2
+            ? $r('app.string.onboarding_step_reading')
+            : $r('app.string.onboarding_step_document'))
         .fontSize(12)
         .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.accent_strong'))
@@ -281,7 +283,7 @@ export struct OnboardingSheet {
   @Builder
   private PageDots() {
     Row({ space: 8 }) {
-      ForEach([0, 1, 2], (index: number) => {
+      ForEach([0, 1, 2, 3], (index: number) => {
         Row()
           .width(index === this.page ? 24 : 8)
           .height(8)
@@ -358,7 +360,10 @@ export struct OnboardingSheet {
     if (pageIndex === 1) {
       return $r('app.string.onboarding_privacy_title');
     }
-    return $r('app.string.onboarding_reader_title');
+    if (pageIndex === 2) {
+      return $r('app.string.onboarding_reader_title');
+    }
+    return $r('app.string.onboarding_document_title');
   }
 
   private pageMessage(pageIndex: number = this.page): Resource {
@@ -368,6 +373,9 @@ export struct OnboardingSheet {
     if (pageIndex === 1) {
       return $r('app.string.onboarding_privacy_message');
     }
-    return $r('app.string.onboarding_reader_message');
+    if (pageIndex === 2) {
+      return $r('app.string.onboarding_reader_message');
+    }
+    return $r('app.string.onboarding_document_message');
   }
 }

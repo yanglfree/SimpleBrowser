@@ -22,8 +22,10 @@ export struct OnboardingIllustration {
           this.GesturePreview()
         } else if (this.page === 1) {
           this.PrivacyPreview()
-        } else {
+        } else if (this.page === 2) {
           this.ReaderPreview()
+        } else {
+          this.DocumentPreview()
         }
       }
       .width(this.compact ? '94%' : '86%')
@@ -156,6 +158,125 @@ export struct OnboardingIllustration {
     .padding(this.compact ? 12 : 24)
     .borderRadius(this.compact ? 18 : 26)
     .backgroundColor($r('app.color.surface_subtle'))
+  }
+
+  @Builder
+  private DocumentPreview() {
+    Column() {
+      Row() {
+        Row({ space: 6 }) {
+          AppIcon({ name: IconName.Reader, glyphSize: this.compact ? 14 : 17, color: $r('app.color.accent_strong') })
+          Text($r('app.string.onboarding_visual_doc_badge'))
+            .fontSize(this.compact ? 11 : 13)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary'))
+        }
+
+        Row().layoutWeight(1)
+
+        Row({ space: 4 }) {
+          AppIcon({ name: IconName.Check, glyphSize: this.compact ? 11 : 13, color: $r('app.color.accent_strong') })
+          Text($r('app.string.onboarding_visual_doc_tag_offline'))
+            .fontSize(this.compact ? 10 : 11)
+            .fontColor($r('app.color.accent_strong'))
+        }
+        .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+        .borderRadius(10)
+        .backgroundColor($r('app.color.surface_subtle'))
+      }
+      .width('100%')
+      .padding({
+        top: this.compact ? 10 : 14,
+        left: this.compact ? 12 : 16,
+        right: this.compact ? 12 : 16,
+        bottom: this.compact ? 8 : 12
+      })
+      .border({ width: { bottom: 1 }, color: $r('app.color.border') })
+
+      Column({ space: this.compact ? 8 : 12 }) {
+        Text($r('app.string.onboarding_visual_doc_title'))
+          .width('100%')
+          .fontSize(this.compact ? 13 : 17)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+          .maxLines(1)
+
+        Column({ space: this.compact ? 5 : 7 }) {
+          Row()
+            .width('100%')
+            .height(this.compact ? 5 : 7)
+            .borderRadius(3)
+            .backgroundColor($r('app.color.skeleton_weak'))
+
+          Row({ space: 4 }) {
+            Row()
+              .width('40%')
+              .height(this.compact ? 5 : 7)
+              .borderRadius(3)
+              .backgroundColor($r('app.color.skeleton_weak'))
+
+            Row()
+              .width('55%')
+              .height(this.compact ? 6 : 8)
+              .borderRadius(3)
+              .backgroundColor($r('app.color.accent'))
+          }
+
+          Row()
+            .width('72%')
+            .height(this.compact ? 5 : 7)
+            .borderRadius(3)
+            .backgroundColor($r('app.color.skeleton_weak'))
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+
+        Row({ space: 8 }) {
+          AppIcon({ name: IconName.Bookmark, glyphSize: this.compact ? 12 : 15, color: $r('app.color.accent_strong') })
+          Text($r('app.string.onboarding_visual_doc_note'))
+            .fontSize(this.compact ? 10 : 12)
+            .fontColor($r('app.color.text_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+        }
+        .width('100%')
+        .padding({ left: 10, right: 10, top: this.compact ? 6 : 9, bottom: this.compact ? 6 : 9 })
+        .borderRadius(this.compact ? 10 : 14)
+        .backgroundColor($r('app.color.surface_subtle'))
+        .border({ width: 1, color: $r('app.color.border') })
+      }
+      .layoutWeight(1)
+      .width('100%')
+      .padding(this.compact ? 12 : 16)
+      .justifyContent(FlexAlign.Center)
+
+      Row() {
+        Row().layoutWeight(1)
+
+        Row({ space: 4 }) {
+          AppIcon({ name: IconName.Share, glyphSize: this.compact ? 11 : 13, color: $r('app.color.text_secondary') })
+          Text($r('app.string.onboarding_visual_doc_tag_export'))
+            .fontSize(this.compact ? 10 : 11)
+            .fontColor($r('app.color.text_secondary'))
+        }
+        .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+        .borderRadius(10)
+        .backgroundColor($r('app.color.surface_subtle'))
+      }
+      .width('100%')
+      .padding({
+        left: this.compact ? 12 : 16,
+        right: this.compact ? 12 : 16,
+        bottom: this.compact ? 8 : 12
+      })
+    }
+    .width('100%')
+    .height(this.compact ? 184 : 300)
+    .borderRadius(this.compact ? 16 : 22)
+    .clip(true)
+    .backgroundColor($r('app.color.surface_panel'))
+    .border({ width: 1, color: $r('app.color.border') })
   }
 
   @Builder
