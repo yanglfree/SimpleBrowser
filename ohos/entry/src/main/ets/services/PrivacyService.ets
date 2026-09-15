@@ -12,6 +12,12 @@ export class PrivacyService {
   // Constructing a controller does not make CookieManager safe to call.
   static onWebControllerAttached(): void {
     PrivacyService.webEngineReady = true;
+    try {
+      webview.WebCookieManager.putAcceptCookieEnabled(true);
+      webview.WebCookieManager.putAcceptThirdPartyCookieEnabled(true);
+    } catch (error) {
+      Logger.warn(TAG, `Failed to configure cookies: ${String(error)}`);
+    }
     if (PrivacyService.pendingCookieClear) {
       PrivacyService.pendingCookieClear = false;
       PrivacyService.clearCookies();

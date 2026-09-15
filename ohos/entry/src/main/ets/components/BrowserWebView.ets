@@ -72,6 +72,10 @@ export struct BrowserWebView {
         scriptRules: ['*']
       }])
       .domStorageAccess(true)
+      .databaseAccess(true)
+      .fileAccess(true)
+      .mixedMode(MixedMode.All)
+      .multiWindowAccess(true)
       .onlineImageAccess(true)
       .imageAccess(true)
       .zoomAccess(true)
@@ -85,6 +89,19 @@ export struct BrowserWebView {
       .width('100%')
       .height('100%')
       .onKeyEvent((event: KeyEvent): boolean => this.onShortcut(event))
+      .onConsole((event: OnConsoleEvent): boolean => {
+        const msg: ConsoleMessage = event.message;
+        const level: MessageLevel = msg.getMessageLevel();
+        const text: string = `[${level}] ${msg.getSourceId()}:${msg.getLineNumber()} ${msg.getMessage()}`;
+        if (level === MessageLevel.Error) {
+          Logger.error('WebConsole', text);
+        } else if (level === MessageLevel.Warn) {
+          Logger.warn('WebConsole', text);
+        } else {
+          Logger.info('WebConsole', text);
+        }
+        return false;
+      })
       .onControllerAttached(() => {
         PrivacyService.onWebControllerAttached();
         this.adsBlockService.configure(this.controller, this.blockAds);
@@ -132,7 +149,7 @@ export struct BrowserWebView {
         // the page failed; treating a subresource as fatal replaces a perfectly
         // readable page with the error view.
         if (!event.request.isMainFrame()) {
-          Logger.debug(TAG, `Subresource error ${code}: ${message}`);
+          Logger.warn(TAG, `Subresource error ${code}: ${message} url: ${event.request.getRequestUrl()}`);
           return;
         }
         if (code === ERR_ABORTED) {
