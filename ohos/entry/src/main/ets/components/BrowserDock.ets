@@ -171,29 +171,26 @@ export struct BrowserDock {
                 strokeWidth: iconStrokeUnits(16, DOCK_BADGE_ICON_STROKE)
               })
             }
-            .width(30)
+            .width(28)
             .height(DOCK_ROW_HEIGHT)
             .justifyContent(FlexAlign.Center)
             .accessibilityText(this.securityAccessibilityText())
             .onClick(() => this.onOpenSecurity())
           }
           if (!this.isHome && this.blockedCount > 0) {
-            Row({ space: 3 }) {
-              AppIcon({
-                name: IconName.ShieldCheck,
-                glyphSize: 16,
-                color: $r('app.color.accent'),
-                strokeWidth: iconStrokeUnits(16, DOCK_BADGE_ICON_STROKE)
-              })
+            Row() {
               Text(`${this.blockedCount}`)
-                .fontSize(12)
+                .fontSize(11)
                 .fontWeight(FontWeight.Medium)
                 .fontColor($r('app.color.accent'))
                 .fontFeature('"tnum" 1')
+                .padding({ left: 5, right: 5, top: 2, bottom: 2 })
+                .borderRadius(6)
+                .backgroundColor($r('app.color.surface_subtle'))
             }
             .height(DOCK_ROW_HEIGHT)
             .alignItems(VerticalAlign.Center)
-            .padding({ left: 4, right: 4 })
+            .padding({ left: 1, right: 4 })
             .accessibilityText($r('app.string.blocked_on_site'))
             .onClick(() => this.onOpenBlocking())
           }
