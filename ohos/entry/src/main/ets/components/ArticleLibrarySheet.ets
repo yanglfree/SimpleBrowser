@@ -18,11 +18,12 @@ import { displayHost, looksLikeUrl, normalizeUrlInput } from '../utils/UrlUtils'
 import { ArticleAnnotationPanel } from './ArticleAnnotationPanel';
 import { AppIcon, IconName } from './AppIcon';
 import { articleStatusLabel } from './ArticleStatus';
-import { OfflineArticleReader } from './OfflineArticleReader';
+import { OfflineArticleReader, OfflineArticleReaderController } from './OfflineArticleReader';
 
 @Component
 export struct ArticleLibrarySheet {
   @Prop topInset: number = 0;
+  private readerController: OfflineArticleReaderController = new OfflineArticleReaderController();
   @Prop @Watch('refreshFilter') articles: SavedArticle[] = [];
   @Prop @Watch('selectionChanged') selectedArticle: SavedArticle | undefined = undefined;
   @Prop markdown: string = '';
@@ -341,16 +342,27 @@ export struct ArticleLibrarySheet {
   @Builder
   private ArticleDetail(article: SavedArticle) {
     Column() {
-      this.ArticleHeader()
-      this.ArticleActions(article)
-      Text(articleStatusLabel(article))
-        .fontSize(12)
-        .fontColor($r('app.color.text_secondary'))
-        .padding({ left: 20, right: 20, top: 8, bottom: 8 })
+      this.ArticleHeader(article)
       if (!isReadableSavedArticle(article)) {
-        Text(article.title)
-          .fontSize(20)
-          .padding(24)
+        Column({ space: 12 }) {
+          Text(article.title)
+            .fontSize(20)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary'))
+            .width('100%')
+          Text(articleStatusLabel(article))
+            .fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+            .width('100%')
+          Button($r('app.string.article_retry'))
+            .fontSize(13)
+            .height(36)
+            .backgroundColor($r('app.color.accent'))
+            .fontColor($r('app.color.accent_foreground'))
+            .onClick(() => this.onRetry(article))
+        }
+        .padding(24)
+        .width('100%')
       } else if (this.showInspector()) {
         Row() {
           this.ArticleReader(article, false)
@@ -367,8 +379,8 @@ export struct ArticleLibrarySheet {
   }
 
   @Builder
-  private ArticleHeader() {
-    Row({ space: 12 }) {
+  private ArticleHeader(article: SavedArticle) {
+    Row({ space: 8 }) {
       AppIcon({ name: IconName.ArrowLeft, glyphSize: 21, color: $r('app.color.text_primary') })
         .onClick(() => this.onBackToList())
       Text($r('app.string.article_library'))
@@ -382,7 +394,7 @@ export struct ArticleLibrarySheet {
           : $r('app.string.article_workbench_show_inspector'))
           .fontSize(12)
           .fontColor($r('app.color.accent'))
-          .padding(8)
+          .padding({ left: 10, right: 10, top: 7, bottom: 7 })
           .borderRadius(8)
           .backgroundColor($r('app.color.surface_subtle'))
           .focusable(true)
@@ -390,15 +402,50 @@ export struct ArticleLibrarySheet {
           .id('article-workbench-inspector-toggle')
           .onClick(() => this.onInspectorVisibilityChange(!this.inspectorVisible))
       }
+      if (isReadableSavedArticle(article) && !this.annotationsVisible) {
+        Text($r('app.string.article_highlight_action'))
+          .fontSize(12)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.accent'))
+          .padding({ left: 10, right: 10, top: 7, bottom: 7 })
+          .borderRadius(8)
+          .backgroundColor($r('app.color.surface_subtle'))
+          .focusable(true)
+          .hoverEffect(HoverEffect.Auto)
+          .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.96 })
+          .id('article-add-highlight-button')
+          .onClick((): void => {
+            void this.readerController.saveSelection();
+          })
+      }
       Text(this.annotationsVisible ? $r('app.string.article_read') : $r('app.string.article_annotations'))
         .fontSize(12)
+        .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.accent'))
-        .padding(8)
+        .padding({ left: 10, right: 10, top: 7, bottom: 7 })
         .borderRadius(8)
         .backgroundColor($r('app.color.surface_subtle'))
         .focusable(true)
         .hoverEffect(HoverEffect.Auto)
+        .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.96 })
+        .id('article-annotations-toggle-button')
         .onClick(() => { this.annotationsVisible = !this.annotationsVisible; })
+
+      Row({ space: 3 }) {
+        Circle({ width: 3.5, height: 3.5 }).fill($r('app.color.text_primary'))
+        Circle({ width: 3.5, height: 3.5 }).fill($r('app.color.text_primary'))
+        Circle({ width: 3.5, height: 3.5 }).fill($r('app.color.text_primary'))
+      }
+      .width(32)
+      .height(32)
+      .justifyContent(FlexAlign.Center)
+      .borderRadius(8)
+      .backgroundColor($r('app.color.surface_subtle'))
+      .focusable(true)
+      .hoverEffect(HoverEffect.Auto)
+      .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.96 })
+      .id('article-more-actions-menu')
+      .bindMenu(this.ArticleMoreMenu)
     }
     .width('100%')
     .height(56 + Math.max(0, this.topInset))
@@ -408,42 +455,46 @@ export struct ArticleLibrarySheet {
   }
 
   @Builder
-  private ArticleActions(article: SavedArticle) {
-    Scroll() {
-      Row({ space: 8 }) {
-        Button($r('app.string.article_open_source'))
-          .fontSize(12)
-          .height(36)
-          .onClick(() => this.onOpenSource(article))
-        Button($r('app.string.article_retry'))
-          .fontSize(12)
-          .height(36)
-          .onClick(() => this.onRetry(article))
-        if (isReadableSavedArticle(article)) {
-          Button(article.isArchived ? $r('app.string.article_unarchive') : $r('app.string.article_archive'))
-            .fontSize(12)
-            .height(36)
-            .onClick(() => this.onArchive(!article.isArchived))
-          Button($r('app.string.article_export_markdown'))
-            .fontSize(12)
-            .height(36)
+  private ArticleMoreMenu() {
+    Menu() {
+      if (this.selectedArticle !== undefined) {
+        MenuItem({ content: $r('app.string.article_open_source') })
+          .onClick(() => {
+            if (this.selectedArticle !== undefined) {
+              this.onOpenSource(this.selectedArticle);
+            }
+          })
+        MenuItem({ content: $r('app.string.article_retry') })
+          .onClick(() => {
+            if (this.selectedArticle !== undefined) {
+              this.onRetry(this.selectedArticle);
+            }
+          })
+        if (isReadableSavedArticle(this.selectedArticle)) {
+          MenuItem({
+            content: this.selectedArticle.isArchived
+              ? $r('app.string.article_unarchive')
+              : $r('app.string.article_archive')
+          })
+            .onClick(() => {
+              if (this.selectedArticle !== undefined) {
+                this.onArchive(!this.selectedArticle.isArchived);
+              }
+            })
+          MenuItem({ content: $r('app.string.article_export_markdown') })
             .onClick(() => this.onExport(ArticleExportFormat.Markdown))
-          Button($r('app.string.article_export_html'))
-            .fontSize(12)
-            .height(36)
+          MenuItem({ content: $r('app.string.article_export_html') })
             .onClick(() => this.onExport(ArticleExportFormat.StandaloneHtml))
         }
-        Button($r('app.string.article_delete'))
-          .fontSize(12)
-          .height(36)
-          .onClick(() => this.onDelete(article))
+        MenuItem({ content: $r('app.string.article_delete') })
+          .contentFontColor($r('app.color.danger'))
+          .onClick(() => {
+            if (this.selectedArticle !== undefined) {
+              this.onDelete(this.selectedArticle);
+            }
+          })
       }
-      .padding({ left: 16, right: 16, top: 4, bottom: 4 })
     }
-    .scrollable(ScrollDirection.Horizontal)
-    .scrollBar(BarState.Off)
-    .edgeEffect(EdgeEffect.Spring)
-    .width('100%')
   }
 
   @Builder
@@ -459,6 +510,7 @@ export struct ArticleLibrarySheet {
           highlights: this.highlights,
           targetId: this.highlightTarget,
           initialOffset: this.readingOffset,
+          readerController: this.readerController,
           onSelection: this.onSelectedHighlight,
           onScroll: (offset: number): void => { this.readingOffset = offset; this.onReadingScroll(offset); },
           onOpenLink: this.onOpenLink

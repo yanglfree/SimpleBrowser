@@ -125,6 +125,7 @@
     { "name": "article_offline_retained", "value": "已保存内容可继续阅读和导出，新增或更新文章需要 Pro。" },
     { "name": "article_export_failed", "value": "导出失败，请检查存储权限和剩余空间" },
     { "name": "article_add_highlight", "value": "高亮所选文字" },
+    { "name": "article_highlight_action", "value": "划线" },
     { "name": "article_select_text", "value": "请先在正文中长按选择文字" },
     { "name": "article_highlight_added", "value": "已添加高亮" },
     { "name": "article_annotation_delete", "value": "删除" },

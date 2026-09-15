@@ -40,10 +40,19 @@ export struct ArticleAnnotationPanel {
       if (this.topics.length > 0) {
         Flex({ wrap: FlexWrap.Wrap }) {
           ForEach(this.topics, (topic: Topic) => {
-            Button(`#${topic.name} ×`).fontSize(13).height(36).margin(4)
+            Text(`#${topic.name} ×`)
+              .fontSize(13)
+              .fontColor($r('app.color.accent'))
+              .padding({ left: 8, right: 8, top: 5, bottom: 5 })
+              .backgroundColor($r('app.color.surface_subtle'))
+              .borderRadius(8)
+              .margin({ right: 8, bottom: 8 })
+              .focusable(true)
+              .hoverEffect(HoverEffect.Auto)
               .onClick((): void => { void this.perform((): Promise<void> => this.onRemoveTopic(topic.id)); })
           }, (topic: Topic): string => topic.id)
         }
+        .width('100%')
       }
       TextInput({ text: this.topicName, placeholder: $r('app.string.article_topic_placeholder') })
         .width('100%')
@@ -124,11 +133,19 @@ export struct ArticleAnnotationPanel {
         .enableKeyboardOnFocus(true)
         .onChange((value: string): void => { this.noteBody = value; })
       Row({ space: 8 }) {
-        Button($r('app.string.article_annotation_save')).fontSize(13).height(36)
+        Button($r('app.string.article_annotation_save'))
+          .fontSize(13)
+          .height(36)
+          .backgroundColor($r('app.color.accent'))
+          .fontColor($r('app.color.accent_foreground'))
           .enabled(!this.isSaving && this.noteBody.trim().length > 0)
           .onClick((): void => { void this.saveNote(); })
         if (this.editingNoteId.length > 0) {
-          Button($r('app.string.article_annotation_cancel')).fontSize(13).height(36)
+          Button($r('app.string.article_annotation_cancel'))
+            .fontSize(13)
+            .height(36)
+            .backgroundColor($r('app.color.surface_subtle'))
+            .fontColor($r('app.color.text_primary'))
             .onClick((): void => { this.editingNoteId = ''; this.noteBody = ''; })
         }
       }
@@ -142,9 +159,17 @@ export struct ArticleAnnotationPanel {
           .backgroundColor($r('app.color.surface_subtle'))
           .borderRadius(10)
         Row({ space: 8 }) {
-          Button($r('app.string.article_annotation_edit')).fontSize(12).height(32)
+          Button($r('app.string.article_annotation_edit'))
+            .fontSize(12)
+            .height(32)
+            .backgroundColor($r('app.color.surface_subtle'))
+            .fontColor($r('app.color.text_primary'))
             .onClick((): void => { this.editingNoteId = note.id; this.noteBody = note.body; })
-          Button($r('app.string.article_annotation_delete')).fontSize(12).height(32)
+          Button($r('app.string.article_annotation_delete'))
+            .fontSize(12)
+            .height(32)
+            .backgroundColor($r('app.color.surface_subtle'))
+            .fontColor($r('app.color.danger'))
             .onClick((): void => { void this.perform((): Promise<void> => this.onDeleteNote(note.id)); })
         }
       }, (note: ArticleNote): string => note.id)
@@ -166,7 +191,11 @@ export struct ArticleAnnotationPanel {
           .backgroundColor($r('app.color.surface_subtle'))
           .borderRadius(10)
           .onClick((): void => this.onLocateHighlight(highlight.id))
-        Button($r('app.string.article_annotation_delete')).fontSize(12).height(32)
+        Button($r('app.string.article_annotation_delete'))
+          .fontSize(12)
+          .height(32)
+          .backgroundColor($r('app.color.surface_subtle'))
+          .fontColor($r('app.color.danger'))
           .onClick((): void => { void this.perform((): Promise<void> => this.onDeleteHighlight(highlight.id)); })
       }, (highlight: ArticleHighlight): string => highlight.id)
     }

@@ -11,12 +11,17 @@ interface ArticleSelection {
   text: string;
 }
 
+export class OfflineArticleReaderController {
+  saveSelection: () => Promise<void> = async (): Promise<void> => {};
+}
+
 @Component
 export struct OfflineArticleReader {
   @Prop @Watch('loadDocument') html: string = '';
   @Prop @Watch('renderHighlights') highlights: ArticleHighlight[] = [];
   @Prop @Watch('renderHighlights') targetId: string = '';
   @Prop initialOffset: number = 0;
+  readerController?: OfflineArticleReaderController;
   @State private busy: boolean = false;
   @State private loadFailed: boolean = false;
   private controller: webview.WebviewController = new webview.WebviewController();
@@ -27,18 +32,29 @@ export struct OfflineArticleReader {
   onScroll: (offset: number) => void = (): void => {};
   onOpenLink: (url: string) => void = (): void => {};
 
+  aboutToAppear(): void {
+    if (this.readerController) {
+      this.readerController.saveSelection = (): Promise<void> => this.saveSelection();
+    }
+  }
+
   build() {
     Column() {
       if (this.loadFailed) {
-        Text($r('app.string.article_library_unavailable')).fontSize(13)
-        Button($r('app.string.article_retry')).onClick((): void => this.loadDocument())
+        Column({ space: 8 }) {
+          Text($r('app.string.article_library_unavailable'))
+            .fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+          Button($r('app.string.article_retry'))
+            .fontSize(12)
+            .height(36)
+            .backgroundColor($r('app.color.accent'))
+            .fontColor($r('app.color.accent_foreground'))
+            .onClick((): void => this.loadDocument())
+        }
+        .padding(16)
+        .alignItems(HorizontalAlign.Center)
       }
-      Button($r('app.string.article_add_highlight'))
-        .fontSize(13)
-        .height(40)
-        .margin({ top: 4, bottom: 4 })
-        .enabled(!this.busy)
-        .onClick((): void => { void this.saveSelection(); })
       Web({ src: '', controller: this.controller, incognitoMode: true })
         .javaScriptAccess(true)
         .fileAccess(false)
