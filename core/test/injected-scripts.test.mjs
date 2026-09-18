@@ -145,6 +145,51 @@ test('blocked link guard dropdown click handler does not blur external input fie
   assert.equal(innerBlurCalled, true, 'inner element inside closed dropdown should be blurred');
 });
 
+test('window.open applies same-document hash via location.hash instead of href', async () => {
+  const script = await extractTemplateConst('BLOCKED_LINK_GUARD_SCRIPT');
+  const location = {
+    origin: 'https://developer.huawei.com',
+    pathname: '/consumer/cn/service/josp/agc/index.html',
+    search: '',
+    hash: '#/'
+  };
+  let hrefAssigned = '';
+  Object.defineProperty(location, 'href', {
+    configurable: true,
+    get() {
+      return `https://developer.huawei.com${location.pathname}${location.search}${location.hash}`;
+    },
+    set(value) {
+      hrefAssigned = value;
+    }
+  });
+  const document = {
+    addEventListener() {},
+    querySelectorAll() { return []; },
+    getElementById() { return null; },
+    createElement() { return { set textContent(_) {} }; },
+    head: { appendChild() {} }
+  };
+  const window = { location, open: () => null };
+  const run = Function('document', 'window', 'URL', `return ${script.trim()}`);
+  run(document, window, URL);
+
+  const opened = window.open(
+    'https://developer.huawei.com/consumer/cn/service/josp/agc/index.html#/myApp'
+  );
+  assert.equal(opened, window);
+  assert.equal(location.hash, '#/myApp');
+  assert.equal(hrefAssigned, '');
+
+  const relative = window.open('#/analytics');
+  assert.equal(relative, window);
+  assert.equal(location.hash, '#/analytics');
+  assert.equal(hrefAssigned, '');
+
+  window.open('https://developer.huawei.com/consumer/cn/doc/index.html');
+  assert.equal(hrefAssigned, 'https://developer.huawei.com/consumer/cn/doc/index.html');
+});
+
 test('blank Huawei OAuth callbacks recover only when login state is missing or stale', async () => {
   const script = await extractTemplateConst('BLOCKED_LINK_GUARD_SCRIPT');
   const runCallback = (pathname, search, cookie) => {

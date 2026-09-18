@@ -1,12 +1,17 @@
 import { PrivacyService } from '../services/PrivacyService';
 import { webview } from '@kit.ArkWeb';
-import { BLOCKED_LINK_GUARD_SCRIPT, scrolledFromTopScript } from '../constants/AppConstants';
+import {
+  applyDocumentHashScript,
+  BLOCKED_LINK_GUARD_SCRIPT,
+  scrolledFromTopScript
+} from '../constants/AppConstants';
 import { BrowserTab, WebDarkModePreference } from '../models/BrowserModels';
 import { BlockCategory } from '../models/BlockEventModels';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { createExternalProtocolRequest, isBlockedProtocol } from '../services/ExternalProtocolService';
 import { WebKernelCallbacks, WebKernelService } from '../services/WebKernelService';
 import { Logger } from '../utils/Logger';
+import { isSameDocumentHashNavigation, urlHash } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 
 const TAG: string = 'BrowserWebView';
@@ -61,10 +66,23 @@ export struct BrowserWebView {
     (_url: string, _sourceUrl: string): void => {};
   onShortcut: (event: KeyEvent) => boolean = (_event: KeyEvent): boolean => false;
   private securityBridge: DolphinSecurityBridge = new DolphinSecurityBridge();
+  /**
+   * Initial document only. Binding src to the live tab URL reloads hash-only
+   * SPA routes through loadUrl, which does not dispatch hashchange.
+   */
+  private mountSrc: string = '';
+
+  aboutToAppear(): void {
+    this.mountSrc = this.tab.url;
+  }
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
-      Web({ src: this.tab.url, controller: this.controller, incognitoMode: this.tab.isPrivate })
+      Web({
+        src: this.mountSrc.length > 0 ? this.mountSrc : this.tab.url,
+        controller: this.controller,
+        incognitoMode: this.tab.isPrivate
+      })
       .id(`web-core-${this.tab.id}`)
       .javaScriptAccess(true)
       .javaScriptOnDocumentStart([{
@@ -220,20 +238,47 @@ export struct BrowserWebView {
     if (isBlockedProtocol(url)) {
       return true;
     }
+    const currentUrl: string = this.liveDocumentUrl();
+    if (isSameDocumentHashNavigation(currentUrl, url)) {
+      // Returning false lets ArkWeb loadUrl the fragment. That writes history
+      // but does not fire hashchange, so AGC-style hash routers only restyle
+      // the tab. Apply the hash through the DOM instead.
+      this.applyDocumentHash(url);
+      return true;
+    }
     if (createExternalProtocolRequest(url) === undefined) {
       return false;
     }
-    let sourceUrl: string = this.tab.url;
+    this.onExternalProtocol(url, currentUrl);
+    return true;
+  }
+
+  private liveDocumentUrl(): string {
     try {
       const currentUrl: string = this.controller.getUrl();
       if (currentUrl.length > 0) {
-        sourceUrl = currentUrl;
+        return currentUrl;
       }
     } catch (_error) {
       // The controller may not be attached during an early navigation.
     }
-    this.onExternalProtocol(url, sourceUrl);
-    return true;
+    return this.tab.url;
+  }
+
+  private applyDocumentHash(url: string): void {
+    const hash: string = urlHash(url);
+    try {
+      this.controller.runJavaScript(applyDocumentHashScript(hash))
+        .then((_raw: string) => {
+          this.kernelCallbacks.onSameDocumentNavigation(url);
+        })
+        .catch((error: Error) => {
+          Logger.warn(TAG, `Hash navigation could not be applied: ${String(error)}`);
+          WebKernelService.load(this.controller, url);
+        });
+    } catch (error) {
+      Logger.warn(TAG, `Hash navigation could not be applied: ${String(error)}`);
+    }
   }
 
   private webDarkModeValue(): WebDarkMode {

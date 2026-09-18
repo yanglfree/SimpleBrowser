@@ -50,10 +50,33 @@
     }
   }, true);
 
-  // Fallback for window.open when multi-window is disabled in webview
+  // Fallback for window.open when multi-window is disabled in webview.
+  // Same-document hash targets must use location.hash: assigning location.href
+  // (or letting ArkWeb loadUrl the fragment) updates history without
+  // dispatching hashchange, so SPA tab clicks appear to do nothing.
   try {
     var origOpen = window.open;
+    function sameDocumentHashTarget(url) {
+      try {
+        var target = new URL(url, window.location.href);
+        if (target.origin !== window.location.origin) return null;
+        if (target.pathname !== window.location.pathname) return null;
+        if (target.search !== window.location.search) return null;
+        return target.hash;
+      } catch (_e) {
+        return null;
+      }
+    }
     window.open = function(url, target, features) {
+      if (url && typeof url === 'string') {
+        var hashTarget = sameDocumentHashTarget(url.trim());
+        if (hashTarget !== null) {
+          if (window.location.hash !== hashTarget) {
+            window.location.hash = hashTarget;
+          }
+          return window;
+        }
+      }
       var result = null;
       try {
         if (origOpen) result = origOpen.call(window, url, target, features);

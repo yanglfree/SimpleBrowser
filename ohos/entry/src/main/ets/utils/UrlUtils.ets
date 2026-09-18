@@ -233,3 +233,34 @@ export function isTrackerUrl(url: string): boolean {
   const value: string = url.toLowerCase();
   return TRACKER_URL_PATTERNS.some((pattern: string) => value.includes(pattern));
 }
+
+/** Document URL with the fragment stripped. Hash-only SPA routes share this identity. */
+export function documentIdentity(url: string): string {
+  const trimmed: string = url.trim();
+  if (trimmed.length === 0) {
+    return '';
+  }
+  const hashIndex: number = trimmed.indexOf('#');
+  return hashIndex >= 0 ? trimmed.substring(0, hashIndex) : trimmed;
+}
+
+/** Fragment including the leading `#`, or an empty string when none is present. */
+export function urlHash(url: string): string {
+  const hashIndex: number = url.indexOf('#');
+  return hashIndex >= 0 ? url.substring(hashIndex) : '';
+}
+
+export function isSameDocumentUrl(currentUrl: string, nextUrl: string): boolean {
+  const currentDoc: string = documentIdentity(currentUrl);
+  const nextDoc: string = documentIdentity(nextUrl);
+  return currentDoc.length > 0 && currentDoc === nextDoc;
+}
+
+/**
+ * True when the engine is about to treat a fragment change as a navigation.
+ * ArkWeb's loadUrl/src path for that case updates history without dispatching
+ * hashchange, so SPA routers leave the view on the previous route.
+ */
+export function isSameDocumentHashNavigation(currentUrl: string, nextUrl: string): boolean {
+  return isSameDocumentUrl(currentUrl, nextUrl) && urlHash(currentUrl) !== urlHash(nextUrl);
+}

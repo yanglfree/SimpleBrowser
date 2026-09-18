@@ -134,7 +134,15 @@ import { StatusBarBackdrop } from '../components/StatusBarBackdrop';
 import { TelemetryService } from '../services/TelemetryService';
 import { WebHistoryEntry, WebKernelService, WebLongPressTarget } from '../services/WebKernelService';
 import { AppContext } from '../utils/AppContext';
-import { displayHost, isHomeUrl, isTrackerUrl, normalizeAddress, rawHost } from '../utils/UrlUtils';
+import {
+  displayHost,
+  isHomeUrl,
+  isSameDocumentHashNavigation,
+  isSameDocumentUrl,
+  isTrackerUrl,
+  normalizeAddress,
+  rawHost
+} from '../utils/UrlUtils';
 import { Logger } from '../utils/Logger';
 import { BrowserViewModel } from '../viewmodels/BrowserViewModel';
 import { BlockCategory, BlockEngine, BlockEvent, createBlockEvent } from '../models/BlockEventModels';
@@ -921,6 +929,9 @@ struct Index {
                 onNavigationStateChange: (): void => {
                   this.refreshNavigationState(tab.id);
                   this.syncTab(tab.id);
+                },
+                onSameDocumentNavigation: (url: string): void => {
+                  this.handleSameDocumentNavigation(tab.id, url);
                 },
                 onProgressChange: (progress: number): void => this.handleProgress(tab.id, progress),
                 onError: (code: number, message: string): void =>
@@ -4527,7 +4538,21 @@ struct Index {
 
   // ------------------------------------------------------------- web events
 
+  private handleSameDocumentNavigation(id: string, url: string): void {
+    this.viewModel.updateTab(id, { url: url, lastVisitedAt: Date.now() });
+    this.refreshNavigationState(id);
+    this.syncTab(id);
+  }
+
   private handlePageBegin(id: string, url: string): void {
+    const current: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (current !== undefined && isSameDocumentHashNavigation(current.url, url)) {
+      // Hash-only SPA routes are not a new document. Treating them as one sets
+      // isLoading with no matching page-end and rebinds Web src, so the view
+      // never leaves the previous route even though history recorded the click.
+      this.handleSameDocumentNavigation(id, url);
+      return;
+    }
     // A controller survives cross-host navigation, so refresh its native policy
     // before the destination document starts requesting subresources.
     this.configureBlockingForUrl(id, url);
@@ -4540,7 +4565,6 @@ struct Index {
       this.blockEvents = [];
     }
     this.showCapsule();
-    const current: BrowserTab | undefined = this.viewModel.getTab(id);
     const navigatedToNewUrl: boolean = current !== undefined && current.url !== url;
     if (navigatedToNewUrl) {
       // Navigating to a new URL — the scroll position belongs to the old page
@@ -4579,6 +4603,10 @@ struct Index {
 
   private async handlePageEnd(id: string, url: string): Promise<void> {
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
+    if (tab !== undefined && !tab.isLoading && isSameDocumentUrl(tab.url, url)) {
+      this.handleSameDocumentNavigation(id, url);
+      return;
+    }
     const startedAt: number | undefined = this.pageLoadStartedAt.get(id);
     if (startedAt !== undefined && tab?.isPrivate !== true) {
       TelemetryService.recordPageLoad(Date.now() - startedAt);

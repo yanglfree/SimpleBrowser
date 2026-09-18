@@ -179,3 +179,27 @@ export function rawHost(url) {
   }
   return match[1].split(':')[0].toLowerCase();
 }
+
+export function documentIdentity(url) {
+  const trimmed = url.trim();
+  if (trimmed.length === 0) {
+    return '';
+  }
+  const hashIndex = trimmed.indexOf('#');
+  return hashIndex >= 0 ? trimmed.substring(0, hashIndex) : trimmed;
+}
+
+export function urlHash(url) {
+  const hashIndex = url.indexOf('#');
+  return hashIndex >= 0 ? url.substring(hashIndex) : '';
+}
+
+export function isSameDocumentUrl(currentUrl, nextUrl) {
+  const currentDoc = documentIdentity(currentUrl);
+  const nextDoc = documentIdentity(nextUrl);
+  return currentDoc.length > 0 && currentDoc === nextDoc;
+}
+
+export function isSameDocumentHashNavigation(currentUrl, nextUrl) {
+  return isSameDocumentUrl(currentUrl, nextUrl) && urlHash(currentUrl) !== urlHash(nextUrl);
+}

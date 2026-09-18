@@ -283,6 +283,20 @@ export function triggerDownloadScript(url: string): string {
 }
 
 /**
+ * Applies a same-document fragment through the DOM. ArkWeb's loadUrl/src path
+ * for hash-only URLs updates history without dispatching hashchange, which
+ * leaves Vue/React hash routers on the previous view.
+ */
+export function applyDocumentHashScript(hash: string): string {
+  return `(function() {
+    var next = ${JSON.stringify(hash)};
+    if (window.location.hash === next) return 'same';
+    window.location.hash = next;
+    return window.location.hash;
+  })();`;
+}
+
+/**
  * Undoes the tracker/cleanup passes for a site the user allow-listed, including
  * the cosmetic stylesheet — leaving it behind would keep hiding elements on a
  * site whose blocking the user just switched off.
@@ -512,10 +526,33 @@ export const BLOCKED_LINK_GUARD_SCRIPT: string = `
     }
   }, true);
 
-  // Fallback for window.open when multi-window is disabled in webview
+  // Fallback for window.open when multi-window is disabled in webview.
+  // Same-document hash targets must use location.hash: assigning location.href
+  // (or letting ArkWeb loadUrl the fragment) updates history without
+  // dispatching hashchange, so SPA tab clicks appear to do nothing.
   try {
     var origOpen = window.open;
+    function sameDocumentHashTarget(url) {
+      try {
+        var target = new URL(url, window.location.href);
+        if (target.origin !== window.location.origin) return null;
+        if (target.pathname !== window.location.pathname) return null;
+        if (target.search !== window.location.search) return null;
+        return target.hash;
+      } catch (_e) {
+        return null;
+      }
+    }
     window.open = function(url, target, features) {
+      if (url && typeof url === 'string') {
+        var hashTarget = sameDocumentHashTarget(url.trim());
+        if (hashTarget !== null) {
+          if (window.location.hash !== hashTarget) {
+            window.location.hash = hashTarget;
+          }
+          return window;
+        }
+      }
       var result = null;
       try {
         if (origOpen) result = origOpen.call(window, url, target, features);

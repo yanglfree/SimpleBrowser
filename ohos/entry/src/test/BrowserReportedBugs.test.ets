@@ -1,6 +1,11 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { historyHeaderTopPadding, resolveHistoryEntryDeleteTarget } from '../main/ets/components/HistorySheet';
-import { BLOCKED_LINK_GUARD_SCRIPT, matchesStrictAdToken, readerApplyScript } from '../main/ets/constants/AppConstants';
+import {
+  applyDocumentHashScript,
+  BLOCKED_LINK_GUARD_SCRIPT,
+  matchesStrictAdToken,
+  readerApplyScript
+} from '../main/ets/constants/AppConstants';
 import { HistoryEntry, ReaderPaper, SavedItem, getReaderTheme } from '../main/ets/models/BrowserModels';
 import {
   SCREENSHOT_CACHE_RETENTION_MS,
@@ -122,6 +127,14 @@ export default function browserReportedBugsTest(): void {
       const script: string = BLOCKED_LINK_GUARD_SCRIPT;
       expect(script.includes('window.open = function')).assertTrue();
       expect(script.includes('window.location.href = u')).assertTrue();
+      expect(script.includes('sameDocumentHashTarget')).assertTrue();
+      expect(script.includes('window.location.hash = hashTarget')).assertTrue();
+    });
+
+    it('applies same-document fragments through location.hash', 0, (): void => {
+      const script: string = applyDocumentHashScript('#/myApp');
+      expect(script.includes('window.location.hash === next')).assertTrue();
+      expect(script.includes('#/myApp')).assertTrue();
     });
 
     it('recovers stale Huawei OAuth callback shells without interrupting valid state', 0, (): void => {

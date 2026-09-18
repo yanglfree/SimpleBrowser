@@ -30,7 +30,14 @@ import {
   isAddressCompletionRow,
   resolveAddressSheetBottomInset
 } from '../main/ets/components/AddressSheet';
-import { looksLikeUrl, normalizeAddress, normalizeUrlInput } from '../main/ets/utils/UrlUtils';
+import {
+  isSameDocumentHashNavigation,
+  isSameDocumentUrl,
+  looksLikeUrl,
+  normalizeAddress,
+  normalizeUrlInput,
+  urlHash
+} from '../main/ets/utils/UrlUtils';
 
 export default function browserInteractionTest(): void {
   describe('Browser surface interactions', (): void => {
@@ -97,6 +104,19 @@ export default function browserInteractionTest(): void {
       expect(looksLikeUrl('例子.中国')).assertTrue();
       expect(looksLikeUrl('999.168.1.20')).assertFalse();
       expect(looksLikeUrl('privacy browser')).assertFalse();
+    });
+
+    it('treats AGC-style hash routes as the same document', 0, (): void => {
+      const home: string = 'https://developer.huawei.com/consumer/cn/service/josp/agc/index.html#/';
+      const apps: string = 'https://developer.huawei.com/consumer/cn/service/josp/agc/index.html#/myApp';
+      const other: string = 'https://developer.huawei.com/consumer/cn/doc/index.html#/';
+
+      expect(isSameDocumentUrl(home, apps)).assertTrue();
+      expect(isSameDocumentHashNavigation(home, apps)).assertTrue();
+      expect(isSameDocumentHashNavigation(home, home)).assertFalse();
+      expect(isSameDocumentHashNavigation(home, other)).assertFalse();
+      expect(urlHash(apps)).assertEqual('#/myApp');
+      expect(urlHash('https://example.com/path')).assertEqual('');
     });
 
     it('uses local-friendly schemes and searches non-address input', 0, (): void => {

@@ -9,6 +9,8 @@ export interface WebKernelCallbacks {
   onProgressChange: (progress: number) => void;
   onPageEnd: (url: string) => void;
   onNavigationStateChange: () => void;
+  /** Fragment change on the current document — not a new page load. */
+  onSameDocumentNavigation: (url: string) => void;
   onError: (code: number, message: string) => void;
   onSslError: (code: SslError, chain: Array<Uint8Array>) => void;
 }
