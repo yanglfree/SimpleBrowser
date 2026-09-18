@@ -260,12 +260,10 @@ export struct BrowserWebView {
     } catch (_error) {
       fromController = '';
     }
-    const fromTab: string = this.tab.url;
-    // After Huawei OAuth the Web src/getUrl can linger on loginAuth.html while
-    // the document is already index.html#/. Hash compares must use the SPA URL.
-    if (fromController.length > 0 && isSameDocumentUrl(fromController, fromTab)) {
+    if (fromController.indexOf('http') === 0) {
       return fromController;
     }
+    const fromTab: string = this.tab.url;
     if (fromTab.indexOf('http') === 0) {
       return fromTab;
     }
