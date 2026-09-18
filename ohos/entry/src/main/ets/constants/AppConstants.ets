@@ -290,8 +290,18 @@ export function triggerDownloadScript(url: string): string {
 export function applyDocumentHashScript(hash: string): string {
   return `(function() {
     var next = ${JSON.stringify(hash)};
-    if (window.location.hash === next) return 'same';
-    window.location.hash = next;
+    var old = window.location.href;
+    if (window.location.hash !== next) window.location.hash = next;
+    try {
+      window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: old, newURL: window.location.href }));
+    } catch (_e) {
+      var ev = document.createEvent('HTMLEvents');
+      ev.initEvent('hashchange', true, true);
+      window.dispatchEvent(ev);
+    }
+    try {
+      window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+    } catch (_e2) {}
     return window.location.hash;
   })();`;
 }
@@ -504,6 +514,70 @@ export const BLOCKED_LINK_GUARD_SCRIPT: string = `
     }
   }
 
+  function sameDocumentTarget(url) {
+    try {
+      var target = new URL(url, window.location.href);
+      if (target.origin !== window.location.origin) return null;
+      if (target.pathname !== window.location.pathname) return null;
+      if (target.search !== window.location.search) return null;
+      return target;
+    } catch (_e) {
+      return null;
+    }
+  }
+
+  function dispatchSpaHash(hash) {
+    var old = window.location.href;
+    if (window.location.hash !== hash) {
+      window.location.hash = hash;
+    }
+    try {
+      window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: old, newURL: window.location.href }));
+    } catch (_e) {
+      try {
+        var ev = document.createEvent('HTMLEvents');
+        ev.initEvent('hashchange', true, true);
+        window.dispatchEvent(ev);
+      } catch (_e2) {}
+    }
+    try {
+      window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+    } catch (_e3) {}
+  }
+
+  function cameFromOauthShell() {
+    return /id1\\.cloud\\.huawei\\.com|handleAllianceLogin|loginAuth\\.html/i.test(document.referrer || '');
+  }
+
+  // Hash <a> clicks after Huawei OAuth update the nav chrome but leave
+  // location.hash at #/. Vue Router 4 listens to popstate, not hashchange.
+  document.addEventListener('click', function(event) {
+    if (event.button && event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    var link = nearestLink(event.target);
+    if (!link) return;
+    var resolved = sameDocumentTarget(link.href || extractUrl(link, 'href'));
+    if (!resolved || !resolved.hash) return;
+    var wanted = resolved.hash;
+    setTimeout(function() {
+      if (window.location.hash !== wanted) {
+        dispatchSpaHash(wanted);
+        if (cameFromOauthShell()) {
+          try {
+            if (!sessionStorage.getItem('__zhuoOauthHashReload')) {
+              sessionStorage.setItem('__zhuoOauthHashReload', '1');
+              window.location.reload();
+            }
+          } catch (_e) {
+            window.location.reload();
+          }
+        }
+        return;
+      }
+      dispatchSpaHash(wanted);
+    }, 0);
+  }, false);
+
   function stopBlockedLink(event) {
     var link = nearestLink(event.target);
     var href = extractUrl(link, 'href');
@@ -532,24 +606,11 @@ export const BLOCKED_LINK_GUARD_SCRIPT: string = `
   // dispatching hashchange, so SPA tab clicks appear to do nothing.
   try {
     var origOpen = window.open;
-    function sameDocumentHashTarget(url) {
-      try {
-        var target = new URL(url, window.location.href);
-        if (target.origin !== window.location.origin) return null;
-        if (target.pathname !== window.location.pathname) return null;
-        if (target.search !== window.location.search) return null;
-        return target.hash;
-      } catch (_e) {
-        return null;
-      }
-    }
     window.open = function(url, target, features) {
       if (url && typeof url === 'string') {
-        var hashTarget = sameDocumentHashTarget(url.trim());
-        if (hashTarget !== null) {
-          if (window.location.hash !== hashTarget) {
-            window.location.hash = hashTarget;
-          }
+        var hashTarget = sameDocumentTarget(url.trim());
+        if (hashTarget !== null && hashTarget.hash) {
+          dispatchSpaHash(hashTarget.hash);
           return window;
         }
       }

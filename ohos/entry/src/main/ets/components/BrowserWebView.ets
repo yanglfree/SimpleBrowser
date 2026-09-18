@@ -11,7 +11,7 @@ import { AdsBlockService } from '../services/AdsBlockService';
 import { createExternalProtocolRequest, isBlockedProtocol } from '../services/ExternalProtocolService';
 import { WebKernelCallbacks, WebKernelService } from '../services/WebKernelService';
 import { Logger } from '../utils/Logger';
-import { isSameDocumentHashNavigation, urlHash } from '../utils/UrlUtils';
+import { isSameDocumentHashNavigation, isSameDocumentUrl, urlHash } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 
 const TAG: string = 'BrowserWebView';
@@ -254,15 +254,22 @@ export struct BrowserWebView {
   }
 
   private liveDocumentUrl(): string {
+    let fromController: string = '';
     try {
-      const currentUrl: string = this.controller.getUrl();
-      if (currentUrl.length > 0) {
-        return currentUrl;
-      }
+      fromController = this.controller.getUrl();
     } catch (_error) {
-      // The controller may not be attached during an early navigation.
+      fromController = '';
     }
-    return this.tab.url;
+    const fromTab: string = this.tab.url;
+    // After Huawei OAuth the Web src/getUrl can linger on loginAuth.html while
+    // the document is already index.html#/. Hash compares must use the SPA URL.
+    if (fromController.length > 0 && isSameDocumentUrl(fromController, fromTab)) {
+      return fromController;
+    }
+    if (fromTab.indexOf('http') === 0) {
+      return fromTab;
+    }
+    return fromController.length > 0 ? fromController : fromTab;
   }
 
   private applyDocumentHash(url: string): void {

@@ -145,6 +145,71 @@ test('blocked link guard dropdown click handler does not blur external input fie
   assert.equal(innerBlurCalled, true, 'inner element inside closed dropdown should be blurred');
 });
 
+test('hash link clicks dispatch popstate when the page leaves location.hash unchanged', async () => {
+  const script = await extractTemplateConst('BLOCKED_LINK_GUARD_SCRIPT');
+  const store = {};
+  const location = {
+    origin: 'https://developer.huawei.com',
+    pathname: '/consumer/cn/service/josp/agc/index.html',
+    search: '',
+    hash: '#/',
+    reload() { store.reloaded = true; }
+  };
+  Object.defineProperty(location, 'href', {
+    configurable: true,
+    get() {
+      return `https://developer.huawei.com${location.pathname}${location.search}${location.hash}`;
+    }
+  });
+  const clickHandlers = [];
+  const events = [];
+  const document = {
+    referrer: 'https://id1.cloud.huawei.com/CAS/portal/loginAuth.html',
+    addEventListener(type, handler, options) {
+      if (type === 'click') clickHandlers.push({ handler, options });
+    },
+    querySelectorAll() { return []; },
+    getElementById() { return null; },
+    createElement() { return { set textContent(_) {} }; },
+    head: { appendChild() {} }
+  };
+  const window = {
+    location,
+    open: () => null,
+    dispatchEvent(event) { events.push(event?.type || 'event'); return true; },
+    history: { state: null }
+  };
+  const sessionStorage = {
+    getItem(key) { return store[key] || null; },
+    setItem(key, value) { store[key] = String(value); }
+  };
+  const timers = [];
+  const run = Function(
+    'document',
+    'window',
+    'URL',
+    'sessionStorage',
+    'setTimeout',
+    `return ${script.trim()}`
+  );
+  run(document, window, URL, sessionStorage, (callback) => timers.push(callback));
+
+  const bubble = clickHandlers.find((item) => item.options === false);
+  assert.ok(bubble, 'expected a bubble-phase hash click handler');
+  const link = {
+    href: 'https://developer.huawei.com/consumer/cn/service/josp/agc/index.html#/analysis',
+    tagName: 'A',
+    getAttribute(name) { return name === 'href' ? '#/analysis' : ''; },
+    closest() { return link; }
+  };
+  bubble.handler({ target: link, button: 0 });
+  assert.equal(location.hash, '#/');
+  for (const callback of timers) callback();
+  assert.equal(location.hash, '#/analysis');
+  assert.equal(store.__zhuoOauthHashReload, '1');
+  assert.equal(store.reloaded, true);
+});
+
 test('window.open applies same-document hash via location.hash instead of href', async () => {
   const script = await extractTemplateConst('BLOCKED_LINK_GUARD_SCRIPT');
   const location = {
@@ -168,9 +233,15 @@ test('window.open applies same-document hash via location.hash instead of href',
     querySelectorAll() { return []; },
     getElementById() { return null; },
     createElement() { return { set textContent(_) {} }; },
-    head: { appendChild() {} }
+    head: { appendChild() {} },
+    referrer: ''
   };
-  const window = { location, open: () => null };
+  const window = {
+    location,
+    open: () => null,
+    dispatchEvent() { return true; },
+    history: { state: null }
+  };
   const run = Function('document', 'window', 'URL', `return ${script.trim()}`);
   run(document, window, URL);
 
