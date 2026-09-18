@@ -697,11 +697,41 @@ struct Index {
     ExternalOpenRouter.unsubscribe(this.windowToken);
     MemoryPressureService.unregister();
     PrivacyService.clearPrivateSiteDataWhenReady(this.privateControllers(this.tabs));
-    PrivacyService.flushCookies();
+    this.persistCookiesAcrossProcessDeath();
     if (this.articleSavedToastTimer !== -1) {
       clearTimeout(this.articleSavedToastTimer);
       this.articleSavedToastTimer = -1;
     }
+  }
+
+  onPageHide(): void {
+    this.persistCookiesAcrossProcessDeath();
+  }
+
+  private cookiePersistenceTabUrls(): string[] {
+    const urls: string[] = [];
+    const tabs: BrowserTab[] = this.tabs;
+    for (let index: number = 0; index < tabs.length; index += 1) {
+      const tab: BrowserTab = tabs[index];
+      if (!tab.isPrivate && !isHomeUrl(tab.url)) {
+        urls.push(tab.url);
+      }
+    }
+    return urls;
+  }
+
+  private cookiePersistenceHistoryUrls(): string[] {
+    const urls: string[] = [];
+    const entries: HistoryEntry[] = this.history;
+    for (let index: number = 0; index < entries.length; index += 1) {
+      urls.push(entries[index].url);
+    }
+    return urls;
+  }
+
+  private persistCookiesAcrossProcessDeath(): void {
+    PrivacyService.rememberCookieUrls(this.cookiePersistenceTabUrls(), this.cookiePersistenceHistoryUrls());
+    PrivacyService.persistCookiesAcrossProcessDeath();
   }
 
   private promptExpiredTabs(): void {
@@ -2849,7 +2879,7 @@ struct Index {
     if (tab.isPrivate) {
       PrivacyService.clearPrivateSiteDataWhenReady(this.privateControllers([tab]));
     } else {
-      PrivacyService.flushCookies();
+      this.persistCookiesAcrossProcessDeath();
     }
     this.viewModel.closeTab(id);
     if (id === this.disposableReaderTabId) {
@@ -2983,7 +3013,7 @@ struct Index {
   private closeAllTabs(): void {
     void this.captureScrollPosition(this.activeTabId);
     PrivacyService.clearPrivateSiteDataWhenReady(this.privateControllers(this.tabs));
-    PrivacyService.flushCookies();
+    this.persistCookiesAcrossProcessDeath();
     this.viewModel.closeAllTabs();
     // Warm a controller for the fresh home tab before nuking every existing one.
     this.controllerFor(this.viewModel.activeTabId);
@@ -4625,6 +4655,7 @@ struct Index {
     this.syncTab(id);
     // The login flow often finishes here; persist cookies now rather than wait
     // for ArkWeb's 30s disk flush so a quick tab close keeps the session.
+    PrivacyService.rememberCookieUrls(this.cookiePersistenceTabUrls(), this.cookiePersistenceHistoryUrls());
     PrivacyService.flushCookies();
     if (tab !== undefined) {
       await this.viewModel.recordPageVisit(tab);

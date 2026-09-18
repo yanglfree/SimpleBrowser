@@ -6,6 +6,7 @@ import { ThemeService } from '../services/ThemeService';
 import { AppContext } from '../utils/AppContext';
 import { Logger } from '../utils/Logger';
 import { MemoryPressureService } from '../services/MemoryPressureService';
+import { PrivacyService } from '../services/PrivacyService';
 import { TelemetryService } from '../services/TelemetryService';
 import { createExternalOpenRequest, extractSharedUrl } from '../models/ExternalOpenRequest';
 import { ExternalOpenRouter } from '../services/ExternalOpenRouter';
@@ -93,6 +94,10 @@ export default class EntryAbility extends UIAbility {
   onMemoryLevel(level: AbilityConstant.MemoryLevel): void {
     MemoryPressureService.notify(level as number);
     TelemetryService.recordMemoryPressure(level as number);
+  }
+
+  onBackground(): void {
+    PrivacyService.persistCookiesAcrossProcessDeath();
   }
 
   onDestroy(): void {

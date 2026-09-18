@@ -35,6 +35,7 @@ import telemetryPolicyTest from './TelemetryPolicy.test';
 import homeBackgroundPresetsTest from './HomeBackgroundPresets.test';
 import feedbackServiceTest from './FeedbackService.test';
 import quickSiteSemanticTest from './QuickSiteSemantic.test';
+import cookiePersistenceTest from './CookiePersistence.test';
 
 export default function testsuite(): void {
   adsBlockServiceTest();
@@ -74,4 +75,5 @@ export default function testsuite(): void {
   homeBackgroundPresetsTest();
   feedbackServiceTest();
   quickSiteSemanticTest();
+  cookiePersistenceTest();
 }

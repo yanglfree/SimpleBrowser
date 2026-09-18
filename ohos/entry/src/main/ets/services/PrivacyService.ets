@@ -1,5 +1,14 @@
 import { webview } from '@kit.ArkWeb';
+import { deviceInfo } from '@kit.BasicServicesKit';
 import { Logger } from '../utils/Logger';
+import {
+  CookiePair,
+  cookieFlushUrls,
+  deviceDropsSessionCookies,
+  isHttpsUrl,
+  parseCookiePairs,
+  persistentSetCookie
+} from './CookiePersistence';
 
 const TAG: string = 'PrivacyService';
 
@@ -7,6 +16,7 @@ export class PrivacyService {
   private static webEngineReady: boolean = false;
   private static pendingCookieClear: boolean = false;
   private static pendingPrivateClear: boolean = false;
+  private static cookieUrls: string[] = [];
 
   // Only an attached Web component proves native initialization has completed.
   // Constructing a controller does not make CookieManager safe to call.
@@ -45,6 +55,10 @@ export class PrivacyService {
     PrivacyService.clearPrivateSiteData(controllers);
   }
 
+  static rememberCookieUrls(tabUrls: string[], historyUrls: string[]): void {
+    PrivacyService.cookieUrls = cookieFlushUrls(tabUrls, historyUrls, 24);
+  }
+
   /**
    * ArkWeb writes cookies to disk every ~30s; a session cookie set by a login
    * can be lost when a tab closes or the process dies before the next flush.
@@ -61,6 +75,58 @@ export class PrivacyService {
       webview.WebCookieManager.saveCookieSync();
     } catch (error) {
       Logger.warn(TAG, `Failed to flush cookies: ${String(error)}`);
+    }
+  }
+
+  /**
+   * Tablet/2-in-1/PC kernels skip session cookies in saveCookieSync. Promote
+   * those cookies to Max-Age before the flush so a force-stop keeps the login.
+   * Call only when the process may die — rewriting on every page-end would
+   * strip Domain/SameSite from live OAuth cookies.
+   */
+  static persistCookiesAcrossProcessDeath(): void {
+    if (!PrivacyService.webEngineReady) {
+      return;
+    }
+    if (deviceDropsSessionCookies(PrivacyService.deviceType())) {
+      PrivacyService.promoteSessionCookies();
+    }
+    PrivacyService.flushCookies();
+  }
+
+  private static deviceType(): string {
+    try {
+      return deviceInfo.deviceType;
+    } catch (_error) {
+      return 'tablet';
+    }
+  }
+
+  private static promoteSessionCookies(): void {
+    const urls: string[] = PrivacyService.cookieUrls;
+    for (let index: number = 0; index < urls.length; index += 1) {
+      const url: string = urls[index];
+      let header: string = '';
+      try {
+        header = webview.WebCookieManager.fetchCookieSync(url);
+      } catch (_error) {
+        continue;
+      }
+      const pairs: CookiePair[] = parseCookiePairs(header);
+      const https: boolean = isHttpsUrl(url);
+      for (let pairIndex: number = 0; pairIndex < pairs.length; pairIndex += 1) {
+        const pair: CookiePair = pairs[pairIndex];
+        try {
+          webview.WebCookieManager.configCookieSync(
+            url,
+            persistentSetCookie(pair.name, pair.value, https),
+            false,
+            true
+          );
+        } catch (error) {
+          Logger.warn(TAG, `Failed to persist session cookie ${pair.name}: ${String(error)}`);
+        }
+      }
     }
   }
 
