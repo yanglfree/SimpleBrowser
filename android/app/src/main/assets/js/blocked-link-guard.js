@@ -40,38 +40,29 @@
     }
   }
 
-  function dispatchSpaHash(hash) {
-    if (window.location.hash !== hash) {
-      var old = window.location.href;
-      window.location.hash = hash;
-      try {
-        if (typeof HashChangeEvent !== 'undefined') {
-          window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: old, newURL: window.location.href }));
-        } else if (typeof CustomEvent !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('hashchange', { detail: { oldURL: old, newURL: window.location.href } }));
-        } else if (document.createEvent) {
-          var ev = document.createEvent('HTMLEvents');
-          ev.initEvent('hashchange', true, true);
-          window.dispatchEvent(ev);
-        }
-      } catch (_e) {}
-    }
+  function applyNativeHash(hash) {
+    if (window.location.hash !== hash) window.location.hash = hash;
   }
 
-  // Hash <a> clicks in SPAs where native anchor navigation was intercepted or suppressed.
-  // Only sync if the hash actually differs, and never fire duplicate synthetic PopStateEvent
-  // or window.location.reload() which break Vue Router 4 view mount/unmount lifecycles.
+  // Some embedded engines fail to apply an otherwise ordinary same-document
+  // anchor after the click completes. Compensate only when the page did not
+  // cancel the click and only for current-window navigation. Assigning the
+  // native hash preserves browser history and lets the engine own its events.
   document.addEventListener('click', function(event) {
     if (event.button && event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     var link = nearestLink(event.target);
     if (!link) return;
+    var target = extractUrl(link, 'target').toLowerCase();
+    if (target && target !== '_self') return;
+    if (link.hasAttribute && link.hasAttribute('download')) return;
     var resolved = sameDocumentTarget(link.href || extractUrl(link, 'href'));
     if (!resolved || !resolved.hash) return;
     var wanted = resolved.hash;
     setTimeout(function() {
+      if (event.defaultPrevented) return;
       if (window.location.hash !== wanted) {
-        dispatchSpaHash(wanted);
+        applyNativeHash(wanted);
       }
     }, 0);
   }, false);
@@ -98,27 +89,27 @@
     }
   }, true);
 
-  // Fallback for window.open when multi-window is disabled in webview.
-  // Same-document hash targets must use location.hash: assigning location.href
-  // (or letting ArkWeb loadUrl the fragment) updates history without
-  // dispatching hashchange, so SPA tab clicks appear to do nothing.
+  // Preserve window.open semantics. A failed explicit _self navigation may be
+  // recovered in the current document, but new-window intent must never be
+  // converted into a current-page redirect.
   try {
     var origOpen = window.open;
     window.open = function(url, target, features) {
-      if (url && typeof url === 'string') {
-        var hashTarget = sameDocumentTarget(url.trim());
-        if (hashTarget !== null && hashTarget.hash) {
-          dispatchSpaHash(hashTarget.hash);
-          return window;
-        }
-      }
       var result = null;
       try {
         if (origOpen) result = origOpen.call(window, url, target, features);
       } catch (_e) {}
-      if (!result && url && typeof url === 'string') {
+      if (result) return result;
+      var normalizedTarget = typeof target === 'string' ? target.trim().toLowerCase() : '';
+      if (normalizedTarget !== '_self') return result;
+      if (url && typeof url === 'string') {
         var u = url.trim();
         if (u && !blocked.test(u)) {
+          var hashTarget = sameDocumentTarget(u);
+          if (hashTarget !== null && hashTarget.hash) {
+            applyNativeHash(hashTarget.hash);
+            return window;
+          }
           window.location.href = u;
           return window;
         }

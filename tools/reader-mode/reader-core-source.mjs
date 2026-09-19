@@ -11,6 +11,16 @@ async function constantsSource() {
   return readFile(constantsPath, 'utf8');
 }
 
+export async function productionBlockedLinkGuardScript() {
+  const source = await constantsSource();
+  const prefix = 'export const BLOCKED_LINK_GUARD_SCRIPT: string = `';
+  const contentStart = source.indexOf(prefix) + prefix.length;
+  assert.ok(contentStart >= prefix.length);
+  const contentEnd = source.indexOf('`;\n\n/** Installs the single extraction core', contentStart);
+  assert.notEqual(contentEnd, -1, 'blocked-link guard must have a stable template boundary');
+  return Function(`return \`${source.slice(contentStart, contentEnd)}\`;`)();
+}
+
 export async function productionExtractorScript() {
   const source = await constantsSource();
   const prefix = 'export const READER_EXTRACTION_CORE_SCRIPT: string = `';

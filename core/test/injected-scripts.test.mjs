@@ -1,12 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import {
   FILE_NAMES,
   contentCleanupScript,
   extractTemplateConst,
   findCountScript,
   loadStaticScripts,
-  readerApplyScript
+  readerApplyScript,
+  repositoryRoot
 } from '../src/injected-scripts.mjs';
 import { checkExportedScripts, writeExportedScripts } from '../src/export-js.mjs';
 
@@ -32,6 +35,24 @@ test('builders still produce parameterized scripts', async () => {
   const reader = await readerApplyScript(17, 205, '#ffffff', '#222222', '#111111', '#2e6b5c');
   assert.match(reader, /__mb-reader/);
   assert.equal(await findCountScript('Hello'), await findCountScript('  HELLO '));
+});
+
+test('all platform reader entry scripts preserve the live page DOM', async () => {
+  const sources = [
+    await readerApplyScript(),
+    await readFile(path.join(repositoryRoot, 'ios/ZhuoBrowser/ReaderScripts.swift'), 'utf8'),
+    await readFile(
+      path.join(repositoryRoot, 'android/app/src/main/java/com/youdroid/zhuobrowser/web/ReaderScripts.kt'),
+      'utf8'
+    )
+  ];
+  for (const source of sources) {
+    assert.doesNotMatch(source, /S\.body\s*=\s*document\.body\.innerHTML/);
+    assert.doesNotMatch(source, /document\.body\.innerHTML\s*=\s*''/);
+    assert.match(source, /body > :not\(#__mb-reader\)\{display:none !important\}/);
+    assert.match(source, /S\.documentHandlers/);
+    assert.match(source, /S\.bodyHandlers/);
+  }
 });
 
 test('tracker pass never mutates loaded resources or reports observations as blocks', async () => {
@@ -159,7 +180,7 @@ test('blocked link guard dropdown click handler does not blur external input fie
   assert.equal(innerBlurCalled, true, 'inner element inside closed dropdown should be blurred');
 });
 
-test('hash link clicks sync location.hash without destructive page reloads', async () => {
+test('hash link fallback respects cancellation and uses native hash navigation', async () => {
   const script = await extractTemplateConst('BLOCKED_LINK_GUARD_SCRIPT');
   const store = {};
   const location = {
@@ -176,7 +197,7 @@ test('hash link clicks sync location.hash without destructive page reloads', asy
     }
   });
   const clickHandlers = [];
-  const events = [];
+  const dispatchedEvents = [];
   const document = {
     referrer: 'https://id1.cloud.huawei.com/CAS/portal/loginAuth.html',
     addEventListener(type, handler, options) {
@@ -190,7 +211,7 @@ test('hash link clicks sync location.hash without destructive page reloads', asy
   const window = {
     location,
     open: () => null,
-    dispatchEvent(event) { events.push(event?.type || 'event'); return true; },
+    dispatchEvent(event) { dispatchedEvents.push(event?.type || 'event'); return true; },
     history: { state: null }
   };
   const sessionStorage = {
@@ -213,18 +234,38 @@ test('hash link clicks sync location.hash without destructive page reloads', asy
   const link = {
     href: 'https://developer.huawei.com/consumer/cn/service/josp/agc/index.html#/analysis',
     tagName: 'A',
-    getAttribute(name) { return name === 'href' ? '#/analysis' : ''; },
+    getAttribute(name) {
+      if (name === 'href') return '#/analysis';
+      if (name === 'target') return link.target || '';
+      return '';
+    },
     closest() { return link; }
   };
-  bubble.handler({ target: link, button: 0 });
+  const allowed = { target: link, button: 0, defaultPrevented: false };
+  bubble.handler(allowed);
   assert.equal(location.hash, '#/');
   for (const callback of timers) callback();
   assert.equal(location.hash, '#/analysis');
   assert.equal(store.reloaded, undefined, 'must not reload the page');
-  assert.deepEqual(events, ['hashchange']);
+
+  location.hash = '#/';
+  timers.length = 0;
+  const cancelled = { target: link, button: 0, defaultPrevented: false };
+  bubble.handler(cancelled);
+  cancelled.defaultPrevented = true;
+  for (const callback of timers) callback();
+  assert.equal(location.hash, '#/', 'must not override a route guard that cancelled navigation');
+
+  location.hash = '#/';
+  timers.length = 0;
+  link.target = '_blank';
+  bubble.handler({ target: link, button: 0, defaultPrevented: false });
+  for (const callback of timers) callback();
+  assert.equal(location.hash, '#/', 'must not turn a new-window link into current-page navigation');
+  assert.deepEqual(dispatchedEvents, [], 'shared fallback must not synthesize routing events');
 });
 
-test('window.open applies same-document hash via location.hash instead of href', async () => {
+test('window.open fallback preserves new-window intent and only navigates explicit self targets', async () => {
   const script = await extractTemplateConst('BLOCKED_LINK_GUARD_SCRIPT');
   const location = {
     origin: 'https://developer.huawei.com',
@@ -250,29 +291,34 @@ test('window.open applies same-document hash via location.hash instead of href',
     head: { appendChild() {} },
     referrer: ''
   };
+  const openCalls = [];
   const window = {
     location,
-    open: () => null,
-    dispatchEvent() { return true; },
+    open(url, target, features) {
+      openCalls.push({ url, target, features });
+      return null;
+    },
     history: { state: null }
   };
   const run = Function('document', 'window', 'URL', `return ${script.trim()}`);
   run(document, window, URL);
 
   const opened = window.open(
-    'https://developer.huawei.com/consumer/cn/service/josp/agc/index.html#/myApp'
+    'https://developer.huawei.com/consumer/cn/service/josp/agc/index.html#/myApp',
+    '_blank'
   );
-  assert.equal(opened, window);
-  assert.equal(location.hash, '#/myApp');
+  assert.equal(opened, null);
+  assert.equal(location.hash, '#/');
   assert.equal(hrefAssigned, '');
 
-  const relative = window.open('#/analytics');
+  const relative = window.open('#/analytics', '_self');
   assert.equal(relative, window);
   assert.equal(location.hash, '#/analytics');
   assert.equal(hrefAssigned, '');
 
-  window.open('https://developer.huawei.com/consumer/cn/doc/index.html');
+  window.open('https://developer.huawei.com/consumer/cn/doc/index.html', '_self');
   assert.equal(hrefAssigned, 'https://developer.huawei.com/consumer/cn/doc/index.html');
+  assert.deepEqual(openCalls.map(call => call.target), ['_blank', '_self', '_self']);
 });
 
 test('blank Huawei OAuth callbacks recover only when login state is missing or stale', async () => {

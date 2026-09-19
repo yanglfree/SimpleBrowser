@@ -21,10 +21,19 @@ enum ReaderScripts {
               return JSON.stringify({ status: 'no-article', result: extraction.result, strategy: extraction.strategy });
             }
 
-            S.body = document.body.innerHTML;
-            S.bodyStyle = document.body.getAttribute('style') || '';
+            S.bodyStyle = document.body.getAttribute('style');
             S.scroll = window.scrollY;
             S.metrics = extraction;
+            S.documentHandlers = {
+              selectstart: document.onselectstart,
+              copy: document.oncopy,
+              contextmenu: document.oncontextmenu
+            };
+            S.bodyHandlers = {
+              selectstart: document.body.onselectstart,
+              copy: document.body.oncopy,
+              contextmenu: document.body.oncontextmenu
+            };
 
             var viewport = document.querySelector('meta[name="viewport"]');
             S.viewportExisted = !!viewport;
@@ -36,7 +45,6 @@ enum ReaderScripts {
             }
             viewport.setAttribute('content', 'width=device-width, initial-scale=1, user-scalable=yes, maximum-scale=5');
 
-            document.body.innerHTML = '';
             var article = document.createElement('article');
             article.id = '__mb-reader';
 
@@ -75,6 +83,7 @@ enum ReaderScripts {
             'html,body{background:' + paper + ' !important;margin:0 !important;padding:0 !important;' +
               '-webkit-user-select:text !important;user-select:text !important;-webkit-touch-callout:default !important}' +
             '#__mb-reader, #__mb-reader *{-webkit-user-select:text !important;user-select:text !important;-webkit-touch-callout:default !important}' +
+            'body > :not(#__mb-reader){display:none !important}' +
             '#__mb-reader{box-sizing:border-box;width:100%;max-width:680px;margin:0 auto;padding:26px 22px 64px;' +
               'font-family:"Noto Serif SC","Songti SC",Georgia,serif;color:' + body + '}' +
             '#__mb-reader h1{font-size:' + (fontSize + 8) + 'px;line-height:1.55;font-weight:600;' +
@@ -90,7 +99,7 @@ enum ReaderScripts {
             '#__mb-reader pre{overflow-x:auto;padding:14px;border-radius:10px;background:rgba(128,128,128,.12)}' +
             '#__mb-reader blockquote{margin:1.4em 0;padding-left:16px;border-left:2px solid ' + accent + ';opacity:.85}';
 
-          document.body.setAttribute('style', 'margin:0;background:' + paper + ';-webkit-user-select:text !important;user-select:text !important;');
+          document.body.setAttribute('style', 'margin:0;background:' + paper + ';font-size:0;-webkit-user-select:text !important;user-select:text !important;');
           var metrics = S.metrics || {};
           return JSON.stringify({ status: 'reader', result: metrics.result || 'complete',
             strategy: metrics.strategy || 'unknown', candidateChars: metrics.candidateChars || 0,

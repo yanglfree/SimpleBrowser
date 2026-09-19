@@ -4,12 +4,65 @@ import path from 'node:path';
 import test from 'node:test';
 import { chromium } from 'playwright';
 import {
+  productionBlockedLinkGuardScript,
   productionCaptureScript,
   productionExtractorScript,
   productionReaderApplyScript,
   productionReaderExitScript,
   toolDirectory
 } from './reader-core-source.mjs';
+
+test('shared navigation guard preserves cancellation, new windows, and native hash history', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext();
+    await context.route('https://fixture.test/**', route => route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><html><body>
+        <a id="allowed" href="#/analysis">Allowed</a>
+        <a id="cancelled" href="#/blocked">Cancelled</a>
+        <a id="new-window" href="#/popup" target="_blank">Popup</a>
+        <script>
+          window.hashEvents = [];
+          window.addEventListener('hashchange', () => window.hashEvents.push(location.hash));
+          document.getElementById('cancelled').addEventListener('click', event => event.preventDefault());
+        </script>
+      </body></html>`
+    }));
+    const page = await context.newPage();
+    await page.goto('https://fixture.test/app#/home');
+    await page.addScriptTag({ content: await productionBlockedLinkGuardScript() });
+
+    await page.locator('#cancelled').click();
+    await page.waitForTimeout(10);
+    assert.equal(new URL(page.url()).hash, '#/home');
+
+    const popupPromise = page.waitForEvent('popup');
+    await page.locator('#new-window').click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState('domcontentloaded');
+    assert.equal(new URL(page.url()).hash, '#/home');
+    assert.equal(new URL(popup.url()).hash, '#/popup');
+    await popup.close();
+
+    await page.locator('#allowed').click();
+    await page.waitForFunction(() => location.hash === '#/analysis');
+    await page.waitForFunction(() => window.hashEvents.length === 1);
+    assert.deepEqual(await page.evaluate(() => window.hashEvents), ['#/analysis']);
+
+    await page.goBack();
+    await page.waitForFunction(() => location.hash === '#/home');
+    await page.goForward();
+    await page.waitForFunction(() => location.hash === '#/analysis');
+    await page.waitForFunction(() => window.hashEvents.length === 3);
+    assert.deepEqual(
+      await page.evaluate(() => window.hashEvents),
+      ['#/analysis', '#/home', '#/analysis']
+    );
+  } finally {
+    await browser.close();
+  }
+});
 
 async function loadFixture(page, slug) {
   const directory = path.join(toolDirectory, 'fixtures', slug);
@@ -76,6 +129,19 @@ test('enters, restyles, and exits reader mode through the production scripts', a
     const html = await readFile(path.join(toolDirectory, 'fixtures/wechat-long/source.html'), 'utf8');
     await page.setContent(html, { waitUntil: 'domcontentloaded' });
     assert.equal(await page.locator('meta[name="viewport"]').count(), 0);
+    await page.evaluate(() => {
+      const button = document.createElement('button');
+      button.id = 'stateful-button';
+      button.textContent = 'Continue';
+      button.addEventListener('click', () => {
+        window.__statefulClickCount = (window.__statefulClickCount || 0) + 1;
+      });
+      const input = document.createElement('input');
+      input.id = 'stateful-input';
+      input.value = 'draft preserved by the page';
+      document.body.append(button, input);
+      window.__originalStatefulButton = button;
+    });
 
     const entered = JSON.parse(await page.evaluate(await productionReaderApplyScript()));
     const firstText = await page.locator('#__mb-reader').innerText();
@@ -98,6 +164,13 @@ test('enters, restyles, and exits reader mode through the production scripts', a
     assert.equal(await page.locator('#__mb-reader').count(), 0);
     assert.equal(await page.locator('#js_content').count(), 1);
     assert.equal(await page.locator('meta[name="viewport"]').count(), 0);
+    assert.equal(await page.locator('#stateful-input').inputValue(), 'draft preserved by the page');
+    assert.equal(
+      await page.evaluate(() => document.getElementById('stateful-button') === window.__originalStatefulButton),
+      true
+    );
+    await page.locator('#stateful-button').click();
+    assert.equal(await page.evaluate(() => window.__statefulClickCount), 1);
   } finally {
     await browser.close();
   }

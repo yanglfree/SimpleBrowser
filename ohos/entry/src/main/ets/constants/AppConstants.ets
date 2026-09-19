@@ -242,21 +242,27 @@ export function triggerDownloadScript(url: string): string {
 export function applyDocumentHashScript(hash: string): string {
   return `(function() {
     var next = ${JSON.stringify(hash)};
-    if (window.location.hash !== next) {
-      var old = window.location.href;
-      window.location.hash = next;
+    if (window.location.hash === next) return 'same';
+    var old = window.location.href;
+    var nativeEventFired = false;
+    function observedHashChange() {
+      nativeEventFired = true;
+    }
+    window.addEventListener('hashchange', observedHashChange, { once: true });
+    window.location.hash = next;
+    setTimeout(function() {
+      window.removeEventListener('hashchange', observedHashChange);
+      if (nativeEventFired || window.location.hash !== next) return;
       try {
         if (typeof HashChangeEvent !== 'undefined') {
           window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: old, newURL: window.location.href }));
-        } else if (typeof CustomEvent !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('hashchange', { detail: { oldURL: old, newURL: window.location.href } }));
         } else if (document.createEvent) {
           var ev = document.createEvent('HTMLEvents');
           ev.initEvent('hashchange', true, true);
           window.dispatchEvent(ev);
         }
       } catch (_e) {}
-    }
+    }, 0);
     return window.location.hash;
   })();`;
 }
@@ -481,38 +487,29 @@ export const BLOCKED_LINK_GUARD_SCRIPT: string = `
     }
   }
 
-  function dispatchSpaHash(hash) {
-    if (window.location.hash !== hash) {
-      var old = window.location.href;
-      window.location.hash = hash;
-      try {
-        if (typeof HashChangeEvent !== 'undefined') {
-          window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: old, newURL: window.location.href }));
-        } else if (typeof CustomEvent !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('hashchange', { detail: { oldURL: old, newURL: window.location.href } }));
-        } else if (document.createEvent) {
-          var ev = document.createEvent('HTMLEvents');
-          ev.initEvent('hashchange', true, true);
-          window.dispatchEvent(ev);
-        }
-      } catch (_e) {}
-    }
+  function applyNativeHash(hash) {
+    if (window.location.hash !== hash) window.location.hash = hash;
   }
 
-  // Hash <a> clicks in SPAs where native anchor navigation was intercepted or suppressed.
-  // Only sync if the hash actually differs, and never fire duplicate synthetic PopStateEvent
-  // or window.location.reload() which break Vue Router 4 view mount/unmount lifecycles.
+  // Some embedded engines fail to apply an otherwise ordinary same-document
+  // anchor after the click completes. Compensate only when the page did not
+  // cancel the click and only for current-window navigation. Assigning the
+  // native hash preserves browser history and lets the engine own its events.
   document.addEventListener('click', function(event) {
     if (event.button && event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     var link = nearestLink(event.target);
     if (!link) return;
+    var target = extractUrl(link, 'target').toLowerCase();
+    if (target && target !== '_self') return;
+    if (link.hasAttribute && link.hasAttribute('download')) return;
     var resolved = sameDocumentTarget(link.href || extractUrl(link, 'href'));
     if (!resolved || !resolved.hash) return;
     var wanted = resolved.hash;
     setTimeout(function() {
+      if (event.defaultPrevented) return;
       if (window.location.hash !== wanted) {
-        dispatchSpaHash(wanted);
+        applyNativeHash(wanted);
       }
     }, 0);
   }, false);
@@ -539,27 +536,27 @@ export const BLOCKED_LINK_GUARD_SCRIPT: string = `
     }
   }, true);
 
-  // Fallback for window.open when multi-window is disabled in webview.
-  // Same-document hash targets must use location.hash: assigning location.href
-  // (or letting ArkWeb loadUrl the fragment) updates history without
-  // dispatching hashchange, so SPA tab clicks appear to do nothing.
+  // Preserve window.open semantics. A failed explicit _self navigation may be
+  // recovered in the current document, but new-window intent must never be
+  // converted into a current-page redirect.
   try {
     var origOpen = window.open;
     window.open = function(url, target, features) {
-      if (url && typeof url === 'string') {
-        var hashTarget = sameDocumentTarget(url.trim());
-        if (hashTarget !== null && hashTarget.hash) {
-          dispatchSpaHash(hashTarget.hash);
-          return window;
-        }
-      }
       var result = null;
       try {
         if (origOpen) result = origOpen.call(window, url, target, features);
       } catch (_e) {}
-      if (!result && url && typeof url === 'string') {
+      if (result) return result;
+      var normalizedTarget = typeof target === 'string' ? target.trim().toLowerCase() : '';
+      if (normalizedTarget !== '_self') return result;
+      if (url && typeof url === 'string') {
         var u = url.trim();
         if (u && !blocked.test(u)) {
+          var hashTarget = sameDocumentTarget(u);
+          if (hashTarget !== null && hashTarget.hash) {
+            applyNativeHash(hashTarget.hash);
+            return window;
+          }
           window.location.href = u;
           return window;
         }
@@ -859,10 +856,19 @@ ${READER_EXTRACTION_CORE_SCRIPT}
       return JSON.stringify({ status: 'no-article', result: extraction.result, strategy: extraction.strategy });
     }
 
-    S.body = document.body.innerHTML;
-    S.bodyStyle = document.body.getAttribute('style') || '';
+    S.bodyStyle = document.body.getAttribute('style');
     S.scroll = window.scrollY;
     S.metrics = extraction;
+    S.documentHandlers = {
+      selectstart: document.onselectstart,
+      copy: document.oncopy,
+      contextmenu: document.oncontextmenu
+    };
+    S.bodyHandlers = {
+      selectstart: document.body.onselectstart,
+      copy: document.body.oncopy,
+      contextmenu: document.body.oncontextmenu
+    };
 
     var viewport = document.querySelector('meta[name="viewport"]');
     S.viewportExisted = !!viewport;
@@ -874,7 +880,6 @@ ${READER_EXTRACTION_CORE_SCRIPT}
     }
     viewport.setAttribute('content', 'width=device-width, initial-scale=1, user-scalable=yes, maximum-scale=5');
 
-    document.body.innerHTML = '';
     var article = document.createElement('article');
     article.id = '__mb-reader';
 
@@ -913,6 +918,7 @@ ${READER_EXTRACTION_CORE_SCRIPT}
     'html,body{background:' + paper + ' !important;margin:0 !important;padding:0 !important;' +
       '-webkit-user-select:text !important;user-select:text !important;-webkit-touch-callout:default !important}' +
     '#__mb-reader, #__mb-reader *{-webkit-user-select:text !important;user-select:text !important;-webkit-touch-callout:default !important}' +
+    'body > :not(#__mb-reader){display:none !important}' +
     '#__mb-reader{box-sizing:border-box;width:100%;max-width:680px;margin:0 auto;padding:26px 22px 64px;' +
       'font-family:"Noto Serif SC","Songti SC",Georgia,serif;color:' + body + '}' +
     '#__mb-reader h1{font-size:' + (fontSize + 8) + 'px;line-height:1.55;font-weight:600;' +
@@ -928,7 +934,7 @@ ${READER_EXTRACTION_CORE_SCRIPT}
     '#__mb-reader pre{overflow-x:auto;padding:14px;border-radius:10px;background:rgba(128,128,128,.12)}' +
     '#__mb-reader blockquote{margin:1.4em 0;padding-left:16px;border-left:2px solid ' + accent + ';opacity:.85}';
 
-  document.body.setAttribute('style', 'margin:0;background:' + paper + ';-webkit-user-select:text !important;user-select:text !important;');
+  document.body.setAttribute('style', 'margin:0;background:' + paper + ';font-size:0;-webkit-user-select:text !important;user-select:text !important;');
   var metrics = S.metrics || {};
   return JSON.stringify({ status: 'reader', result: metrics.result || 'complete',
     strategy: metrics.strategy || 'unknown', candidateChars: metrics.candidateChars || 0,
@@ -951,8 +957,20 @@ export const READER_EXIT_SCRIPT: string = `
     else if (S.viewportContent === null) viewport.removeAttribute('content');
     else viewport.setAttribute('content', S.viewportContent);
   }
-  document.body.innerHTML = S.body;
-  document.body.setAttribute('style', S.bodyStyle);
+  var reader = document.getElementById('__mb-reader');
+  if (reader) reader.remove();
+  if (S.bodyStyle === null) document.body.removeAttribute('style');
+  else document.body.setAttribute('style', S.bodyStyle);
+  if (S.documentHandlers) {
+    if (document.onselectstart === null) document.onselectstart = S.documentHandlers.selectstart;
+    if (document.oncopy === null) document.oncopy = S.documentHandlers.copy;
+    if (document.oncontextmenu === null) document.oncontextmenu = S.documentHandlers.contextmenu;
+  }
+  if (S.bodyHandlers) {
+    if (document.body.onselectstart === null) document.body.onselectstart = S.bodyHandlers.selectstart;
+    if (document.body.oncopy === null) document.body.oncopy = S.bodyHandlers.copy;
+    if (document.body.oncontextmenu === null) document.body.oncontextmenu = S.bodyHandlers.contextmenu;
+  }
   window.scrollTo(0, S.scroll || 0);
   S.active = false;
   return 'restored';
