@@ -73,6 +73,20 @@ test('tracker cleanup reports observed malicious resources separately and stays 
   assert.deepEqual(nodes.map((node) => node.removed), [true, true, false]);
 });
 
+test('tracker cleanup preserves framework-owned static scripts and image anchors', async () => {
+  const script = await extractTemplateConst('TRACKER_BLOCK_SCRIPT');
+  const nodes = [
+    'https://developer.huawei.com/consumer/cn/service/josp/agc/static/js/index.js',
+    'https://developer.huawei.com/consumer/cn/service/josp/agc/static/img/loading.svg',
+    'https://example.com/status/icon.svg',
+    'https://example.com/statistics/help.png'
+  ].map(src => ({ src, hasAttribute: () => false, setAttribute() {},
+    remove() { throw new Error(`Removed SPA-owned resource: ${src}`); } }));
+  const result = Function('document', 'window', 'navigator', `return ${script.trim()}`)(
+    { querySelectorAll: () => nodes }, {}, {});
+  assert.deepEqual(JSON.parse(result), { trackers: 0, malicious: 0, resources: [] });
+});
+
 test('reader extraction core stays a closed IIFE', async () => {
   const core = await extractTemplateConst('READER_EXTRACTION_CORE_SCRIPT');
   assert.match(core.trim(), /^\(function\(\)/);

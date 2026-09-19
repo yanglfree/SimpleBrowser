@@ -42,13 +42,14 @@ export const DEFAULT_QUICK_SITES: QuickSite[] = [
  * than a display ad. Used to split ArkWeb's blocked-request list into the
  * "广告" and "追踪器" buckets shown in the blocking panel.
  */
+// Match stat endpoints with a delimiter; /stat also matches /static and /status.
 export const TRACKER_URL_PATTERNS: string[] = [
   'google-analytics', 'googletagmanager', 'analytics.', '/analytics',
   'hm.baidu.com', 'cnzz.com', 'umeng.com', 'talkingdata',
   'scorecardresearch', 'quantserve', 'mixpanel', 'segment.io', 'segment.com',
   'amplitude', 'hotjar', 'clarity.ms', 'sentry.io', 'bugsnag',
   'matomo', 'piwik', 'newrelic', 'track', 'beacon', 'telemetry',
-  'pixel', 'collect?', '/stat', 'sensorsdata'
+  'pixel', 'collect?', '/stat/', '/stat?', '/stat.', 'sensorsdata'
 ];
 
 /** URL fragments shown in the blocking panel's malicious-resource bucket. */

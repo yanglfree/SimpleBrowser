@@ -31,15 +31,15 @@
     Target: Connected Huawei tablet, HarmonyOS ArkWeb, <code>45P0225509000207</code><br>
     App: ZhuoBrowser AGC regression <code>1.0.2 (1000025)</code>, bundle <code>com.youdroid.browser</code><br>
     HAP: <code>ohos/entry/build/default/outputs/default/entry-default-signed.hap</code><br>
-    Auth source: Existing device session for diagnosis; final-build login requires user input
+    Auth source: User completed fresh Huawei login on final installed package; no restored credential snapshot was used
   </p>
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>6</strong>Total cases</div>
     <div class="metric"><strong>6</strong>Executed</div>
-    <div class="metric"><strong>4</strong>Passed</div>
+    <div class="metric"><strong>6</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
-    <div class="metric"><strong>2</strong>Blocked</div>
+    <div class="metric"><strong>0</strong>Blocked</div>
     <div class="metric"><strong>0</strong>Not run</div>
   </section>
 
@@ -55,9 +55,9 @@
     <tbody>
       <tr>
         <td>AGC recovery and navigation</td>
-        <td class="status-partial">partial</td>
+        <td class="status-passed">passed</td>
         <td><code>agc-baseline</code><br><code>agc-cookie-differential</code><br><code>agc-build</code><br><code>agc-startup</code><br><code>agc-navigation</code><br><code>agc-background</code></td>
-        <td>Authenticated final-build acceptance is pending user login.</td>
+        <td>Final installed build passed fresh-login navigation, iframe content, refresh, background, back and forward on the connected tablet.</td>
       </tr></tbody>
   </table>
 
@@ -97,14 +97,14 @@
         <td><code>agc-navigation</code></td>
         <td>p0</td>
         <td>Switch all authenticated AGC sections</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-passed">passed</td>
         <td>agc, cookie</td>
       </tr>
       <tr>
         <td><code>agc-background</code></td>
         <td>p0</td>
         <td>Retain authenticated content across background and refresh</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-passed">passed</td>
         <td>agc, cookie</td>
       </tr></tbody>
   </table>
@@ -123,22 +123,22 @@
       </section>
       <section class="case-result">
         <h3><code>agc-build</code> <span class="status-passed">passed</span></h3>
-        <p>Release HAP built, signed, installed and launched on 45P0225509000207. SHA256 dbda03f4cd7dc12c7f957cb78b4732ae45488f2dec9538f3c7fda425d3279b8b.</p>
+        <p>Corrected release HAP built, signed, installed and launched. SHA256 4a350b02689fd8b57f8309177b4e6af665f12a4ec3ce89a86ae31cd9ce5cad03.</p>
         <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
       </section>
       <section class="case-result">
         <h3><code>agc-startup</code> <span class="status-passed">passed</span></h3>
-        <p>Final package renders the Huawei account login page with visible login controls; no blank callback. Tablet session cookies did not survive process restart.</p>
+        <p>Final installed package completed fresh user login and displayed AGC homepage. No blank OAuth callback. Process-death session retention remains native-platform behavior.</p>
         <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
       </section>
       <section class="case-result">
-        <h3><code>agc-navigation</code> <span class="status-blocked">blocked</span></h3>
-        <p>Requires the user to complete Huawei account login on the connected tablet. Final-build APP/service, analysis, access and certificate navigation remains unaccepted.</p>
+        <h3><code>agc-navigation</code> <span class="status-passed">passed</span></h3>
+        <p>Passed two native-touch rounds (12 section selections): application list, analytics iframe with data, users iframe, certificates iframe, project list, and return to applications. Screenshots inspected and distinct content assertions passed. No HTTP 4xx/5xx observed during the rounds; only a site ResizeObserver warning.</p>
         <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
       </section>
       <section class="case-result">
-        <h3><code>agc-background</code> <span class="status-blocked">blocked</span></h3>
-        <p>Requires a fresh authenticated session. Do not infer this from unit tests or the pre-build diagnostic intervention.</p>
+        <h3><code>agc-background</code> <span class="status-passed">passed</span></h3>
+        <p>Passed native Home/background, foreground return, toolbar refresh, another full section-switching round, native back to projects and forward to application list. No conflicting host-only auth cookies remained and final-process logs contained zero prior DOM-integrity errors.</p>
         <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
       </section>
 
@@ -146,6 +146,31 @@
   <table>
     <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
     <tbody>
+      <tr>
+        <td><code></code></td>
+        <td class="status-"></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code></code></td>
+        <td class="status-"></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code></code></td>
+        <td class="status-"></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code></code></td>
+        <td class="status-"></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><code></code></td>
+        <td class="status-"></td>
+        <td></td>
+      </tr>
       <tr>
         <td><code></code></td>
         <td class="status-"></td>

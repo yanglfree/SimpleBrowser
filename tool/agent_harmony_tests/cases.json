@@ -95,7 +95,7 @@
         "Render after process restart"
       ],
       "assertions": [
-        "Final package renders the Huawei account login page with visible login controls; no blank callback. Tablet session cookies did not survive process restart."
+        "Final installed package completed fresh user login and displayed AGC homepage. No blank OAuth callback. Process-death session retention remains native-platform behavior."
       ],
       "failureSignals": [
         "Blank document, stale content, repeated login loop"
@@ -119,7 +119,7 @@
         "Switch all authenticated AGC sections"
       ],
       "assertions": [
-        "Requires the user to complete Huawei account login on the connected tablet. Final-build APP/service, analysis, access and certificate navigation remains unaccepted."
+        "Passed two native-touch rounds (12 section selections): application list, analytics iframe with data, users iframe, certificates iframe, project list, and return to applications. Screenshots inspected and distinct content assertions passed. No HTTP 4xx/5xx observed during the rounds; only a site ResizeObserver warning."
       ],
       "failureSignals": [
         "Blank document, stale content, repeated login loop"
@@ -143,7 +143,7 @@
         "Retain authenticated content across background and refresh"
       ],
       "assertions": [
-        "Requires a fresh authenticated session. Do not infer this from unit tests or the pre-build diagnostic intervention."
+        "Passed native Home/background, foreground return, toolbar refresh, another full section-switching round, native back to projects and forward to application list. No conflicting host-only auth cookies remained and final-process logs contained zero prior DOM-integrity errors."
       ],
       "failureSignals": [
         "Blank document, stale content, repeated login loop"
@@ -153,7 +153,7 @@
   "coverageAreas": [
     {
       "title": "AGC recovery and navigation",
-      "status": "partial",
+      "status": "passed",
       "caseIds": [
         "agc-baseline",
         "agc-cookie-differential",
@@ -162,7 +162,7 @@
         "agc-navigation",
         "agc-background"
       ],
-      "notes": "Authenticated final-build acceptance is pending user login."
+      "notes": "Final installed build passed fresh-login navigation, iframe content, refresh, background, back and forward on the connected tablet."
     }
   ],
   "lastRun": {
@@ -176,7 +176,7 @@
       "version": "1.0.2 (1000025)",
       "hapPath": "ohos/entry/build/default/outputs/default/entry-default-signed.hap"
     },
-    "authSource": "Existing device session for diagnosis; final-build login requires user input",
+    "authSource": "User completed fresh Huawei login on final installed package; no restored credential snapshot was used",
     "results": [
       {
         "caseId": "agc-baseline",
@@ -205,58 +205,64 @@
       {
         "caseId": "agc-build",
         "status": "passed",
-        "notes": "Release HAP built, signed, installed and launched on 45P0225509000207. SHA256 dbda03f4cd7dc12c7f957cb78b4732ae45488f2dec9538f3c7fda425d3279b8b.",
+        "notes": "Corrected release HAP built, signed, installed and launched. SHA256 4a350b02689fd8b57f8309177b4e6af665f12a4ec3ce89a86ae31cd9ce5cad03.",
         "evidence": [
           {
             "type": "local diagnostic artifacts",
             "path": "/tmp/zhuo-agc-debug",
-            "notes": "Release HAP built, signed, installed and launched on 45P0225509000207. SHA256 dbda03f4cd7dc12c7f957cb78b4732ae45488f2dec9538f3c7fda425d3279b8b."
+            "notes": "Corrected release HAP built, signed, installed and launched. SHA256 4a350b02689fd8b57f8309177b4e6af665f12a4ec3ce89a86ae31cd9ce5cad03."
           }
         ]
       },
       {
         "caseId": "agc-startup",
         "status": "passed",
-        "notes": "Final package renders the Huawei account login page with visible login controls; no blank callback. Tablet session cookies did not survive process restart.",
+        "notes": "Final installed package completed fresh user login and displayed AGC homepage. No blank OAuth callback. Process-death session retention remains native-platform behavior.",
         "evidence": [
           {
             "type": "local diagnostic artifacts",
             "path": "/tmp/zhuo-agc-debug",
-            "notes": "Final package renders the Huawei account login page with visible login controls; no blank callback. Tablet session cookies did not survive process restart."
+            "notes": "Final installed package completed fresh user login and displayed AGC homepage. No blank OAuth callback. Process-death session retention remains native-platform behavior."
           }
         ]
       },
       {
         "caseId": "agc-navigation",
-        "status": "blocked",
-        "notes": "Requires the user to complete Huawei account login on the connected tablet. Final-build APP/service, analysis, access and certificate navigation remains unaccepted.",
+        "status": "passed",
+        "notes": "Passed two native-touch rounds (12 section selections): application list, analytics iframe with data, users iframe, certificates iframe, project list, and return to applications. Screenshots inspected and distinct content assertions passed. No HTTP 4xx/5xx observed during the rounds; only a site ResizeObserver warning.",
         "evidence": [
           {
             "type": "local diagnostic artifacts",
             "path": "/tmp/zhuo-agc-debug",
-            "notes": "Requires the user to complete Huawei account login on the connected tablet. Final-build APP/service, analysis, access and certificate navigation remains unaccepted."
+            "notes": "Passed two native-touch rounds (12 section selections): application list, analytics iframe with data, users iframe, certificates iframe, project list, and return to applications. Screenshots inspected and distinct content assertions passed. No HTTP 4xx/5xx observed during the rounds; only a site ResizeObserver warning."
           }
         ]
       },
       {
         "caseId": "agc-background",
-        "status": "blocked",
-        "notes": "Requires a fresh authenticated session. Do not infer this from unit tests or the pre-build diagnostic intervention.",
+        "status": "passed",
+        "notes": "Passed native Home/background, foreground return, toolbar refresh, another full section-switching round, native back to projects and forward to application list. No conflicting host-only auth cookies remained and final-process logs contained zero prior DOM-integrity errors.",
         "evidence": [
           {
             "type": "local diagnostic artifacts",
             "path": "/tmp/zhuo-agc-debug",
-            "notes": "Requires a fresh authenticated session. Do not infer this from unit tests or the pre-build diagnostic intervention."
+            "notes": "Passed native Home/background, foreground return, toolbar refresh, another full section-switching round, native back to projects and forward to application list. No conflicting host-only auth cookies remained and final-process logs contained zero prior DOM-integrity errors."
           }
         ]
       }
     ],
     "validation": [
-      "83/83 Node tests passed; 220/220 Hypium tests passed; release HAP build/install passed; git diff --check passed"
+      "84/84 Node tests passed",
+      "220/220 final entry Hypium tests passed",
+      "Final release HAP build, signing, install and launch passed",
+      "12/12 native-touch route/content assertions passed across fresh login and refresh",
+      "Native background/foreground, back and forward passed; no conflicting auth host copies",
+      "git diff --check passed"
     ],
     "knownExclusions": [
-      "Final-build authenticated navigation and background/refresh await login.",
-      "Native tablet session-cookie persistence remains platform-owned; no fabricated 30-day copies.",
+      "Native tablet session-cookie persistence remains platform-owned; process death can require login.",
+      "iOS and Android shared assets synchronized; no platform build/device validation in this Harmony task.",
+      "One site ResizeObserver warning; no DOM-integrity failures or HTTP errors in tested navigation.",
       "No store upload, publishing or git push."
     ]
   }

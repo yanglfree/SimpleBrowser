@@ -1,6 +1,6 @@
 (function() {
   var TAG = '__mbTracker';
-  var trackerPatterns = ["google-analytics","googletagmanager","analytics.","/analytics","hm.baidu.com","cnzz.com","umeng.com","talkingdata","scorecardresearch","quantserve","mixpanel","segment.io","segment.com","amplitude","hotjar","clarity.ms","sentry.io","bugsnag","matomo","piwik","newrelic","track","beacon","telemetry","pixel","collect?","/stat","sensorsdata"];
+  var trackerPatterns = ["google-analytics","googletagmanager","analytics.","/analytics","hm.baidu.com","cnzz.com","umeng.com","talkingdata","scorecardresearch","quantserve","mixpanel","segment.io","segment.com","amplitude","hotjar","clarity.ms","sentry.io","bugsnag","matomo","piwik","newrelic","track","beacon","telemetry","pixel","collect?","/stat/","/stat?","/stat.","sensorsdata"];
   var maliciousPatterns = ["malware","phishing","phish","trojan","ransom","exploit","cryptominer","coinhive","malvertising"];
   var trackers = 0, malicious = 0;
   var resources = [];
