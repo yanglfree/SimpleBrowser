@@ -151,14 +151,6 @@ export async function extractStringConst(name) {
 export async function extractTemplateConst(name) {
   const source = await constantsSource();
   const template = extractTemplateBody(source, name);
-  if (name === 'TRACKER_BLOCK_SCRIPT') {
-    const trackerPatterns = await extractStringArray('TRACKER_URL_PATTERNS');
-    const maliciousPatterns = await extractStringArray('MALICIOUS_URL_PATTERNS');
-    return evaluateTemplate(template, {
-      TRACKER_URL_PATTERNS: trackerPatterns,
-      MALICIOUS_URL_PATTERNS: maliciousPatterns
-    });
-  }
   if (name === 'ARTICLE_CAPTURE_SCRIPT') {
     const core = await extractTemplateConst('READER_EXTRACTION_CORE_SCRIPT');
     return evaluateTemplate(template, { READER_EXTRACTION_CORE_SCRIPT: core });

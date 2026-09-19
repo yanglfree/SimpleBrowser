@@ -72,3 +72,32 @@ synchronized but not built or device-tested in this Harmony task.
 See `tool/agent_harmony_tests/cases.json` and generated `report.html`.
 Local diagnostic artifacts are under `/tmp/zhuo-agc-debug`; no cookie values,
 authorization codes or account API payloads are committed.
+
+## Follow-up: general compatibility hardening
+
+The delimiter fix above was only the initial repair. The shared tracker script
+also removed ordinary `soundtrack`, `pixel-art`, and `phishing-awareness`
+resources, and replaced every `sendBeacon` call with a fake successful return.
+
+The follow-up removes both interventions entirely. Existing native network
+rules remain responsible for blocking requests. The script retains its JSON
+contract for platform callers but reports zero observations: loaded resources
+are neither removed nor counted as blocked. Keyword classification remains
+only for categorizing requests that the native blocker already blocked.
+Unmatched requests now follow the browser's normal behavior; this intentionally
+removes blanket beacon suppression, not the native filtering rules. No new
+claim is made that native filtering blocks every tracker on every platform.
+
+Regression coverage checks benign keyword URLs, framework-owned nodes, repeated
+injection, beacon payload identity, receiver, false returns and native exceptions.
+Shared assets are synchronized for HarmonyOS, iOS and Android.
+
+Follow-up validation: 84 Node tests passed and the signed HarmonyOS release HAP
+built successfully; the entry Hypium test task also passed. A fresh iframe in the connected tablet's ArkWeb retained
+its native beacon function and DOM nodes across two executions of the new
+script. This is script-level device evidence, not installed-package acceptance.
+The tablet still runs the preceding accepted package to retain its AGC login;
+the new package has not been installed. iOS/Android were not built or run.
+The existing AGC navigation acceptance recorded above belongs to the preceding
+fix. Reader-mode DOM restoration and hash-click compensation remain separate
+follow-up audit items.

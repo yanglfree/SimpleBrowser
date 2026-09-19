@@ -16,7 +16,7 @@ test('extracts document-start and reader scripts from AppConstants', async () =>
   assert.match(scripts.LONG_PRESS_TARGET_SCRIPT, /__mbLongPressTarget/);
   assert.match(scripts.FORCE_ZOOM_SCRIPT, /user-scalable=yes/);
   assert.match(scripts.READER_EXTRACTION_CORE_SCRIPT, /__zhuoReaderExtract/);
-  assert.match(scripts.TRACKER_BLOCK_SCRIPT, /google-analytics/);
+  assert.match(scripts.TRACKER_BLOCK_SCRIPT, /resources/);
   assert.match(scripts.PASSWORD_FIELD_WATCHER_SCRIPT, /messageHandlers\.zhuoSecurity/);
   assert.match(scripts.ARTICLE_CAPTURE_SCRIPT, /__zhuoReaderExtract/);
   for (const name of Object.keys(FILE_NAMES)) {
@@ -34,57 +34,57 @@ test('builders still produce parameterized scripts', async () => {
   assert.equal(await findCountScript('Hello'), await findCountScript('  HELLO '));
 });
 
-test('tracker cleanup reports observed malicious resources separately and stays idempotent', async () => {
-  const script = await extractTemplateConst('TRACKER_BLOCK_SCRIPT');
-  const makeNode = (src) => {
-    const attributes = new Set();
-    return {
-      src,
-      removed: false,
-      hasAttribute: (name) => attributes.has(name),
-      getAttribute: (name) => name === 'src' ? src : '',
-      setAttribute: (name) => attributes.add(name),
-      remove() { this.removed = true; }
-    };
-  };
-  const nodes = [
-    makeNode('https://evil.example/phishing/payload.js'),
-    makeNode('https://www.google-analytics.com/analytics.js'),
-    makeNode('https://cdn.example/app.js')
-  ];
-  const document = { querySelectorAll: () => nodes };
-  const window = {};
-  const navigator = {};
-  const run = Function('document', 'window', 'navigator', `return ${script.trim()}`);
-
-  assert.deepEqual(JSON.parse(run(document, window, navigator)), {
-    trackers: 1,
-    malicious: 1,
-    resources: [
-      { url: 'https://evil.example/phishing/payload.js', category: 'malicious' },
-      { url: 'https://www.google-analytics.com/analytics.js', category: 'tracker' }
-    ]
-  });
-  assert.deepEqual(JSON.parse(run(document, window, navigator)), {
-    trackers: 0,
-    malicious: 0,
-    resources: []
-  });
-  assert.deepEqual(nodes.map((node) => node.removed), [true, true, false]);
-});
-
-test('tracker cleanup preserves framework-owned static scripts and image anchors', async () => {
+test('tracker pass never mutates loaded resources or reports observations as blocks', async () => {
   const script = await extractTemplateConst('TRACKER_BLOCK_SCRIPT');
   const nodes = [
     'https://developer.huawei.com/consumer/cn/service/josp/agc/static/js/index.js',
-    'https://developer.huawei.com/consumer/cn/service/josp/agc/static/img/loading.svg',
-    'https://example.com/status/icon.svg',
-    'https://example.com/statistics/help.png'
-  ].map(src => ({ src, hasAttribute: () => false, setAttribute() {},
-    remove() { throw new Error(`Removed SPA-owned resource: ${src}`); } }));
-  const result = Function('document', 'window', 'navigator', `return ${script.trim()}`)(
-    { querySelectorAll: () => nodes }, {}, {});
-  assert.deepEqual(JSON.parse(result), { trackers: 0, malicious: 0, resources: [] });
+    'https://example.com/images/soundtrack-cover.png',
+    'https://example.com/images/pixel-art.png',
+    'https://example.com/docs/phishing-awareness.png',
+    'https://notgoogle-analytics.example.org/app.js',
+    'https://www.google-analytics.com/analytics.js'
+  ].map(src => ({ src, hasAttribute: () => false,
+    setAttribute() { throw new Error(`Modified resource: ${src}`); },
+    remove() { throw new Error(`Removed resource: ${src}`); } }));
+  const run = Function('document', 'window', 'navigator', `return ${script.trim()}`);
+  const document = { querySelectorAll: () => nodes };
+  const window = {};
+  const navigator = {};
+  for (let pass = 0; pass < 3; pass++) {
+    assert.deepEqual(JSON.parse(run(document, window, navigator)), {
+      trackers: 0, malicious: 0, resources: []
+    });
+  }
+});
+
+test('tracker pass preserves beacon payloads, receiver, return values and exceptions', async () => {
+  const script = await extractTemplateConst('TRACKER_BLOCK_SCRIPT');
+  const calls = [];
+  const failure = new TypeError('Invalid beacon URL');
+  const navigator = {
+    sendBeacon(url, body) {
+      assert.equal(this, navigator);
+      calls.push({ url, body });
+      if (url === 'invalid:') throw failure;
+      return url !== '/queue-full';
+    }
+  };
+  const original = navigator.sendBeacon;
+  const run = Function('document', 'window', 'navigator', `return ${script.trim()}`);
+  const window = {};
+  const body = new Uint8Array([1, 2, 3]);
+  for (let pass = 0; pass < 3; pass++) {
+    run({}, window, navigator);
+    assert.equal(navigator.sendBeacon, original);
+    assert.equal(navigator.sendBeacon('/api/save-draft', body), true);
+    assert.equal(navigator.sendBeacon('/queue-full', body), false);
+    assert.throws(() => navigator.sendBeacon('invalid:', body), error => error === failure);
+  }
+  assert.equal(calls.length, 9);
+  assert.ok(calls.every(call => call.body === body));
+  assert.deepEqual(JSON.parse(run({}, window, navigator)), {
+    trackers: 0, malicious: 0, resources: []
+  });
 });
 
 test('reader extraction core stays a closed IIFE', async () => {
