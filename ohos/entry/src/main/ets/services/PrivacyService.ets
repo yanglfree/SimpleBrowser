@@ -7,6 +7,7 @@ import {
   deviceDropsSessionCookies,
   isHttpsUrl,
   parseCookiePairs,
+  persistentDeleteCookie,
   persistentSetCookie
 } from './CookiePersistence';
 
@@ -26,6 +27,20 @@ export class PrivacyService {
       webview.WebviewController.setWebDebuggingAccess(true);
       webview.WebCookieManager.putAcceptCookieEnabled(true);
       webview.WebCookieManager.putAcceptThirdPartyCookieEnabled(true);
+      try {
+        webview.WebCookieManager.configCookieSync(
+          'https://developer.huawei.com/',
+          persistentDeleteCookie('state', true),
+          false,
+          true
+        );
+        webview.WebCookieManager.configCookieSync(
+          'https://developer.huawei.com/',
+          persistentDeleteCookie('urlBeforeLogin', true),
+          false,
+          true
+        );
+      } catch (_e) {}
     } catch (error) {
       Logger.warn(TAG, `Failed to configure cookies or debugging: ${String(error)}`);
     }
@@ -112,8 +127,26 @@ export class PrivacyService {
       } catch (_error) {
         continue;
       }
-      const pairs: CookiePair[] = parseCookiePairs(header);
       const https: boolean = isHttpsUrl(url);
+      if (header.includes('state=') || header.includes('urlBeforeLogin=')) {
+        try {
+          webview.WebCookieManager.configCookieSync(
+            url,
+            persistentDeleteCookie('state', https),
+            false,
+            true
+          );
+        } catch (_e) {}
+        try {
+          webview.WebCookieManager.configCookieSync(
+            url,
+            persistentDeleteCookie('urlBeforeLogin', https),
+            false,
+            true
+          );
+        } catch (_e) {}
+      }
+      const pairs: CookiePair[] = parseCookiePairs(header);
       for (let pairIndex: number = 0; pairIndex < pairs.length; pairIndex += 1) {
         const pair: CookiePair = pairs[pairIndex];
         try {

@@ -129,14 +129,13 @@ export default function browserReportedBugsTest(): void {
       expect(script.includes('window.location.href = u')).assertTrue();
       expect(script.includes('sameDocumentTarget')).assertTrue();
       expect(script.includes('dispatchSpaHash')).assertTrue();
-      expect(script.includes('PopStateEvent')).assertTrue();
-      expect(script.includes('__zhuoOauthHashReload')).assertTrue();
+      expect(script.includes('hashchange')).assertTrue();
     });
 
     it('applies same-document fragments through location.hash', 0, (): void => {
       const script: string = applyDocumentHashScript('#/myApp');
       expect(script.includes('window.location.hash !== next')).assertTrue();
-      expect(script.includes('PopStateEvent')).assertTrue();
+      expect(script.includes('hashchange')).assertTrue();
       expect(script.includes('#/myApp')).assertTrue();
     });
 

@@ -145,7 +145,7 @@ test('blocked link guard dropdown click handler does not blur external input fie
   assert.equal(innerBlurCalled, true, 'inner element inside closed dropdown should be blurred');
 });
 
-test('hash link clicks dispatch popstate when the page leaves location.hash unchanged', async () => {
+test('hash link clicks sync location.hash without destructive page reloads', async () => {
   const script = await extractTemplateConst('BLOCKED_LINK_GUARD_SCRIPT');
   const store = {};
   const location = {
@@ -206,8 +206,8 @@ test('hash link clicks dispatch popstate when the page leaves location.hash unch
   assert.equal(location.hash, '#/');
   for (const callback of timers) callback();
   assert.equal(location.hash, '#/analysis');
-  assert.equal(store.__zhuoOauthHashReload, '1');
-  assert.equal(store.reloaded, true);
+  assert.equal(store.reloaded, undefined, 'must not reload the page');
+  assert.deepEqual(events, ['hashchange']);
 });
 
 test('window.open applies same-document hash via location.hash instead of href', async () => {

@@ -290,18 +290,21 @@ export function triggerDownloadScript(url: string): string {
 export function applyDocumentHashScript(hash: string): string {
   return `(function() {
     var next = ${JSON.stringify(hash)};
-    var old = window.location.href;
-    if (window.location.hash !== next) window.location.hash = next;
-    try {
-      window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: old, newURL: window.location.href }));
-    } catch (_e) {
-      var ev = document.createEvent('HTMLEvents');
-      ev.initEvent('hashchange', true, true);
-      window.dispatchEvent(ev);
+    if (window.location.hash !== next) {
+      var old = window.location.href;
+      window.location.hash = next;
+      try {
+        if (typeof HashChangeEvent !== 'undefined') {
+          window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: old, newURL: window.location.href }));
+        } else if (typeof CustomEvent !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('hashchange', { detail: { oldURL: old, newURL: window.location.href } }));
+        } else if (document.createEvent) {
+          var ev = document.createEvent('HTMLEvents');
+          ev.initEvent('hashchange', true, true);
+          window.dispatchEvent(ev);
+        }
+      } catch (_e) {}
     }
-    try {
-      window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
-    } catch (_e2) {}
     return window.location.hash;
   })();`;
 }
@@ -527,30 +530,26 @@ export const BLOCKED_LINK_GUARD_SCRIPT: string = `
   }
 
   function dispatchSpaHash(hash) {
-    var old = window.location.href;
     if (window.location.hash !== hash) {
+      var old = window.location.href;
       window.location.hash = hash;
-    }
-    try {
-      window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: old, newURL: window.location.href }));
-    } catch (_e) {
       try {
-        var ev = document.createEvent('HTMLEvents');
-        ev.initEvent('hashchange', true, true);
-        window.dispatchEvent(ev);
-      } catch (_e2) {}
+        if (typeof HashChangeEvent !== 'undefined') {
+          window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL: old, newURL: window.location.href }));
+        } else if (typeof CustomEvent !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('hashchange', { detail: { oldURL: old, newURL: window.location.href } }));
+        } else if (document.createEvent) {
+          var ev = document.createEvent('HTMLEvents');
+          ev.initEvent('hashchange', true, true);
+          window.dispatchEvent(ev);
+        }
+      } catch (_e) {}
     }
-    try {
-      window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
-    } catch (_e3) {}
   }
 
-  function cameFromOauthShell() {
-    return /id1\\.cloud\\.huawei\\.com|handleAllianceLogin|loginAuth\\.html/i.test(document.referrer || '');
-  }
-
-  // Hash <a> clicks after Huawei OAuth update the nav chrome but leave
-  // location.hash at #/. Vue Router 4 listens to popstate, not hashchange.
+  // Hash <a> clicks in SPAs where native anchor navigation was intercepted or suppressed.
+  // Only sync if the hash actually differs, and never fire duplicate synthetic PopStateEvent
+  // or window.location.reload() which break Vue Router 4 view mount/unmount lifecycles.
   document.addEventListener('click', function(event) {
     if (event.button && event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -562,19 +561,7 @@ export const BLOCKED_LINK_GUARD_SCRIPT: string = `
     setTimeout(function() {
       if (window.location.hash !== wanted) {
         dispatchSpaHash(wanted);
-        if (cameFromOauthShell()) {
-          try {
-            if (!sessionStorage.getItem('__zhuoOauthHashReload')) {
-              sessionStorage.setItem('__zhuoOauthHashReload', '1');
-              window.location.reload();
-            }
-          } catch (_e) {
-            window.location.reload();
-          }
-        }
-        return;
       }
-      dispatchSpaHash(wanted);
     }, 0);
   }, false);
 

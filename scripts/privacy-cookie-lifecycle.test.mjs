@@ -21,10 +21,10 @@ function fixture(deviceType = 'phone') {
         saveCookieSync: () => calls.push('save'),
         fetchCookieSync: (url) => {
           calls.push(`fetch:${url}`);
-          return 'session=abc; hwssot=token';
+          return 'session=abc; hwssot=token; state=old_nonce; urlBeforeLogin=/home';
         },
         configCookieSync: (url, value, incognito, httpOnly) => {
-          calls.push(`config:${value}:${incognito}:${httpOnly}`);
+          calls.push(`config:${url}:${value}:${incognito}:${httpOnly}`);
         },
         clearAllCookiesSync: (privateMode = false) => calls.push(`clear:${privateMode}`)
       },
@@ -49,7 +49,11 @@ test('deferred cleanup runs once when a Web controller attaches', () => {
   service.clearPrivateSiteDataWhenReady([]);
   service.onWebControllerAttached();
   service.onWebControllerAttached();
-  assert.deepEqual(calls, ['clear:false', 'clear:true', 'storage:true']);
+  assert.equal(calls[0], 'config:https://developer.huawei.com/:state=; Max-Age=0; Path=/; Secure:false:true');
+  assert.equal(calls[1], 'config:https://developer.huawei.com/:urlBeforeLogin=; Max-Age=0; Path=/; Secure:false:true');
+  assert.equal(calls[2], 'clear:false');
+  assert.equal(calls[3], 'clear:true');
+  assert.equal(calls[4], 'storage:true');
 });
 
 test('initialized browser retains cookie persistence and private isolation', () => {
@@ -58,7 +62,13 @@ test('initialized browser retains cookie persistence and private isolation', () 
   service.flushCookies();
   service.clearPrivateSiteDataWhenReady([{ removeCache: () => calls.push('cache') }]);
   service.clearCookiesWhenReady();
-  assert.deepEqual(calls, ['save', 'clear:true', 'storage:true', 'cache', 'clear:false']);
+  assert.equal(calls[0], 'config:https://developer.huawei.com/:state=; Max-Age=0; Path=/; Secure:false:true');
+  assert.equal(calls[1], 'config:https://developer.huawei.com/:urlBeforeLogin=; Max-Age=0; Path=/; Secure:false:true');
+  assert.equal(calls[2], 'save');
+  assert.equal(calls[3], 'clear:true');
+  assert.equal(calls[4], 'storage:true');
+  assert.equal(calls[5], 'cache');
+  assert.equal(calls[6], 'clear:false');
 });
 
 test('explicit user clearing remains immediate before browsing', () => {
@@ -67,27 +77,32 @@ test('explicit user clearing remains immediate before browsing', () => {
   assert.deepEqual(calls, ['clear:false', 'storage:false']);
 });
 
-test('tablet process-death flush promotes session cookies then saves', () => {
+test('tablet process-death flush promotes session cookies and purges poisoned nonces then saves', () => {
   const { service, calls } = fixture('tablet');
   service.onWebControllerAttached();
+  const mark = calls.length;
   service.rememberCookieUrls(
     ['https://developer.huawei.com/consumer/cn/service/josp/agc/index.html#/'],
     ['https://id1.cloud.huawei.com/cas/login']
   );
   service.persistCookiesAcrossProcessDeath();
-  assert.equal(calls[0], 'fetch:https://developer.huawei.com/');
-  assert.match(calls[1], /^config:session=abc; Max-Age=2592000; Path=\/; Secure:false:true$/);
-  assert.match(calls[2], /^config:hwssot=token; Max-Age=2592000; Path=\/; Secure:false:true$/);
-  assert.equal(calls[3], 'fetch:https://id1.cloud.huawei.com/');
-  assert.equal(calls[calls.length - 1], 'save');
+  const flushCalls = calls.slice(mark);
+  assert.equal(flushCalls[0], 'fetch:https://developer.huawei.com/');
+  assert.equal(flushCalls[1], 'config:https://developer.huawei.com/:state=; Max-Age=0; Path=/; Secure:false:true');
+  assert.equal(flushCalls[2], 'config:https://developer.huawei.com/:urlBeforeLogin=; Max-Age=0; Path=/; Secure:false:true');
+  assert.equal(flushCalls[3], 'config:https://developer.huawei.com/:session=abc; Max-Age=2592000; Path=/; Secure:false:true');
+  assert.equal(flushCalls[4], 'config:https://developer.huawei.com/:hwssot=token; Max-Age=2592000; Path=/; Secure:false:true');
+  assert.equal(flushCalls[5], 'fetch:https://id1.cloud.huawei.com/');
+  assert.equal(flushCalls[flushCalls.length - 1], 'save');
 });
 
 test('phone process-death flush saves without rewriting cookies', () => {
   const { service, calls } = fixture('phone');
   service.onWebControllerAttached();
+  const mark = calls.length;
   service.rememberCookieUrls(['https://developer.huawei.com/agc'], []);
   service.persistCookiesAcrossProcessDeath();
-  assert.deepEqual(calls, ['save']);
+  assert.deepEqual(calls.slice(mark), ['save']);
 });
 
 test('tab close cannot inject a warm-up cookie and both Web hosts signal readiness', () => {
