@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ZhuoBrowser AGC regression HarmonyOS Report</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; }
+    body { margin: 0; padding: 32px; background: Canvas; color: CanvasText; }
+    main { max-width: 1120px; margin: 0 auto; }
+    h1, h2, h3 { line-height: 1.2; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 28px; }
+    th, td { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: color-mix(in srgb, CanvasText 8%, transparent); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.94em; }
+    .status-passed { color: #027a48; font-weight: 700; }
+    .status-failed { color: #b42318; font-weight: 700; }
+    .status-blocked, .status-partial { color: #b54708; font-weight: 700; }
+    .status-not-run, .status-pending { color: #667085; font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin: 20px 0 28px; }
+    .metric { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 8px; padding: 14px 16px; }
+    .metric strong { display: block; font-size: 1.6rem; }
+    .case-result { border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent); padding-top: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ZhuoBrowser AGC regression HarmonyOS Report</h1>
+  <p>
+    Date: 2026-09-19<br>
+    Target: Connected Huawei tablet, HarmonyOS ArkWeb, <code>45P0225509000207</code><br>
+    App: ZhuoBrowser AGC regression <code>1.0.2 (1000025)</code>, bundle <code>com.youdroid.browser</code><br>
+    HAP: <code>ohos/entry/build/default/outputs/default/entry-default-signed.hap</code><br>
+    Auth source: Existing device session for diagnosis; final-build login requires user input
+  </p>
+
+  <section class="summary" aria-label="Run summary">
+    <div class="metric"><strong>6</strong>Total cases</div>
+    <div class="metric"><strong>6</strong>Executed</div>
+    <div class="metric"><strong>4</strong>Passed</div>
+    <div class="metric"><strong>0</strong>Failed</div>
+    <div class="metric"><strong>2</strong>Blocked</div>
+    <div class="metric"><strong>0</strong>Not run</div>
+  </section>
+
+  <h2>Executive Summary</h2>
+  <p>
+    The agent QA suite contains 6 Harmony scenarios. This run executed 6 cases with fresh evidence.
+    Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
+  </p>
+
+  <h2>Coverage Matrix</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>Cases</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>AGC recovery and navigation</td>
+        <td class="status-partial">partial</td>
+        <td><code>agc-baseline</code><br><code>agc-cookie-differential</code><br><code>agc-build</code><br><code>agc-startup</code><br><code>agc-navigation</code><br><code>agc-background</code></td>
+        <td>Authenticated final-build acceptance is pending user login.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Case Catalog</h2>
+  <table>
+    <thead><tr><th>Case</th><th>Priority</th><th>Title</th><th>Latest Status</th><th>Tags</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>agc-baseline</code></td>
+        <td>p0</td>
+        <td>Reproduce blank OAuth callback</td>
+        <td class="status-passed">passed</td>
+        <td>agc, cookie</td>
+      </tr>
+      <tr>
+        <td><code>agc-cookie-differential</code></td>
+        <td>p0</td>
+        <td>Isolate cookie shadowing from routing</td>
+        <td class="status-passed">passed</td>
+        <td>agc, cookie</td>
+      </tr>
+      <tr>
+        <td><code>agc-build</code></td>
+        <td>p0</td>
+        <td>Build and install final Harmony package</td>
+        <td class="status-passed">passed</td>
+        <td>agc, cookie</td>
+      </tr>
+      <tr>
+        <td><code>agc-startup</code></td>
+        <td>p0</td>
+        <td>Render after process restart</td>
+        <td class="status-passed">passed</td>
+        <td>agc, cookie</td>
+      </tr>
+      <tr>
+        <td><code>agc-navigation</code></td>
+        <td>p0</td>
+        <td>Switch all authenticated AGC sections</td>
+        <td class="status-blocked">blocked</td>
+        <td>agc, cookie</td>
+      </tr>
+      <tr>
+        <td><code>agc-background</code></td>
+        <td>p0</td>
+        <td>Retain authenticated content across background and refresh</td>
+        <td class="status-blocked">blocked</td>
+        <td>agc, cookie</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Latest Run Evidence</h2>
+  
+      <section class="case-result">
+        <h3><code>agc-baseline</code> <span class="status-passed">passed</span></h3>
+        <p>Retained tablet had an empty handleAllianceLogin document; AGC APIs returned 401. Four stale host-only authentication cookies coexisted with fresh domain cookies.</p>
+        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>agc-cookie-differential</code> <span class="status-passed">passed</span></h3>
+        <p>Deleting only the four conflicting host copies restored the homepage and APP/service list, including the browser app. This was a diagnostic intervention before installing the final build, not final-build navigation acceptance.</p>
+        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>agc-build</code> <span class="status-passed">passed</span></h3>
+        <p>Release HAP built, signed, installed and launched on 45P0225509000207. SHA256 dbda03f4cd7dc12c7f957cb78b4732ae45488f2dec9538f3c7fda425d3279b8b.</p>
+        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>agc-startup</code> <span class="status-passed">passed</span></h3>
+        <p>Final package renders the Huawei account login page with visible login controls; no blank callback. Tablet session cookies did not survive process restart.</p>
+        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>agc-navigation</code> <span class="status-blocked">blocked</span></h3>
+        <p>Requires the user to complete Huawei account login on the connected tablet. Final-build APP/service, analysis, access and certificate navigation remains unaccepted.</p>
+        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>agc-background</code> <span class="status-blocked">blocked</span></h3>
+        <p>Requires a fresh authenticated session. Do not infer this from unit tests or the pre-build diagnostic intervention.</p>
+        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+      </section>
+
+  <h2>Validation</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code></code></td>
+        <td class="status-"></td>
+        <td></td>
+      </tr></tbody>
+  </table>
+
+  <h2>Known Exclusions</h2>
+  <p></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,263 @@
+{
+  "runner": {
+    "appName": "ZhuoBrowser AGC regression",
+    "platformName": "HarmonyOS",
+    "bundleId": "com.youdroid.browser"
+  },
+  "cases": [
+    {
+      "id": "agc-baseline",
+      "title": "Reproduce blank OAuth callback",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "agc",
+        "cookie"
+      ],
+      "preconditions": [
+        "Connected unlocked tablet; account login for authenticated cases"
+      ],
+      "steps": [
+        "Reproduce blank OAuth callback"
+      ],
+      "assertions": [
+        "Retained tablet had an empty handleAllianceLogin document; AGC APIs returned 401. Four stale host-only authentication cookies coexisted with fresh domain cookies."
+      ],
+      "failureSignals": [
+        "Blank document, stale content, repeated login loop"
+      ]
+    },
+    {
+      "id": "agc-cookie-differential",
+      "title": "Isolate cookie shadowing from routing",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "agc",
+        "cookie"
+      ],
+      "preconditions": [
+        "Connected unlocked tablet; account login for authenticated cases"
+      ],
+      "steps": [
+        "Isolate cookie shadowing from routing"
+      ],
+      "assertions": [
+        "Deleting only the four conflicting host copies restored the homepage and APP/service list, including the browser app. This was a diagnostic intervention before installing the final build, not final-build navigation acceptance."
+      ],
+      "failureSignals": [
+        "Blank document, stale content, repeated login loop"
+      ]
+    },
+    {
+      "id": "agc-build",
+      "title": "Build and install final Harmony package",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "agc",
+        "cookie"
+      ],
+      "preconditions": [
+        "Connected unlocked tablet; account login for authenticated cases"
+      ],
+      "steps": [
+        "Build and install final Harmony package"
+      ],
+      "assertions": [
+        "Release HAP built, signed, installed and launched on 45P0225509000207. SHA256 dbda03f4cd7dc12c7f957cb78b4732ae45488f2dec9538f3c7fda425d3279b8b."
+      ],
+      "failureSignals": [
+        "Blank document, stale content, repeated login loop"
+      ]
+    },
+    {
+      "id": "agc-startup",
+      "title": "Render after process restart",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "agc",
+        "cookie"
+      ],
+      "preconditions": [
+        "Connected unlocked tablet; account login for authenticated cases"
+      ],
+      "steps": [
+        "Render after process restart"
+      ],
+      "assertions": [
+        "Final package renders the Huawei account login page with visible login controls; no blank callback. Tablet session cookies did not survive process restart."
+      ],
+      "failureSignals": [
+        "Blank document, stale content, repeated login loop"
+      ]
+    },
+    {
+      "id": "agc-navigation",
+      "title": "Switch all authenticated AGC sections",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "agc",
+        "cookie"
+      ],
+      "preconditions": [
+        "Connected unlocked tablet; account login for authenticated cases"
+      ],
+      "steps": [
+        "Switch all authenticated AGC sections"
+      ],
+      "assertions": [
+        "Requires the user to complete Huawei account login on the connected tablet. Final-build APP/service, analysis, access and certificate navigation remains unaccepted."
+      ],
+      "failureSignals": [
+        "Blank document, stale content, repeated login loop"
+      ]
+    },
+    {
+      "id": "agc-background",
+      "title": "Retain authenticated content across background and refresh",
+      "priority": "p0",
+      "platforms": [
+        "HarmonyOS"
+      ],
+      "tags": [
+        "agc",
+        "cookie"
+      ],
+      "preconditions": [
+        "Connected unlocked tablet; account login for authenticated cases"
+      ],
+      "steps": [
+        "Retain authenticated content across background and refresh"
+      ],
+      "assertions": [
+        "Requires a fresh authenticated session. Do not infer this from unit tests or the pre-build diagnostic intervention."
+      ],
+      "failureSignals": [
+        "Blank document, stale content, repeated login loop"
+      ]
+    }
+  ],
+  "coverageAreas": [
+    {
+      "title": "AGC recovery and navigation",
+      "status": "partial",
+      "caseIds": [
+        "agc-baseline",
+        "agc-cookie-differential",
+        "agc-build",
+        "agc-startup",
+        "agc-navigation",
+        "agc-background"
+      ],
+      "notes": "Authenticated final-build acceptance is pending user login."
+    }
+  ],
+  "lastRun": {
+    "date": "2026-09-19",
+    "target": {
+      "id": "45P0225509000207",
+      "name": "Connected Huawei tablet",
+      "runtime": "HarmonyOS ArkWeb"
+    },
+    "appBuild": {
+      "version": "1.0.2 (1000025)",
+      "hapPath": "ohos/entry/build/default/outputs/default/entry-default-signed.hap"
+    },
+    "authSource": "Existing device session for diagnosis; final-build login requires user input",
+    "results": [
+      {
+        "caseId": "agc-baseline",
+        "status": "passed",
+        "notes": "Retained tablet had an empty handleAllianceLogin document; AGC APIs returned 401. Four stale host-only authentication cookies coexisted with fresh domain cookies.",
+        "evidence": [
+          {
+            "type": "local diagnostic artifacts",
+            "path": "/tmp/zhuo-agc-debug",
+            "notes": "Retained tablet had an empty handleAllianceLogin document; AGC APIs returned 401. Four stale host-only authentication cookies coexisted with fresh domain cookies."
+          }
+        ]
+      },
+      {
+        "caseId": "agc-cookie-differential",
+        "status": "passed",
+        "notes": "Deleting only the four conflicting host copies restored the homepage and APP/service list, including the browser app. This was a diagnostic intervention before installing the final build, not final-build navigation acceptance.",
+        "evidence": [
+          {
+            "type": "local diagnostic artifacts",
+            "path": "/tmp/zhuo-agc-debug",
+            "notes": "Deleting only the four conflicting host copies restored the homepage and APP/service list, including the browser app. This was a diagnostic intervention before installing the final build, not final-build navigation acceptance."
+          }
+        ]
+      },
+      {
+        "caseId": "agc-build",
+        "status": "passed",
+        "notes": "Release HAP built, signed, installed and launched on 45P0225509000207. SHA256 dbda03f4cd7dc12c7f957cb78b4732ae45488f2dec9538f3c7fda425d3279b8b.",
+        "evidence": [
+          {
+            "type": "local diagnostic artifacts",
+            "path": "/tmp/zhuo-agc-debug",
+            "notes": "Release HAP built, signed, installed and launched on 45P0225509000207. SHA256 dbda03f4cd7dc12c7f957cb78b4732ae45488f2dec9538f3c7fda425d3279b8b."
+          }
+        ]
+      },
+      {
+        "caseId": "agc-startup",
+        "status": "passed",
+        "notes": "Final package renders the Huawei account login page with visible login controls; no blank callback. Tablet session cookies did not survive process restart.",
+        "evidence": [
+          {
+            "type": "local diagnostic artifacts",
+            "path": "/tmp/zhuo-agc-debug",
+            "notes": "Final package renders the Huawei account login page with visible login controls; no blank callback. Tablet session cookies did not survive process restart."
+          }
+        ]
+      },
+      {
+        "caseId": "agc-navigation",
+        "status": "blocked",
+        "notes": "Requires the user to complete Huawei account login on the connected tablet. Final-build APP/service, analysis, access and certificate navigation remains unaccepted.",
+        "evidence": [
+          {
+            "type": "local diagnostic artifacts",
+            "path": "/tmp/zhuo-agc-debug",
+            "notes": "Requires the user to complete Huawei account login on the connected tablet. Final-build APP/service, analysis, access and certificate navigation remains unaccepted."
+          }
+        ]
+      },
+      {
+        "caseId": "agc-background",
+        "status": "blocked",
+        "notes": "Requires a fresh authenticated session. Do not infer this from unit tests or the pre-build diagnostic intervention.",
+        "evidence": [
+          {
+            "type": "local diagnostic artifacts",
+            "path": "/tmp/zhuo-agc-debug",
+            "notes": "Requires a fresh authenticated session. Do not infer this from unit tests or the pre-build diagnostic intervention."
+          }
+        ]
+      }
+    ],
+    "validation": [
+      "83/83 Node tests passed; 220/220 Hypium tests passed; release HAP build/install passed; git diff --check passed"
+    ],
+    "knownExclusions": [
+      "Final-build authenticated navigation and background/refresh await login.",
+      "Native tablet session-cookie persistence remains platform-owned; no fabricated 30-day copies.",
+      "No store upload, publishing or git push."
+    ]
+  }
+}

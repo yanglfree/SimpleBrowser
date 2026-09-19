@@ -1,15 +1,6 @@
 import { webview } from '@kit.ArkWeb';
-import { deviceInfo } from '@kit.BasicServicesKit';
 import { Logger } from '../utils/Logger';
-import {
-  CookiePair,
-  cookieFlushUrls,
-  deviceDropsSessionCookies,
-  isHttpsUrl,
-  parseCookiePairs,
-  persistentDeleteCookie,
-  persistentSetCookie
-} from './CookiePersistence';
+import { LEGACY_HUAWEI_HOST_COOKIES, legacyHuaweiCookieDeletion } from './CookiePersistence';
 
 const TAG: string = 'PrivacyService';
 
@@ -17,7 +8,7 @@ export class PrivacyService {
   private static webEngineReady: boolean = false;
   private static pendingCookieClear: boolean = false;
   private static pendingPrivateClear: boolean = false;
-  private static cookieUrls: string[] = [];
+  private static legacyCookiesRepaired: boolean = false;
 
   // Only an attached Web component proves native initialization has completed.
   // Constructing a controller does not make CookieManager safe to call.
@@ -27,20 +18,7 @@ export class PrivacyService {
       webview.WebviewController.setWebDebuggingAccess(true);
       webview.WebCookieManager.putAcceptCookieEnabled(true);
       webview.WebCookieManager.putAcceptThirdPartyCookieEnabled(true);
-      try {
-        webview.WebCookieManager.configCookieSync(
-          'https://developer.huawei.com/',
-          persistentDeleteCookie('state', true),
-          false,
-          true
-        );
-        webview.WebCookieManager.configCookieSync(
-          'https://developer.huawei.com/',
-          persistentDeleteCookie('urlBeforeLogin', true),
-          false,
-          true
-        );
-      } catch (_e) {}
+      PrivacyService.repairLegacyHuaweiCookies();
     } catch (error) {
       Logger.warn(TAG, `Failed to configure cookies or debugging: ${String(error)}`);
     }
@@ -70,15 +48,10 @@ export class PrivacyService {
     PrivacyService.clearPrivateSiteData(controllers);
   }
 
-  static rememberCookieUrls(tabUrls: string[], historyUrls: string[]): void {
-    PrivacyService.cookieUrls = cookieFlushUrls(tabUrls, historyUrls, 24);
-  }
-
   /**
-   * ArkWeb writes cookies to disk every ~30s; a session cookie set by a login
-   * can be lost when a tab closes or the process dies before the next flush.
-   * saveCookieSync() forces the write synchronously so logins survive tab close
-   * and relaunch — the async cousin can race with engine shutdown.
+   * Flush the native cookie store before tab close or engine shutdown.
+   * Session-cookie retention remains platform-owned; tablet kernels may omit
+   * session cookies from disk. Never change expiry or scope to work around it.
    */
   static flushCookies(): void {
     // A cold homepage has no new cookies to persist. Never initialize ArkWeb
@@ -94,73 +67,28 @@ export class PrivacyService {
   }
 
   /**
-   * Tablet/2-in-1/PC kernels skip session cookies in saveCookieSync. Promote
-   * those cookies to Max-Age before the flush so a force-stop keeps the login.
-   * Call only when the process may die — rewriting on every page-end would
-   * strip Domain/SameSite from live OAuth cookies.
+   * A Cookie request header has no Domain, Path, HttpOnly, SameSite or expiry.
+   * Recreating cookies from it shadows fresh OAuth cookies and can expose
+   * HttpOnly values to scripts. Let ArkWeb retain the original attributes.
    */
   static persistCookiesAcrossProcessDeath(): void {
-    if (!PrivacyService.webEngineReady) {
-      return;
-    }
-    if (deviceDropsSessionCookies(PrivacyService.deviceType())) {
-      PrivacyService.promoteSessionCookies();
-    }
     PrivacyService.flushCookies();
   }
 
-  private static deviceType(): string {
-    try {
-      return deviceInfo.deviceType;
-    } catch (_error) {
-      return 'tablet';
+  private static repairLegacyHuaweiCookies(): void {
+    if (PrivacyService.legacyCookiesRepaired) {
+      return;
     }
-  }
-
-  private static promoteSessionCookies(): void {
-    const urls: string[] = PrivacyService.cookieUrls;
-    for (let index: number = 0; index < urls.length; index += 1) {
-      const url: string = urls[index];
-      let header: string = '';
-      try {
-        header = webview.WebCookieManager.fetchCookieSync(url);
-      } catch (_error) {
-        continue;
-      }
-      const https: boolean = isHttpsUrl(url);
-      if (header.includes('state=') || header.includes('urlBeforeLogin=')) {
-        try {
-          webview.WebCookieManager.configCookieSync(
-            url,
-            persistentDeleteCookie('state', https),
-            false,
-            true
-          );
-        } catch (_e) {}
-        try {
-          webview.WebCookieManager.configCookieSync(
-            url,
-            persistentDeleteCookie('urlBeforeLogin', https),
-            false,
-            true
-          );
-        } catch (_e) {}
-      }
-      const pairs: CookiePair[] = parseCookiePairs(header);
-      for (let pairIndex: number = 0; pairIndex < pairs.length; pairIndex += 1) {
-        const pair: CookiePair = pairs[pairIndex];
-        try {
-          webview.WebCookieManager.configCookieSync(
-            url,
-            persistentSetCookie(pair.name, pair.value, https),
-            false,
-            true
-          );
-        } catch (error) {
-          Logger.warn(TAG, `Failed to persist session cookie ${pair.name}: ${String(error)}`);
-        }
-      }
+    // Huawei's login library owns domain cookies. Older builds manufactured
+    // host-only copies at Path=/; expire only those copies, never Domain cookies
+    // or private-session data. Run before the first document, not on every tab.
+    for (const name of LEGACY_HUAWEI_HOST_COOKIES) {
+      webview.WebCookieManager.configCookieSync(
+        'https://developer.huawei.com/', legacyHuaweiCookieDeletion(name), false, true
+      );
     }
+    webview.WebCookieManager.saveCookieSync();
+    PrivacyService.legacyCookiesRepaired = true;
   }
 
   /** Backs "关闭标签时清除 Cookie" and the private-tab teardown. */

@@ -708,29 +708,7 @@ struct Index {
     this.persistCookiesAcrossProcessDeath();
   }
 
-  private cookiePersistenceTabUrls(): string[] {
-    const urls: string[] = [];
-    const tabs: BrowserTab[] = this.tabs;
-    for (let index: number = 0; index < tabs.length; index += 1) {
-      const tab: BrowserTab = tabs[index];
-      if (!tab.isPrivate && !isHomeUrl(tab.url)) {
-        urls.push(tab.url);
-      }
-    }
-    return urls;
-  }
-
-  private cookiePersistenceHistoryUrls(): string[] {
-    const urls: string[] = [];
-    const entries: HistoryEntry[] = this.history;
-    for (let index: number = 0; index < entries.length; index += 1) {
-      urls.push(entries[index].url);
-    }
-    return urls;
-  }
-
   private persistCookiesAcrossProcessDeath(): void {
-    PrivacyService.rememberCookieUrls(this.cookiePersistenceTabUrls(), this.cookiePersistenceHistoryUrls());
     PrivacyService.persistCookiesAcrossProcessDeath();
   }
 
@@ -4653,9 +4631,7 @@ struct Index {
     });
     this.refreshNavigationState(id);
     this.syncTab(id);
-    // The login flow often finishes here; persist cookies now rather than wait
-    // for ArkWeb's 30s disk flush so a quick tab close keeps the session.
-    PrivacyService.rememberCookieUrls(this.cookiePersistenceTabUrls(), this.cookiePersistenceHistoryUrls());
+    // Flush the native cookie store without altering the site's attributes.
     PrivacyService.flushCookies();
     if (tab !== undefined) {
       await this.viewModel.recordPageVisit(tab);
