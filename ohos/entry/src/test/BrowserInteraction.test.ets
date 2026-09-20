@@ -5,6 +5,10 @@ import {
   shouldDismissActionSheet
 } from '../main/ets/components/ActionSheet';
 import {
+  ADDRESS_MENU_HEIGHT,
+  ADDRESS_MENU_ROW_HEIGHT
+} from '../main/ets/components/BrowserDock';
+import {
   matchesSettingsSearch,
   shouldShowCurrentSiteDarkModeRow
 } from '../main/ets/components/SettingsPage';
@@ -138,6 +142,10 @@ export default function browserInteractionTest(): void {
     it('reserves only the collapsed pill height beneath a scrolled page', 0, (): void => {
       expect(DOCK_COLLAPSED_HEIGHT).assertEqual(DOCK_COLLAPSED_PILL_HEIGHT);
       expect(TAB_WEB_BOTTOM_INSET_COMPACT).assertEqual(DOCK_COLLAPSED_PILL_HEIGHT + 2);
+    });
+
+    it('calculates address menu height for three items and two dividers', 0, (): void => {
+      expect(ADDRESS_MENU_HEIGHT).assertEqual(ADDRESS_MENU_ROW_HEIGHT * 3 + 2);
     });
 
     it('draws one stroke weight across the toolbar glyph sizes', 0, (): void => {

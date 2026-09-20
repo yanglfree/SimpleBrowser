@@ -19,10 +19,10 @@ import {
 } from './TabTokens';
 
 const SWIPE_THRESHOLD: number = 26;
-const ADDRESS_MENU_WIDTH: number = 228;
-const ADDRESS_MENU_ROW_HEIGHT: number = 44;
-const ADDRESS_MENU_GAP: number = 8;
-const ADDRESS_MENU_HEIGHT: number = ADDRESS_MENU_ROW_HEIGHT * 2 + 1;
+export const ADDRESS_MENU_WIDTH: number = 228;
+export const ADDRESS_MENU_ROW_HEIGHT: number = 44;
+export const ADDRESS_MENU_GAP: number = 8;
+export const ADDRESS_MENU_HEIGHT: number = ADDRESS_MENU_ROW_HEIGHT * 3 + 2;
 const WIDE_DOCK_MAX_WIDTH: number = 1080;
 
 export function canUseDesktopPageActions(host: string, isHome: boolean): boolean {
@@ -95,6 +95,7 @@ export struct BrowserDock {
   onVisitClipboardLink: () => void = (): void => {};
   onClipboardAccessFailed: () => void = (): void => {};
   onCopyLink: () => void = (): void => {};
+  onCloseCurrentTab: () => void = (): void => {};
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
@@ -385,6 +386,15 @@ export struct BrowserDock {
         IconName.ArrowUpLeft,
         $r('app.string.address_menu_copy_link'),
         this.onCopyLink
+      )
+      Divider()
+        .width('100%')
+        .strokeWidth(1)
+        .color($r('app.color.border'))
+      this.AddressMenuItem(
+        IconName.Close,
+        $r('app.string.address_menu_close_tab'),
+        this.onCloseCurrentTab
       )
     }
     .width(ADDRESS_MENU_WIDTH)

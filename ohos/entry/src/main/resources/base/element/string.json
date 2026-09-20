@@ -205,6 +205,7 @@
     { "name": "share_panel_copy", "value": "复制链接" },
     { "name": "address_menu_visit_clipboard", "value": "访问复制的链接" },
     { "name": "address_menu_copy_link", "value": "复制链接" },
+    { "name": "address_menu_close_tab", "value": "关闭当前标签" },
     { "name": "clipboard_permission_denied", "value": "无法读取剪贴板" },
     { "name": "clipboard_link_unavailable", "value": "剪贴板中没有可访问的链接" },
     { "name": "share_panel_save_later", "value": "加入稍后读" },

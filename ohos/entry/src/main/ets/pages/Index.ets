@@ -1404,7 +1404,8 @@ struct Index {
       onClipboardAccessFailed: (): void => {
         this.showToast($r('app.string.clipboard_permission_denied'));
       },
-      onCopyLink: (): void => { void this.copyActiveLink(); }
+      onCopyLink: (): void => { void this.copyActiveLink(); },
+      onCloseCurrentTab: (): void => { this.closeTab(this.activeTabId); }
       })
       .translate({
         x: this.tabSwitchOffset
