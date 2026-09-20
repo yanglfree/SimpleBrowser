@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.youdroid.browser",
     "vendor": "onevcat",
-    "versionCode": 1000025,
-    "versionName": "1.0.2",
+    "versionCode": 1000026,
+    "versionName": "1.0.3",
     "icon": "$media:app_icon",
     "label": "$string:app_name"
   }
