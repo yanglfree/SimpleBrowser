@@ -35,6 +35,36 @@ enum ArticleQuality: String, Codable, CaseIterable {
     case failed
 }
 
+enum ArticleSaveFailure: String, Codable, CaseIterable {
+    case none
+    case extractionUnavailable
+    case storageUnavailable
+    case pageChanged
+    case captureInvalid
+    case loadFailed
+    case stalled
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let stringValue = try? container.decode(String.self) {
+            self = ArticleSaveFailure(rawValue: stringValue) ?? .none
+        } else if let intValue = try? container.decode(Int.self) {
+            switch intValue {
+            case 0: self = .none
+            case 1: self = .extractionUnavailable
+            case 2: self = .storageUnavailable
+            case 3: self = .pageChanged
+            case 4: self = .captureInvalid
+            case 5: self = .loadFailed
+            case 6: self = .stalled
+            default: self = .none
+            }
+        } else {
+            self = .none
+        }
+    }
+}
+
 struct ArticleNote: Identifiable, Codable, Equatable {
     var id: String
     var text: String
@@ -69,11 +99,18 @@ struct SavedArticle: Identifiable, Codable, Equatable {
     var quality: ArticleQuality
     var savedImageCount: Int
     var failedImageCount: Int
+    var failure: ArticleSaveFailure
+    var failureMessage: String
+
+    var isFailed: Bool {
+        quality == .failed || failure != .none
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, sourceUrl, canonicalUrl, title, author, excerpt, searchText
         case createdAt, updatedAt, readingPosition, tags, topics, notes, highlights
         case archived, quality, savedImageCount, failedImageCount
+        case failure, failureMessage
     }
 
     init(
@@ -94,7 +131,9 @@ struct SavedArticle: Identifiable, Codable, Equatable {
         archived: Bool = false,
         quality: ArticleQuality,
         savedImageCount: Int = 0,
-        failedImageCount: Int = 0
+        failedImageCount: Int = 0,
+        failure: ArticleSaveFailure = .none,
+        failureMessage: String = ""
     ) {
         self.id = id
         self.sourceUrl = sourceUrl
@@ -114,6 +153,8 @@ struct SavedArticle: Identifiable, Codable, Equatable {
         self.quality = quality
         self.savedImageCount = savedImageCount
         self.failedImageCount = failedImageCount
+        self.failure = failure
+        self.failureMessage = failureMessage
     }
 
     init(from decoder: Decoder) throws {
@@ -136,6 +177,8 @@ struct SavedArticle: Identifiable, Codable, Equatable {
         quality = try container.decodeIfPresent(ArticleQuality.self, forKey: .quality) ?? .complete
         savedImageCount = try container.decodeIfPresent(Int.self, forKey: .savedImageCount) ?? 0
         failedImageCount = try container.decodeIfPresent(Int.self, forKey: .failedImageCount) ?? 0
+        failure = try container.decodeIfPresent(ArticleSaveFailure.self, forKey: .failure) ?? .none
+        failureMessage = try container.decodeIfPresent(String.self, forKey: .failureMessage) ?? ""
     }
 }
 
@@ -149,6 +192,7 @@ enum ArticlePolicy {
     static let maximumImages = 30
     static let maximumImageBytes = 5 * 1_024 * 1_024
     static let maximumTotalImageBytes = 20 * 1_024 * 1_024
+    static let imageTimeBudgetSeconds: TimeInterval = 15.0
 
     static func validate(_ snapshot: ArticleCaptureSnapshot) -> Bool {
         guard let url = URL(string: snapshot.sourceUrl),

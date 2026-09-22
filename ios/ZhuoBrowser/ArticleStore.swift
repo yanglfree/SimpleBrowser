@@ -7,14 +7,26 @@ final class ArticleStore: ObservableObject {
 
     private let rootDirectory: URL
     private let manifestURL: URL
-    private let session: URLSession
+    private let ephemeralSession: URLSession
+    private var mutationTail: Task<Void, Never>?
 
-    init(rootDirectory: URL? = nil, session: URLSession = .shared) {
+    init(rootDirectory: URL? = nil, session: URLSession? = nil) {
         let base = rootDirectory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Articles", isDirectory: true)
         self.rootDirectory = base
         self.manifestURL = base.appendingPathComponent("manifest.json")
-        self.session = session
+        if let session {
+            self.ephemeralSession = session
+        } else {
+            let config = URLSessionConfiguration.ephemeral
+            config.httpCookieAcceptPolicy = .never
+            config.httpShouldSetCookies = false
+            config.urlCredentialStorage = nil
+            config.timeoutIntervalForRequest = 5.0
+            config.timeoutIntervalForResource = 5.0
+            config.httpAdditionalHeaders = ["Accept": "image/*"]
+            self.ephemeralSession = URLSession(configuration: config)
+        }
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         restore()
     }
@@ -27,6 +39,14 @@ final class ArticleStore: ObservableObject {
     func htmlURL(for article: SavedArticle) -> URL? {
         let url = articleDirectory(article.id).appendingPathComponent("article.html")
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    func hasContent(for article: SavedArticle) -> Bool {
+        htmlURL(for: article) != nil
+    }
+
+    func isReadable(_ article: SavedArticle) -> Bool {
+        !article.isFailed && htmlURL(for: article) != nil
     }
 
     func exportURL(for article: SavedArticle, format: ArticleExportFormat) throws -> URL {
@@ -63,29 +83,115 @@ final class ArticleStore: ObservableObject {
             capturingURLs.remove(snapshot.sourceUrl)
         }
 
-        let existing = articles.first { $0.canonicalUrl == key || $0.sourceUrl == snapshot.sourceUrl }
-        let id = existing?.id ?? UUID().uuidString
-        let directory = articleDirectory(id)
-        let staging = rootDirectory.appendingPathComponent(".staging-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: staging.appendingPathComponent("images", isDirectory: true), withIntermediateDirectories: true)
-        do {
-            let imageResult = await downloadImages(snapshot.images, to: staging.appendingPathComponent("images", isDirectory: true))
-            let html = Self.documentHTML(title: snapshot.title, author: snapshot.author, body: snapshot.html)
-            try Data(html.utf8).write(to: staging.appendingPathComponent("article.html"), options: .atomic)
-            try Data(snapshot.markdown.utf8).write(to: staging.appendingPathComponent("article.md"), options: .atomic)
-            try Data(snapshot.text.utf8).write(to: staging.appendingPathComponent("article.txt"), options: .atomic)
+        return try await withMutation {
+            let existing = self.articles.first { $0.canonicalUrl == key || $0.sourceUrl == snapshot.sourceUrl }
+            let id = existing?.id ?? UUID().uuidString
+            let directory = self.articleDirectory(id)
+            let staging = self.rootDirectory.appendingPathComponent(".staging-\(UUID().uuidString)", isDirectory: true)
+            let stagingImages = staging.appendingPathComponent("images", isDirectory: true)
+            try FileManager.default.createDirectory(at: stagingImages, withIntermediateDirectories: true)
 
-            try replaceDirectory(directory, with: staging)
+            do {
+                let imageResult = await self.downloadImages(snapshot.images, to: stagingImages)
+                let html = Self.documentHTML(title: snapshot.title, author: snapshot.author, body: snapshot.html)
+                try Data(html.utf8).write(to: staging.appendingPathComponent("article.html"), options: .atomic)
+                try Data(snapshot.markdown.utf8).write(to: staging.appendingPathComponent("article.md"), options: .atomic)
+                try Data(snapshot.text.utf8).write(to: staging.appendingPathComponent("article.txt"), options: .atomic)
+
+                let now = Date().timeIntervalSince1970
+                let quality: ArticleQuality = imageResult.failed == 0 && snapshot.readerMetrics.result == "complete" ? .complete : .partial
+                let article = SavedArticle(
+                    id: id,
+                    sourceUrl: snapshot.sourceUrl,
+                    canonicalUrl: key,
+                    title: snapshot.title.trimmingCharacters(in: .whitespacesAndNewlines),
+                    author: snapshot.author.trimmingCharacters(in: .whitespacesAndNewlines),
+                    excerpt: String(snapshot.text.prefix(220)),
+                    searchText: snapshot.text,
+                    createdAt: existing?.createdAt ?? now,
+                    updatedAt: now,
+                    readingPosition: existing?.readingPosition ?? 0,
+                    tags: existing?.tags ?? [],
+                    topics: existing?.topics ?? [],
+                    notes: existing?.notes ?? [],
+                    highlights: existing?.highlights ?? [],
+                    archived: existing?.archived ?? false,
+                    quality: quality,
+                    savedImageCount: imageResult.saved,
+                    failedImageCount: imageResult.failed,
+                    failure: .none,
+                    failureMessage: ""
+                )
+
+                let backup = self.rootDirectory.appendingPathComponent(".backup-\(UUID().uuidString)", isDirectory: true)
+                let directoryExists = FileManager.default.fileExists(atPath: directory.path)
+                if directoryExists {
+                    try FileManager.default.moveItem(at: directory, to: backup)
+                }
+
+                do {
+                    try FileManager.default.moveItem(at: staging, to: directory)
+                } catch {
+                    if directoryExists {
+                        try? FileManager.default.moveItem(at: backup, to: directory)
+                    }
+                    throw error
+                }
+
+                let previousArticles = self.articles
+                self.upsertInMemory(article)
+
+                do {
+                    try self.persistManifest()
+                    if directoryExists {
+                        try? FileManager.default.removeItem(at: backup)
+                    }
+                    return article
+                } catch {
+                    self.articles = previousArticles
+                    try? FileManager.default.removeItem(at: directory)
+                    if directoryExists {
+                        try? FileManager.default.moveItem(at: backup, to: directory)
+                    }
+                    throw error
+                }
+            } catch {
+                try? FileManager.default.removeItem(at: staging)
+                throw error
+            }
+        }
+    }
+
+    @discardableResult
+    func saveFailure(
+        id: String? = nil,
+        url: String,
+        title: String? = nil,
+        failure: ArticleSaveFailure,
+        message: String
+    ) async throws -> SavedArticle {
+        try await withMutation {
+            let key = url
+            let existing = self.articles.first { $0.canonicalUrl == key || $0.sourceUrl == key || (id != nil && $0.id == id) }
+            let recordID = existing?.id ?? id ?? UUID().uuidString
             let now = Date().timeIntervalSince1970
-            let quality: ArticleQuality = imageResult.failed == 0 && snapshot.readerMetrics.result == "complete" ? .complete : .partial
+            let resolvedTitle: String
+            if let title = title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+                resolvedTitle = title
+            } else if let existingTitle = existing?.title, !existingTitle.isEmpty {
+                resolvedTitle = existingTitle
+            } else {
+                resolvedTitle = URLPolicy.displayHost(url)
+            }
+
             let article = SavedArticle(
-                id: id,
-                sourceUrl: snapshot.sourceUrl,
-                canonicalUrl: key,
-                title: snapshot.title.trimmingCharacters(in: .whitespacesAndNewlines),
-                author: snapshot.author.trimmingCharacters(in: .whitespacesAndNewlines),
-                excerpt: String(snapshot.text.prefix(220)),
-                searchText: snapshot.text,
+                id: recordID,
+                sourceUrl: existing?.sourceUrl ?? url,
+                canonicalUrl: existing?.canonicalUrl ?? url,
+                title: resolvedTitle,
+                author: existing?.author ?? "",
+                excerpt: existing?.excerpt ?? "",
+                searchText: existing?.searchText ?? "",
                 createdAt: existing?.createdAt ?? now,
                 updatedAt: now,
                 readingPosition: existing?.readingPosition ?? 0,
@@ -94,15 +200,22 @@ final class ArticleStore: ObservableObject {
                 notes: existing?.notes ?? [],
                 highlights: existing?.highlights ?? [],
                 archived: existing?.archived ?? false,
-                quality: quality,
-                savedImageCount: imageResult.saved,
-                failedImageCount: imageResult.failed
+                quality: .failed,
+                savedImageCount: 0,
+                failedImageCount: 0,
+                failure: failure,
+                failureMessage: message
             )
-            upsert(article)
-            return article
-        } catch {
-            try? FileManager.default.removeItem(at: staging)
-            throw error
+
+            let previousArticles = self.articles
+            self.upsertInMemory(article)
+            do {
+                try self.persistManifest()
+                return article
+            } catch {
+                self.articles = previousArticles
+                throw error
+            }
         }
     }
 
@@ -152,7 +265,7 @@ final class ArticleStore: ObservableObject {
         let clamped = min(max(position, 0), 1)
         guard abs(articles[index].readingPosition - clamped) >= 0.01 else { return }
         articles[index].readingPosition = clamped
-        persist()
+        try? persistManifest()
     }
 
     func setArchived(_ id: String, archived: Bool) {
@@ -163,54 +276,152 @@ final class ArticleStore: ObservableObject {
     }
 
     func remove(_ id: String) {
-        articles.removeAll { $0.id == id }
-        try? FileManager.default.removeItem(at: articleDirectory(id))
-        persist()
+        Task { [weak self] in
+            try? await self?.delete(id)
+        }
     }
 
-    private func upsert(_ article: SavedArticle) {
+    func delete(_ id: String) async throws {
+        try await withMutation {
+            guard let index = self.articles.firstIndex(where: { $0.id == id }) else { return }
+            let directory = self.articleDirectory(id)
+            let trash = self.rootDirectory.appendingPathComponent(".trash-\(UUID().uuidString)", isDirectory: true)
+            let dirExists = FileManager.default.fileExists(atPath: directory.path)
+            if dirExists {
+                try? FileManager.default.moveItem(at: directory, to: trash)
+            }
+            let previousArticles = self.articles
+            self.articles.remove(at: index)
+            do {
+                try self.persistManifest()
+                if dirExists {
+                    try? FileManager.default.removeItem(at: trash)
+                }
+            } catch {
+                self.articles = previousArticles
+                if dirExists {
+                    try? FileManager.default.moveItem(at: trash, to: directory)
+                }
+                throw error
+            }
+        }
+    }
+
+    private func withMutation<T>(_ operation: @escaping () async throws -> T) async throws -> T {
+        let previous = mutationTail
+        let currentTask = Task { () throws -> T in
+            _ = await previous?.result
+            return try await operation()
+        }
+        mutationTail = Task {
+            _ = await currentTask.result
+        }
+        return try await currentTask.value
+    }
+
+    private func upsertInMemory(_ article: SavedArticle) {
         articles.removeAll { $0.id == article.id }
         articles.insert(article, at: 0)
-        persist()
     }
 
     private func mutate(_ id: String, body: (inout SavedArticle) -> Void) {
         guard let index = articles.firstIndex(where: { $0.id == id }) else { return }
+        let previous = articles
         body(&articles[index])
-        persist()
+        do {
+            try persistManifest()
+        } catch {
+            articles = previous
+        }
     }
 
     private func restore() {
-        guard let data = try? Data(contentsOf: manifestURL),
+        guard FileManager.default.fileExists(atPath: manifestURL.path),
+              let data = try? Data(contentsOf: manifestURL),
               let decoded = try? JSONDecoder().decode([SavedArticle].self, from: data) else {
             return
         }
-        articles = decoded.filter { htmlURL(for: $0) != nil }
+        articles = decoded
     }
 
-    private func persist() {
-        guard let data = try? JSONEncoder().encode(articles) else { return }
-        try? data.write(to: manifestURL, options: .atomic)
+    func persistManifest() throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(articles)
+        try data.write(to: manifestURL, options: .atomic)
+    }
+
+    nonisolated static func isPersistableArticleImage(_ asset: ArticleImageAsset) -> Bool {
+        guard let url = URL(string: asset.url),
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme) else {
+            return false
+        }
+        let clean = asset.fileName.lowercased()
+        let extensions = ["jpg", "jpeg", "png", "gif", "webp", "avif", "svg"]
+        guard let ext = clean.components(separatedBy: ".").last,
+              extensions.contains(ext) else {
+            return false
+        }
+        return true
     }
 
     private func downloadImages(_ images: [ArticleImageAsset], to directory: URL) async -> (saved: Int, failed: Int) {
         var saved = 0
         var failed = 0
         var totalBytes = 0
+        let startTime = Date()
+        let deadline = startTime.addingTimeInterval(ArticlePolicy.imageTimeBudgetSeconds)
+
         for image in images.prefix(ArticlePolicy.maximumImages) {
-            guard let url = URL(string: image.url), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+            guard Self.isPersistableArticleImage(image) else {
                 failed += 1
                 continue
             }
+            guard Date() < deadline, totalBytes < ArticlePolicy.maximumTotalImageBytes else {
+                failed += 1
+                continue
+            }
+            guard let url = URL(string: image.url) else {
+                failed += 1
+                continue
+            }
+
+            var request = URLRequest(url: url)
+            let remaining = max(1.0, deadline.timeIntervalSinceNow)
+            request.timeoutInterval = min(5.0, remaining)
+            request.setValue("image/*", forHTTPHeaderField: "Accept")
+
             do {
-                let (data, response) = try await session.data(from: url)
+                let (asyncBytes, response) = try await ephemeralSession.bytes(for: request)
                 guard let http = response as? HTTPURLResponse,
-                      (200..<300).contains(http.statusCode),
-                      data.count <= ArticlePolicy.maximumImageBytes,
-                      totalBytes + data.count <= ArticlePolicy.maximumTotalImageBytes else {
+                      (200..<300).contains(http.statusCode) else {
                     failed += 1
                     continue
                 }
+
+                if http.expectedContentLength > Int64(ArticlePolicy.maximumImageBytes) ||
+                    (http.expectedContentLength > 0 && Int64(totalBytes) + http.expectedContentLength > Int64(ArticlePolicy.maximumTotalImageBytes)) {
+                    failed += 1
+                    continue
+                }
+
+                var data = Data()
+                var exceeded = false
+
+                for try await byte in asyncBytes {
+                    if data.count >= ArticlePolicy.maximumImageBytes || totalBytes + data.count >= ArticlePolicy.maximumTotalImageBytes {
+                        exceeded = true
+                        break
+                    }
+                    data.append(byte)
+                }
+
+                guard !exceeded, !data.isEmpty else {
+                    failed += 1
+                    continue
+                }
+
                 let target = directory.appendingPathComponent(sanitizedFileName(image.fileName))
                 try data.write(to: target, options: .atomic)
                 totalBytes += data.count
@@ -232,22 +443,6 @@ final class ArticleStore: ObservableObject {
         let clean = value.components(separatedBy: invalid).joined(separator: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return String((clean.isEmpty ? "Article" : clean).prefix(100))
-    }
-
-    private func replaceDirectory(_ directory: URL, with staging: URL) throws {
-        guard FileManager.default.fileExists(atPath: directory.path) else {
-            try FileManager.default.moveItem(at: staging, to: directory)
-            return
-        }
-        let backup = rootDirectory.appendingPathComponent(".backup-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.moveItem(at: directory, to: backup)
-        do {
-            try FileManager.default.moveItem(at: staging, to: directory)
-            try? FileManager.default.removeItem(at: backup)
-        } catch {
-            try? FileManager.default.moveItem(at: backup, to: directory)
-            throw error
-        }
     }
 
     private func mimeType(for pathExtension: String) -> String {
@@ -285,8 +480,19 @@ final class ArticleStore: ObservableObject {
 
 enum ArticleStoreError: LocalizedError {
     case captureInProgress
+    case persistenceFailed(String)
+    case transactionFailed
 
-    var errorDescription: String? { "文章正在保存" }
+    var errorDescription: String? {
+        switch self {
+        case .captureInProgress:
+            return "文章正在保存"
+        case .persistenceFailed(let message):
+            return "存储失败: \(message)"
+        case .transactionFailed:
+            return "文章存储事务失败"
+        }
+    }
 }
 
 enum ArticleExportFormat: String, CaseIterable, Identifiable {
