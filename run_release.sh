@@ -12,6 +12,26 @@ OHOS_DIR="$SCRIPT_DIR/ohos"
 IOS_DIR="$SCRIPT_DIR/ios"
 ANDROID_DIR="$SCRIPT_DIR/android"
 
+# HarmonyOS SDK 环境变量配置
+if [ -z "${HOS_SDK_HOME:-}" ] || [ ! -d "$HOS_SDK_HOME" ]; then
+  if [ -d "$HOME/Library/Huawei/CommandLineTools/current/sdk" ]; then
+    export HOS_SDK_HOME="$HOME/Library/Huawei/CommandLineTools/current/sdk"
+  elif [ -d "/Applications/DevEco-Studio.app/Contents/sdk" ]; then
+    export HOS_SDK_HOME="/Applications/DevEco-Studio.app/Contents/sdk"
+  fi
+fi
+if [ -n "${HOS_SDK_HOME:-}" ]; then
+  export DEVECO_SDK_HOME="$HOS_SDK_HOME"
+  export OHOS_SDK_HOME="$HOS_SDK_HOME"
+fi
+
+if [ -d "$HOME/Library/Huawei/CommandLineTools/current/bin" ]; then
+  export PATH="$HOME/Library/Huawei/CommandLineTools/current/bin:$PATH"
+fi
+if [ -d "${HOS_SDK_HOME:-}/default/openharmony/toolchains" ]; then
+  export PATH="${HOS_SDK_HOME}/default/openharmony/toolchains:$PATH"
+fi
+
 DEVICE_TYPE=""
 DEVICE_ID=""
 SHOW_SIMULATOR=false
@@ -212,7 +232,7 @@ def run(args, timeout):
         return None
 
 if hdc_bin:
-    listed = run([hdc_bin, "list", "targets", "-v"], 3)
+    listed = run([hdc_bin, "list", "targets", "-v"], 5)
     found = False
     if listed and listed.stdout:
         for line in listed.stdout.splitlines():
@@ -224,7 +244,7 @@ if hdc_bin:
                 found = True
                 candidates.append(("ohos", parts[0], f"HarmonyOS ({parts[0]})", "Connected"))
     if not found:
-        listed = run([hdc_bin, "list", "targets"], 3)
+        listed = run([hdc_bin, "list", "targets"], 5)
         if listed and listed.stdout:
             for line in listed.stdout.splitlines():
                 line = line.strip()
@@ -333,13 +353,11 @@ choose_device() {
     i=$((i + 1))
   done
 
-  if [[ ! -t 0 ]]; then
-    fail "Stdin is not a TTY. Re-run with --device <id>."
-  fi
-
   local choice
   printf 'Select 1-%d (or q to quit): ' "$count"
-  read -r choice
+  if ! read -r choice; then
+    fail "Stdin closed without selection. Re-run with --device <id>."
+  fi
   [[ "$choice" == [qQ] ]] && exit 0
   [[ "$choice" =~ ^[0-9]+$ ]] || fail "Invalid selection: $choice"
   (( choice >= 1 && choice <= count )) || fail "Invalid selection: $choice"
