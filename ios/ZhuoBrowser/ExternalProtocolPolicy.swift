@@ -23,8 +23,24 @@ struct ExternalProtocolRequest: Identifiable, Equatable {
     let scheme: String
     let category: ExternalProtocolCategory
     let sourceHost: String
+    let targetAppName: String
 
     var id: String { url }
+
+    init(url: String, scheme: String, category: ExternalProtocolCategory, sourceHost: String, targetAppName: String = "") {
+        self.url = url
+        self.scheme = scheme
+        self.category = category
+        self.sourceHost = sourceHost
+        self.targetAppName = targetAppName
+    }
+
+    var promptTitle: String {
+        if !targetAppName.isEmpty {
+            return "打开\(targetAppName)？"
+        }
+        return category.promptTitle
+    }
 
     var promptMessage: String {
         let source = sourceHost.isEmpty ? "当前页面" : sourceHost
@@ -85,14 +101,86 @@ enum ExternalProtocolPolicy {
         if blockedSchemes.contains(scheme) {
             return .blocked
         }
+        let appName = resolveTargetAppName(scheme: scheme, url: value)
         return .confirm(
             ExternalProtocolRequest(
                 url: value,
                 scheme: scheme,
                 category: category(for: scheme),
-                sourceHost: URLPolicy.displayHost(sourceURL).lowercased()
+                sourceHost: URLPolicy.displayHost(sourceURL).lowercased(),
+                targetAppName: appName
             )
         )
+    }
+
+    static func resolveTargetAppName(scheme: String, url: String = "") -> String {
+        let normalizedScheme = scheme.lowercased()
+        let normalizedUrl = url.lowercased()
+
+        if normalizedScheme == "itms-apps" || normalizedScheme == "itms-services" {
+            return "App Store"
+        }
+        if normalizedScheme == "store" {
+            if normalizedUrl.contains("apple") || normalizedUrl.contains("apps.apple.com") {
+                return "App Store"
+            }
+            return "应用市场"
+        }
+        if normalizedScheme == "appmarket" {
+            return "华为应用市场"
+        }
+        if normalizedScheme == "market" {
+            return "应用市场"
+        }
+        if normalizedScheme == "alipay" || normalizedScheme == "alipays" {
+            return "支付宝"
+        }
+        if normalizedScheme == "weixin" || normalizedScheme == "wechat" || normalizedScheme == "wxp" {
+            return "微信"
+        }
+        if normalizedScheme == "unionpay" || normalizedScheme == "upwallet" {
+            return "云闪付"
+        }
+        if normalizedScheme == "mqq" || normalizedScheme == "mqqapi" || normalizedScheme == "qq" {
+            return "QQ"
+        }
+        if normalizedScheme == "sinaweibo" || normalizedScheme == "weibo" {
+            return "微博"
+        }
+        if normalizedScheme == "zhihu" {
+            return "知乎"
+        }
+        if normalizedScheme == "bilibili" {
+            return "哔哩哔哩"
+        }
+        if normalizedScheme == "taobao" {
+            return "淘宝"
+        }
+        if normalizedScheme == "openapp.jdmobile" {
+            return "京东"
+        }
+        if normalizedScheme == "petalmaps" {
+            return "花瓣地图"
+        }
+        if normalizedScheme == "amap" {
+            return "高德地图"
+        }
+        if normalizedScheme == "baidumap" {
+            return "百度地图"
+        }
+        if normalizedScheme == "geo" || normalizedScheme == "map" || normalizedScheme == "maps" {
+            return "地图"
+        }
+        if normalizedScheme == "tel" {
+            return "电话"
+        }
+        if normalizedScheme == "sms" || normalizedScheme == "smsto" || normalizedScheme == "mms" || normalizedScheme == "mmsto" {
+            return "信息"
+        }
+        if normalizedScheme == "mailto" {
+            return "邮件"
+        }
+        return ""
     }
 
     static func clipboardAddress(from text: String, engine: SearchEngine) -> String? {

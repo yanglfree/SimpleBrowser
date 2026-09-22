@@ -19,6 +19,7 @@ struct RootView: View {
     @State private var showsPageActions = false
     @State private var showsHomeBackgroundPicker = false
     @State private var showsHomePageSettings = false
+    @State private var toolbarDragOffset: CGFloat = 0
 
     init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
         self.windowRequest = windowRequest
@@ -183,7 +184,7 @@ struct RootView: View {
         }
         .alert(item: $session.externalProtocolRequest) { request in
             Alert(
-                title: Text(request.category.promptTitle),
+                title: Text(request.promptTitle),
                 message: Text(request.promptMessage),
                 primaryButton: .default(Text("打开")) {
                     session.openExternalProtocol(request)
@@ -638,14 +639,39 @@ struct RootView: View {
                 isFocused: $addressFocused,
                 selection: $addressSelection,
                 placeholder: session.activeTab?.isPrivate == true ? "无痕搜索或输入网址" : "搜索或输入网址",
+                onVisitClipboard: { session.visitClipboardLink() },
+                onCopyLink: { session.copyCurrentLink() },
+                onCloseTab: { session.closeTab(session.activeTabID) },
                 onSubmit: {
                     addressFocused = false
                     session.openInActiveTab(addressText)
                 }
             )
-                .padding(.horizontal, 12)
-                .frame(height: 36)
-                .background(DesignTokens.surfaceSubtle, in: Capsule())
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            .background(DesignTokens.surfaceSubtle, in: Capsule())
+            .contextMenu(!addressFocused ? ContextMenu {
+                Button {
+                    session.visitClipboardLink()
+                } label: {
+                    Label("访问剪贴板", systemImage: "arrow.right.doc.on.clipboard")
+                }
+                .accessibilityIdentifier("address-menu-visit-clipboard")
+
+                Button {
+                    session.copyCurrentLink()
+                } label: {
+                    Label("复制链接", systemImage: "doc.on.doc")
+                }
+                .accessibilityIdentifier("address-menu-copy-link")
+
+                Button(role: .destructive) {
+                    session.closeTab(session.activeTabID)
+                } label: {
+                    Label("关闭当前标签页", systemImage: "xmark")
+                }
+                .accessibilityIdentifier("address-menu-close-tab")
+            } : nil)
 
             if addressFocused {
                 Button("取消") {
@@ -691,6 +717,7 @@ struct RootView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+        .offset(x: toolbarDragOffset)
         .background(session.activeTab?.isPrivate == true ? DesignTokens.surfaceSubtle : DesignTokens.surfacePanel)
         .overlay(alignment: .bottom) {
             Rectangle()
@@ -725,13 +752,24 @@ struct RootView: View {
 
     private var toolbarSwipeGesture: some Gesture {
         DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                guard !addressFocused, session.settings.gesturesEnabled else { return }
+                if abs(value.translation.width) > abs(value.translation.height) {
+                    toolbarDragOffset = value.translation.width * 0.15
+                }
+            }
             .onEnded { value in
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    toolbarDragOffset = 0
+                }
+                let activeIndex = session.tabs.firstIndex(where: { $0.id == session.activeTabID }) ?? 0
                 let action = BrowserGesturePolicy.toolbarAction(
                     translationX: Double(value.translation.width),
                     translationY: Double(value.translation.height),
                     settings: session.settings,
                     isBrowsing: isBrowsing,
                     tabCount: session.tabs.count,
+                    activeTabIndex: activeIndex,
                     isEditingAddress: addressFocused
                 )
                 switch action {
@@ -740,9 +778,15 @@ struct RootView: View {
                 case .hideToolbar:
                     withAnimation(.easeOut(duration: 0.18)) { toolbarHidden = true }
                 case .previousTab:
-                    session.switchAdjacentTab(-1)
+                    if let targetID = SessionPolicy.swipeTargetTabID(session.tabs, activeTabID: session.activeTabID, direction: -1) {
+                        session.selectTab(targetID)
+                    }
                 case .nextTab:
-                    session.switchAdjacentTab(1)
+                    if let targetID = SessionPolicy.swipeTargetTabID(session.tabs, activeTabID: session.activeTabID, direction: 1) {
+                        session.selectTab(targetID)
+                    }
+                case .createTab:
+                    session.createTab(isPrivate: session.activeTab?.isPrivate ?? false)
                 case .none:
                     break
                 }

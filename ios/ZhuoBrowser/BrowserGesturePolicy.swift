@@ -6,6 +6,7 @@ enum BrowserToolbarGestureAction: Equatable {
     case hideToolbar
     case previousTab
     case nextTab
+    case createTab
 }
 
 enum BrowserGesturePolicy {
@@ -17,6 +18,7 @@ enum BrowserGesturePolicy {
         settings: BrowserSettings,
         isBrowsing: Bool,
         tabCount: Int,
+        activeTabIndex: Int,
         isEditingAddress: Bool
     ) -> BrowserToolbarGestureAction {
         guard settings.gesturesEnabled, !isEditingAddress else { return .none }
@@ -30,11 +32,44 @@ enum BrowserGesturePolicy {
             return .none
         }
         guard settings.gestureTabSwitchEnabled,
-              tabCount > 1,
+              tabCount >= 1,
               abs(translationX) >= swipeThreshold else {
             return .none
         }
-        return translationX < 0 ? .nextTab : .previousTab
+        if translationX < 0 {
+            if activeTabIndex >= 0 && activeTabIndex == tabCount - 1 {
+                return .createTab
+            } else if activeTabIndex >= 0 && activeTabIndex < tabCount - 1 {
+                return .nextTab
+            } else {
+                return .none
+            }
+        } else {
+            if activeTabIndex > 0 {
+                return .previousTab
+            } else {
+                return .none
+            }
+        }
+    }
+
+    static func toolbarAction(
+        translationX: Double,
+        translationY: Double,
+        settings: BrowserSettings,
+        isBrowsing: Bool,
+        tabCount: Int,
+        isEditingAddress: Bool
+    ) -> BrowserToolbarGestureAction {
+        toolbarAction(
+            translationX: translationX,
+            translationY: translationY,
+            settings: settings,
+            isBrowsing: isBrowsing,
+            tabCount: tabCount,
+            activeTabIndex: 0,
+            isEditingAddress: isEditingAddress
+        )
     }
 
     static func canOpenBlocking(settings: BrowserSettings, isBrowsing: Bool) -> Bool {

@@ -129,6 +129,29 @@ final class SessionPolicyTests: XCTestCase {
         XCTAssertEqual(SessionPolicy.adjacentTabID(tabs, activeTabID: "a", direction: -1), "c")
     }
 
+    func testSwipeNavigationIsBoundedAndCreatesTabOnFinalTab() {
+        let tabs = [makeTab(id: "a"), makeTab(id: "b"), makeTab(id: "c")]
+
+        // Backward from first tab stays put
+        XCTAssertNil(SessionPolicy.swipeTargetTabID(tabs, activeTabID: "a", direction: -1))
+        // Backward from middle tab goes to previous
+        XCTAssertEqual(SessionPolicy.swipeTargetTabID(tabs, activeTabID: "b", direction: -1), "a")
+        // Forward from first tab goes to next
+        XCTAssertEqual(SessionPolicy.swipeTargetTabID(tabs, activeTabID: "a", direction: 1), "b")
+        // Forward from last tab stays put (no next tab, triggers canCreateTabOnSwipe)
+        XCTAssertNil(SessionPolicy.swipeTargetTabID(tabs, activeTabID: "c", direction: 1))
+        XCTAssertTrue(SessionPolicy.canCreateTabOnSwipe(tabs, activeTabID: "c", direction: 1))
+        XCTAssertFalse(SessionPolicy.canCreateTabOnSwipe(tabs, activeTabID: "a", direction: 1))
+        XCTAssertFalse(SessionPolicy.canCreateTabOnSwipe(tabs, activeTabID: "c", direction: -1))
+
+        // Single-tab session
+        let singleTab = [makeTab(id: "only")]
+        XCTAssertNil(SessionPolicy.swipeTargetTabID(singleTab, activeTabID: "only", direction: 1))
+        XCTAssertNil(SessionPolicy.swipeTargetTabID(singleTab, activeTabID: "only", direction: -1))
+        XCTAssertTrue(SessionPolicy.canCreateTabOnSwipe(singleTab, activeTabID: "only", direction: 1))
+        XCTAssertFalse(SessionPolicy.canCreateTabOnSwipe(singleTab, activeTabID: "only", direction: -1))
+    }
+
     func testReorderingStaysInsidePinAndPrivacyGroups() {
         var pinnedA = makeTab(id: "pinned-a")
         pinnedA.isPinned = true

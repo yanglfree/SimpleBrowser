@@ -125,6 +125,29 @@ enum SessionPolicy {
         return tabs[(index + offset + tabs.count) % tabs.count].id
     }
 
+    static func swipeTargetTabID(_ tabs: [BrowserTab], activeTabID: String, direction: Int) -> String? {
+        guard let index = tabs.firstIndex(where: { $0.id == activeTabID }) else {
+            return nil
+        }
+        guard tabs.count >= 2 else {
+            return nil
+        }
+        if direction < 0 {
+            guard index > 0 else { return nil }
+            return tabs[index - 1].id
+        } else {
+            guard index < tabs.count - 1 else { return nil }
+            return tabs[index + 1].id
+        }
+    }
+
+    static func canCreateTabOnSwipe(_ tabs: [BrowserTab], activeTabID: String, direction: Int) -> Bool {
+        guard direction > 0, let index = tabs.firstIndex(where: { $0.id == activeTabID }) else {
+            return false
+        }
+        return index == tabs.count - 1
+    }
+
     static func canReorderTab(_ tabs: [BrowserTab], id: String, direction: Int) -> Bool {
         guard direction != 0,
               let index = tabs.firstIndex(where: { $0.id == id }) else {

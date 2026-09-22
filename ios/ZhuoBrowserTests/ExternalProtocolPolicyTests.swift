@@ -22,17 +22,32 @@ final class ExternalProtocolPolicyTests: XCTestCase {
             sourceURL: "https://Shop.Example/checkout"
         )
 
-        XCTAssertEqual(
-            decision,
-            .confirm(
-                ExternalProtocolRequest(
-                    url: "weixin://pay?id=123",
-                    scheme: "weixin",
-                    category: .payment,
-                    sourceHost: "shop.example"
-                )
-            )
+        let expectedRequest = ExternalProtocolRequest(
+            url: "weixin://pay?id=123",
+            scheme: "weixin",
+            category: .payment,
+            sourceHost: "shop.example",
+            targetAppName: "微信"
         )
+        XCTAssertEqual(decision, .confirm(expectedRequest))
+        XCTAssertEqual(expectedRequest.promptTitle, "打开微信？")
+    }
+
+    func testTargetAppNameResolution() {
+        XCTAssertEqual(ExternalProtocolPolicy.resolveTargetAppName(scheme: "itms-apps"), "App Store")
+        XCTAssertEqual(ExternalProtocolPolicy.resolveTargetAppName(scheme: "alipay"), "支付宝")
+        XCTAssertEqual(ExternalProtocolPolicy.resolveTargetAppName(scheme: "mqq"), "QQ")
+        XCTAssertEqual(ExternalProtocolPolicy.resolveTargetAppName(scheme: "bilibili"), "哔哩哔哩")
+        XCTAssertEqual(ExternalProtocolPolicy.resolveTargetAppName(scheme: "customscheme"), "")
+
+        let customRequest = ExternalProtocolRequest(
+            url: "customscheme://action",
+            scheme: "customscheme",
+            category: .custom,
+            sourceHost: "example.com",
+            targetAppName: ""
+        )
+        XCTAssertEqual(customRequest.promptTitle, "打开其他应用？")
     }
 
     func testClipboardVisitAcceptsOnlyWebAddresses() {

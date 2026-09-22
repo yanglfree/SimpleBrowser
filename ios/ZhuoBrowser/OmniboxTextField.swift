@@ -6,6 +6,9 @@ struct OmniboxTextField: UIViewRepresentable {
     @Binding var isFocused: Bool
     @Binding var selection: OmniboxSelection
     let placeholder: String
+    var onVisitClipboard: (() -> Void)? = nil
+    var onCopyLink: (() -> Void)? = nil
+    var onCloseTab: (() -> Void)? = nil
     let onSubmit: () -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -26,6 +29,8 @@ struct OmniboxTextField: UIViewRepresentable {
         field.tintColor = UIColor(DesignTokens.accent)
         field.accessibilityIdentifier = "omni-field"
         field.addTarget(context.coordinator, action: #selector(Coordinator.textChanged), for: .editingChanged)
+        let interaction = UIContextMenuInteraction(delegate: context.coordinator)
+        field.addInteraction(interaction)
         return field
     }
 
@@ -43,12 +48,49 @@ struct OmniboxTextField: UIViewRepresentable {
         context.coordinator.apply(selection, to: field)
     }
 
-    final class Coordinator: NSObject, UITextFieldDelegate {
+    final class Coordinator: NSObject, UITextFieldDelegate, UIContextMenuInteractionDelegate {
         var parent: OmniboxTextField
         private var selectsAllOnFocus = true
 
         init(_ parent: OmniboxTextField) {
             self.parent = parent
+        }
+
+        func contextMenuInteraction(
+            _ interaction: UIContextMenuInteraction,
+            configurationForMenuAtLocation location: CGPoint
+        ) -> UIContextMenuConfiguration? {
+            guard !parent.isFocused else { return nil }
+            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+                guard let self else { return nil }
+                var actions: [UIMenuElement] = []
+                if let onVisitClipboard = self.parent.onVisitClipboard {
+                    actions.append(UIAction(
+                        title: "访问剪贴板",
+                        image: UIImage(systemName: "arrow.right.doc.on.clipboard")
+                    ) { _ in
+                        onVisitClipboard()
+                    })
+                }
+                if let onCopyLink = self.parent.onCopyLink {
+                    actions.append(UIAction(
+                        title: "复制链接",
+                        image: UIImage(systemName: "doc.on.doc")
+                    ) { _ in
+                        onCopyLink()
+                    })
+                }
+                if let onCloseTab = self.parent.onCloseTab {
+                    actions.append(UIAction(
+                        title: "关闭当前标签页",
+                        image: UIImage(systemName: "xmark"),
+                        attributes: .destructive
+                    ) { _ in
+                        onCloseTab()
+                    })
+                }
+                return UIMenu(title: "", children: actions)
+            }
         }
 
         @objc func textChanged(_ field: UITextField) {
