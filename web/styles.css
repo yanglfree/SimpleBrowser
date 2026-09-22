@@ -186,6 +186,45 @@ h1 {
 .primary-link:hover { background: var(--accent-strong); }
 .primary-link:active { transform: scale(0.98); }
 
+.secondary-link {
+  min-height: 48px;
+  padding-inline: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 650;
+  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+}
+
+.secondary-link:hover {
+  border-color: var(--ink);
+  background: var(--surface-subtle);
+}
+
+.secondary-link:active {
+  transform: scale(0.98);
+}
+
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.closing-actions {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .release-note { color: var(--muted); font-size: 14px; }
 
 .product-stage {
@@ -447,6 +486,7 @@ h1 {
   .privacy-facts { grid-template-columns: 1fr; gap: 28px; }
   .closing { flex-direction: column; text-align: center; gap: 32px; }
   .closing img { width: 96px; height: 96px; }
+  .closing-actions { justify-content: center; }
   .footer-layout { min-height: 120px; flex-direction: column; justify-content: center; text-align: center; }
   .legal-page { padding-block: 32px 64px; }
 }
