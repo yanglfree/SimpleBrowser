@@ -242,4 +242,87 @@ final class ArticlePolicyTests: XCTestCase {
             XCTAssertFalse(failure.displayName.isEmpty)
         }
     }
+
+    @MainActor
+    func testArticleStoreIndependentNoteCRUD() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("article-store-notes-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = ArticleStore(rootDirectory: root)
+
+        let saved = try await store.save(snapshot(text: String(repeating: "note testing body ", count: 8)))
+        XCTAssertEqual(saved.notes.count, 0)
+
+        // 1. Add first note
+        let note1 = store.addNote(saved.id, text: "First distinct note")
+        XCTAssertNotNil(note1)
+        guard let note1 else { return }
+        XCTAssertEqual(note1.text, "First distinct note")
+        XCTAssertEqual(store.articles.first?.notes.count, 1)
+
+        // 2. Add second note
+        let note2 = store.addNote(saved.id, text: "Second distinct note")
+        XCTAssertNotNil(note2)
+        guard let note2 else { return }
+        XCTAssertEqual(note2.text, "Second distinct note")
+        XCTAssertNotEqual(note1.id, note2.id)
+        XCTAssertEqual(store.articles.first?.notes.count, 2)
+
+        // 3. Edit first note without touching second note
+        store.updateNote(saved.id, noteID: note1.id, text: "First note edited")
+        let updatedNotes = store.articles.first?.notes ?? []
+        XCTAssertEqual(updatedNotes.count, 2)
+        XCTAssertEqual(updatedNotes.first(where: { $0.id == note1.id })?.text, "First note edited")
+        XCTAssertEqual(updatedNotes.first(where: { $0.id == note1.id })?.createdAt, note1.createdAt)
+        XCTAssertEqual(updatedNotes.first(where: { $0.id == note2.id })?.text, "Second distinct note")
+        XCTAssertEqual(updatedNotes.first(where: { $0.id == note2.id })?.id, note2.id)
+
+        // 4. Delete first note
+        store.removeNote(saved.id, noteID: note1.id)
+        let remainingNotes = store.articles.first?.notes ?? []
+        XCTAssertEqual(remainingNotes.count, 1)
+        XCTAssertEqual(remainingNotes.first?.id, note2.id)
+        XCTAssertEqual(remainingNotes.first?.text, "Second distinct note")
+
+        // 5. Verify persistence across restore
+        let restoredStore = ArticleStore(rootDirectory: root)
+        XCTAssertEqual(restoredStore.articles.first?.notes.count, 1)
+        XCTAssertEqual(restoredStore.articles.first?.notes.first?.id, note2.id)
+        XCTAssertEqual(restoredStore.articles.first?.notes.first?.text, "Second distinct note")
+    }
+
+    func testHighlightDisambiguationMultipleMatches() {
+        let text = "apple banana apple cherry apple date"
+        let firstHighlight = ArticleHighlight(
+            id: "h1",
+            quote: "apple",
+            prefix: "",
+            suffix: " banana",
+            createdAt: 1
+        )
+        let secondHighlight = ArticleHighlight(
+            id: "h2",
+            quote: "apple",
+            prefix: "banana ",
+            suffix: " cherry",
+            createdAt: 2
+        )
+        let thirdHighlight = ArticleHighlight(
+            id: "h3",
+            quote: "apple",
+            prefix: "cherry ",
+            suffix: " date",
+            createdAt: 3
+        )
+
+        let r1 = ArticlePolicy.relocatedRange(for: firstHighlight, in: text)
+        let r2 = ArticlePolicy.relocatedRange(for: secondHighlight, in: text)
+        let r3 = ArticlePolicy.relocatedRange(for: thirdHighlight, in: text)
+
+        XCTAssertNotNil(r1)
+        XCTAssertNotNil(r2)
+        XCTAssertNotNil(r3)
+        XCTAssertEqual(r1.map { text.distance(from: text.startIndex, to: $0.lowerBound) }, 0)
+        XCTAssertEqual(r2.map { text.distance(from: text.startIndex, to: $0.lowerBound) }, 13)
+        XCTAssertEqual(r3.map { text.distance(from: text.startIndex, to: $0.lowerBound) }, 26)
+    }
 }

@@ -326,6 +326,7 @@ struct ArticleDetailView: View {
     @EnvironmentObject private var session: BrowserSession
     @Environment(\.dismiss) private var dismiss
     let articleID: String
+    @State private var targetHighlightID: String?
     @State private var selection: ArticleHighlightSelection?
     @State private var editorArticle: SavedArticle?
     @State private var shareFile: ArticleShareFile?
@@ -375,6 +376,7 @@ struct ArticleDetailView: View {
             OfflineArticleReader(
                 article: article,
                 fileURL: fileURL,
+                targetHighlightID: targetHighlightID,
                 onSelection: { selection = $0 },
                 onPositionChange: { session.articles.updateReadingPosition(article.id, position: $0) },
                 onOpenExternal: {
@@ -405,9 +407,13 @@ struct ArticleDetailView: View {
 
             if showsInspector {
                 Divider()
-                ArticleInspectorPane(article: article) {
-                    editorArticle = article
-                }
+                ArticleInspectorPane(
+                    article: article,
+                    onEdit: { editorArticle = article },
+                    onLocateHighlight: { id in
+                        targetHighlightID = id
+                    }
+                )
                 .frame(width: CGFloat(AdaptiveWorkspacePolicy.articleInspectorWidth))
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
@@ -510,8 +516,13 @@ struct ArticleDetailView: View {
 }
 
 private struct ArticleInspectorPane: View {
+    @EnvironmentObject private var session: BrowserSession
     let article: SavedArticle
     let onEdit: () -> Void
+    let onLocateHighlight: (String) -> Void
+    @State private var newNoteText = ""
+    @State private var editingNoteID: String?
+    @State private var editingNoteText = ""
 
     var body: some View {
         ScrollView {
@@ -539,24 +550,118 @@ private struct ArticleInspectorPane: View {
                 }
 
                 inspectorSection("笔记") {
-                    if article.notes.isEmpty {
+                    HStack(spacing: 8) {
+                        TextField("添加笔记…", text: $newNoteText)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("article-inspector-add-note-input")
+                        Button("添加") {
+                            let trimmed = newNoteText.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !trimmed.isEmpty else { return }
+                            session.articles.addNote(article.id, text: trimmed)
+                            newNoteText = ""
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DesignTokens.accent)
+                        .disabled(newNoteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityIdentifier("article-inspector-add-note-button")
+                    }
+
+                    if currentArticle.notes.isEmpty {
                         Text("尚未添加笔记")
+                            .font(.caption)
+                            .foregroundStyle(DesignTokens.textSecondary)
                     } else {
-                        ForEach(article.notes) { note in
-                            Text(note.text).textSelection(.enabled)
+                        VStack(spacing: 8) {
+                            ForEach(currentArticle.notes) { note in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    if editingNoteID == note.id {
+                                        TextEditor(text: $editingNoteText)
+                                            .frame(minHeight: 60)
+                                            .padding(4)
+                                            .background(DesignTokens.pageBackground, in: RoundedRectangle(cornerRadius: 8))
+                                        HStack {
+                                            Button("取消") {
+                                                editingNoteID = nil
+                                                editingNoteText = ""
+                                            }
+                                            .font(.caption)
+                                            Spacer()
+                                            Button("保存") {
+                                                session.articles.updateNote(article.id, noteID: note.id, text: editingNoteText)
+                                                editingNoteID = nil
+                                                editingNoteText = ""
+                                            }
+                                            .font(.caption)
+                                            .buttonStyle(.borderedProminent)
+                                            .tint(DesignTokens.accent)
+                                        }
+                                    } else {
+                                        HStack(alignment: .top) {
+                                            Text(note.text)
+                                                .font(.subheadline)
+                                                .textSelection(.enabled)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                            Menu {
+                                                Button("编辑") {
+                                                    editingNoteID = note.id
+                                                    editingNoteText = note.text
+                                                }
+                                                Button("删除", role: .destructive) {
+                                                    session.articles.removeNote(article.id, noteID: note.id)
+                                                }
+                                            } label: {
+                                                Image(systemName: "ellipsis")
+                                                    .padding(4)
+                                                    .foregroundStyle(DesignTokens.textSecondary)
+                                            }
+                                        }
+                                        Text(note.updatedAt.formattedRelative)
+                                            .font(.caption2)
+                                            .foregroundStyle(DesignTokens.textSecondary)
+                                    }
+                                }
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(DesignTokens.surfaceSubtle, in: RoundedRectangle(cornerRadius: 10))
+                            }
                         }
                     }
                 }
 
                 inspectorSection("高亮") {
-                    if article.highlights.isEmpty {
-                        Text("尚未添加高亮")
+                    if currentArticle.highlights.isEmpty {
+                        Text("在正文中长按划选文字以添加高亮")
+                            .font(.caption)
+                            .foregroundStyle(DesignTokens.textSecondary)
                     } else {
-                        ForEach(article.highlights) { highlight in
-                            Text(highlight.quote)
+                        VStack(spacing: 8) {
+                            ForEach(currentArticle.highlights) { highlight in
+                                HStack(alignment: .top) {
+                                    Button {
+                                        onLocateHighlight(highlight.id)
+                                    } label: {
+                                        Text("“\(highlight.quote)”")
+                                            .font(.subheadline)
+                                            .multilineTextAlignment(.leading)
+                                            .foregroundStyle(DesignTokens.textPrimary)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    Button(role: .destructive) {
+                                        session.articles.removeHighlight(article.id, highlightID: highlight.id)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("删除高亮")
+                                }
                                 .padding(10)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(DesignTokens.surfaceSubtle, in: RoundedRectangle(cornerRadius: 10))
+                            }
                         }
                     }
                 }
@@ -565,6 +670,10 @@ private struct ArticleInspectorPane: View {
         }
         .background(DesignTokens.surfacePanel)
         .accessibilityIdentifier("article-inspector")
+    }
+
+    private var currentArticle: SavedArticle {
+        session.articles.articles.first { $0.id == article.id } ?? article
     }
 
     private func inspectorSection<Content: View>(
@@ -611,13 +720,12 @@ struct ArticleEditorSheet: View {
     let article: SavedArticle
     @State private var tags: String
     @State private var topics: String
-    @State private var note: String
+    @State private var newNoteText: String = ""
 
     init(article: SavedArticle) {
         self.article = article
         _tags = State(initialValue: article.tags.joined(separator: ", "))
         _topics = State(initialValue: article.topics.joined(separator: ", "))
-        _note = State(initialValue: article.notes.first?.text ?? "")
     }
 
     var body: some View {
@@ -629,16 +737,36 @@ struct ArticleEditorSheet: View {
                     TextField("主题，用逗号分隔", text: $topics)
                         .accessibilityIdentifier("article-topics")
                 }
-                Section("笔记") {
-                    TextEditor(text: $note)
-                        .frame(minHeight: 130)
-                        .accessibilityIdentifier("article-note")
+                Section("添加笔记") {
+                    HStack {
+                        TextField("新笔记内容…", text: $newNoteText)
+                            .accessibilityIdentifier("article-new-note")
+                        Button("添加") {
+                            let trimmed = newNoteText.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !trimmed.isEmpty else { return }
+                            session.articles.addNote(article.id, text: trimmed)
+                            newNoteText = ""
+                        }
+                        .disabled(newNoteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
                 }
-                if !article.highlights.isEmpty {
-                    Section("高亮") {
+                if !currentArticle.notes.isEmpty {
+                    Section("笔记列表") {
+                        ForEach(currentArticle.notes) { note in
+                            Text(note.text)
+                                .swipeActions(edge: .trailing) {
+                                    Button("删除", role: .destructive) {
+                                        session.articles.removeNote(article.id, noteID: note.id)
+                                    }
+                                }
+                        }
+                    }
+                }
+                if !currentArticle.highlights.isEmpty {
+                    Section("高亮列表") {
                         ForEach(currentArticle.highlights) { highlight in
                             Text(highlight.quote)
-                                .swipeActions {
+                                .swipeActions(edge: .trailing) {
                                     Button("删除", role: .destructive) {
                                         session.articles.removeHighlight(article.id, highlightID: highlight.id)
                                     }
@@ -650,14 +778,13 @@ struct ArticleEditorSheet: View {
             .navigationTitle("文章信息")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("完成") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
                         session.articles.updateMetadata(
                             article.id,
                             tags: split(tags),
-                            topics: split(topics),
-                            note: note
+                            topics: split(topics)
                         )
                         dismiss()
                     }

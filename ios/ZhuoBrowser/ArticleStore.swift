@@ -222,21 +222,57 @@ final class ArticleStore: ObservableObject {
         }
     }
 
-    func updateMetadata(_ id: String, tags: [String], topics: [String], note: String) {
+    func updateMetadata(_ id: String, tags: [String], topics: [String], note: String? = nil) {
         mutate(id) { article in
             article.tags = ArticlePolicy.normalizedLabels(tags)
             article.topics = ArticlePolicy.normalizedLabels(topics)
-            let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
             let now = Date().timeIntervalSince1970
-            if trimmed.isEmpty {
-                article.notes = []
-            } else if article.notes.isEmpty {
-                article.notes = [ArticleNote(id: UUID().uuidString, text: trimmed, createdAt: now, updatedAt: now)]
-            } else {
-                article.notes[0].text = trimmed
-                article.notes[0].updatedAt = now
+            if let note {
+                let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty {
+                    if article.notes.count <= 1 {
+                        article.notes = []
+                    }
+                } else if article.notes.isEmpty {
+                    article.notes = [ArticleNote(id: UUID().uuidString, text: trimmed, createdAt: now, updatedAt: now)]
+                } else {
+                    article.notes[0].text = trimmed
+                    article.notes[0].updatedAt = now
+                }
             }
             article.updatedAt = now
+        }
+    }
+
+    @discardableResult
+    func addNote(_ articleID: String, text: String) -> ArticleNote? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let now = Date().timeIntervalSince1970
+        let note = ArticleNote(id: UUID().uuidString, text: trimmed, createdAt: now, updatedAt: now)
+        mutate(articleID) { article in
+            article.notes.append(note)
+            article.updatedAt = now
+        }
+        return note
+    }
+
+    func updateNote(_ articleID: String, noteID: String, text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let now = Date().timeIntervalSince1970
+        mutate(articleID) { article in
+            guard let index = article.notes.firstIndex(where: { $0.id == noteID }) else { return }
+            article.notes[index].text = trimmed
+            article.notes[index].updatedAt = now
+            article.updatedAt = now
+        }
+    }
+
+    func removeNote(_ articleID: String, noteID: String) {
+        mutate(articleID) { article in
+            article.notes.removeAll { $0.id == noteID }
+            article.updatedAt = Date().timeIntervalSince1970
         }
     }
 
