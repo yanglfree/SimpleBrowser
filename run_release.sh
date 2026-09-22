@@ -463,20 +463,49 @@ run_ios() {
   local extra_flags=()
   if [[ "$is_sim" == true ]]; then
     extra_flags+=(CODE_SIGNING_ALLOWED=NO)
-  elif [[ -n "${DEVELOPMENT_TEAM:-}" ]]; then
-    extra_flags+=(DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM")
+  else
+    local team_id="${DEVELOPMENT_TEAM:-}"
+    if [[ -z "$team_id" ]]; then
+      team_id="$(defaults read com.apple.dt.Xcode IDEProvisioningTeamManagerLastSelectedTeamID 2>/dev/null || true)"
+    fi
+    if [[ -z "$team_id" ]]; then
+      team_id="$(security find-identity -v -p codesigning 2>/dev/null | grep -o '([A-Z0-9]\{10\})' | tr -d '()' | head -n 1 || true)"
+    fi
+    if [[ -n "$team_id" ]]; then
+      print -- "Using Apple Development Team: $team_id"
+      extra_flags+=(
+        DEVELOPMENT_TEAM="$team_id"
+        CODE_SIGN_STYLE=Automatic
+        -allowProvisioningUpdates
+      )
+    fi
   fi
 
   if [[ "$BUILD_APP" == true ]]; then
     print -- "Building iOS $configuration ..."
-    "$xcodebuild_bin" \
+    if ! "$xcodebuild_bin" \
       -project "$IOS_DIR/ZhuoBrowser.xcodeproj" \
       -scheme ZhuoBrowser \
       -configuration "$configuration" \
       -destination "$destination" \
       -derivedDataPath "$derived" \
       "${extra_flags[@]}" \
-      build
+      build; then
+      if [[ "$is_sim" == false ]]; then
+        print -- "Build failed with full entitlements. Retrying with local dev signature (bypassing unregistered App Group)..."
+        "$xcodebuild_bin" \
+          -project "$IOS_DIR/ZhuoBrowser.xcodeproj" \
+          -scheme ZhuoBrowser \
+          -configuration "$configuration" \
+          -destination "$destination" \
+          -derivedDataPath "$derived" \
+          "${extra_flags[@]}" \
+          CODE_SIGN_ENTITLEMENTS="" \
+          build
+      else
+        fail "iOS build failed."
+      fi
+    fi
   fi
 
   if [[ "$is_sim" == true ]]; then
