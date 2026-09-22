@@ -5,6 +5,9 @@ final class ArticleStore: ObservableObject {
     @Published private(set) var articles: [SavedArticle] = []
     @Published private(set) var capturingURLs: Set<String> = []
 
+    var allTags: [String] { articles.allTags }
+    var allTopics: [String] { articles.allTopics }
+
     private let rootDirectory: URL
     private let manifestURL: URL
     private let ephemeralSession: URLSession

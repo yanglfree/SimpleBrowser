@@ -70,6 +70,7 @@ final class BrowserSession: ObservableObject {
     private var disposableReaderTabIDs: Set<String> = []
     private var pendingArticleCaptureTabIDs: Set<String> = []
     private var pendingWindowTransferIDs: Set<String> = []
+    private var importWebViews: [String: WKWebView] = [:]
     private var siteIconLoadingHosts: Set<String> = []
     private var deferredSiteIconRequests: [String: (pageURL: String, declaredURL: String)] = [:]
     private var tabThumbnailTokens: [String: UUID] = [:]
@@ -1933,24 +1934,120 @@ final class BrowserSession: ObservableObject {
         captureArticle(tabID: activeTabID)
     }
 
+    func importArticleURL(_ rawURL: String) {
+        guard pro.isPro else {
+            showsProPaywall = true
+            flash("导入离线文章需要卓阅 Pro")
+            return
+        }
+        let trimmed = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard URLPolicy.looksLikeURL(trimmed) else {
+            flash("请输入有效的网址")
+            return
+        }
+        let normalized = URLPolicy.normalizeAddress(trimmed, engine: settings.searchEngine)
+        guard let url = URL(string: normalized), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+            flash("仅支持导入 http 或 https 网页")
+            return
+        }
+        if let existing = articles.articles.first(where: { $0.canonicalUrl == normalized || $0.sourceUrl == normalized }),
+           existing.quality != .failed, articles.hasContent(for: existing) {
+            pendingArticleSelectionID = existing.id
+            flash("文章已在离线库中")
+            return
+        }
+        captureFromURL(normalized)
+    }
+
+    func retryArticleCapture(_ article: SavedArticle) {
+        guard pro.isPro else {
+            showsProPaywall = true
+            flash("保存离线文章需要卓阅 Pro")
+            return
+        }
+        captureFromURL(article.sourceUrl, existingArticleID: article.id)
+    }
+
+    func openArticleSource(_ article: SavedArticle) {
+        showsArticles = false
+        openInActiveTab(article.sourceUrl)
+    }
+
+    private func captureFromURL(_ urlString: String, existingArticleID: String? = nil) {
+        guard let url = URL(string: urlString) else { return }
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .default()
+        let webView = WKWebView(frame: .zero, configuration: config)
+        let token = UUID().uuidString
+        importWebViews[token] = webView
+
+        flash("正在载入并保存文章…")
+
+        Task { @MainActor [weak self, weak webView] in
+            guard let self, let webView else { return }
+            defer {
+                self.importWebViews.removeValue(forKey: token)
+            }
+
+            let request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 20)
+            _ = webView.load(request)
+
+            do {
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                let snapshot = try await ArticleCapture.captureWithRetries(from: webView, timeoutSeconds: 15)
+                let saved = try await self.articles.save(snapshot)
+                self.pendingArticleSelectionID = saved.id
+                let suffix = saved.quality == .partial ? "，部分图片未保存" : ""
+                self.flash("已保存离线文章\(suffix)")
+            } catch {
+                if let existingID = existingArticleID,
+                   let existing = self.articles.articles.first(where: { $0.id == existingID }),
+                   existing.quality != .failed, self.articles.hasContent(for: existing) {
+                    self.flash("重试失败，已保留原文章")
+                } else {
+                    let failureKind: ArticleSaveFailure = (error as? ArticleCaptureError)?.failureKind ?? .extractionUnavailable
+                    _ = try? await self.articles.saveFailure(
+                        id: existingArticleID,
+                        url: urlString,
+                        title: nil,
+                        failure: failureKind,
+                        message: error.localizedDescription
+                    )
+                    self.flash("保存失败: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
     private func captureArticle(tabID: String) {
         guard pro.isPro else {
             showsProPaywall = true
             flash("保存离线文章需要卓阅 Pro")
             return
         }
-        guard let tab = tab(tabID),
-              !tab.isPrivate,
-              !URLPolicy.isHomeURL(tab.url),
-              let webView = controllers[tabID]?.webView else {
+        guard let tab = tab(tabID) else { return }
+        if tab.isPrivate {
+            flash("无痕标签页无法保存离线文章")
+            return
+        }
+        if URLPolicy.isHomeURL(tab.url) {
+            return
+        }
+        guard let webView = controllers[tabID]?.webView else {
             return
         }
         let expectedURL = tab.url
         Task { [weak self, weak webView] in
             guard let self, let webView else { return }
             do {
-                let snapshot = try await ArticleCapture.capture(from: webView)
+                let snapshot = try await ArticleCapture.captureWithRetries(from: webView, timeoutSeconds: 8)
                 guard PageStatePolicy.isSamePage(expectedURL, snapshot.sourceUrl) else {
+                    _ = try? await self.articles.saveFailure(
+                        url: expectedURL,
+                        title: tab.title,
+                        failure: .pageChanged,
+                        message: "页面已变化，请重新保存"
+                    )
                     self.flash("页面已变化，请重新保存")
                     return
                 }
@@ -1958,6 +2055,13 @@ final class BrowserSession: ObservableObject {
                 let suffix = article.quality == .partial ? "，部分图片未保存" : ""
                 self.flash("已保存离线文章\(suffix)")
             } catch {
+                let failureKind: ArticleSaveFailure = (error as? ArticleCaptureError)?.failureKind ?? .extractionUnavailable
+                _ = try? await self.articles.saveFailure(
+                    url: expectedURL,
+                    title: tab.title,
+                    failure: failureKind,
+                    message: error.localizedDescription
+                )
                 self.flash(error.localizedDescription)
             }
         }

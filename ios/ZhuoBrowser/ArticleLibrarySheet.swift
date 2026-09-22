@@ -4,34 +4,160 @@ struct ArticleLibrarySheet: View {
     @EnvironmentObject private var session: BrowserSession
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
-    @State private var showsArchived = false
+    @State private var scope: ArticleFilterScope = .all
+    @State private var selectedTag: String = ""
+    @State private var selectedTopic: String = ""
+    @State private var isImportExpanded = false
+    @State private var importURL = ""
+    @State private var importErrorMessage: String?
     @State private var deletion: SavedArticle?
     @State private var path: [String] = []
 
     var body: some View {
         NavigationStack(path: $path) {
-            Group {
-                if articles.isEmpty {
-                    ContentUnavailableView(
-                        query.isEmpty ? (showsArchived ? "没有归档文章" : "还没有离线文章") : "没有匹配的文章",
-                        systemImage: showsArchived ? "archivebox" : "doc.richtext",
-                        description: Text(showsArchived || !query.isEmpty ? "" : "在网页菜单中选择“保存离线文章”。")
-                    )
-                } else {
-                    List(articles) { article in
-                        NavigationLink(value: article.id) {
-                            ArticleRow(article: article)
-                        }
-                        .accessibilityIdentifier("article-row-\(article.id)")
-                        .swipeActions(edge: .trailing) {
-                            Button("删除", role: .destructive) { deletion = article }
-                            Button(article.archived ? "恢复" : "归档") {
-                                session.articles.setArchived(article.id, archived: !article.archived)
+            VStack(spacing: 0) {
+                if isImportExpanded {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            TextField("输入文章网址 (http/https)", text: $importURL)
+                                .textFieldStyle(.roundedBorder)
+                                .keyboardType(.URL)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .accessibilityIdentifier("article-import-url-input")
+                            Button("导入") {
+                                submitImport()
                             }
+                            .buttonStyle(.borderedProminent)
                             .tint(DesignTokens.accent)
+                            .disabled(importURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .accessibilityIdentifier("article-import-submit-button")
+                        }
+                        if let error = importErrorMessage {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.red)
                         }
                     }
-                    .listStyle(.plain)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(DesignTokens.surfaceSubtle)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                Picker("筛选", selection: $scope) {
+                    ForEach(ArticleFilterScope.allCases) { item in
+                        Text(item.label).tag(item)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 6)
+                .accessibilityIdentifier("article-scope-filter")
+
+                if !allTags.isEmpty || !allTopics.isEmpty {
+                    HStack(spacing: 10) {
+                        if !allTags.isEmpty {
+                            Menu {
+                                Button("所有标签") { selectedTag = "" }
+                                ForEach(allTags, id: \.self) { tag in
+                                    Button(tag) { selectedTag = tag }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(selectedTag.isEmpty ? "标签" : selectedTag)
+                                    Image(systemName: "chevron.down").font(.caption2)
+                                }
+                                .font(.subheadline)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(selectedTag.isEmpty ? DesignTokens.surfaceSubtle : DesignTokens.accent.opacity(0.15), in: Capsule())
+                                .foregroundStyle(selectedTag.isEmpty ? DesignTokens.textPrimary : DesignTokens.accent)
+                            }
+                            .accessibilityIdentifier("article-tag-filter")
+                        }
+
+                        if !allTopics.isEmpty {
+                            Menu {
+                                Button("所有主题") { selectedTopic = "" }
+                                ForEach(allTopics, id: \.self) { topic in
+                                    Button(topic) { selectedTopic = topic }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(selectedTopic.isEmpty ? "主题" : selectedTopic)
+                                    Image(systemName: "chevron.down").font(.caption2)
+                                }
+                                .font(.subheadline)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(selectedTopic.isEmpty ? DesignTokens.surfaceSubtle : DesignTokens.accent.opacity(0.15), in: Capsule())
+                                .foregroundStyle(selectedTopic.isEmpty ? DesignTokens.textPrimary : DesignTokens.accent)
+                            }
+                            .accessibilityIdentifier("article-topic-filter")
+                        }
+
+                        Spacer()
+
+                        if !selectedTag.isEmpty || !selectedTopic.isEmpty {
+                            Button("重置") {
+                                selectedTag = ""
+                                selectedTopic = ""
+                            }
+                            .font(.caption)
+                            .foregroundStyle(DesignTokens.textSecondary)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+                }
+
+                Divider()
+
+                Group {
+                    if articles.isEmpty {
+                        let empty = emptyStateInfo
+                        ContentUnavailableView(
+                            empty.title,
+                            systemImage: empty.systemImage,
+                            description: Text(empty.description)
+                        )
+                    } else {
+                        List(articles) { article in
+                            NavigationLink(value: article.id) {
+                                ArticleRow(article: article)
+                            }
+                            .accessibilityIdentifier("article-row-\(article.id)")
+                            .swipeActions(edge: .trailing) {
+                                Button("删除", role: .destructive) { deletion = article }
+                                if article.isFailed {
+                                    Button("重试") {
+                                        session.retryArticleCapture(article)
+                                    }
+                                    .tint(DesignTokens.accent)
+                                    Button("原网页") {
+                                        session.openArticleSource(article)
+                                    }
+                                } else {
+                                    Button(article.archived ? "恢复" : "归档") {
+                                        session.articles.setArchived(article.id, archived: !article.archived)
+                                    }
+                                    .tint(DesignTokens.accent)
+                                    Button("原网页") {
+                                        session.openArticleSource(article)
+                                    }
+                                    if article.quality == .partial {
+                                        Button("重试图片") {
+                                            session.retryArticleCapture(article)
+                                        }
+                                        .tint(DesignTokens.accent)
+                                    }
+                                }
+                            }
+                        }
+                        .listStyle(.plain)
+                    }
                 }
             }
             .frame(maxWidth: 720, maxHeight: .infinity)
@@ -49,12 +175,17 @@ struct ArticleLibrarySheet: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        showsArchived.toggle()
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isImportExpanded.toggle()
+                            if isImportExpanded {
+                                importErrorMessage = nil
+                            }
+                        }
                     } label: {
-                        Image(systemName: showsArchived ? "tray.full" : "archivebox")
+                        Image(systemName: isImportExpanded ? "link.badge.plus" : "plus")
                     }
-                    .accessibilityLabel(showsArchived ? "查看未归档文章" : "查看归档文章")
-                    .accessibilityIdentifier("article-archive-filter")
+                    .accessibilityLabel("导入网址")
+                    .accessibilityIdentifier("article-add-link")
                 }
             }
         }
@@ -77,8 +208,57 @@ struct ArticleLibrarySheet: View {
         .accessibilityIdentifier("article-library-sheet")
     }
 
+    private var allTags: [String] {
+        session.articles.allTags
+    }
+
+    private var allTopics: [String] {
+        session.articles.allTopics
+    }
+
     private var articles: [SavedArticle] {
-        ArticlePolicy.filtered(session.articles.articles, query: query, archived: showsArchived)
+        ArticlePolicy.filtered(
+            session.articles.articles,
+            query: query,
+            scope: scope,
+            tag: selectedTag,
+            topic: selectedTopic
+        )
+    }
+
+    private var emptyStateInfo: (title: String, systemImage: String, description: String) {
+        if !query.isEmpty || !selectedTag.isEmpty || !selectedTopic.isEmpty {
+            return ("没有匹配的文章", "magnifyingglass", "请尝试调整搜索词或标签筛选条件。")
+        }
+        switch scope {
+        case .all:
+            return ("还没有离线文章", "doc.richtext", "在网页菜单中选择“保存离线文章”，或点击右上角“+”导入网址。")
+        case .active:
+            return ("没有未归档文章", "tray", "已保存的所有文章均处于归档状态。")
+        case .archived:
+            return ("没有归档文章", "archivebox", "在文章列表中左滑即可归档文章。")
+        case .failed:
+            return ("没有保存失败的记录", "checkmark.circle", "所有文章提取与离线保存均已顺利完成。")
+        }
+    }
+
+    private func submitImport() {
+        let trimmed = importURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard URLPolicy.looksLikeURL(trimmed) else {
+            importErrorMessage = "请输入有效的网址"
+            return
+        }
+        let normalized = URLPolicy.normalizeAddress(trimmed, engine: session.settings.searchEngine)
+        guard let url = URL(string: normalized), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+            importErrorMessage = "仅支持导入 http 或 https 网页"
+            return
+        }
+        importErrorMessage = nil
+        session.importArticleURL(trimmed)
+        importURL = ""
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isImportExpanded = false
+        }
     }
 
     private func consumePendingSelection() {
@@ -95,9 +275,14 @@ private struct ArticleRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
+                if article.isFailed {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.subheadline)
+                }
                 Text(article.title.isEmpty ? URLPolicy.displayHost(article.sourceUrl) : article.title)
                     .font(.headline)
-                    .foregroundStyle(DesignTokens.textPrimary)
+                    .foregroundStyle(article.isFailed ? DesignTokens.textSecondary : DesignTokens.textPrimary)
                     .lineLimit(2)
                 Spacer(minLength: 8)
                 if article.quality == .partial {
@@ -106,14 +291,27 @@ private struct ArticleRow: View {
                         .accessibilityLabel("部分内容")
                 }
             }
-            Text(article.excerpt)
-                .font(.subheadline)
-                .foregroundStyle(DesignTokens.textSecondary)
-                .lineLimit(2)
+            if article.isFailed {
+                Text(article.failureMessage.isEmpty ? article.failure.displayName : article.failureMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
+            } else {
+                Text(article.excerpt)
+                    .font(.subheadline)
+                    .foregroundStyle(DesignTokens.textSecondary)
+                    .lineLimit(2)
+            }
             HStack(spacing: 8) {
                 Text(URLPolicy.displayHost(article.sourceUrl))
                 if !article.tags.isEmpty { Text(article.tags.prefix(2).joined(separator: " · ")) }
                 if !article.topics.isEmpty { Text(article.topics.prefix(2).joined(separator: " · ")) }
+                if article.archived {
+                    Text("已归档")
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(DesignTokens.surfaceSubtle, in: RoundedRectangle(cornerRadius: 3))
+                }
                 Spacer()
                 Text(article.updatedAt.formattedRelative)
             }
@@ -137,11 +335,15 @@ struct ArticleDetailView: View {
     var body: some View {
         GeometryReader { proxy in
             Group {
-                if let article, let fileURL = session.articles.htmlURL(for: article) {
+                if let article, !article.isFailed, let fileURL = session.articles.htmlURL(for: article) {
                     detailSurface(article: article, fileURL: fileURL, width: proxy.size.width)
                         .navigationTitle(article.title)
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar { detailToolbar(article, width: proxy.size.width) }
+                } else if let article {
+                    failedSurface(article: article)
+                        .navigationTitle(article.title.isEmpty ? URLPolicy.displayHost(article.sourceUrl) : article.title)
+                        .navigationBarTitleDisplayMode(.inline)
                 } else {
                     ContentUnavailableView("文章文件不可用", systemImage: "doc.badge.ellipsis")
                 }
@@ -234,11 +436,63 @@ struct ArticleDetailView: View {
                     Button("导出 \(format.rawValue)") { export(article, format: format) }
                 }
                 Divider()
+                Button("打开原网页") {
+                    session.openArticleSource(article)
+                }
                 Button(article.archived ? "移出归档" : "归档") {
                     session.articles.setArchived(article.id, archived: !article.archived)
                     if !article.archived { dismiss() }
                 }
             } label: { Image(systemName: "ellipsis.circle") }
+        }
+    }
+
+    private func failedSurface(article: SavedArticle) -> some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 48))
+                .foregroundStyle(.orange)
+            Text(article.title.isEmpty ? URLPolicy.displayHost(article.sourceUrl) : article.title)
+                .font(.title3.weight(.medium))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(DesignTokens.textPrimary)
+            Text(article.failureMessage.isEmpty ? article.failure.displayName : article.failureMessage)
+                .font(.subheadline)
+                .foregroundStyle(DesignTokens.textSecondary)
+                .multilineTextAlignment(.center)
+            Text(article.sourceUrl)
+                .font(.caption)
+                .foregroundStyle(DesignTokens.textSecondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+            HStack(spacing: 16) {
+                Button("重试保存") {
+                    session.retryArticleCapture(article)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(DesignTokens.accent)
+                .accessibilityIdentifier("article-failed-retry")
+
+                Button("打开原网页") {
+                    session.openArticleSource(article)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("article-failed-open-source")
+            }
+            .padding(.top, 8)
+            Spacer()
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignTokens.pageBackground)
+        .toolbar {
+            ToolbarItem(placement: .destructiveAction) {
+                Button("删除", role: .destructive) {
+                    session.articles.remove(article.id)
+                    dismiss()
+                }
+            }
         }
     }
 

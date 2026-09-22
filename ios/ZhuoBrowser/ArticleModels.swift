@@ -63,6 +63,18 @@ enum ArticleSaveFailure: String, Codable, CaseIterable {
             self = .none
         }
     }
+
+    var displayName: String {
+        switch self {
+        case .none: return "正常"
+        case .extractionUnavailable: return "文章提取组件不可用"
+        case .storageUnavailable: return "存储空间不足或不可用"
+        case .pageChanged: return "网页在保存时发生跳转"
+        case .captureInvalid: return "正文内容不足或提取失败"
+        case .loadFailed: return "网页载入失败"
+        case .stalled: return "保存处理超时"
+        }
+    }
 }
 
 struct ArticleNote: Identifiable, Codable, Equatable {
@@ -188,6 +200,23 @@ struct ArticleHighlightSelection: Equatable {
     var suffix: String
 }
 
+enum ArticleFilterScope: Int, CaseIterable, Identifiable {
+    case all = 0
+    case active = 1
+    case archived = 2
+    case failed = 3
+
+    var id: Int { rawValue }
+    var label: String {
+        switch self {
+        case .all: return "全部"
+        case .active: return "未归档"
+        case .archived: return "已归档"
+        case .failed: return "保存失败"
+        }
+    }
+}
+
 enum ArticlePolicy {
     static let maximumImages = 30
     static let maximumImageBytes = 5 * 1_024 * 1_024
@@ -216,11 +245,61 @@ enum ArticlePolicy {
         .map { $0 }
     }
 
-    static func filtered(_ articles: [SavedArticle], query: String, archived: Bool) -> [SavedArticle] {
+    static func allTags(_ articles: [SavedArticle]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for article in articles {
+            for tag in article.tags {
+                if seen.insert(tag).inserted {
+                    result.append(tag)
+                }
+            }
+        }
+        return result.sorted()
+    }
+
+    static func allTopics(_ articles: [SavedArticle]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for article in articles {
+            for topic in article.topics {
+                if seen.insert(topic).inserted {
+                    result.append(topic)
+                }
+            }
+        }
+        return result.sorted()
+    }
+
+    static func filtered(
+        _ articles: [SavedArticle],
+        query: String,
+        scope: ArticleFilterScope = .all,
+        tag: String = "",
+        topic: String = ""
+    ) -> [SavedArticle] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
         return articles.filter { article in
-            guard article.archived == archived else { return false }
+            switch scope {
+            case .all:
+                break
+            case .active:
+                guard !article.archived, !article.isFailed else { return false }
+            case .archived:
+                guard article.archived else { return false }
+            case .failed:
+                guard article.isFailed else { return false }
+            }
+
+            if !tag.isEmpty {
+                guard article.tags.contains(tag) else { return false }
+            }
+
+            if !topic.isEmpty {
+                guard article.topics.contains(topic) else { return false }
+            }
+
             guard !needle.isEmpty else { return true }
             let haystack = ([article.title, article.author, article.sourceUrl, article.searchText]
                 + article.tags + article.topics + article.notes.map(\.text) + article.highlights.map(\.quote))
@@ -229,6 +308,10 @@ enum ArticlePolicy {
             return haystack.contains(needle)
         }
         .sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    static func filtered(_ articles: [SavedArticle], query: String, archived: Bool) -> [SavedArticle] {
+        filtered(articles, query: query, scope: archived ? .archived : .active)
     }
 
     static func relocatedRange(for highlight: ArticleHighlight, in text: String) -> Range<String.Index>? {
@@ -251,6 +334,16 @@ enum ArticlePolicy {
 
     private static func commonSuffix(_ lhs: String, _ rhs: String) -> Int {
         commonPrefix(String(lhs.reversed()), String(rhs.reversed()))
+    }
+}
+
+extension Sequence where Element == SavedArticle {
+    var allTags: [String] {
+        ArticlePolicy.allTags(Array(self))
+    }
+
+    var allTopics: [String] {
+        ArticlePolicy.allTopics(Array(self))
     }
 }
 
