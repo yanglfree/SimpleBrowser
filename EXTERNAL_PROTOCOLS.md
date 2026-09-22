@@ -32,7 +32,10 @@ cannot resolve the link.
 Only main-frame navigation can request an external application. Subresources,
 iframes, tracking pixels, and intercepted network requests cannot launch one.
 The confirmation UI displays the source host and target scheme without logging
-or uploading the full target URL or its query parameters.
+or uploading the full target URL or its query parameters. Known application
+schemes resolve to friendly application names in the confirmation title (e.g.
+"允许打开“华为应用市场”？", "允许打开“微信”？"), while package files retain installation
+prompts ("允许安装应用？") and unrecognized schemes fall back to "打开外部应用？".
 
 ## HarmonyOS installation contract
 

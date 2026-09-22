@@ -2349,7 +2349,7 @@ struct Index {
       : `${request.scheme}://`;
     try {
       this.getUIContext().showAlertDialog({
-        title: this.externalProtocolTitle(request.category),
+        title: this.externalProtocolTitle(request),
         message: `${source}\n${request.scheme}://`,
         primaryButton: {
           value: $r('app.string.external_protocol_open'),
@@ -2366,11 +2366,14 @@ struct Index {
     return true;
   }
 
-  private externalProtocolTitle(category: ExternalProtocolCategory): Resource {
-    if (category === ExternalProtocolCategory.AppInstall) {
+  private externalProtocolTitle(request: ExternalProtocolRequest): ResourceStr {
+    if (request.targetAppName.length > 0) {
+      return `允许打开“${request.targetAppName}”？`;
+    }
+    if (request.category === ExternalProtocolCategory.AppInstall) {
       return $r('app.string.external_protocol_install_title');
     }
-    if (category === ExternalProtocolCategory.Payment) {
+    if (request.category === ExternalProtocolCategory.Payment) {
       return $r('app.string.external_protocol_payment_title');
     }
     return $r('app.string.external_protocol_open_title');

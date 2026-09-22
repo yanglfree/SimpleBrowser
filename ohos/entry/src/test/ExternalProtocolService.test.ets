@@ -5,7 +5,8 @@ import {
   externalProtocolCategory,
   isBlockedProtocol,
   isWebProtocol,
-  protocolScheme
+  protocolScheme,
+  resolveTargetAppName
 } from '../main/ets/services/ExternalProtocolService';
 
 export default function externalProtocolServiceTest(): void {
@@ -18,8 +19,26 @@ export default function externalProtocolServiceTest(): void {
       expect(store?.scheme).assertEqual('store');
       expect(store?.category).assertEqual(ExternalProtocolCategory.AppInstall);
       expect(store?.sourceHost).assertEqual('downloads.example');
+      expect(store?.targetAppName).assertEqual('应用市场');
       expect(externalProtocolCategory('market')).assertEqual(ExternalProtocolCategory.AppInstall);
       expect(externalProtocolCategory('intent')).assertEqual(ExternalProtocolCategory.AppInstall);
+    });
+
+    it('resolves friendly target application names for stores, payments, and apps', 0, (): void => {
+      const appGallery = createExternalProtocolRequest(
+        'store://appgallery.huawei.com/app/detail?id=com.youdroid.browser',
+        'appgallery.huawei.com'
+      );
+      expect(appGallery?.targetAppName).assertEqual('华为应用市场');
+      expect(resolveTargetAppName('appmarket')).assertEqual('华为应用市场');
+      expect(resolveTargetAppName('market')).assertEqual('应用市场');
+      expect(resolveTargetAppName('alipays')).assertEqual('支付宝');
+      expect(resolveTargetAppName('weixin')).assertEqual('微信');
+      expect(resolveTargetAppName('bilibili')).assertEqual('哔哩哔哩');
+      expect(resolveTargetAppName('taobao')).assertEqual('淘宝');
+      expect(resolveTargetAppName('zhihu')).assertEqual('知乎');
+      expect(resolveTargetAppName('tel')).assertEqual('电话');
+      expect(resolveTargetAppName('unknown-custom')).assertEqual('');
     });
 
     it('classifies common communication, navigation, payment, social, and transfer schemes', 0, (): void => {

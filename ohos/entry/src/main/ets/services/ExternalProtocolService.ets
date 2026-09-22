@@ -15,6 +15,7 @@ export interface ExternalProtocolRequest {
   scheme: string;
   category: ExternalProtocolCategory;
   sourceHost: string;
+  targetAppName: string;
 }
 
 const WEB_SCHEMES: string[] = [
@@ -86,6 +87,73 @@ export function externalProtocolCategory(scheme: string): ExternalProtocolCatego
   return ExternalProtocolCategory.Custom;
 }
 
+export function resolveTargetAppName(scheme: string, url: string = ''): string {
+  const normalizedScheme: string = scheme.toLowerCase();
+  const normalizedUrl: string = url.toLowerCase();
+
+  if (normalizedScheme === 'store') {
+    if (normalizedUrl.includes('appgallery')) {
+      return '华为应用市场';
+    }
+    return '应用市场';
+  }
+  if (normalizedScheme === 'appmarket') {
+    return '华为应用市场';
+  }
+  if (normalizedScheme === 'market') {
+    return '应用市场';
+  }
+  if (normalizedScheme === 'alipay' || normalizedScheme === 'alipays') {
+    return '支付宝';
+  }
+  if (normalizedScheme === 'weixin' || normalizedScheme === 'wechat' || normalizedScheme === 'wxp') {
+    return '微信';
+  }
+  if (normalizedScheme === 'unionpay' || normalizedScheme === 'upwallet') {
+    return '云闪付';
+  }
+  if (normalizedScheme === 'mqq' || normalizedScheme === 'mqqapi' || normalizedScheme === 'qq') {
+    return 'QQ';
+  }
+  if (normalizedScheme === 'sinaweibo' || normalizedScheme === 'weibo') {
+    return '微博';
+  }
+  if (normalizedScheme === 'zhihu') {
+    return '知乎';
+  }
+  if (normalizedScheme === 'bilibili') {
+    return '哔哩哔哩';
+  }
+  if (normalizedScheme === 'taobao') {
+    return '淘宝';
+  }
+  if (normalizedScheme === 'openapp.jdmobile') {
+    return '京东';
+  }
+  if (normalizedScheme === 'petalmaps') {
+    return '花瓣地图';
+  }
+  if (normalizedScheme === 'amap') {
+    return '高德地图';
+  }
+  if (normalizedScheme === 'baidumap') {
+    return '百度地图';
+  }
+  if (normalizedScheme === 'geo' || normalizedScheme === 'map' || normalizedScheme === 'maps') {
+    return '地图';
+  }
+  if (normalizedScheme === 'tel') {
+    return '电话';
+  }
+  if (normalizedScheme === 'sms' || normalizedScheme === 'smsto' || normalizedScheme === 'mms' || normalizedScheme === 'mmsto') {
+    return '信息';
+  }
+  if (normalizedScheme === 'mailto') {
+    return '邮件';
+  }
+  return '';
+}
+
 export function createExternalProtocolRequest(
   url: string,
   sourceHost: string = ''
@@ -99,7 +167,8 @@ export function createExternalProtocolRequest(
     url: value,
     scheme: scheme,
     category: externalProtocolCategory(scheme),
-    sourceHost: sourceHost
+    sourceHost: sourceHost,
+    targetAppName: resolveTargetAppName(scheme, value)
   };
 }
 
