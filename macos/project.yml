@@ -1,0 +1,52 @@
+name: ZhuoBrowserMac
+options:
+  bundleIdPrefix: com.youdroid
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  defaultConfig: Debug
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    COMBINE_HIDPI_IMAGES: true
+targets:
+  ZhuoBrowserMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: ZhuoBrowserMac
+        excludes:
+          - Resources/**
+      - path: ZhuoBrowserMac/Resources/js
+        buildPhase: resources
+        type: folder
+      - path: ZhuoBrowserMac/Resources/rules
+        buildPhase: resources
+        type: folder
+    entitlements:
+      path: ZhuoBrowserMac/ZhuoBrowserMac.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.youdroid.zhuobrowser.mac
+        PRODUCT_NAME: ZhuoBrowserMac
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: false
+        INFOPLIST_FILE: ZhuoBrowserMac/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: "卓阅"
+        INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026 youdroid. All rights reserved."
+  ZhuoBrowserMacTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: ZhuoBrowserMacTests
+    dependencies:
+      - target: ZhuoBrowserMac
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.youdroid.zhuobrowser.mac.tests
+        GENERATE_INFOPLIST_FILE: true

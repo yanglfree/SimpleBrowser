@@ -1,0 +1,20 @@
+{
+  "source": "ohos/entry/src/main/ets/constants/AppConstants.ets",
+  "files": [
+    "force-zoom.js",
+    "long-press-target.js",
+    "restore-hidden.js",
+    "read-scroll-position.js",
+    "read-form-draft.js",
+    "read-favicon.js",
+    "desktop-viewport.js",
+    "password-field-watcher.js",
+    "blocked-link-guard.js",
+    "reader-extraction-core.js",
+    "reader-exit.js",
+    "tracker-block.js",
+    "content-cleanup-standard.js",
+    "content-cleanup-strict.js",
+    "article-capture.js"
+  ]
+}

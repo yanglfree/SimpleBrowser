@@ -7,6 +7,7 @@ HarmonyOS is not rewritten in Flutter.
 ```
 ohos/      HarmonyOS ArkTS/ArkWeb client (DevEco project)
 ios/       SwiftUI + WKWebView shell
+macos/     SwiftUI + WKWebView shell (Memory Saver focus)
 android/   Kotlin + Compose + WebView shell
 web/       Public marketing site
 core/      Injected scripts, rule compiler, model contracts
