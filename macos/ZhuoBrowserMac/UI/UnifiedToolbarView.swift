@@ -3,8 +3,8 @@ import SwiftUI
 /// Unified minimalist macOS toolbar containing navigation, omnibox, and status indicators.
 public struct UnifiedToolbarView: View {
     @ObservedObject var session: BrowserSession
-    @State private var isEditingOmnibox: Bool = false
-    @State private var inputDraft: String = ""
+    @FocusState private var isOmniboxFocused: Bool
+    @State private var currentText: String = ""
     @State private var isShowingSettings: Bool = false
 
     private var activeTab: BrowserTab? {
@@ -59,18 +59,12 @@ public struct UnifiedToolbarView: View {
                         .foregroundColor(.secondary)
                 }
 
-                TextField("搜索或输入网址", text: isEditingOmnibox ? $inputDraft : $session.omniboxText)
+                TextField("搜索或输入网址", text: $currentText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
-                    .onTapGesture {
-                        if !isEditingOmnibox {
-                            isEditingOmnibox = true
-                            inputDraft = activeTab?.isHome == true ? "" : (activeTab?.url ?? "")
-                        }
-                    }
+                    .focused($isOmniboxFocused)
                     .onSubmit {
-                        isEditingOmnibox = false
-                        session.navigate(to: inputDraft)
+                        submitNavigation()
                     }
 
                 // Ad blocker shield indicator
@@ -81,13 +75,21 @@ public struct UnifiedToolbarView: View {
                         .help("原生规则去广告与追踪保护已开启")
                 }
 
-                if isEditingOmnibox && !inputDraft.isEmpty {
-                    Button(action: { inputDraft = "" }) {
+                if isOmniboxFocused && !currentText.isEmpty {
+                    Button(action: { currentText = "" }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
+
+                    Button(action: submitNavigation) {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .help("前往")
                 }
             }
             .padding(.horizontal, 10)
@@ -96,7 +98,7 @@ public struct UnifiedToolbarView: View {
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                    .stroke(isOmniboxFocused ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isOmniboxFocused ? 1.5 : 1)
             )
 
             // Memory Saver Badge
@@ -126,5 +128,46 @@ public struct UnifiedToolbarView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(NSColor.windowBackgroundColor))
+        .onAppear {
+            syncDisplayAddress()
+        }
+        .onChange(of: activeTab?.url) { _ in
+            if !isOmniboxFocused {
+                syncDisplayAddress()
+            }
+        }
+        .onChange(of: isOmniboxFocused) { focused in
+            session.isOmniboxFocused = focused
+            if focused {
+                if activeTab?.isHome == true {
+                    currentText = ""
+                } else {
+                    currentText = activeTab?.url ?? ""
+                }
+            } else {
+                syncDisplayAddress()
+            }
+        }
+        .onChange(of: session.isOmniboxFocused) { focused in
+            if isOmniboxFocused != focused {
+                isOmniboxFocused = focused
+            }
+        }
+    }
+
+    private func syncDisplayAddress() {
+        if let tab = activeTab, !tab.isHome {
+            currentText = URLPolicy.displayAddress(for: tab.url)
+        } else {
+            currentText = ""
+        }
+    }
+
+    private func submitNavigation() {
+        isOmniboxFocused = false
+        session.isOmniboxFocused = false
+        let textToNavigate = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !textToNavigate.isEmpty else { return }
+        session.navigate(to: textToNavigate)
     }
 }

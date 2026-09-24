@@ -46,6 +46,11 @@ public struct ZhuoBrowserMacApp: App {
                 }
                 .keyboardShortcut("r", modifiers: .command)
 
+                Button("聚焦地址栏") {
+                    session.isOmniboxFocused = true
+                }
+                .keyboardShortcut("l", modifiers: .command)
+
                 Divider()
 
                 ForEach(0..<min(session.tabs.count, 9), id: \.self) { index in

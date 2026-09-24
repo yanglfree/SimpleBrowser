@@ -12,6 +12,14 @@ public struct MainWindowView: View {
             // Compact Tab Strip
             CompactTabBarView(session: session)
 
+            // Slim Page Loading Progress Bar
+            if let tab = session.activeTab, tab.isLoading {
+                ProgressView(value: max(0.05, tab.loadingProgress), total: 1.0)
+                    .progressViewStyle(.linear)
+                    .frame(height: 2)
+                    .tint(.accentColor)
+            }
+
             // Content Viewport
             ZStack {
                 if let activeTab = session.activeTab, !activeTab.isHome {

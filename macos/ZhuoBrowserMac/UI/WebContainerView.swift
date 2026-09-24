@@ -2,7 +2,9 @@ import AppKit
 import SwiftUI
 import WebKit
 
-/// NSViewRepresentable wrapping the active WKWebView for macOS SwiftUI hierarchy.
+/// NSViewRepresentable hosting the active TabController's WKWebView on macOS.
+/// Uses AutoLayout to anchor the WKWebView to the container bounds,
+/// avoiding unnecessary subview tearing/flickering on SwiftUI updates.
 public struct WebContainerView: NSViewRepresentable {
     public let controller: TabController?
 
@@ -10,25 +12,37 @@ public struct WebContainerView: NSViewRepresentable {
         self.controller = controller
     }
 
-    public func makeNSView(context: Context) -> NSView {
-        let container = NSView()
-        container.wantsLayer = true
-        updateView(container)
-        return container
+    public final class HostView: NSView {
+        private weak var currentWebView: WKWebView?
+
+        func attach(webView: WKWebView?) {
+            if currentWebView === webView && webView?.superview === self {
+                return
+            }
+
+            currentWebView?.removeFromSuperview()
+            currentWebView = webView
+
+            guard let webView = webView else { return }
+            webView.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(webView)
+
+            NSLayoutConstraint.activate([
+                webView.leadingAnchor.constraint(equalTo: leadingAnchor),
+                webView.trailingAnchor.constraint(equalTo: trailingAnchor),
+                webView.topAnchor.constraint(equalTo: topAnchor),
+                webView.bottomAnchor.constraint(equalTo: bottomAnchor)
+            ])
+        }
     }
 
-    public func updateNSView(_ nsView: NSView, context: Context) {
-        updateView(nsView)
+    public func makeNSView(context: Context) -> HostView {
+        let host = HostView()
+        host.attach(webView: controller?.webView)
+        return host
     }
 
-    private func updateView(_ container: NSView) {
-        // Remove old subviews
-        container.subviews.forEach { $0.removeFromSuperview() }
-
-        // Attach controller's webView if present
-        guard let webView = controller?.webView else { return }
-        webView.frame = container.bounds
-        webView.autoresizingMask = [.width, .height]
-        container.addSubview(webView)
+    public func updateNSView(_ host: HostView, context: Context) {
+        host.attach(webView: controller?.webView)
     }
 }

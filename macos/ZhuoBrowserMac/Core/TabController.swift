@@ -155,10 +155,23 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     // MARK: - WKNavigationDelegate
 
+    public func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        session?.updateTab(tabID) { tab in
+            tab.isLoading = true
+            tab.loadingProgress = 0.1
+        }
+    }
+
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         session?.updateTab(tabID) { tab in
             tab.isLoading = false
             tab.loadingProgress = 1.0
+            if let title = webView.title, !title.isEmpty {
+                tab.title = title
+            }
+            if let url = webView.url?.absoluteString, !url.isEmpty {
+                tab.url = url
+            }
         }
         // Restore scroll position if previously saved
         if let tab = session?.tab(for: tabID), tab.scrollPositionY > 0 {
@@ -176,5 +189,32 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         session?.updateTab(tabID) { tab in
             tab.isLoading = false
         }
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
+            webView.load(URLRequest(url: url))
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.allow)
+    }
+
+    // MARK: - WKUIDelegate
+
+    public func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
+            webView.load(URLRequest(url: url))
+        }
+        return nil
     }
 }

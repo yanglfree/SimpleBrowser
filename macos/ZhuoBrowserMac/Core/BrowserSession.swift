@@ -12,6 +12,7 @@ public final class BrowserSession: ObservableObject {
     @Published public var omniboxText: String = ""
     @Published public var isOmniboxFocused: Bool = false
     @Published public var activeLiveControllersCount: Int = 0
+    @Published public private(set) var activeController: TabController?
 
     public let settings = BrowserSettings.shared
     private var controllers: [String: TabController] = [:]
@@ -30,11 +31,6 @@ public final class BrowserSession: ObservableObject {
     public var activeTab: BrowserTab? {
         guard let id = activeTabID else { return tabs.first }
         return tabs.first(where: { $0.id == id })
-    }
-
-    public var activeController: TabController? {
-        guard let id = activeTabID else { return nil }
-        return controllers[id]
     }
 
     public func tab(for id: String) -> BrowserTab? {
@@ -126,6 +122,7 @@ public final class BrowserSession: ObservableObject {
             }
             tabs[index].title = tabs[index].isPrivate ? "无痕新标签" : "新标签页"
             activeLiveControllersCount = controllers.count
+            activeController = nil
             return
         }
 
@@ -203,5 +200,6 @@ public final class BrowserSession: ObservableObject {
         }
 
         activeLiveControllersCount = controllers.count
+        activeController = activeTabID != nil ? controllers[activeTabID!] : nil
     }
 }

@@ -11,11 +11,16 @@ public struct URLPolicy {
         if trimmed.contains(" ") {
             return false
         }
-        // Check for common domain patterns or localhost / IP
+        // Check for localhost or IP with optional port
         if trimmed.hasPrefix("localhost") || trimmed.hasPrefix("127.0.0.1") {
             return true
         }
-        let parts = trimmed.split(separator: ".")
+        let hostPart = trimmed.split(separator: ":").first ?? ""
+        let ipSegments = hostPart.split(separator: ".")
+        if ipSegments.count == 4 && ipSegments.allSatisfy({ Int($0) != nil }) {
+            return true
+        }
+        let parts = hostPart.split(separator: ".")
         if parts.count >= 2, let lastPart = parts.last {
             let tld = lastPart.split(separator: "/").first ?? lastPart
             if tld.count >= 2 && tld.allSatisfy({ $0.isLetter }) {
