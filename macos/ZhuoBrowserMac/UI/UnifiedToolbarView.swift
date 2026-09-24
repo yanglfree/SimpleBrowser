@@ -67,6 +67,20 @@ public struct UnifiedToolbarView: View {
                         submitNavigation()
                     }
 
+                // Bookmark star toggle button
+                if let tab = activeTab, !tab.isHome, !tab.url.isEmpty {
+                    let isBookmarked = session.isBookmarked(url: tab.url)
+                    Button(action: {
+                        session.toggleBookmarkForActiveTab()
+                    }) {
+                        Image(systemName: isBookmarked ? "star.fill" : "star")
+                            .font(.system(size: 12))
+                            .foregroundColor(isBookmarked ? .yellow : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(isBookmarked ? "已收藏至书签 (点击移除)" : "添加到书签 (Cmd+D)")
+                }
+
                 // Ad blocker shield indicator
                 if session.settings.adBlockEnabled {
                     Image(systemName: "shield.checkered")
@@ -104,6 +118,15 @@ public struct UnifiedToolbarView: View {
             // Memory Saver Badge
             MemorySaverBadge(session: session)
 
+            // Library (Bookmarks & History) Button
+            Button(action: { session.openLibrary() }) {
+                Image(systemName: "book")
+                    .font(.system(size: 13))
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .help("书签与历史记录 (Cmd+Y / Cmd+Option+B)")
+
             // New Tab Button
             Button(action: { session.createTab() }) {
                 Image(systemName: "plus")
@@ -123,6 +146,9 @@ public struct UnifiedToolbarView: View {
             .help("偏好设置")
             .sheet(isPresented: $isShowingSettings) {
                 SettingsView(session: session, isPresented: $isShowingSettings)
+            }
+            .sheet(isPresented: $session.isShowingLibraryManager) {
+                LibraryManagerView(session: session, isPresented: $session.isShowingLibraryManager)
             }
         }
         .padding(.horizontal, 12)

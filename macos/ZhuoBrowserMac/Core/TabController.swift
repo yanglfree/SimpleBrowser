@@ -173,6 +173,10 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 tab.url = url
             }
         }
+        // Record browsing history for normal tabs
+        if let tab = session?.tab(for: tabID), !tab.isPrivate && !tab.isHome {
+            session?.recordHistory(url: tab.url, title: tab.title)
+        }
         // Restore scroll position if previously saved
         if let tab = session?.tab(for: tabID), tab.scrollPositionY > 0 {
             restoreScrollPosition(tab.scrollPositionY)

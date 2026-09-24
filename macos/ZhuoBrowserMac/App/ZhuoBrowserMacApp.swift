@@ -60,6 +60,35 @@ public struct ZhuoBrowserMacApp: App {
                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
                 }
             }
+
+            CommandMenu("书签") {
+                Button("添加/移除书签") {
+                    session.toggleBookmarkForActiveTab()
+                }
+                .keyboardShortcut("d", modifiers: .command)
+                .disabled(session.activeTab?.isHome ?? true)
+
+                Divider()
+
+                Button("显示所有书签") {
+                    session.openLibrary(tabIndex: 0)
+                }
+                .keyboardShortcut("b", modifiers: [.command, .option])
+            }
+
+            CommandMenu("历史") {
+                Button("显示所有历史记录") {
+                    session.openLibrary(tabIndex: 1)
+                }
+                .keyboardShortcut("y", modifiers: .command)
+
+                Divider()
+
+                Button("清空所有历史记录...") {
+                    session.clearHistory()
+                }
+                .disabled(session.history.isEmpty)
+            }
         }
     }
 }

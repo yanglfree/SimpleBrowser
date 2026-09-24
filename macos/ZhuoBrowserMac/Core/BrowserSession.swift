@@ -14,12 +14,22 @@ public final class BrowserSession: ObservableObject {
     @Published public var activeLiveControllersCount: Int = 0
     @Published public private(set) var activeController: TabController?
 
+    @Published public var bookmarks: [BookmarkEntry] = []
+    @Published public var history: [HistoryEntry] = []
+    @Published public var isShowingLibraryManager: Bool = false
+    @Published public var librarySelectedTab: Int = 0
+
     public let settings = BrowserSettings.shared
+    private let libraryStore = LibraryStore.shared
     private var controllers: [String: TabController] = [:]
 
     public init() {
         // Prepare content blocking rules asynchronously
         ContentBlocker.shared.prepare()
+
+        // Load saved bookmarks and history
+        bookmarks = libraryStore.loadBookmarks()
+        history = libraryStore.loadHistory()
 
         // Create initial tab
         let initialTab = BrowserTab(url: "zhuo://home", title: "新标签页")
@@ -153,6 +163,57 @@ public final class BrowserSession: ObservableObject {
 
     public func goForwardActiveTab() {
         activeController?.goForward()
+    }
+
+    // MARK: - Bookmarks & History Management
+
+    public func isBookmarked(url: String) -> Bool {
+        LibraryPolicy.isBookmarked(bookmarks, url: url)
+    }
+
+    public func toggleBookmarkForActiveTab() {
+        guard let tab = activeTab, !tab.isHome, !tab.url.isEmpty else { return }
+        if isBookmarked(url: tab.url) {
+            bookmarks = LibraryPolicy.removeBookmarkByUrl(bookmarks, url: tab.url)
+        } else {
+            bookmarks = LibraryPolicy.addBookmark(bookmarks, url: tab.url, title: tab.title)
+        }
+        libraryStore.saveBookmarks(bookmarks)
+    }
+
+    public func addBookmark(url: String, title: String) {
+        bookmarks = LibraryPolicy.addBookmark(bookmarks, url: url, title: title)
+        libraryStore.saveBookmarks(bookmarks)
+    }
+
+    public func removeBookmark(id: String) {
+        bookmarks = LibraryPolicy.removeBookmark(bookmarks, id: id)
+        libraryStore.saveBookmarks(bookmarks)
+    }
+
+    public func updateBookmark(id: String, title: String, url: String) {
+        bookmarks = LibraryPolicy.updateBookmark(bookmarks, id: id, title: title, url: url)
+        libraryStore.saveBookmarks(bookmarks)
+    }
+
+    public func recordHistory(url: String, title: String) {
+        history = LibraryPolicy.recordHistory(history, url: url, title: title)
+        libraryStore.saveHistory(history)
+    }
+
+    public func removeHistoryItem(id: String) {
+        history = LibraryPolicy.removeHistoryItem(history, id: id)
+        libraryStore.saveHistory(history)
+    }
+
+    public func clearHistory() {
+        history = []
+        libraryStore.clearHistory()
+    }
+
+    public func openLibrary(tabIndex: Int = 0) {
+        librarySelectedTab = tabIndex
+        isShowingLibraryManager = true
     }
 
     // MARK: - Memory Budget Enforcement & Hibernation
