@@ -93,7 +93,7 @@ export struct BrowserWebView {
       .databaseAccess(true)
       .fileAccess(true)
       .mixedMode(MixedMode.All)
-      .multiWindowAccess(false)
+      .multiWindowAccess(true)
       .onlineImageAccess(true)
       .imageAccess(true)
       .zoomAccess(true)
@@ -194,6 +194,9 @@ export struct BrowserWebView {
         this.kernelCallbacks.onPrompt(event.url, event.message, event.value, event.result))
       .onBeforeUnload((event: OnBeforeUnloadEvent): boolean =>
         this.kernelCallbacks.onBeforeUnload(event.url, event.message, event.result))
+      .onWindowNew((event: OnWindowNewEvent) => {
+        this.kernelCallbacks.onWindowNew(event.targetUrl, event.handler);
+      })
       .parallelGesture(
         PanGesture({ direction: PanDirection.Vertical, distance: 8 })
           .onActionStart((event: GestureEvent) => this.startPull(event))

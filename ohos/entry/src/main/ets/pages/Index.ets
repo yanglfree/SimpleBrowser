@@ -956,7 +956,9 @@ struct Index {
                 onPrompt: (url: string, message: string, defaultValue: string, result: JsResult): boolean =>
                   this.handleJsPrompt(tab.id, url, message, defaultValue, result),
                 onBeforeUnload: (url: string, message: string, result: JsResult): boolean =>
-                  this.handleJsBeforeUnload(tab.id, url, message, result)
+                  this.handleJsBeforeUnload(tab.id, url, message, result),
+                onWindowNew: (targetUrl: string, handler: ControllerHandler): void =>
+                  this.handleWindowNew(tab.id, targetUrl, handler)
               },
               onTitleReceive: (title: string): void => this.handleTitle(tab.id, title),
               onScroll: (offsetY: number): void => this.handlePageScroll(tab.id, offsetY),
@@ -5088,6 +5090,17 @@ struct Index {
     });
     this.jsPromptController.open();
     return true;
+  }
+
+  private handleWindowNew(tabId: string, targetUrl: string, handler: ControllerHandler): void {
+    const sourceTab: BrowserTab | undefined = this.viewModel.getTab(tabId);
+    const isPrivate: boolean = sourceTab !== undefined ? sourceTab.isPrivate : false;
+    const tab: BrowserTab | undefined = this.viewModel.addTab(targetUrl.length > 0 ? targetUrl : HOME_URL, isPrivate);
+    if (tab !== undefined) {
+      const newController: webview.WebviewController = this.controllerFor(tab.id);
+      handler.setWebController(newController);
+      this.activateTab(tab.id);
+    }
   }
 
   private handleJsBeforeUnload(tabId: string, url: string, message: string, result: JsResult): boolean {

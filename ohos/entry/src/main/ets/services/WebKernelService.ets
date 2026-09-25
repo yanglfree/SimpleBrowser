@@ -18,6 +18,7 @@ export interface WebKernelCallbacks {
   onConfirm: (url: string, message: string, result: JsResult) => boolean;
   onPrompt: (url: string, message: string, defaultValue: string, result: JsResult) => boolean;
   onBeforeUnload: (url: string, message: string, result: JsResult) => boolean;
+  onWindowNew: (targetUrl: string, handler: ControllerHandler) => void;
 }
 
 export interface WebHistoryEntry {
