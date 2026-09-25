@@ -39,6 +39,11 @@ export default function wideWindowRegressionTest(): void {
       expect(shouldUseResponsivePanel(true, Overlay.Address)).assertFalse();
     });
 
+    it('keeps page-answer sheets as full-width bottom sheets on wide layouts', 0, (): void => {
+      expect(shouldUseResponsivePanel(true, Overlay.JsPrompt)).assertFalse();
+      expect(shouldUseResponsivePanel(true, Overlay.HttpAuth)).assertFalse();
+    });
+
     it('centers responsive overlay panels across wide layout classes', 0, (): void => {
       expect(resolveOverlayRowJustifyContent(BrowserLayoutClass.Medium, Overlay.Settings))
         .assertEqual(FlexAlign.Center);

@@ -163,3 +163,24 @@ Routine local edits, builds, tests and device installs need no repeated
 confirmation. Do not push, amend, rewrite history, touch signing
 (`AGENTS.md`), or publish. Report per item what was verified on device versus
 only by unit tests, and list anything left unfinished with its blocker.
+
+## Status (2026-09-25)
+
+Implemented in `ada81ff..28e6f66` (Antigravity) and completed in `2dc3c13`
+plus the sheet-layout follow-up. Unit tests: 233/233. Device: MatePad Pro
+(WEB-W00, HarmonyOS 6.1), local debug build.
+
+| Item | Device-verified |
+| --- | --- |
+| P0-1 | Bing results page kept in history after force-stop; history titles are page titles; long-press on a Bing link opens the link menu |
+| P0-2 | alert shows and returns; confirm returns `true` on OK; prompt returns typed text, `null` when dismissed by back |
+| P0-3 | `window.open` opens an adjacent tab with `window.opener`, one request only; `window.close()` closes it; `target=_blank` opens a tab (noopener); on-load `window.open` returns `null` |
+| P1-1 | Fullscreen hides status bar and all chrome; back exits fullscreen without navigating |
+| P1-2 | Certificate error shows `expired.badssl.com`; Retry reloads that URL |
+| P1-3 | Unit/code review only |
+| P2 | HTTP Basic auth prompts, re-prompts on wrong credentials, succeeds; tapping the scrim cancels without hanging. `onRenderExited`, `mixedMode`, `fileAccess` not exercised on device |
+
+Open follow-ups: the "popup blocked" toast was not observed for an on-load
+popup (ArkWeb may block before `onWindowNew`); the address-bar shield stays
+green on a certificate error; `run_release.sh` exits 0 when `hdc install`
+fails; keyboard avoidance for the bottom sheets is unverified on phones.

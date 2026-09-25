@@ -250,7 +250,8 @@ export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boole
   return sheet !== Overlay.Tabs && sheet !== Overlay.Onboarding &&
     sheet !== Overlay.Permission && sheet !== Overlay.Find &&
     sheet !== Overlay.Address && sheet !== Overlay.Actions &&
-    sheet !== Overlay.PrivacyConsent;
+    sheet !== Overlay.PrivacyConsent && sheet !== Overlay.JsPrompt &&
+    sheet !== Overlay.HttpAuth;
 }
 
 export function resolveOverlayRowJustifyContent(
