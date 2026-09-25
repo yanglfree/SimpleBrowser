@@ -490,10 +490,21 @@ struct Index {
   private pendingArticleSaveTabs: Set<string> = new Set<string>();
   private capturingArticleTabs: Set<string> = new Set<string>();
   private blockEventStore: BlockEventStore = new BlockEventStore();
+  private downloadNoticeTimeout: number = -1;
   private downloadListener: (tasks: DownloadTask[]) => void = (tasks: DownloadTask[]): void => {
     const notice: DownloadTask | undefined = nextDownloadNotice(this.downloadTasks, tasks);
     this.downloadTasks = tasks;
     this.downloadNotice = notice ?? tasks.find((task: DownloadTask): boolean => task.id === this.downloadNotice?.id);
+    if (this.downloadNoticeTimeout !== -1) {
+      clearTimeout(this.downloadNoticeTimeout);
+      this.downloadNoticeTimeout = -1;
+    }
+    if (this.downloadNotice !== undefined) {
+      this.downloadNoticeTimeout = setTimeout(() => {
+        this.downloadNotice = undefined;
+        this.downloadNoticeTimeout = -1;
+      }, 4000);
+    }
     if (notice?.status === DownloadTaskStatus.Completed) {
       this.showToast($r('app.string.download_completed_file', notice.fileName));
     } else if (notice?.status === DownloadTaskStatus.Failed) {
@@ -1179,7 +1190,7 @@ struct Index {
   @Builder
   private DownloadNoticeLayer() {
     if (this.downloadNotice !== undefined && this.sheet === Overlay.None &&
-      this.sidebarPanel !== SidebarPanel.Downloads) {
+      this.sidebarPanel !== SidebarPanel.Downloads && this.activeTab()?.isPrivate !== true) {
       Row() {
         DownloadNotice({
           task: this.downloadNotice,
