@@ -947,6 +947,11 @@ export class BrowserViewModel {
     await this.markSavedItemRead(tab.url);
   }
 
+  async updateHistoryTitle(url: string, title: string): Promise<void> {
+    await this.repository.updateHistoryTitle(url, title);
+    this.history = this.repository.getHistory();
+  }
+
   async toggleSaved(tab: BrowserTab): Promise<boolean> {
     const existing: SavedItem | undefined = this.savedItems.find((item: SavedItem) => item.url === tab.url);
     if (existing !== undefined) {

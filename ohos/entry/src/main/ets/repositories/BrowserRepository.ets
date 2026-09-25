@@ -263,6 +263,16 @@ export class BrowserRepository {
     await this.save(HISTORY_KEY, JSON.stringify(this.history));
   }
 
+  async updateHistoryTitle(url: string, title: string): Promise<void> {
+    const entry: HistoryEntry | undefined = this.history.find((item: HistoryEntry) => item.url === url);
+    if (entry !== undefined && entry.title !== title) {
+      const updated: HistoryEntry = cloneHistoryEntry(entry);
+      updated.title = title;
+      this.history = this.history.map((item: HistoryEntry) => item.url === url ? updated : item);
+      await this.save(HISTORY_KEY, JSON.stringify(this.history));
+    }
+  }
+
   /** Re-visiting a URL bumps its counter instead of adding a duplicate row. */
   async recordHistory(entry: HistoryEntry): Promise<void> {
     const previous: HistoryEntry | undefined =

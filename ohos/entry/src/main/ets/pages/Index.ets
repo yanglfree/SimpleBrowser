@@ -374,6 +374,7 @@ struct Index {
   private foldStateService: FoldStateService = new FoldStateService();
   private controllers: Map<string, webview.WebviewController> = new Map();
   private pageLoadStartedAt: Map<string, number> = new Map();
+  private completedNavigations: Map<string, string> = new Map();
   @State private isReady: boolean = false;
   @State private hasError: boolean = false;
   @State private isAcceptingPrivacyConsent: boolean = false;
@@ -4571,6 +4572,7 @@ struct Index {
     this.dismissResumePrompt();
     this.pageScrollOffsets.set(id, 0);
     this.pageLoadStartedAt.set(id, Date.now());
+    this.completedNavigations.delete(id);
     this.blockEventStore.clear(id);
     if (id === this.activeTabId) {
       this.isActivePageAtTop = true;
@@ -4615,10 +4617,13 @@ struct Index {
 
   private async handlePageEnd(id: string, url: string): Promise<void> {
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
-    if (tab !== undefined && !tab.isLoading && isSameDocumentUrl(tab.url, url)) {
-      this.handleSameDocumentNavigation(id, url);
+    if (!WebKernelService.shouldRunPageEnd(this.completedNavigations.get(id), url)) {
+      if (tab !== undefined && isSameDocumentUrl(tab.url, url)) {
+        this.handleSameDocumentNavigation(id, url);
+      }
       return;
     }
+    this.completedNavigations.set(id, url);
     const startedAt: number | undefined = this.pageLoadStartedAt.get(id);
     if (startedAt !== undefined && tab?.isPrivate !== true) {
       TelemetryService.recordPageLoad(Date.now() - startedAt);
@@ -4882,7 +4887,11 @@ struct Index {
   private handleTitle(id: string, title: string): void {
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     const fallback: string = tab === undefined ? '' : displayHost(tab.url);
-    this.viewModel.updateTab(id, { title: title.length > 0 ? title : fallback });
+    const newTitle: string = title.length > 0 ? title : fallback;
+    this.viewModel.updateTab(id, { title: newTitle });
+    if (tab !== undefined && !tab.isLoading && !tab.isPrivate && !isHomeUrl(tab.url)) {
+      void this.viewModel.updateHistoryTitle(tab.url, newTitle);
+    }
     this.syncTab(id);
   }
 

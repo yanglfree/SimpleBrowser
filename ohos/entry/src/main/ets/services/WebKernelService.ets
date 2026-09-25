@@ -1,6 +1,7 @@
 import { webview } from '@kit.ArkWeb';
 import { DESKTOP_USER_AGENT } from '../constants/AppConstants';
 import { Logger } from '../utils/Logger';
+import { isSameDocumentUrl } from '../utils/UrlUtils';
 
 const TAG: string = 'WebKernelService';
 
@@ -86,7 +87,7 @@ export class WebKernelService {
 
   static async getLongPressTarget(controller: webview.WebviewController): Promise<WebLongPressTarget | undefined> {
     try {
-      const raw: string = await controller.runJavaScript('window.__mbLongPressTarget || ""');
+      const raw: string = await controller.runJavaScript('window.__mbResolveLongPressTarget ? window.__mbResolveLongPressTarget() : ""');
       let encoded: string = raw;
       try {
         const decoded: string = JSON.parse(raw) as string;
@@ -115,10 +116,6 @@ export class WebKernelService {
     } catch (error) {
       Logger.warn(TAG, `Unable to read long-press target: ${String(error)}`);
       return undefined;
-    } finally {
-      WebKernelService.run('clearLongPressTarget', (): void => {
-        controller.runJavaScript('window.__mbLongPressTarget = ""');
-      });
     }
   }
 
@@ -135,6 +132,18 @@ export class WebKernelService {
       return 0;
     }
     return Math.min(100, Math.max(0, progress));
+  }
+
+  /**
+   * Evaluates whether the page-end completion path should run.
+   * An early return is required if the same document has already completed,
+   * avoiding duplicate processing caused by progress updates.
+   */
+  static shouldRunPageEnd(lastCompletedUrl: string | undefined, currentUrl: string): boolean {
+    if (lastCompletedUrl !== undefined && isSameDocumentUrl(lastCompletedUrl, currentUrl)) {
+      return false;
+    }
+    return true;
   }
 
   /** Back-history navigation is expressed as a negative relative step. */
