@@ -1,4 +1,4 @@
-import { BlockStats, BrowserTab, HistoryEntry, SavedItem, totalBlocked } from '../models/BrowserModels';
+import { BlockStats, BrowserTab, LoadErrorKind, HistoryEntry, SavedItem, totalBlocked } from '../models/BrowserModels';
 import { DownloadTask } from '../services/DownloadService';
 import { tabDisplayTitle } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
@@ -207,7 +207,7 @@ export struct BrowserSidebar {
   }
 
   private tabTitle(tab: BrowserTab): ResourceStr {
-    const title: string = tabDisplayTitle(tab.title, tab.url);
+    const title: string = tabDisplayTitle(tab.title, tab.loadError !== LoadErrorKind.None && tab.failedUrl ? tab.failedUrl : tab.url);
     if (title.length > 0) {
       return title;
     }

@@ -353,7 +353,7 @@ export struct DesktopTabStrip {
             .fontColor($r('app.color.text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(displayHost(tab.url))
+          Text(displayHost(tab.loadError !== LoadErrorKind.None && tab.failedUrl ? tab.failedUrl : tab.url))
             .fontSize(12)
             .fontColor($r('app.color.text_secondary'))
             .maxLines(1)
@@ -531,12 +531,12 @@ export struct DesktopTabStrip {
 
   private tabTitle(tab: BrowserTab): ResourceStr {
     if (tab.isPinned) {
-      const host: string = displayHost(tab.url);
+      const host: string = displayHost(tab.loadError !== LoadErrorKind.None && tab.failedUrl ? tab.failedUrl : tab.url);
       return host.length > 0 ? host.slice(0, 1).toUpperCase() : '+';
     }
     if (isHomeUrl(tab.url)) {
       return $r('app.string.new_tab');
     }
-    return tabDisplayTitle(tab.title, tab.url);
+    return tabDisplayTitle(tab.title, tab.loadError !== LoadErrorKind.None && tab.failedUrl ? tab.failedUrl : tab.url);
   }
 }

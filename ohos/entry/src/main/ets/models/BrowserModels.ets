@@ -195,6 +195,7 @@ export interface BrowserTab {
   readerScrollSavedAt: number;
   formDraft: string;
   loadError: LoadErrorKind;
+  failedUrl?: string;
   securityState: SecurityState;
   certificate?: CertificateSummary;
 }
@@ -218,6 +219,7 @@ export interface BrowserTabUpdate {
   readerScrollSavedAt?: number;
   formDraft?: string;
   loadError?: LoadErrorKind;
+  failedUrl?: string;
   securityState?: SecurityState;
   certificate?: CertificateSummary;
 }
@@ -419,6 +421,7 @@ export function cloneTab(tab: BrowserTab): BrowserTab {
     readerScrollSavedAt: tab.readerScrollSavedAt,
     formDraft: tab.formDraft,
     loadError: tab.loadError,
+    failedUrl: tab.failedUrl,
     securityState: tab.securityState,
     certificate: tab.certificate
   };

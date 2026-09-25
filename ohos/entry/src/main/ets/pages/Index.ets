@@ -1351,7 +1351,7 @@ struct Index {
       collapsed: this.usesWideChrome() ? false : this.isDockCollapsed(),
       wide: this.usesWideChrome(),
       desktop: this.usesDesktopTabStrip(),
-      host: displayHost(this.activeTab()?.url ?? ''),
+      host: displayHost(this.activeDisplayUrl()),
       tabCount: this.tabs.length,
       activeTabIndex: this.tabs.findIndex((tab: BrowserTab) => tab.id === this.activeTabId),
       blockedCount: totalBlocked(this.activeTab()?.blocked ?? emptyBlockStats()),
@@ -1623,7 +1623,7 @@ struct Index {
       history: this.activeTab()?.isPrivate === true ? [] : this.history,
       savedItems: this.activeTab()?.isPrivate === true ? [] : this.savedItems,
       downloads: this.downloadTasks,
-      host: displayHost(this.activeTab()?.url ?? ''),
+      host: displayHost(this.activeDisplayUrl()),
       blockStats: this.activeTab()?.blocked ?? emptyBlockStats(),
       cumulativeBlocked: this.cumulativeBlocked,
       topInset: this.topInset,
@@ -1778,8 +1778,8 @@ struct Index {
         .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.UserAgent) {
       UserAgentPolicySheet({
-        host: displayHost(this.activeTab()?.url ?? ''),
-        currentPreference: this.viewModel.userAgentPreferenceForUrl(this.activeTab()?.url ?? ''),
+        host: displayHost(this.activeDisplayUrl()),
+        currentPreference: this.viewModel.userAgentPreferenceForUrl(this.activeDisplayUrl()),
         globalPreference: this.settings.defaultUserAgentPreference,
         onApplyOnce: (preference: UserAgentPreference): void => this.applyUserAgentOnce(preference),
         onApplyAlways: (preference: UserAgentPreference): void => {
@@ -1846,8 +1846,8 @@ struct Index {
         keyboardInset: this.keyboardInset,
         bottomInset: this.bottomInset,
         suggestions: this.suggestions,
-        currentHost: displayHost(this.activeTab()?.url ?? ''),
-        initialText: this.isActiveHome() ? '' : (this.activeTab()?.url ?? ''),
+        currentHost: displayHost(this.activeDisplayUrl()),
+        initialText: this.isActiveHome() ? '' : (this.activeDisplayUrl()),
         onQueryChange: (query: string): void => this.updateSuggestions(query),
         onSubmit: (query: string): void => this.submitAddress(query),
         onPick: (url: string): void => this.submitAddress(url),
@@ -1873,7 +1873,7 @@ struct Index {
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Block) {
       BlockPanel({
-        host: displayHost(this.activeTab()?.url ?? ''),
+        host: displayHost(this.activeDisplayUrl()),
         stats: this.siteStats,
         cumulativeBlockedCount: this.cumulativeBlocked,
         isDisabledForSite: this.isSiteAllowed,
@@ -1908,8 +1908,8 @@ struct Index {
         isWide: this.usesWideChrome(),
         allowedHosts: this.viewModel.getAllowedHosts(),
         sitePermissions: this.settings.sitePermissions,
-        currentHost: displayHost(this.activeTab()?.url ?? ''),
-        currentHostDarkModeEnabled: !this.isDarkModeExcluded(this.activeTab()?.url ?? ''),
+        currentHost: displayHost(this.activeDisplayUrl()),
+        currentHostDarkModeEnabled: !this.isDarkModeExcluded(this.activeDisplayUrl()),
         rulesLastUpdatedAt: this.rulesLastUpdatedAt,
         isRulesUpdating: this.isRulesUpdating,
         appVersion: this.appVersionName,
@@ -1952,8 +1952,8 @@ struct Index {
         .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.Security) {
       SecurityPanel({
-        host: displayHost(this.activeTab()?.url ?? ''),
-        url: this.activeTab()?.url ?? '',
+        host: displayHost(this.activeDisplayUrl()),
+        url: this.activeDisplayUrl(),
         state: this.activeTab()?.securityState ?? SecurityState.Unknown,
         certificate: this.activeTab()?.certificate ?? null,
         onDismiss: (): void => { this.sheet = Overlay.None; }
@@ -2106,7 +2106,7 @@ struct Index {
     } else if (this.sheet === Overlay.Share) {
       SharePanel({
         title: this.activeTab()?.title ?? '',
-        host: displayHost(this.activeTab()?.url ?? ''),
+        host: displayHost(this.activeDisplayUrl()),
         onDismiss: (): void => { this.sheet = Overlay.None; },
         onSystemShare: (): void => { void this.shareActivePage(); },
         onScreenshotShare: (): void => { void this.shareActiveScreenshot(); },
@@ -2178,8 +2178,18 @@ struct Index {
     return this.tabs.find((tab: BrowserTab) => tab.id === this.activeTabId);
   }
 
+  private activeDisplayUrl(): string {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined) {
+      return '';
+    }
+    if (tab.loadError !== LoadErrorKind.None && tab.failedUrl) {
+      return tab.failedUrl;
+    }
+    return tab.url;
+  }
   private isActiveHome(): boolean {
-    return isHomeUrl(this.activeTab()?.url ?? HOME_URL);
+    return isHomeUrl(this.activeDisplayUrl() || HOME_URL);
   }
 
   private appearanceLabel(): Resource {
@@ -2554,7 +2564,7 @@ struct Index {
     this.overlayTargetPaneId = this.focusedPaneId;
     this.isAddressMenuVisible = false;
     this.showCapsule();
-    this.updateSuggestions(this.isActiveHome() ? '' : (this.activeTab()?.url ?? ''));
+    this.updateSuggestions(this.isActiveHome() ? '' : (this.activeDisplayUrl()));
     this.sheet = Overlay.Address;
   }
 
@@ -2564,7 +2574,7 @@ struct Index {
 
   private openBlockPanel(): void {
     this.overlayTargetPaneId = this.focusedPaneId;
-    const url: string = this.activeTab()?.url ?? '';
+    const url: string = this.activeDisplayUrl();
     this.siteStats = this.viewModel.getSiteBlocked(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
     this.sheet = Overlay.Block;
@@ -2610,7 +2620,7 @@ struct Index {
 
   private openBlockPresentation(): void {
     if (this.usesSidebar()) {
-      this.siteStats = this.viewModel.getSiteBlocked(this.activeTab()?.url ?? '');
+      this.siteStats = this.viewModel.getSiteBlocked(this.activeDisplayUrl());
       this.sidebarPanel = nextSidebarPanel(this.sidebarPanel, SidebarPanel.Block);
       this.sheet = Overlay.None;
     } else {
@@ -2719,7 +2729,7 @@ struct Index {
     }
     const next: string = this.viewModel.neighbourTabId(direction);
     if (next === this.activeTabId) {
-      this.swipePreviewHost = displayHost(this.activeTab()?.url ?? '');
+      this.swipePreviewHost = displayHost(this.activeDisplayUrl());
       this.isSwipeBoundary = true;
       return;
     }
@@ -2896,7 +2906,7 @@ struct Index {
       PrivacyService.clearCookiesWhenReady();
     }
     this.syncState();
-    if (this.sheet === Overlay.Tabs && this.tabs.length <= 1 && isHomeUrl(this.activeTab()?.url ?? '')) {
+    if (this.sheet === Overlay.Tabs && this.tabs.length <= 1 && isHomeUrl(this.activeDisplayUrl())) {
       this.sheet = Overlay.None;
     }
   }
@@ -4233,7 +4243,7 @@ struct Index {
   }
 
   private async toggleCurrentSiteDarkMode(): Promise<void> {
-    const host: string = rawHost(this.activeTab()?.url ?? '');
+    const host: string = rawHost(this.activeDisplayUrl());
     if (host.length === 0) {
       return;
     }
@@ -4292,7 +4302,7 @@ struct Index {
   }
 
   private async toggleSiteBlocking(): Promise<void> {
-    const url: string = this.activeTab()?.url ?? '';
+    const url: string = this.activeDisplayUrl();
     const allowed: boolean = !this.isSiteAllowed;
     await this.viewModel.setHostAllowed(url, allowed);
     this.isSiteAllowed = allowed;
@@ -4302,7 +4312,7 @@ struct Index {
 
   private async removeAllowedHost(host: string): Promise<void> {
     await this.viewModel.removeAllowedHost(host);
-    this.isSiteAllowed = this.viewModel.isHostAllowed(this.activeTab()?.url ?? '');
+    this.isSiteAllowed = this.viewModel.isHostAllowed(this.activeDisplayUrl());
     this.syncState();
   }
 
@@ -5004,6 +5014,7 @@ struct Index {
     this.viewModel.updateTab(id, {
       isLoading: false,
       loadError: kind,
+      failedUrl: this.viewModel.getTab(id)?.url,
       securityState: kind === LoadErrorKind.Certificate
         ? SecurityState.CertificateError
         : this.viewModel.getTab(id)?.securityState ?? SecurityState.Unknown
@@ -5025,6 +5036,7 @@ struct Index {
     const summary: CertificateSummary | undefined = await CertificateService.summarizeChain(chain);
     this.viewModel.updateTab(id, {
       loadError: LoadErrorKind.Certificate,
+      failedUrl: this.viewModel.getTab(id)?.url,
       securityState: SecurityState.CertificateError,
       certificate: summary
     });
@@ -5140,9 +5152,14 @@ struct Index {
     if (tab === undefined) {
       return;
     }
+    const failedUrl = tab.failedUrl;
     this.viewModel.updateTab(tab.id, { loadError: LoadErrorKind.None, isLoading: true, progress: 0 });
     this.syncTab(tab.id);
-    this.runOnActive((controller: webview.WebviewController) => WebKernelService.reload(controller, true));
+    if (failedUrl && failedUrl.length > 0) {
+      this.runOnActive((controller: webview.WebviewController) => controller.loadUrl(failedUrl));
+    } else {
+      this.runOnActive((controller: webview.WebviewController) => WebKernelService.reload(controller, true));
+    }
   }
 
   private openSecurityDetails(): void {
@@ -5298,7 +5315,7 @@ struct Index {
   }
 
   private openSiteControls(): void {
-    const url: string = this.activeTab()?.url ?? '';
+    const url: string = this.activeDisplayUrl();
     this.siteControl = this.viewModel.siteControlForUrl(url);
     this.sheet = Overlay.SiteControls;
   }
@@ -5571,7 +5588,7 @@ struct Index {
     this.quickSites = this.viewModel.getQuickSites();
     this.weeklyBlocked = this.viewModel.getWeeklyBlocked();
     this.cumulativeBlocked = this.viewModel.getCumulativeBlocked();
-    const url: string = this.activeTab()?.url ?? '';
+    const url: string = this.activeDisplayUrl();
     this.isActiveBookmarked = this.viewModel.isSaved(url);
     this.isActiveSavedForLater = this.viewModel.isSavedForLater(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);

@@ -1,5 +1,5 @@
 import { image } from '@kit.ImageKit';
-import { BrowserTab } from '../models/BrowserModels';
+import { BrowserTab, LoadErrorKind } from '../models/BrowserModels';
 import { MEDIUM_WINDOW_MIN_WIDTH } from '../models/WindowMetrics';
 import { displayHost, isHomeUrl } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
@@ -408,7 +408,7 @@ export struct TabOverview {
     if (isHomeUrl(tab.url)) {
       return $r('app.string.new_tab');
     }
-    const host: string = displayHost(tab.url);
+    const host: string = displayHost(tab.loadError !== LoadErrorKind.None && tab.failedUrl ? tab.failedUrl : tab.url);
     return host.length > 0 ? host : tab.title;
   }
 }

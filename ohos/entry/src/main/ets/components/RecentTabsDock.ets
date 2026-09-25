@@ -1,4 +1,4 @@
-import { BrowserTab } from '../models/BrowserModels';
+import { BrowserTab, LoadErrorKind } from '../models/BrowserModels';
 import { displayHost, isHomeUrl, tabDisplayTitle } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
 import {
@@ -194,12 +194,12 @@ export struct RecentTabsDock {
     if (isHomeUrl(tab.url)) {
       return $r('app.string.new_tab');
     }
-    const title: string = tabDisplayTitle(tab.title, tab.url);
+    const title: string = tabDisplayTitle(tab.title, tab.loadError !== LoadErrorKind.None && tab.failedUrl ? tab.failedUrl : tab.url);
     return title.length > 0 ? title : this.tabHost(tab);
   }
 
   private tabHost(tab: BrowserTab): ResourceStr {
-    const host: string = displayHost(tab.url);
+    const host: string = displayHost(tab.loadError !== LoadErrorKind.None && tab.failedUrl ? tab.failedUrl : tab.url);
     return host.length > 0 ? host : $r('app.string.new_tab');
   }
 }
