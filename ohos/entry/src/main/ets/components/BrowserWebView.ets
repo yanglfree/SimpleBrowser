@@ -1,5 +1,6 @@
 import { PrivacyService } from '../services/PrivacyService';
 import { webview } from '@kit.ArkWeb';
+import { deviceInfo } from '@kit.BasicServicesKit';
 import {
   applyDocumentHashScript,
   BLOCKED_LINK_GUARD_SCRIPT,
@@ -40,6 +41,12 @@ export struct BrowserWebView {
   @Prop minimumFontSize: number = 14;
   @Prop webDarkMode: WebDarkModePreference = WebDarkModePreference.System;
   @Prop darkModeExcluded: boolean = false;
+  /**
+   * A popup created by window.open receives its document through the handed-over
+   * controller; loading its own src as well would race that navigation and drop
+   * window.opener.
+   */
+  mountBlank: boolean = false;
   controller: webview.WebviewController = new webview.WebviewController();
   @State private pullDistance: number = 0;
   @State private pullBlocked: boolean = false;
@@ -73,13 +80,13 @@ export struct BrowserWebView {
   private mountSrc: string = '';
 
   aboutToAppear(): void {
-    this.mountSrc = this.tab.url;
+    this.mountSrc = this.mountBlank ? '' : this.tab.url;
   }
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
       Web({
-        src: this.mountSrc.length > 0 ? this.mountSrc : this.tab.url,
+        src: this.mountBlank ? '' : (this.mountSrc.length > 0 ? this.mountSrc : this.tab.url),
         controller: this.controller,
         incognitoMode: this.tab.isPrivate
       })
@@ -185,12 +192,23 @@ export struct BrowserWebView {
           return;
         }
         Logger.warn(TAG, `Load error ${code}: ${message}`);
-        this.kernelCallbacks.onError(code, message);
+        this.kernelCallbacks.onError(event.request.getRequestUrl(), code, message);
       })
-      .onSslErrorEventReceive((event: OnSslErrorEventReceiveEvent) => {
-        const chain: Array<Uint8Array> = event.certChainData ?? [];
-        Logger.warn(TAG, `SSL error ${event.error} on ${this.tab.url}`);
-        this.kernelCallbacks.onSslError(event.error, chain);
+      // onSslErrorEvent, unlike onSslErrorEventReceive, carries the failing URL.
+      // The tab still holds the previous document's URL at this point, so the
+      // error view and Retry need this one. Certificate errors are never bypassed.
+      .onSslErrorEvent((event: SslErrorEvent) => {
+        event.handler.handleCancel();
+        if (!event.isMainFrame) {
+          Logger.warn(TAG, `Subframe SSL error ${event.error} url: ${event.url}`);
+          return;
+        }
+        let chain: Array<Uint8Array> = [];
+        if (deviceInfo.sdkApiVersion >= 20) {
+          chain = event.certChainData ?? [];
+        }
+        Logger.warn(TAG, `SSL error ${event.error} on ${event.url}`);
+        this.kernelCallbacks.onSslError(event.url, event.error, chain);
       })
       .onAlert((event: OnAlertEvent): boolean =>
         this.kernelCallbacks.onAlert(event.url, event.message, event.result))
@@ -201,10 +219,11 @@ export struct BrowserWebView {
       .onBeforeUnload((event: OnBeforeUnloadEvent): boolean =>
         this.kernelCallbacks.onBeforeUnload(event.url, event.message, event.result))
       .onWindowNew((event: OnWindowNewEvent) => {
-        this.kernelCallbacks.onWindowNew(event.targetUrl, event.handler);
+        this.kernelCallbacks.onWindowNew(event.targetUrl, event.isUserTrigger, event.handler);
       })
-      .onFullScreenEnter((_event: FullScreenEnterEvent) => {
-        this.kernelCallbacks.onFullScreenEnter();
+      .onWindowExit(() => this.kernelCallbacks.onWindowExit())
+      .onFullScreenEnter((event: FullScreenEnterEvent) => {
+        this.kernelCallbacks.onFullScreenEnter(event.handler);
       })
       .onFullScreenExit(() => {
         this.kernelCallbacks.onFullScreenExit();

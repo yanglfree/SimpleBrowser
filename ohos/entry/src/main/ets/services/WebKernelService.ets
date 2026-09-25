@@ -12,14 +12,15 @@ export interface WebKernelCallbacks {
   onNavigationStateChange: () => void;
   /** Fragment change on the current document — not a new page load. */
   onSameDocumentNavigation: (url: string) => void;
-  onError: (code: number, message: string) => void;
-  onSslError: (code: SslError, chain: Array<Uint8Array>) => void;
+  onError: (url: string, code: number, message: string) => void;
+  onSslError: (url: string, code: SslError, chain: Array<Uint8Array>) => void;
   onAlert: (url: string, message: string, result: JsResult) => boolean;
   onConfirm: (url: string, message: string, result: JsResult) => boolean;
   onPrompt: (url: string, message: string, defaultValue: string, result: JsResult) => boolean;
   onBeforeUnload: (url: string, message: string, result: JsResult) => boolean;
-  onWindowNew: (targetUrl: string, handler: ControllerHandler) => void;
-  onFullScreenEnter: () => void;
+  onWindowNew: (targetUrl: string, isUserTrigger: boolean, handler: ControllerHandler) => void;
+  onWindowExit: () => void;
+  onFullScreenEnter: (handler: FullScreenExitHandler) => void;
   onFullScreenExit: () => void;
   onHttpAuthRequest: (event: OnHttpAuthRequestEvent) => boolean;
   onRenderExited: (reason: number) => void;

@@ -62,7 +62,7 @@ export struct ErrorStatePanel {
         Text($r('app.string.retry'))
           .fontSize(15)
           .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.content_background'))
+          .fontColor($r('app.color.accent_foreground'))
       }
       .width(128)
       .height(44)
@@ -89,11 +89,12 @@ export struct ErrorStatePanel {
   private showIcon(): boolean {
     return this.kind === LoadErrorKind.Offline ||
       this.kind === LoadErrorKind.Timeout ||
-      this.kind === LoadErrorKind.Dns;
+      this.kind === LoadErrorKind.Dns ||
+      this.kind === LoadErrorKind.Crash;
   }
 
   private iconFor(kind: LoadErrorKind): IconName {
-    if (kind === LoadErrorKind.Dns) {
+    if (kind === LoadErrorKind.Dns || kind === LoadErrorKind.Crash) {
       return IconName.CloudOff;
     }
     return IconName.WifiOff;
@@ -112,6 +113,9 @@ export struct ErrorStatePanel {
     if (this.kind === LoadErrorKind.Certificate) {
       return $r('app.string.error_certificate_title');
     }
+    if (this.kind === LoadErrorKind.Crash) {
+      return $r('app.string.error_crash_title');
+    }
     return $r('app.string.error_unknown_title');
   }
 
@@ -127,6 +131,9 @@ export struct ErrorStatePanel {
     }
     if (this.kind === LoadErrorKind.Certificate) {
       return $r('app.string.error_certificate_message');
+    }
+    if (this.kind === LoadErrorKind.Crash) {
+      return $r('app.string.error_crash_message');
     }
     return $r('app.string.error_unknown_message');
   }

@@ -216,6 +216,22 @@ export class BrowserViewModel {
     return tab;
   }
 
+  /** Opens a foreground tab right after `afterId`, the way popups sit beside their opener. */
+  addTabAfter(url: string, isPrivate: boolean, afterId: string): BrowserTab | undefined {
+    if (this.tabs.length >= MAX_TAB_COUNT) {
+      Logger.warn(TAG, 'Tab limit reached');
+      return undefined;
+    }
+    const tab: BrowserTab = this.createTab(url, isPrivate);
+    const index: number = this.tabs.findIndex((item: BrowserTab): boolean => item.id === afterId);
+    this.tabs = index < 0
+      ? this.tabs.concat([tab])
+      : this.tabs.slice(0, index + 1).concat([tab]).concat(this.tabs.slice(index + 1));
+    this.activeTabId = tab.id;
+    this.persistSession();
+    return tab;
+  }
+
   addBackgroundTab(url: string, isPrivate: boolean): BrowserTab | undefined {
     if (this.tabs.length >= MAX_TAB_COUNT) {
       Logger.warn(TAG, 'Tab limit reached');
@@ -753,6 +769,13 @@ export class BrowserViewModel {
       if (update.loadError !== undefined) {
         updated.loadError = update.loadError;
       }
+      if (update.failedUrl !== undefined) {
+        updated.failedUrl = update.failedUrl;
+      }
+      if (update.certificate !== undefined) {
+        updated.certificate = update.certificate;
+      }
+
       if (update.securityState !== undefined) {
         updated.securityState = update.securityState;
       }

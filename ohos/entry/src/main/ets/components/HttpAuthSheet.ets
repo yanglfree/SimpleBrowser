@@ -25,6 +25,7 @@ export struct HttpAuthSheet {
       TextInput({ placeholder: $r('app.string.http_auth_username'), text: this.username })
         .type(InputType.Normal)
         .onChange((value: string) => this.username = value)
+        .id('http-auth-username')
         .width('100%')
         .height(48)
         .backgroundColor($r('app.color.surface_subtle'))
@@ -32,25 +33,26 @@ export struct HttpAuthSheet {
       TextInput({ placeholder: $r('app.string.http_auth_password'), text: this.password })
         .type(InputType.Password)
         .onChange((value: string) => this.password = value)
+        .id('http-auth-password')
         .width('100%')
         .height(48)
         .backgroundColor($r('app.color.surface_subtle'))
 
       Row({ space: 12 }) {
-        Button('Cancel', { type: ButtonType.Capsule })
+        Button($r('app.string.cancel'), { type: ButtonType.Capsule })
+          .id('http-auth-cancel')
           .backgroundColor($r('app.color.surface_subtle'))
           .fontColor($r('app.color.text_primary'))
           .layoutWeight(1)
           .onClick(() => {
-            if (this.event && this.event.handler) {
-              this.event.handler.cancel();
-            }
+            // Index cancels the pending handler when the sheet closes.
             this.onCancel();
           })
 
-        Button('Confirm', { type: ButtonType.Capsule })
+        Button($r('app.string.action_ok'), { type: ButtonType.Capsule })
+          .id('http-auth-confirm')
           .backgroundColor($r('app.color.accent'))
-          .fontColor($r('app.color.content_background'))
+          .fontColor($r('app.color.accent_foreground'))
           .layoutWeight(1)
           .onClick(() => {
             if (this.event && this.event.handler) {

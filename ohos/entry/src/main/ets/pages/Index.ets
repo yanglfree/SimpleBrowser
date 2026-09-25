@@ -33,7 +33,6 @@ import {
   AppearanceMode,
   BrowserSettings,
   BrowserTab,
-  BrowserTabUpdate,
   HistoryEntry,
   QuickSite,
   SiteIcon,
@@ -72,6 +71,7 @@ import { BrowserWebView } from '../components/BrowserWebView';
 import { DownloadSheet } from '../components/DownloadSheet';
 import { ErrorStatePanel } from '../components/ErrorStatePanel';
 import { HttpAuthSheet } from '../components/HttpAuthSheet';
+import { JsPromptSheet } from '../components/JsPromptSheet';
 import { FindSheet } from '../components/FindSheet';
 import { BrowserDock, compactDockOpticalOffset } from '../components/BrowserDock';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
@@ -238,6 +238,7 @@ export enum Overlay {
   BlockEvents = 23,
   SiteControls = 24,
   HttpAuth = 27,
+  JsPrompt = 28,
   ProPaywall = 25,
   PrivacyConsent = 26
 }
@@ -301,8 +302,12 @@ export function resolveTabTopInset(
   isHome: boolean,
   topInset: number,
   wideChromeHeight: number,
-  isReader: boolean = false
+  isReader: boolean = false,
+  isFullscreen: boolean = false
 ): number {
+  if (isFullscreen) {
+    return 0;
+  }
   if (isReader) {
     return 0;
   }
@@ -378,9 +383,9 @@ struct Index {
   private controllers: Map<string, webview.WebviewController> = new Map();
   private pageLoadStartedAt: Map<string, number> = new Map();
   private completedNavigations: Map<string, string> = new Map();
-  private jsPromptController: CustomDialogController | null = null;
   @State private isReady: boolean = false;
-  @State private isFullscreen: boolean = false;
+  @State @Watch('onFullscreenChanged') private isFullscreen: boolean = false;
+  private fullScreenExitHandler: FullScreenExitHandler | null = null;
   @State private hasError: boolean = false;
   @State private isAcceptingPrivacyConsent: boolean = false;
   private consentServicesStarted: boolean = false;
@@ -391,7 +396,7 @@ struct Index {
   private systemBarStyleKey: string = '';
   @State private tabs: BrowserTab[] = [];
   @State private recentTabs: BrowserTab[] = [];
-  @State private activeTabId: string = '';
+  @State @Watch('onActiveTabChanged') private activeTabId: string = '';
   @State private sidebarPanel: SidebarPanel = SidebarPanel.None;
   @State private primaryPaneTabId: string = '';
   @State private secondaryPaneTabId: string = '';
@@ -479,6 +484,16 @@ struct Index {
   private historyPanelQuery: string = '';
   private historyPanelScrollOffset: number = 0;
   private recentlyClosedTabs: BrowserTab[] = [];
+  /** Pending HTTP auth challenges; kept off the tab model because the handler is native and not persistable. */
+  private httpAuthHandlers: Map<string, OnHttpAuthRequestEvent> = new Map();
+  /** Popup tabs whose first document arrives through a handed-over controller. */
+  private popupTabIds: Set<string> = new Set<string>();
+  /** Popup tab id -> opener tab id; an opener must stay live so window.opener keeps working. */
+  private popupOpeners: Map<string, string> = new Map();
+  private jsPromptResult: JsResult | null = null;
+  @State private jsPromptUrl: string = '';
+  @State private jsPromptMessage: string = '';
+  @State private jsPromptDefault: string = '';
   private pendingPermissionRequest: PermissionRequest | undefined = undefined;
   private pendingGeolocation: OnGeolocationShowEvent | undefined = undefined;
   private pageScrollOffsets: Map<string, number> = new Map();
@@ -503,10 +518,12 @@ struct Index {
       this.downloadNoticeTimeout = -1;
     }
     if (this.downloadNotice !== undefined) {
-      this.downloadNoticeTimeout = setTimeout(() => {
-        this.downloadNotice = undefined;
-        this.downloadNoticeTimeout = -1;
-      }, 4000);
+      if (this.downloadNotice.status === DownloadTaskStatus.Completed || this.downloadNotice.status === DownloadTaskStatus.Failed) {
+        this.downloadNoticeTimeout = setTimeout(() => {
+          this.downloadNotice = undefined;
+          this.downloadNoticeTimeout = -1;
+        }, 4000);
+      }
     }
     if (notice?.status === DownloadTaskStatus.Completed) {
       this.showToast($r('app.string.download_completed_file', notice.fileName));
@@ -610,8 +627,57 @@ struct Index {
     }, 600);
   }
 
+  private onFullscreenChanged(): void {
+    const visible: boolean = !this.isFullscreen;
+    window.getLastWindow(this.appContext())
+      .then(async (win: window.Window): Promise<void> => {
+        await win.setSpecificSystemBarEnabled('status', visible);
+        await win.setSpecificSystemBarEnabled('navigationIndicator', visible);
+      })
+      .catch((error: Error): void => {
+        Logger.warn(TAG, `System bars could not follow fullscreen: ${String(error)}`);
+      });
+  }
+
+  private onActiveTabChanged(): void {
+    this.exitWebFullscreen();
+  }
+
+  private exitWebFullscreen(): void {
+    if (!this.isFullscreen) {
+      return;
+    }
+    const handler: FullScreenExitHandler | null = this.fullScreenExitHandler;
+    this.fullScreenExitHandler = null;
+    this.isFullscreen = false;
+    try {
+      handler?.exitFullScreen();
+    } catch (error) {
+      Logger.warn(TAG, `Fullscreen exit failed: ${String(error)}`);
+    }
+  }
+
   private onSheetChanged(): void {
     this.refreshSystemBarStyle();
+    // A page blocked in prompt() or an auth challenge must always get an answer,
+    // however its sheet was dismissed (back gesture, another sheet, tab switch).
+    if (this.sheet !== Overlay.JsPrompt && this.jsPromptResult !== null) {
+      const pending: JsResult = this.jsPromptResult;
+      this.jsPromptResult = null;
+      pending.handleCancel();
+    }
+    if (this.sheet !== Overlay.HttpAuth) {
+      this.cancelHttpAuth(this.activeTabId);
+    }
+  }
+
+  private cancelHttpAuth(id: string): void {
+    const pending: OnHttpAuthRequestEvent | undefined = this.httpAuthHandlers.get(id);
+    if (pending === undefined) {
+      return;
+    }
+    this.httpAuthHandlers.delete(id);
+    pending.handler.cancel();
   }
 
   private refreshSystemBarStyle(): void {
@@ -722,6 +788,7 @@ struct Index {
   }
 
   onPageHide(): void {
+    this.exitWebFullscreen();
     this.persistCookiesAcrossProcessDeath();
   }
 
@@ -756,6 +823,10 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    if (this.isFullscreen) {
+      this.exitWebFullscreen();
+      return true;
+    }
     if (this.sheet === Overlay.PrivacyConsent) {
       return true;
     }
@@ -948,6 +1019,7 @@ struct Index {
               darkModeExcluded: this.isDarkModeExcluded(tab.url) &&
                 this.viewModel.siteControlForUrl(tab.url).darkMode === SiteControlMode.Inherit,
               controller: this.controllerFor(tab.id),
+              mountBlank: this.popupTabIds.has(tab.id),
               kernelCallbacks: {
                 onPageBegin: (url: string): void => this.handlePageBegin(tab.id, url),
                 onPageEnd: (url: string): void => { this.handlePageEnd(tab.id, url); },
@@ -959,10 +1031,10 @@ struct Index {
                   this.handleSameDocumentNavigation(tab.id, url);
                 },
                 onProgressChange: (progress: number): void => this.handleProgress(tab.id, progress),
-                onError: (code: number, message: string): void =>
-                  this.handleLoadError(tab.id, code, message),
-                onSslError: (code: SslError, chain: Array<Uint8Array>): void => {
-                  void this.handleSslError(tab.id, code, chain);
+                onError: (url: string, code: number, message: string): void =>
+                  this.handleLoadError(tab.id, url, code, message),
+                onSslError: (url: string, code: SslError, chain: Array<Uint8Array>): void => {
+                  void this.handleSslError(tab.id, url, code, chain);
                 },
                 onAlert: (url: string, message: string, result: JsResult): boolean =>
                   this.handleJsAlert(tab.id, url, message, result),
@@ -972,16 +1044,19 @@ struct Index {
                   this.handleJsPrompt(tab.id, url, message, defaultValue, result),
                 onBeforeUnload: (url: string, message: string, result: JsResult): boolean =>
                   this.handleJsBeforeUnload(tab.id, url, message, result),
-                onWindowNew: (targetUrl: string, handler: ControllerHandler): void =>
-                  this.handleWindowNew(tab.id, targetUrl, handler),
-                onFullScreenEnter: (): void => {
+                onWindowNew: (targetUrl: string, isUserTrigger: boolean, handler: ControllerHandler): void =>
+                  this.handleWindowNew(tab.id, targetUrl, isUserTrigger, handler),
+                onWindowExit: (): void => this.closeTab(tab.id),
+                onFullScreenEnter: (handler: FullScreenExitHandler): void => {
+                  this.fullScreenExitHandler = handler;
                   this.isFullscreen = true;
                 },
-                                onRenderExited: (reason: number): void =>
+                onRenderExited: (reason: number): void =>
                   this.handleRenderExited(tab.id, reason),
                 onHttpAuthRequest: (event: OnHttpAuthRequestEvent): boolean =>
                   this.handleHttpAuthRequest(tab.id, event),
                 onFullScreenExit: (): void => {
+                  this.fullScreenExitHandler = null;
                   this.isFullscreen = false;
                 }
               },
@@ -1022,7 +1097,8 @@ struct Index {
             isHomeUrl(tab.url),
             this.topInset,
             this.wideChromeHeight(),
-            tab.isReader
+            tab.isReader,
+            this.isFullscreen
           ),
           bottom: isHomeUrl(tab.url) || this.usesWideChrome() ? 0 : this.webBottomInset()
         })
@@ -2081,12 +2157,30 @@ struct Index {
         onDeleteRecord: (id: string): void => DownloadService.remove(id, false)
       })
         .transition(this.sheetTransition())
-        } else if (this.sheet === Overlay.HttpAuth) {
-      HttpAuthSheet({
-        host: this.activeTab()?.httpAuthHost ?? '',
-        event: this.activeTab()?.httpAuthEvent,
+    } else if (this.sheet === Overlay.JsPrompt) {
+      JsPromptSheet({
+        title: displayHost(this.jsPromptUrl),
+        message: this.jsPromptMessage,
+        defaultValue: this.jsPromptDefault,
         onCancel: (): void => { this.sheet = Overlay.None; },
-        onConfirm: (): void => { this.sheet = Overlay.None; }
+        onConfirm: (value: string): void => {
+          const pending: JsResult | null = this.jsPromptResult;
+          this.jsPromptResult = null;
+          pending?.handlePromptConfirm(value);
+          this.sheet = Overlay.None;
+        }
+      })
+        .transition(this.sheetTransition())
+    } else if (this.sheet === Overlay.HttpAuth) {
+      HttpAuthSheet({
+        host: this.httpAuthHandlers.get(this.activeTabId)?.host ?? '',
+        event: this.httpAuthHandlers.get(this.activeTabId),
+        onCancel: (): void => { this.sheet = Overlay.None; },
+        onConfirm: (): void => {
+          // The sheet already answered the handler; drop it so dismissal does not cancel.
+          this.httpAuthHandlers.delete(this.activeTabId);
+          this.sheet = Overlay.None;
+        }
       })
         .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.Find) {
@@ -2306,7 +2400,7 @@ struct Index {
     let candidate: BrowserTab | undefined;
     for (const tab of this.tabs) {
       if (tab.id === excludedId || this.isPaneVisible(tab.id) ||
-        !this.liveTabIds.includes(tab.id) || isHomeUrl(tab.url)) {
+        !this.liveTabIds.includes(tab.id) || isHomeUrl(tab.url) || this.isLivePopupOpener(tab.id)) {
         continue;
       }
       if (candidate === undefined || tab.lastVisitedAt < candidate.lastVisitedAt) {
@@ -2314,6 +2408,15 @@ struct Index {
       }
     }
     return candidate?.id ?? '';
+  }
+
+  private isLivePopupOpener(id: string): boolean {
+    for (const entry of this.popupOpeners.entries()) {
+      if (entry[1] === id && this.liveTabIds.includes(entry[0])) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private async hibernateTab(id: string): Promise<void> {
@@ -2324,6 +2427,8 @@ struct Index {
       this.controllers.delete(id);
     }
     this.liveTabIds = this.liveTabIds.filter((tabId: string) => tabId !== id);
+    // Re-mounting later must load the tab's own URL; the popup hand-over is spent.
+    this.popupTabIds.delete(id);
   }
 
   private async enforceLiveWebViewLimit(limit: number): Promise<void> {
@@ -2902,6 +3007,12 @@ struct Index {
   }
 
   private closeTab(id: string): void {
+    if (this.activeTabId === id) {
+      this.exitWebFullscreen();
+    }
+    this.cancelHttpAuth(id);
+    this.popupTabIds.delete(id);
+    this.popupOpeners.delete(id);
     this.pendingArticleSaveTabs.delete(id);
     void this.captureScrollPosition(id);
     this.blockEventStore.remove(id);
@@ -4656,6 +4767,7 @@ struct Index {
       progress: progress,
       isReader: false,
       loadError: LoadErrorKind.None,
+      failedUrl: '',
       // The badge counts what was stopped on the page in front of the user, so
       // it starts again with the document. Per-site totals live in the panel.
       blocked: emptyBlockStats(),
@@ -5039,29 +5151,32 @@ struct Index {
     this.viewModel.updateTab(id, {
       isLoading: false,
       loadError: LoadErrorKind.Crash,
-      failedUrl: this.viewModel.getTab(id)?.url
+      failedUrl: this.viewModel.getTab(id)?.url ?? ''
     });
     this.refreshNavigationState(id);
     this.syncTab(id);
   }
 
   private handleHttpAuthRequest(id: string, event: OnHttpAuthRequestEvent): boolean {
-    if (this.activeTabId === id) {
-      const update: BrowserTabUpdate = { httpAuthHost: event.host, httpAuthEvent: event };
-      this.viewModel.updateTab(id, update);
-      this.sheet = Overlay.HttpAuth;
+    // Credentials are only handed to this request, never saved, so private tabs can prompt too.
+    // A background tab cannot show the sheet; cancel rather than leave the request hanging.
+    if (id !== this.activeTabId) {
+      event.handler.cancel();
       return true;
     }
-    return false;
+    this.cancelHttpAuth(id);
+    this.httpAuthHandlers.set(id, event);
+    this.sheet = Overlay.HttpAuth;
+    return true;
   }
 
-  private handleLoadError(id: string, code: number, message: string): void {
+  private handleLoadError(id: string, url: string, code: number, message: string): void {
     void this.failPendingArticleSave(id);
     const kind: LoadErrorKind = Index.errorKindFor(code, message);
     this.viewModel.updateTab(id, {
       isLoading: false,
       loadError: kind,
-      failedUrl: this.viewModel.getTab(id)?.url,
+      failedUrl: url,
       securityState: kind === LoadErrorKind.Certificate
         ? SecurityState.CertificateError
         : this.viewModel.getTab(id)?.securityState ?? SecurityState.Unknown
@@ -5074,7 +5189,7 @@ struct Index {
    * ArkWeb reports certificate problems separately from page load errors, with
    * the DER certificate chain available so the panel can show a real summary.
    */
-  private async handleSslError(id: string, code: SslError, chain: Array<Uint8Array>): Promise<void> {
+  private async handleSslError(id: string, url: string, code: SslError, chain: Array<Uint8Array>): Promise<void> {
     if (code === SslError.Invalid) {
       return;
     }
@@ -5083,7 +5198,7 @@ struct Index {
     const summary: CertificateSummary | undefined = await CertificateService.summarizeChain(chain);
     this.viewModel.updateTab(id, {
       loadError: LoadErrorKind.Certificate,
-      failedUrl: this.viewModel.getTab(id)?.url,
+      failedUrl: url,
       securityState: SecurityState.CertificateError,
       certificate: summary
     });
@@ -5101,7 +5216,7 @@ struct Index {
         message: message,
         autoCancel: false,
         confirm: {
-          value: $r('app.string.done'),
+          value: $r('app.string.action_ok'),
           action: (): void => { result.handleConfirm(); }
         },
         cancel: (): void => { result.handleCancel(); }
@@ -5127,7 +5242,7 @@ struct Index {
           action: (): void => { result.handleCancel(); }
         },
         secondaryButton: {
-          value: $r('app.string.done'),
+          value: $r('app.string.action_ok'),
           action: (): void => { result.handleConfirm(); }
         },
         cancel: (): void => { result.handleCancel(); }
@@ -5143,30 +5258,33 @@ struct Index {
       result.handleCancel();
       return true;
     }
-    this.jsPromptController = new CustomDialogController({
-      builder: JsPromptDialog({
-        title: displayHost(url),
-        message: message,
-        defaultValue: defaultValue,
-        onConfirm: (val: string): void => { result.handlePromptConfirm(val); },
-        onCancel: (): void => { result.handleCancel(); }
-      }),
-      autoCancel: false,
-      cancel: (): void => { result.handleCancel(); }
-    });
-    this.jsPromptController.open();
+    this.jsPromptResult = result;
+    this.jsPromptUrl = url;
+    this.jsPromptMessage = message;
+    this.jsPromptDefault = defaultValue;
+    this.sheet = Overlay.JsPrompt;
     return true;
   }
 
-  private handleWindowNew(tabId: string, targetUrl: string, handler: ControllerHandler): void {
-    const sourceTab: BrowserTab | undefined = this.viewModel.getTab(tabId);
-    const isPrivate: boolean = sourceTab !== undefined ? sourceTab.isPrivate : false;
-    const tab: BrowserTab | undefined = this.viewModel.addTab(targetUrl.length > 0 ? targetUrl : HOME_URL, isPrivate);
-    if (tab !== undefined) {
-      const newController: webview.WebviewController = this.controllerFor(tab.id);
-      handler.setWebController(newController);
-      this.activateTab(tab.id);
+  private handleWindowNew(tabId: string, targetUrl: string, isUserTrigger: boolean, handler: ControllerHandler): void {
+    if (!isUserTrigger) {
+      // Leaving the handler unset makes window.open return null, as a blocked popup does in Chrome.
+      this.showToast($r('app.string.popup_blocked'));
+      return;
     }
+    const opener: BrowserTab | undefined = this.viewModel.getTab(tabId);
+    // An empty URL would be treated as the native start page and never mount a Web.
+    const url: string = targetUrl.length > 0 ? targetUrl : 'about:blank';
+    const tab: BrowserTab | undefined = this.viewModel.addTabAfter(url, opener?.isPrivate === true, tabId);
+    if (tab === undefined) {
+      this.showToast($r('app.string.popup_blocked'));
+      return;
+    }
+    this.popupTabIds.add(tab.id);
+    this.popupOpeners.set(tab.id, tabId);
+    handler.setWebController(this.controllerFor(tab.id));
+    this.syncState();
+    void this.activateTab(tab.id);
   }
 
   private handleJsBeforeUnload(tabId: string, url: string, message: string, result: JsResult): boolean {
@@ -5184,7 +5302,7 @@ struct Index {
           action: (): void => { result.handleCancel(); }
         },
         secondaryButton: {
-          value: $r('app.string.done'),
+          value: $r('app.string.action_ok'),
           action: (): void => { result.handleConfirm(); }
         },
         cancel: (): void => { result.handleCancel(); }
@@ -5722,49 +5840,3 @@ struct Index {
   }
 }
 
-@CustomDialog
-export struct JsPromptDialog {
-  controller: CustomDialogController
-  title: string = ''
-  message: string = ''
-  defaultValue: string = ''
-  onConfirm: (value: string) => void = () => {}
-  onCancel: () => void = () => {}
-  @State private text: string = ''
-
-  aboutToAppear() {
-    this.text = this.defaultValue;
-  }
-
-  build() {
-    Column({ space: 16 }) {
-      Text(this.title).fontSize(20).fontWeight(FontWeight.Bold).width('100%').textAlign(TextAlign.Start)
-      Text(this.message).fontSize(16).width('100%').textAlign(TextAlign.Start)
-      TextInput({ text: this.text })
-        .onChange((value: string) => { this.text = value })
-        .width('100%')
-      Row({ space: 16 }) {
-        Button($r('app.string.cancel'))
-          .onClick(() => {
-            this.onCancel();
-            this.controller.close();
-          })
-          .backgroundColor(Color.Transparent)
-          .fontColor($r('app.color.accent'))
-          .layoutWeight(1)
-        Button($r('app.string.done'))
-          .onClick(() => {
-            this.onConfirm(this.text);
-            this.controller.close();
-          })
-          .backgroundColor($r('app.color.accent'))
-          .fontColor($r('app.color.surface_subtle'))
-          .layoutWeight(1)
-      }
-      .width('100%')
-    }
-    .padding(24)
-    .backgroundColor($r('app.color.surface_subtle'))
-    .borderRadius(24)
-  }
-}

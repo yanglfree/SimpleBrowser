@@ -123,10 +123,9 @@ export enum LoadErrorKind {
   Timeout = 2,
   Dns = 3,
   Certificate = 4,
-  Crash = 5,
-  Unknown = 99
+  Unknown = 5,
+  Crash = 6
 }
-
 
 export enum SecurityState {
   Unknown = 0,
@@ -197,8 +196,6 @@ export interface BrowserTab {
   readerScrollSavedAt: number;
   formDraft: string;
   loadError: LoadErrorKind;
-  httpAuthHost?: string;
-  httpAuthEvent?: OnHttpAuthRequestEvent;
   failedUrl?: string;
   securityState: SecurityState;
   certificate?: CertificateSummary;
@@ -223,8 +220,6 @@ export interface BrowserTabUpdate {
   readerScrollSavedAt?: number;
   formDraft?: string;
   loadError?: LoadErrorKind;
-  httpAuthHost?: string;
-  httpAuthEvent?: OnHttpAuthRequestEvent;
   failedUrl?: string;
   securityState?: SecurityState;
   certificate?: CertificateSummary;

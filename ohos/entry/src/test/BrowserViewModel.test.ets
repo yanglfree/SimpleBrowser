@@ -428,4 +428,45 @@ export default function browserViewModelTest(): void {
       expect(hasVerticalCrease(vertical)).assertTrue();
     });
   });
+
+  describe('BrowserViewModel popup and error tabs', (): void => {
+    it('opens a popup tab directly after its opener and selects it', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const first: BrowserTab = viewModel.createTab('https://first.example', false);
+      const opener: BrowserTab = viewModel.createTab('https://opener.example', false);
+      const last: BrowserTab = viewModel.createTab('https://last.example', false);
+      viewModel.tabs = [first, opener, last];
+      viewModel.activeTabId = opener.id;
+
+      const popup: BrowserTab | undefined = viewModel.addTabAfter('https://popup.example', false, opener.id);
+
+      expect(popup !== undefined).assertTrue();
+      expect(viewModel.tabs.length).assertEqual(4);
+      expect(viewModel.tabs[2].id).assertEqual(popup?.id ?? '');
+      expect(viewModel.tabs[3].id).assertEqual(last.id);
+      expect(viewModel.activeTabId).assertEqual(popup?.id ?? '');
+    });
+
+    it('appends a popup tab when its opener is gone', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const only: BrowserTab = viewModel.createTab('https://only.example', false);
+      viewModel.tabs = [only];
+
+      const popup: BrowserTab | undefined = viewModel.addTabAfter('https://popup.example', true, 'missing');
+
+      expect(viewModel.tabs[1].id).assertEqual(popup?.id ?? '');
+      expect(popup?.isPrivate === true).assertTrue();
+    });
+
+    it('keeps the failed URL written by a load error', 0, (): void => {
+      const viewModel: BrowserViewModel = new BrowserViewModel();
+      const tab: BrowserTab = viewModel.createTab('https://previous.example', false);
+      viewModel.tabs = [tab];
+
+      viewModel.updateTab(tab.id, { failedUrl: 'https://expired.example/' });
+
+      expect(viewModel.getTab(tab.id)?.failedUrl ?? '').assertEqual('https://expired.example/');
+      expect(viewModel.getTab(tab.id)?.url ?? '').assertEqual('https://previous.example');
+    });
+  });
 }
