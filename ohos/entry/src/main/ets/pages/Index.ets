@@ -33,6 +33,7 @@ import {
   AppearanceMode,
   BrowserSettings,
   BrowserTab,
+  BrowserTabUpdate,
   HistoryEntry,
   QuickSite,
   SiteIcon,
@@ -70,6 +71,7 @@ import { BlockEventSheet } from '../components/BlockEventSheet';
 import { BrowserWebView } from '../components/BrowserWebView';
 import { DownloadSheet } from '../components/DownloadSheet';
 import { ErrorStatePanel } from '../components/ErrorStatePanel';
+import { HttpAuthSheet } from '../components/HttpAuthSheet';
 import { FindSheet } from '../components/FindSheet';
 import { BrowserDock, compactDockOpticalOffset } from '../components/BrowserDock';
 import { NavigationHistorySheet } from '../components/NavigationHistorySheet';
@@ -235,6 +237,7 @@ export enum Overlay {
   ArticleLibrary = 22,
   BlockEvents = 23,
   SiteControls = 24,
+  HttpAuth = 27,
   ProPaywall = 25,
   PrivacyConsent = 26
 }
@@ -974,6 +977,10 @@ struct Index {
                 onFullScreenEnter: (): void => {
                   this.isFullscreen = true;
                 },
+                                onRenderExited: (reason: number): void =>
+                  this.handleRenderExited(tab.id, reason),
+                onHttpAuthRequest: (event: OnHttpAuthRequestEvent): boolean =>
+                  this.handleHttpAuthRequest(tab.id, event),
                 onFullScreenExit: (): void => {
                   this.isFullscreen = false;
                 }
@@ -2072,6 +2079,14 @@ struct Index {
         onShare: (task: DownloadTask): void => { void this.shareDownload(task); },
         onDeleteFile: (id: string): void => DownloadService.remove(id, true),
         onDeleteRecord: (id: string): void => DownloadService.remove(id, false)
+      })
+        .transition(this.sheetTransition())
+        } else if (this.sheet === Overlay.HttpAuth) {
+      HttpAuthSheet({
+        host: this.activeTab()?.httpAuthHost ?? '',
+        event: this.activeTab()?.httpAuthEvent,
+        onCancel: (): void => { this.sheet = Overlay.None; },
+        onConfirm: (): void => { this.sheet = Overlay.None; }
       })
         .transition(this.sheetTransition())
     } else if (this.sheet === Overlay.Find) {
@@ -5017,6 +5032,27 @@ struct Index {
     this.getUIContext().animateTo({ duration: 180, curve: Curve.EaseOut }, (): void => {
       this.isCapsuleHidden = hidden;
     });
+  }
+
+    private handleRenderExited(id: string, reason: number): void {
+    Logger.error('Index', `Render exited for tab ${id} with reason ${reason}`);
+    this.viewModel.updateTab(id, {
+      isLoading: false,
+      loadError: LoadErrorKind.Crash,
+      failedUrl: this.viewModel.getTab(id)?.url
+    });
+    this.refreshNavigationState(id);
+    this.syncTab(id);
+  }
+
+  private handleHttpAuthRequest(id: string, event: OnHttpAuthRequestEvent): boolean {
+    if (this.activeTabId === id) {
+      const update: BrowserTabUpdate = { httpAuthHost: event.host, httpAuthEvent: event };
+      this.viewModel.updateTab(id, update);
+      this.sheet = Overlay.HttpAuth;
+      return true;
+    }
+    return false;
   }
 
   private handleLoadError(id: string, code: number, message: string): void {

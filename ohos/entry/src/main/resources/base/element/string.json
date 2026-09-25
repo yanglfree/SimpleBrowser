@@ -468,6 +468,9 @@
 
     { "name": "initialization_error", "value": "无法启动极简浏览器" },
     { "name": "retry", "value": "重试" },
+    { "name": "http_auth_title", "value": "需要登录" },
+    { "name": "http_auth_username", "value": "用户名" },
+    { "name": "http_auth_password", "value": "密码" },
     { "name": "pull_to_refresh", "value": "下拉刷新" },
     { "name": "release_to_refresh", "value": "松开刷新" },
     { "name": "copied_link", "value": "链接已复制" },

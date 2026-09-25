@@ -21,6 +21,8 @@ export interface WebKernelCallbacks {
   onWindowNew: (targetUrl: string, handler: ControllerHandler) => void;
   onFullScreenEnter: () => void;
   onFullScreenExit: () => void;
+  onHttpAuthRequest: (event: OnHttpAuthRequestEvent) => boolean;
+  onRenderExited: (reason: number) => void;
 }
 
 export interface WebHistoryEntry {

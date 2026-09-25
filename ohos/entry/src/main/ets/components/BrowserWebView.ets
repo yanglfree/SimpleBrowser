@@ -91,8 +91,8 @@ export struct BrowserWebView {
       }])
       .domStorageAccess(true)
       .databaseAccess(true)
-      .fileAccess(true)
-      .mixedMode(MixedMode.All)
+      .fileAccess(false)
+      .mixedMode(MixedMode.Compatible)
       .multiWindowAccess(true)
       .onlineImageAccess(true)
       .imageAccess(true)
@@ -143,6 +143,12 @@ export struct BrowserWebView {
       // while onLoadIntercept remains as a fallback for older load paths.
       .onOverrideUrlLoading((request: WebResourceRequest): boolean =>
         this.interceptNavigation(request))
+      .onHttpAuthRequest((event: OnHttpAuthRequestEvent): boolean => {
+        return this.kernelCallbacks.onHttpAuthRequest(event);
+      })
+      .onRenderExited((event: OnRenderExitedEvent): void => {
+        this.kernelCallbacks.onRenderExited(event.renderExitReason);
+      })
       .onLoadIntercept((event: OnLoadInterceptEvent): boolean =>
         this.interceptNavigation(event.data))
       .onInterceptRequest((event: OnInterceptRequestEvent): WebResourceResponse | null =>
