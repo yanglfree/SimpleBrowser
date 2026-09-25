@@ -27,5 +27,13 @@ export default function webKernelServiceTest() {
       // error page committing a different URL or the same
       expect(WebKernelService.shouldRunPageEnd('https://example.com/', 'https://error.com/')).assertTrue();
     });
+
+    it('shouldShowDialog returns true for active tab', 0, () => {
+      expect(WebKernelService.shouldShowDialog('t1', 't1')).assertTrue();
+    });
+
+    it('shouldShowDialog returns false for background tab', 0, () => {
+      expect(WebKernelService.shouldShowDialog('t1', 't2')).assertFalse();
+    });
   });
 }

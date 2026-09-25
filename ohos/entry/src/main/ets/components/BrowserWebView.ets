@@ -186,6 +186,14 @@ export struct BrowserWebView {
         Logger.warn(TAG, `SSL error ${event.error} on ${this.tab.url}`);
         this.kernelCallbacks.onSslError(event.error, chain);
       })
+      .onAlert((event: OnAlertEvent): boolean =>
+        this.kernelCallbacks.onAlert(event.url, event.message, event.result))
+      .onConfirm((event: OnConfirmEvent): boolean =>
+        this.kernelCallbacks.onConfirm(event.url, event.message, event.result))
+      .onPrompt((event: OnPromptEvent): boolean =>
+        this.kernelCallbacks.onPrompt(event.url, event.message, event.value, event.result))
+      .onBeforeUnload((event: OnBeforeUnloadEvent): boolean =>
+        this.kernelCallbacks.onBeforeUnload(event.url, event.message, event.result))
       .parallelGesture(
         PanGesture({ direction: PanDirection.Vertical, distance: 8 })
           .onActionStart((event: GestureEvent) => this.startPull(event))

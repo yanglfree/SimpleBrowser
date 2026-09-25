@@ -375,6 +375,7 @@ struct Index {
   private controllers: Map<string, webview.WebviewController> = new Map();
   private pageLoadStartedAt: Map<string, number> = new Map();
   private completedNavigations: Map<string, string> = new Map();
+  private jsPromptController: CustomDialogController | null = null;
   @State private isReady: boolean = false;
   @State private hasError: boolean = false;
   @State private isAcceptingPrivacyConsent: boolean = false;
@@ -947,7 +948,15 @@ struct Index {
                   this.handleLoadError(tab.id, code, message),
                 onSslError: (code: SslError, chain: Array<Uint8Array>): void => {
                   void this.handleSslError(tab.id, code, chain);
-                }
+                },
+                onAlert: (url: string, message: string, result: JsResult): boolean =>
+                  this.handleJsAlert(tab.id, url, message, result),
+                onConfirm: (url: string, message: string, result: JsResult): boolean =>
+                  this.handleJsConfirm(tab.id, url, message, result),
+                onPrompt: (url: string, message: string, defaultValue: string, result: JsResult): boolean =>
+                  this.handleJsPrompt(tab.id, url, message, defaultValue, result),
+                onBeforeUnload: (url: string, message: string, result: JsResult): boolean =>
+                  this.handleJsBeforeUnload(tab.id, url, message, result)
               },
               onTitleReceive: (title: string): void => this.handleTitle(tab.id, title),
               onScroll: (offsetY: number): void => this.handlePageScroll(tab.id, offsetY),
@@ -5013,6 +5022,99 @@ struct Index {
     this.syncTab(id);
   }
 
+  private handleJsAlert(tabId: string, url: string, message: string, result: JsResult): boolean {
+    if (!WebKernelService.shouldShowDialog(tabId, this.activeTabId)) {
+      result.handleCancel();
+      return true;
+    }
+    try {
+      this.getUIContext().showAlertDialog({
+        title: displayHost(url),
+        message: message,
+        autoCancel: false,
+        confirm: {
+          value: $r('app.string.done'),
+          action: (): void => { result.handleConfirm(); }
+        },
+        cancel: (): void => { result.handleCancel(); }
+      });
+    } catch (_error) {
+      result.handleCancel();
+    }
+    return true;
+  }
+
+  private handleJsConfirm(tabId: string, url: string, message: string, result: JsResult): boolean {
+    if (!WebKernelService.shouldShowDialog(tabId, this.activeTabId)) {
+      result.handleCancel();
+      return true;
+    }
+    try {
+      this.getUIContext().showAlertDialog({
+        title: displayHost(url),
+        message: message,
+        autoCancel: false,
+        primaryButton: {
+          value: $r('app.string.cancel'),
+          action: (): void => { result.handleCancel(); }
+        },
+        secondaryButton: {
+          value: $r('app.string.done'),
+          action: (): void => { result.handleConfirm(); }
+        },
+        cancel: (): void => { result.handleCancel(); }
+      });
+    } catch (_error) {
+      result.handleCancel();
+    }
+    return true;
+  }
+
+  private handleJsPrompt(tabId: string, url: string, message: string, defaultValue: string, result: JsResult): boolean {
+    if (!WebKernelService.shouldShowDialog(tabId, this.activeTabId)) {
+      result.handleCancel();
+      return true;
+    }
+    this.jsPromptController = new CustomDialogController({
+      builder: JsPromptDialog({
+        title: displayHost(url),
+        message: message,
+        defaultValue: defaultValue,
+        onConfirm: (val: string): void => { result.handlePromptConfirm(val); },
+        onCancel: (): void => { result.handleCancel(); }
+      }),
+      autoCancel: false,
+      cancel: (): void => { result.handleCancel(); }
+    });
+    this.jsPromptController.open();
+    return true;
+  }
+
+  private handleJsBeforeUnload(tabId: string, url: string, message: string, result: JsResult): boolean {
+    if (!WebKernelService.shouldShowDialog(tabId, this.activeTabId)) {
+      result.handleConfirm();
+      return true;
+    }
+    try {
+      this.getUIContext().showAlertDialog({
+        title: displayHost(url),
+        message: message,
+        autoCancel: false,
+        primaryButton: {
+          value: $r('app.string.cancel'),
+          action: (): void => { result.handleCancel(); }
+        },
+        secondaryButton: {
+          value: $r('app.string.done'),
+          action: (): void => { result.handleConfirm(); }
+        },
+        cancel: (): void => { result.handleCancel(); }
+      });
+    } catch (_error) {
+      result.handleConfirm();
+    }
+    return true;
+  }
   private retryPage(): void {
     const tab: BrowserTab | undefined = this.activeTab();
     if (tab === undefined) {
@@ -5533,5 +5635,52 @@ struct Index {
   private retry(): void {
     this.hasError = false;
     this.aboutToAppear();
+  }
+}
+
+@CustomDialog
+export struct JsPromptDialog {
+  controller: CustomDialogController
+  title: string = ''
+  message: string = ''
+  defaultValue: string = ''
+  onConfirm: (value: string) => void = () => {}
+  onCancel: () => void = () => {}
+  @State private text: string = ''
+
+  aboutToAppear() {
+    this.text = this.defaultValue;
+  }
+
+  build() {
+    Column({ space: 16 }) {
+      Text(this.title).fontSize(20).fontWeight(FontWeight.Bold).width('100%').textAlign(TextAlign.Start)
+      Text(this.message).fontSize(16).width('100%').textAlign(TextAlign.Start)
+      TextInput({ text: this.text })
+        .onChange((value: string) => { this.text = value })
+        .width('100%')
+      Row({ space: 16 }) {
+        Button($r('app.string.cancel'))
+          .onClick(() => {
+            this.onCancel();
+            this.controller.close();
+          })
+          .backgroundColor(Color.Transparent)
+          .fontColor($r('app.color.accent'))
+          .layoutWeight(1)
+        Button($r('app.string.done'))
+          .onClick(() => {
+            this.onConfirm(this.text);
+            this.controller.close();
+          })
+          .backgroundColor($r('app.color.accent'))
+          .fontColor($r('app.color.surface_subtle'))
+          .layoutWeight(1)
+      }
+      .width('100%')
+    }
+    .padding(24)
+    .backgroundColor($r('app.color.surface_subtle'))
+    .borderRadius(24)
   }
 }

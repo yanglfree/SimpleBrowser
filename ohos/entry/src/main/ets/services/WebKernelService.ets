@@ -14,6 +14,10 @@ export interface WebKernelCallbacks {
   onSameDocumentNavigation: (url: string) => void;
   onError: (code: number, message: string) => void;
   onSslError: (code: SslError, chain: Array<Uint8Array>) => void;
+  onAlert: (url: string, message: string, result: JsResult) => boolean;
+  onConfirm: (url: string, message: string, result: JsResult) => boolean;
+  onPrompt: (url: string, message: string, defaultValue: string, result: JsResult) => boolean;
+  onBeforeUnload: (url: string, message: string, result: JsResult) => boolean;
 }
 
 export interface WebHistoryEntry {
@@ -230,6 +234,9 @@ export class WebKernelService {
     return `https://weibo.com${match[3]}`;
   }
 
+  static shouldShowDialog(tabId: string, activeTabId: string): boolean {
+    return tabId === activeTabId;
+  }
   private static run(name: string, action: () => void): void {
     try {
       action();
