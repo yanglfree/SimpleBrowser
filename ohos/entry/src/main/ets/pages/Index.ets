@@ -377,6 +377,7 @@ struct Index {
   private completedNavigations: Map<string, string> = new Map();
   private jsPromptController: CustomDialogController | null = null;
   @State private isReady: boolean = false;
+  @State private isFullscreen: boolean = false;
   @State private hasError: boolean = false;
   @State private isAcceptingPrivacyConsent: boolean = false;
   private consentServicesStarted: boolean = false;
@@ -789,7 +790,7 @@ struct Index {
         .layoutWeight(1)
         .height('100%')
 
-        if (this.settings.privacyConsentAccepted && this.sidebarPanel !== SidebarPanel.None && this.usesSidebar()) {
+        if (!this.isFullscreen && this.settings.privacyConsentAccepted && this.sidebarPanel !== SidebarPanel.None && this.usesSidebar()) {
           this.SidebarLayer()
         }
       }
@@ -814,7 +815,7 @@ struct Index {
           this.ScreenshotLoadingLayer()
         }
       }
-      if (this.topInset > 0) {
+      if (!this.isFullscreen && this.topInset > 0) {
         StatusBarBackdrop({ topInset: this.topInset, style: this.systemBarStyle })
           .width('100%')
           .height(this.statusBarBackdropHeight())
@@ -958,7 +959,13 @@ struct Index {
                 onBeforeUnload: (url: string, message: string, result: JsResult): boolean =>
                   this.handleJsBeforeUnload(tab.id, url, message, result),
                 onWindowNew: (targetUrl: string, handler: ControllerHandler): void =>
-                  this.handleWindowNew(tab.id, targetUrl, handler)
+                  this.handleWindowNew(tab.id, targetUrl, handler),
+                onFullScreenEnter: (): void => {
+                  this.isFullscreen = true;
+                },
+                onFullScreenExit: (): void => {
+                  this.isFullscreen = false;
+                }
               },
               onTitleReceive: (title: string): void => this.handleTitle(tab.id, title),
               onScroll: (offsetY: number): void => this.handlePageScroll(tab.id, offsetY),
@@ -1292,7 +1299,7 @@ struct Index {
 
   @Builder
   private CapsuleLayer() {
-    if (shouldShowBrowserChrome(this.windowMetrics.layoutClass, this.sheet)) {
+    if (!this.isFullscreen && shouldShowBrowserChrome(this.windowMetrics.layoutClass, this.sheet)) {
       if (this.usesWideChrome()) {
         Column() {
           this.BrowserDockContent()

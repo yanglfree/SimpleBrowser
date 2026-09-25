@@ -197,6 +197,12 @@ export struct BrowserWebView {
       .onWindowNew((event: OnWindowNewEvent) => {
         this.kernelCallbacks.onWindowNew(event.targetUrl, event.handler);
       })
+      .onFullScreenEnter((_event: FullScreenEnterEvent) => {
+        this.kernelCallbacks.onFullScreenEnter();
+      })
+      .onFullScreenExit(() => {
+        this.kernelCallbacks.onFullScreenExit();
+      })
       .parallelGesture(
         PanGesture({ direction: PanDirection.Vertical, distance: 8 })
           .onActionStart((event: GestureEvent) => this.startPull(event))
