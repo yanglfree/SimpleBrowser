@@ -71,10 +71,8 @@ if "schedule:" not in ci or "signing-source.mjs changed" not in ci:
     fail("device profile refresh trigger is missing")
 for fragment in (
     "name: Validate shared contracts",
-    "name: Test and build iOS app",
     "name: Test and build Android app",
     "name: Test and build HarmonyOS app",
-    "xcodebuild test",
     ":app:lintDebug",
     ":app:testDebugUnitTest",
     ":app:assembleDebug",

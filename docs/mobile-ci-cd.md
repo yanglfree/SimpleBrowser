@@ -7,7 +7,7 @@ The dated audit below records the pre-migration state, not proof of activation.
 
 ZhuoBrowser uses GitHub Actions only for orchestration and status. A trusted
 Apple Silicon self-hosted runner validates the shared core and builds the native
-iOS, Android, and HarmonyOS clients. The CI workflow exposes each platform as a
+Android and HarmonyOS clients (the iOS job is currently removed; see Boundaries). The CI workflow exposes each platform as a
 separate required gate so failures identify the affected toolchain directly.
 Cloudflare R2 retains immutable HarmonyOS artifacts, D1 records build and
 checksum metadata, and a product-isolated Worker provides authenticated upload
@@ -16,7 +16,7 @@ plus an unlisted download/status surface.
 ```text
 push main or manual CI
   -> shared contracts and browser regression tests
-  -> iOS xcodebuild tests + Android lint/tests/APK + HarmonyOS signed build
+  -> Android lint/tests/APK + HarmonyOS signed build
   -> successful workflow_run.head_sha
   -> signed HAP + store App Pack + checksums + release-metadata.json
   -> authenticated Worker upload
@@ -29,7 +29,8 @@ push main or manual CI
 - The automatic receiver always checks out the successful CI
   `workflow_run.head_sha`; it never rebuilds a moving `main` tip.
 - Failed or skipped CI cannot upload artifacts.
-- iOS and Android are CI build gates. Their signing, retained artifact, and
+- Android is a CI build gate; iOS is not gated in CI until a simulator is provisioned on the
+  runner (the job was removed). Their signing, retained artifact, and
   store-distribution channels are not configured by this HarmonyOS delivery
   workflow.
 - GitHub-hosted compute, Actions cache, and Actions artifacts are not used.
@@ -47,7 +48,7 @@ push main or manual CI
 - AppGallery Connect upload, release association, submission, review, and
   publication remain manual.
 
-The repository has native iOS and Android targets. CI verifies both, but there
+The repository has native iOS and Android targets. CI verifies only Android, and there
 is no iOS archive/Ad Hoc/TestFlight/App Store workflow or Android retained/store
 publication workflow in this migration.
 

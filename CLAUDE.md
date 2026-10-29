@@ -54,7 +54,8 @@ cd ohos && $HV clean --no-daemon           # if the daemon serves stale build st
 ./run_release.sh --dry-run                 # validate tools and the selected device only
 ```
 
-Shared core and the other shells (mirrors `.github/workflows/ci.yml`):
+Shared core and the other shells (CI currently covers core, repo scripts, Harmony and Android; the iOS job was removed
+from `.github/workflows/ci.yml` because the runner has no matching simulator, so iOS/macOS checks are local-only):
 
 ```bash
 cd core && npm test                        # core Node tests
@@ -71,8 +72,8 @@ cd macos && xcodegen generate && xcodebuild test -project ZhuoBrowserMac.xcodepr
 cd android && ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug
 ```
 
-CI fails if a synced copy drifts (`git diff --exit-code` on `ios/ZhuoBrowser/Resources` and
-`android/app/src/main/assets`), so after changing injected JS: edit `AppConstants.ets` → `npm run export-js`
+CI fails if the Android synced copy drifts (`git diff --exit-code` on `android/app/src/main/assets`;
+`ios/ZhuoBrowser/Resources` is no longer checked in CI, so verify it yourself), so after changing injected JS: edit `AppConstants.ets` → `npm run export-js`
 → run each `sync-core.sh` → commit the regenerated files together. Never hand-edit `core/js/`.
 
 `hdc` lives at `/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/toolchains/hdc`.
