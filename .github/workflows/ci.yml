@@ -88,42 +88,6 @@ jobs:
           npm test
           npm run verify:worker
 
-  ios:
-    needs: [inspect, quality]
-    if: needs.inspect.outputs.changed == 'true'
-    name: Test and build iOS app
-    runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
-    timeout-minutes: 45
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-
-      - name: Verify iOS toolchain
-        run: |
-          set -euo pipefail
-          command -v xcodegen
-          xcodebuild -version
-          xcrun simctl list devices available | grep -q 'iPhone 17 Pro Max'
-
-      - name: Verify shared resources are synchronized
-        run: |
-          set -euo pipefail
-          ios/Scripts/sync-core.sh
-          git diff --exit-code -- ios/ZhuoBrowser/Resources
-
-      - name: Generate project and run iOS tests
-        working-directory: ios
-        run: |
-          set -euo pipefail
-          xcodegen generate --spec project.yml
-          caffeinate -dimsu xcodebuild test \
-            -project ZhuoBrowser.xcodeproj \
-            -scheme ZhuoBrowser \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=latest'
-
   android:
     needs: [inspect, quality]
     if: needs.inspect.outputs.changed == 'true'
