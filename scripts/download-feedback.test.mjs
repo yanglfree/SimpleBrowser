@@ -13,7 +13,7 @@ const end = index.indexOf('  async aboutToAppear()', start);
 assert.ok(start >= 0 && end > start);
 const { Page, downloadErrorLabel } = runInNewContext(stripTypeScriptTypes(
   `${presentation}\nclass Page {${index.slice(start, end)}}\n({ Page, downloadErrorLabel });`
-), { DownloadTaskStatus: states, $r: (key, name) => name ? `${key}:${name}` : key });
+), { DownloadTaskStatus: states, setTimeout, clearTimeout, $r: (key, name) => name ? `${key}:${name}` : key });
 
 function task(status, progress = 0) {
   return { id: 'download', fileName: 'file.dmg', status, progress };

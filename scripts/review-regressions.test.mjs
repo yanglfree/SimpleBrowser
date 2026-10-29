@@ -60,7 +60,7 @@ test('status bar backdrop stays pinned to the top, bounds its height and never i
   assert.match(backdropSource, /\.position\(\{\s*x:\s*0,\s*y:\s*0\s*\}\)/);
   assert.match(backdropSource, /\.hitTestBehavior\(HitTestMode\.None\)/);
 
-  const indexBackdropBlock = between(pageSource, 'if (this.topInset > 0) {', '\n    }\n    .width(\'100%\')');
+  const indexBackdropBlock = between(pageSource, 'if (!this.isFullscreen && this.topInset > 0) {', '\n    }\n    .width(\'100%\')');
   assert.match(indexBackdropBlock, /\.position\(\{\s*x:\s*0,\s*y:\s*0\s*\}\)/);
   assert.match(indexBackdropBlock, /\.hitTestBehavior\(HitTestMode\.None\)/);
   assert.doesNotMatch(indexBackdropBlock, /\.align\(Alignment\.Top\)/);
@@ -78,7 +78,8 @@ test('settings refresh preserves modal bar styling and skips repeated native cal
   const page = new Page();
   Object.assign(page, {
     appContext: () => ({}), isActiveHome: () => true, isActiveReader: () => false, usesWideChrome: () => false,
-    settings: { startPageBackgroundEnabled: true }, sheet: 0
+    settings: { startPageBackgroundEnabled: true }, sheet: 0,
+    jsPromptResult: null, cancelHttpAuth: () => {}
   });
   page.refreshSystemBarStyle();
   assert.equal(calls.at(-1).wallpaper, true);
