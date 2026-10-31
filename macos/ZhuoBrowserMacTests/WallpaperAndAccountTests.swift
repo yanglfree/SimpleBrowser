@@ -38,6 +38,42 @@ final class WallpaperAndAccountTests: XCTestCase {
         XCTAssertFalse(account.isLoggedIn)
         XCTAssertNil(account.currentUser)
         XCTAssertNil(account.token)
+        XCTAssertNil(account.syncErrorMessage)
+    }
+
+    func testKeychainHelperTokenStorage() {
+        let sampleToken = "test_token_\(UUID().uuidString)"
+        let saved = KeychainHelper.saveToken(sampleToken)
+        if saved {
+            XCTAssertEqual(KeychainHelper.loadToken(), sampleToken)
+            KeychainHelper.deleteToken()
+            XCTAssertNil(KeychainHelper.loadToken())
+        }
+    }
+
+    func testAccountManagerApplySettings() {
+        let account = AccountManager.shared
+        let settings = BrowserSettings.shared
+
+        let payload: [String: Any] = [
+            "adBlockEnabled": false,
+            "cosmeticCleanupEnabled": false,
+            "liveWebViewBudget": 1,
+            "searchEngine": SearchEngine.google.rawValue
+        ]
+
+        account.applySettings(payload, to: settings)
+
+        XCTAssertFalse(settings.adBlockEnabled)
+        XCTAssertFalse(settings.cosmeticCleanupEnabled)
+        XCTAssertEqual(settings.liveWebViewBudget, 1)
+        XCTAssertEqual(settings.searchEngine, .google)
+
+        // Restore defaults
+        settings.adBlockEnabled = true
+        settings.cosmeticCleanupEnabled = true
+        settings.liveWebViewBudget = 2
+        settings.searchEngine = .bing
     }
 
     func testUserProfileEquality() {

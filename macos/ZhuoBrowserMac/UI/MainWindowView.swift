@@ -38,5 +38,12 @@ public struct MainWindowView: View {
         }
         .frame(minWidth: 700, minHeight: 480)
         .background(Color(NSColor.windowBackgroundColor))
+        .onAppear {
+            if AccountManager.shared.isLoggedIn {
+                Task {
+                    await AccountManager.shared.syncWithCloud(session: session)
+                }
+            }
+        }
     }
 }

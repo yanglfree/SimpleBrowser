@@ -106,6 +106,13 @@ public struct AccountView: View {
                     }
                 }
 
+                if let syncError = accountManager.syncErrorMessage {
+                    Text(syncError)
+                        .font(.system(size: 11))
+                        .foregroundColor(.red)
+                        .lineLimit(2)
+                }
+
                 Button(action: {
                     Task {
                         await accountManager.syncWithCloud(session: session)
