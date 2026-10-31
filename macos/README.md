@@ -40,6 +40,16 @@ macos/
 
 ## Setup & Build
 
+Quick start with the root runner:
+
+```bash
+./run_release.sh macos
+# or inside macos/
+./run_release.sh
+```
+
+Or build manually:
+
 ```bash
 cd macos
 ./Scripts/sync-core.sh

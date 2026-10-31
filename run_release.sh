@@ -2,7 +2,8 @@
 
 # Zhuoyue Browser — local device runner.
 # Style follows MarkBuy/run_release.sh: zsh, fail-fast, dry-run. Harmony uses
-# the canonical signing source; iOS and Android install the native shells.
+# the canonical signing source; iOS and Android install the native shells;
+# macOS runs the native desktop shell.
 # Multiple connected devices prompt for a numbered choice on a TTY.
 
 set -euo pipefail
@@ -11,6 +12,7 @@ SCRIPT_DIR="${0:A:h}"
 OHOS_DIR="$SCRIPT_DIR/ohos"
 IOS_DIR="$SCRIPT_DIR/ios"
 ANDROID_DIR="$SCRIPT_DIR/android"
+MACOS_DIR="$SCRIPT_DIR/macos"
 
 # HarmonyOS SDK 环境变量配置
 if [ -z "${HOS_SDK_HOME:-}" ] || [ ! -d "$HOS_SDK_HOME" ]; then
@@ -48,17 +50,17 @@ fail() {
 
 usage() {
   cat <<'EOF'
-Usage: ./run_release.sh [options] [ohos|harmony|ios|android]
+Usage: ./run_release.sh [options] [ohos|harmony|ios|android|macos|mac]
 
-Build, install, and launch Zhuoyue Browser on a connected device.
+Build, install, and launch Zhuoyue Browser on a connected device or local Mac.
 
 Options:
-  -d, --device <id>  Use a specific device id (hdc / udid / adb serial).
+  -d, --device <id>  Use a specific device id (hdc / udid / adb serial / macos).
   -s, --simulator    Include iOS simulators.
-      --debug        Harmony: assembleHap debug. Android/iOS: Debug.
-      --no-sync      Skip ios/android Scripts/sync-core.sh.
+      --debug        Harmony: assembleHap debug. Android/iOS/macOS: Debug.
+      --no-sync      Skip ios/android/macos Scripts/sync-core.sh.
       --no-build     Install an existing artifact.
-      --no-launch    Install only.
+      --no-launch    Install/build only.
       --dry-run      Validate tools and the selected device only.
   -h, --help         Show this help message.
 
@@ -68,7 +70,8 @@ Environment overrides:
   ADB_BIN            adb executable.
   XCRUN_BIN          xcrun executable.
   XCODEBUILD_BIN     xcodebuild executable.
-  DEVELOPMENT_TEAM   Apple team id for physical iOS installs.
+  DEVELOPMENT_TEAM   Apple team id for physical iOS/macOS installs.
+  CODE_SIGN_IDENTITY Signing identity override for macOS (default: "-").
 
 Examples:
   ./run_release.sh                 # prompt when more than one device is connected
@@ -76,6 +79,7 @@ Examples:
   ./run_release.sh -d <hdc-id>
   ./run_release.sh ios -s
   ./run_release.sh android --dry-run
+  ./run_release.sh macos
 EOF
 }
 
@@ -169,6 +173,10 @@ while (( $# > 0 )); do
       DEVICE_TYPE="android"
       shift
       ;;
+    macos|mac)
+      DEVICE_TYPE="macos"
+      shift
+      ;;
     *)
       fail "Unknown option: $1"
       ;;
@@ -210,12 +218,13 @@ scan_devices() {
   if [[ -z "$platform_filter" || "$platform_filter" == "android" ]]; then
     adb_bin="$(resolve_adb || true)"
   fi
-  if [[ -z "$platform_filter" || "$platform_filter" == "ios" ]]; then
+  if [[ -z "$platform_filter" || "$platform_filter" == "ios" || "$platform_filter" == "macos" ]]; then
     xcrun_bin="${XCRUN_BIN:-xcrun}"
   fi
 
-  python3 - "$include_simulator" "$hdc_bin" "$adb_bin" "$xcrun_bin" <<'PY'
+  python3 - "$include_simulator" "$hdc_bin" "$adb_bin" "$xcrun_bin" "$platform_filter" <<'PY'
 import json
+import platform
 import subprocess
 import sys
 
@@ -223,6 +232,7 @@ include_simulator = sys.argv[1] == "true"
 hdc_bin = sys.argv[2]
 adb_bin = sys.argv[3]
 xcrun_bin = sys.argv[4]
+platform_filter = sys.argv[5] if len(sys.argv) > 5 else ""
 candidates = []
 
 def run(args, timeout):
@@ -252,7 +262,7 @@ if hdc_bin:
                     continue
                 candidates.append(("ohos", line.split()[0], f"HarmonyOS ({line.split()[0]})", "hdc"))
 
-if xcrun_bin:
+if xcrun_bin and platform_filter != "macos":
     listed = run([xcrun_bin, "xcdevice", "list"], 8)
     if listed and listed.stdout.strip().startswith("["):
         try:
@@ -260,17 +270,24 @@ if xcrun_bin:
         except json.JSONDecodeError:
             devices = []
         for dev in devices:
-            platform = dev.get("platform", "")
+            plat = dev.get("platform", "")
             is_sim = bool(dev.get("simulator"))
             available = bool(dev.get("available"))
             dev_id = dev.get("identifier", "")
             name = dev.get("name", "iOS Device")
             model = dev.get("modelName") or dev.get("modelCode") or ""
             label = f"{name} ({model})" if model else name
-            if platform == "com.apple.platform.iphoneos" and not is_sim and available and dev_id:
+            if plat == "com.apple.platform.iphoneos" and not is_sim and available and dev_id:
                 candidates.append(("ios", dev_id, label, "Physical iOS"))
-            elif platform == "com.apple.platform.iphonesimulator" and include_simulator and available and dev_id:
+            elif plat == "com.apple.platform.iphonesimulator" and include_simulator and available and dev_id:
                 candidates.append(("ios_simulator", dev_id, f"{name} (Simulator)", "iOS Simulator"))
+            elif plat == "com.apple.platform.macosx" and available:
+                candidates.append(("macos", dev_id or "local", label, "Local macOS"))
+
+if (not platform_filter or platform_filter == "macos") and sys.platform == "darwin":
+    if not any(c[0] == "macos" for c in candidates):
+        mac_name = f"My Mac ({platform.machine()})"
+        candidates.append(("macos", "local", mac_name, "Local macOS"))
 
 if adb_bin:
     listed = run([adb_bin, "devices", "-l"], 3)
@@ -284,13 +301,13 @@ if adb_bin:
                 detail = " ".join(parts[2:]) if len(parts) > 2 else "Android"
                 candidates.append(("android", parts[0], f"Android ({parts[0]})", detail))
 
-for platform, dev_id, name, detail in candidates:
-    print(f"{platform}\t{dev_id}\t{name}\t{detail}")
+for plat, dev_id, name, detail in candidates:
+    print(f"{plat}\t{dev_id}\t{name}\t{detail}")
 PY
 }
 
 choose_device() {
-  print -- "Scanning HarmonyOS / iOS / Android devices..."
+  print -- "Scanning HarmonyOS / iOS / Android / macOS devices..."
   local raw
   raw="$(scan_devices "$SHOW_SIMULATOR" "$DEVICE_TYPE")"
 
@@ -326,6 +343,8 @@ choose_device() {
         DEVICE_TYPE="android"
       elif [[ "$DEVICE_ID" =~ ^[0-9A-F-]{36}$ ]]; then
         DEVICE_TYPE="ios_simulator"
+      elif [[ "$DEVICE_ID" == "local" || "$DEVICE_ID" == "mac" || "$DEVICE_ID" == "macos" ]]; then
+        DEVICE_TYPE="macos"
       else
         DEVICE_TYPE="ohos"
       fi
@@ -369,6 +388,10 @@ sync_core() {
   local platform="$1"
   [[ "$SKIP_SYNC" == true ]] && return 0
   case "$platform" in
+    macos)
+      [[ -x "$MACOS_DIR/Scripts/sync-core.sh" ]] || fail "Missing $MACOS_DIR/Scripts/sync-core.sh"
+      "$MACOS_DIR/Scripts/sync-core.sh"
+      ;;
     ios|ios_simulator)
       [[ -x "$IOS_DIR/Scripts/sync-core.sh" ]] || fail "Missing $IOS_DIR/Scripts/sync-core.sh"
       "$IOS_DIR/Scripts/sync-core.sh"
@@ -558,6 +581,68 @@ run_android() {
   print -- "Done."
 }
 
+run_macos() {
+  local xcodebuild_bin="${XCODEBUILD_BIN:-xcodebuild}"
+  (( $+commands[xcodegen] )) || fail "xcodegen was not found. Install it before running the macOS shell."
+  [[ -d "$MACOS_DIR" ]] || fail "macOS project not found: $MACOS_DIR"
+
+  local configuration="Release"
+  [[ "$HARMONY_BUILD_MODE" == "debug" ]] && configuration="Debug"
+
+  print -- "macOS target: Local Mac  Configuration: $configuration"
+  if [[ "$DRY_RUN" == true ]]; then
+    print -- "Environment validation completed."
+    return 0
+  fi
+
+  sync_core macos
+  (
+    cd "$MACOS_DIR"
+    xcodegen generate
+  )
+
+  local derived="$MACOS_DIR/.build/DerivedData"
+  local destination="platform=macOS,arch=$(uname -m)"
+  if [[ -n "$DEVICE_ID" && "$DEVICE_ID" != "local" && "$DEVICE_ID" != "macos" && "$DEVICE_ID" != "mac" ]]; then
+    destination="id=$DEVICE_ID"
+  fi
+
+  local extra_flags=()
+  if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
+    extra_flags+=(CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY")
+  elif [[ -n "${DEVELOPMENT_TEAM:-}" ]]; then
+    extra_flags+=(
+      DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM"
+      CODE_SIGN_STYLE=Automatic
+      -allowProvisioningUpdates
+    )
+  else
+    extra_flags+=(CODE_SIGN_IDENTITY="-")
+  fi
+
+  if [[ "$BUILD_APP" == true ]]; then
+    print -- "Building macOS $configuration ..."
+    "$xcodebuild_bin" \
+      -project "$MACOS_DIR/ZhuoBrowserMac.xcodeproj" \
+      -scheme ZhuoBrowserMac \
+      -configuration "$configuration" \
+      -destination "$destination" \
+      -derivedDataPath "$derived" \
+      "${extra_flags[@]}" \
+      build
+  fi
+
+  local app_bundle="$derived/Build/Products/${configuration}/ZhuoBrowserMac.app"
+  [[ -d "$app_bundle" ]] || fail "macOS app bundle not found: $app_bundle"
+
+  if [[ "$LAUNCH_APP" == true ]]; then
+    print -- "Launching $app_bundle ..."
+    pkill -x ZhuoBrowserMac >/dev/null 2>&1 || true
+    open "$app_bundle"
+  fi
+  print -- "Done."
+}
+
 (( $+commands[python3] )) || fail "python3 is required to scan devices."
 
 choose_device
@@ -566,5 +651,6 @@ case "$DEVICE_TYPE" in
   ohos|harmony) run_harmony ;;
   ios|ios_simulator) run_ios ;;
   android) run_android ;;
+  macos) run_macos ;;
   *) fail "Unknown platform: $DEVICE_TYPE" ;;
 esac
