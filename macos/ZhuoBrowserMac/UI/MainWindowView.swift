@@ -18,6 +18,8 @@ public struct MainWindowView: View {
                     .progressViewStyle(.linear)
                     .frame(height: 2)
                     .tint(.accentColor)
+                    .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+                    .animation(.easeInOut(duration: 0.15), value: tab.loadingProgress)
             }
 
             // Content Viewport
@@ -25,10 +27,13 @@ public struct MainWindowView: View {
                 if let activeTab = session.activeTab, !activeTab.isHome {
                     WebContainerView(controller: session.activeController)
                         .id(activeTab.id)
+                        .transition(.opacity)
                 } else {
                     MinimalStartView(session: session)
+                        .transition(.opacity)
                 }
             }
+            .animation(.easeInOut(duration: 0.18), value: session.activeTab?.isHome)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 700, minHeight: 480)

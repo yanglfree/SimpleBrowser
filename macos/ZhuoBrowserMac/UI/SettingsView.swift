@@ -6,6 +6,8 @@ public struct SettingsView: View {
     @Binding var isPresented: Bool
 
     @ObservedObject private var settings = BrowserSettings.shared
+    @ObservedObject private var accountManager = AccountManager.shared
+    @State private var isShowingAccountSheet: Bool = false
 
     public var body: some View {
         VStack(spacing: 20) {
@@ -72,6 +74,47 @@ public struct SettingsView: View {
                         .toggleStyle(.checkbox)
                     Toggle("启用页面元素去噪净化 (Cosmetic Cleanup)", isOn: $settings.cosmeticCleanupEnabled)
                         .toggleStyle(.checkbox)
+                }
+
+                Divider()
+
+                // Account & Cloud Sync
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "icloud.fill")
+                            .foregroundColor(.blue)
+                        Text("账号与云端同步")
+                            .font(.system(size: 13, weight: .semibold))
+                        Spacer()
+
+                        Button(action: {
+                            isShowingAccountSheet = true
+                        }) {
+                            Text(accountManager.isLoggedIn ? "账号管理" : "登录 / 注册")
+                                .font(.system(size: 12))
+                        }
+                    }
+
+                    if accountManager.isLoggedIn {
+                        HStack {
+                            Text("已登录：\(accountManager.currentUser?.email ?? "")")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            if let lastSync = accountManager.lastSyncTime {
+                                Text("最近同步：\(lastSync, style: .time)")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    } else {
+                        Text("登录账号后可将书签与配置自动备份并跨设备同步。")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .sheet(isPresented: $isShowingAccountSheet) {
+                    AccountView(session: session, isPresented: $isShowingAccountSheet)
                 }
             }
 

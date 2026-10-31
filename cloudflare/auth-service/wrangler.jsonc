@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zhuobrowser-auth-service",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "AUTH_DB",
+      "database_name": "zhuobrowser-auth-db",
+      "database_id": "61ea7a81-1d1b-48b2-9fcc-b0e2a03febeb",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "APP_ID": "zhuobrowser-mac"
+  }
+}

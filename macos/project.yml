@@ -24,6 +24,9 @@ targets:
       - path: ZhuoBrowserMac/Resources/rules
         buildPhase: resources
         type: folder
+      - path: ZhuoBrowserMac/Resources/wallpapers
+        buildPhase: resources
+        type: folder
     entitlements:
       path: ZhuoBrowserMac/ZhuoBrowserMac.entitlements
       properties:

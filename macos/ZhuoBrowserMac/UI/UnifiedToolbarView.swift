@@ -3,9 +3,11 @@ import SwiftUI
 /// Unified minimalist macOS toolbar containing navigation, omnibox, and status indicators.
 public struct UnifiedToolbarView: View {
     @ObservedObject var session: BrowserSession
+    @ObservedObject private var accountManager = AccountManager.shared
     @FocusState private var isOmniboxFocused: Bool
     @State private var currentText: String = ""
     @State private var isShowingSettings: Bool = false
+    @State private var isShowingAccount: Bool = false
 
     private var activeTab: BrowserTab? {
         session.activeTab
@@ -19,7 +21,7 @@ public struct UnifiedToolbarView: View {
                     Image(systemName: "chevron.backward")
                         .font(.system(size: 13, weight: .medium))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ToolbarHoverButtonStyle())
                 .disabled(!(activeTab?.canGoBack ?? false))
                 .foregroundColor((activeTab?.canGoBack ?? false) ? .primary : .secondary.opacity(0.4))
                 .frame(width: 24, height: 24)
@@ -29,7 +31,7 @@ public struct UnifiedToolbarView: View {
                     Image(systemName: "chevron.forward")
                         .font(.system(size: 13, weight: .medium))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ToolbarHoverButtonStyle())
                 .disabled(!(activeTab?.canGoForward ?? false))
                 .foregroundColor((activeTab?.canGoForward ?? false) ? .primary : .secondary.opacity(0.4))
                 .frame(width: 24, height: 24)
@@ -39,7 +41,7 @@ public struct UnifiedToolbarView: View {
                     Image(systemName: (activeTab?.isLoading ?? false) ? "xmark" : "arrow.clockwise")
                         .font(.system(size: 12, weight: .medium))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ToolbarHoverButtonStyle())
                 .disabled(activeTab?.isHome ?? true)
                 .foregroundColor((activeTab?.isHome ?? true) ? .secondary.opacity(0.4) : .primary)
                 .frame(width: 24, height: 24)
@@ -124,7 +126,7 @@ public struct UnifiedToolbarView: View {
                     .font(.system(size: 13))
                     .frame(width: 24, height: 24)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ToolbarHoverButtonStyle())
             .help("书签与历史记录 (Cmd+Y / Cmd+Option+B)")
 
             // New Tab Button
@@ -133,7 +135,7 @@ public struct UnifiedToolbarView: View {
                     .font(.system(size: 13, weight: .medium))
                     .frame(width: 24, height: 24)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ToolbarHoverButtonStyle())
             .help("新建标签页 (Cmd+T)")
 
             // Preferences
@@ -142,8 +144,33 @@ public struct UnifiedToolbarView: View {
                     .font(.system(size: 13))
                     .frame(width: 24, height: 24)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ToolbarHoverButtonStyle())
             .help("偏好设置")
+
+            // User Account Button
+            Button(action: { isShowingAccount.toggle() }) {
+                if accountManager.isLoggedIn {
+                    ZStack {
+                        Circle()
+                            .fill(Color.accentColor.opacity(0.2))
+                            .frame(width: 24, height: 24)
+
+                        Text(accountManager.currentUser?.displayName.prefix(1).uppercased() ?? "U")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.accentColor)
+                    }
+                } else {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 14))
+                        .frame(width: 24, height: 24)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .buttonStyle(ToolbarHoverButtonStyle())
+            .help(accountManager.isLoggedIn ? "账号中心 (\(accountManager.currentUser?.displayName ?? ""))" : "登录 / 注册账号")
+            .sheet(isPresented: $isShowingAccount) {
+                AccountView(session: session, isPresented: $isShowingAccount)
+            }
             .sheet(isPresented: $isShowingSettings) {
                 SettingsView(session: session, isPresented: $isShowingSettings)
             }
@@ -195,5 +222,24 @@ public struct UnifiedToolbarView: View {
         let textToNavigate = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToNavigate.isEmpty else { return }
         session.navigate(to: textToNavigate)
+    }
+}
+
+/// Dynamic button style with smooth spring hover and tactile press feedback.
+private struct ToolbarHoverButtonStyle: ButtonStyle {
+    @State private var isHovered: Bool = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(configuration.isPressed ? Color.secondary.opacity(0.18) : (isHovered ? Color.secondary.opacity(0.1) : Color(nsColor: .clear)))
+            )
+            .scaleEffect(configuration.isPressed ? 0.92 : (isHovered ? 1.05 : 1.0))
+            .animation(.spring(response: 0.22, dampingFraction: 0.75), value: isHovered)
+            .animation(.spring(response: 0.15, dampingFraction: 0.75), value: configuration.isPressed)
+            .onHover { hovering in
+                isHovered = hovering
+            }
     }
 }
