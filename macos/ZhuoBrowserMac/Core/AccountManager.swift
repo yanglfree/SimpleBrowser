@@ -52,13 +52,23 @@ public struct UserProfile: Codable, Identifiable, Equatable {
     public let id: String
     public let email: String
     public let displayName: String
+    public let avatarUrl: String?
     public let createdAt: Int64?
 
-    public init(id: String, email: String, displayName: String, createdAt: Int64? = nil) {
+    public init(id: String, email: String, displayName: String, avatarUrl: String? = nil, createdAt: Int64? = nil) {
         self.id = id
         self.email = email
         self.displayName = displayName
+        self.avatarUrl = avatarUrl
         self.createdAt = createdAt
+    }
+
+    public var resolvedAvatarURL: URL? {
+        guard let avatarUrl = avatarUrl, !avatarUrl.isEmpty else { return nil }
+        if avatarUrl.hasPrefix("http://") || avatarUrl.hasPrefix("https://") {
+            return URL(string: avatarUrl)
+        }
+        return URL(string: "\(AccountManager.serverBaseURL)\(avatarUrl)")
     }
 }
 
@@ -140,7 +150,8 @@ public final class AccountManager: ObservableObject {
                    let userId = userDict["id"] as? String,
                    let userEmail = userDict["email"] as? String,
                    let userDisplayName = userDict["displayName"] as? String {
-                    let profile = UserProfile(id: userId, email: userEmail, displayName: userDisplayName)
+                    let userAvatarUrl = userDict["avatarUrl"] as? String ?? userDict["avatar_url"] as? String
+                    let profile = UserProfile(id: userId, email: userEmail, displayName: userDisplayName, avatarUrl: userAvatarUrl)
                     saveSession(token: receivedToken, profile: profile)
                     return true
                 }
@@ -181,7 +192,8 @@ public final class AccountManager: ObservableObject {
                    let userId = userDict["id"] as? String,
                    let userEmail = userDict["email"] as? String,
                    let userDisplayName = userDict["displayName"] as? String {
-                    let profile = UserProfile(id: userId, email: userEmail, displayName: userDisplayName)
+                    let userAvatarUrl = userDict["avatarUrl"] as? String ?? userDict["avatar_url"] as? String
+                    let profile = UserProfile(id: userId, email: userEmail, displayName: userDisplayName, avatarUrl: userAvatarUrl)
                     saveSession(token: receivedToken, profile: profile)
                     return true
                 }
@@ -211,6 +223,57 @@ public final class AccountManager: ObservableObject {
         self.syncErrorMessage = nil
         self.userDefaults.removeObject(forKey: tokenKey)
         self.userDefaults.removeObject(forKey: userProfileKey)
+    }
+
+    @discardableResult
+    public func uploadAvatar(imageData: Data, mimeType: String = "image/jpeg") async -> Bool {
+        errorMessage = nil
+        guard let token = self.token, let currentUser = self.currentUser else {
+            errorMessage = "尚未登录"
+            return false
+        }
+        guard let url = URL(string: "\(Self.serverBaseURL)/api/user/avatar") else {
+            errorMessage = "上传地址无效"
+            return false
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(mimeType, forHTTPHeaderField: "Content-Type")
+        request.setValue("ZhuoBrowserMac/1.0", forHTTPHeaderField: "User-Agent")
+        request.httpBody = imageData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                errorMessage = "未收到服务器响应"
+                return false
+            }
+
+            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+
+            if httpResponse.statusCode == 200 {
+                let returnedAvatarUrl = json["avatarUrl"] as? String
+                let updatedProfile = UserProfile(
+                    id: currentUser.id,
+                    email: currentUser.email,
+                    displayName: currentUser.displayName,
+                    avatarUrl: returnedAvatarUrl ?? currentUser.avatarUrl,
+                    createdAt: currentUser.createdAt
+                )
+                self.currentUser = updatedProfile
+                if let encoded = try? JSONEncoder().encode(updatedProfile) {
+                    self.userDefaults.set(encoded, forKey: userProfileKey)
+                }
+                return true
+            } else {
+                errorMessage = json["error"] as? String ?? "头像上传失败 (HTTP \(httpResponse.statusCode))"
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        return false
     }
 
     public func applySettings(_ dict: [String: Any], to settings: BrowserSettings) {
@@ -371,7 +434,8 @@ public final class AccountManager: ObservableObject {
                    let userId = userDict["id"] as? String,
                    let userEmail = userDict["email"] as? String,
                    let userDisplayName = userDict["displayName"] as? String {
-                    let profile = UserProfile(id: userId, email: userEmail, displayName: userDisplayName)
+                    let userAvatarUrl = userDict["avatarUrl"] as? String ?? userDict["avatar_url"] as? String
+                    let profile = UserProfile(id: userId, email: userEmail, displayName: userDisplayName, avatarUrl: userAvatarUrl)
                     self.currentUser = profile
                     self.isLoggedIn = true
                 }

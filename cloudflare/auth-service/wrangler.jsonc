@@ -13,6 +13,12 @@
       "migrations_dir": "migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "AVATARS",
+      "bucket_name": "zhuobrowser-avatars"
+    }
+  ],
   "vars": {
     "APP_ID": "zhuobrowser-mac"
   }

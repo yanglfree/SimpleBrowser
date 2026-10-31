@@ -77,12 +77,36 @@ final class WallpaperAndAccountTests: XCTestCase {
     }
 
     func testUserProfileEquality() {
-        let userA = UserProfile(id: "123", email: "user@test.com", displayName: "Test User")
-        let userB = UserProfile(id: "123", email: "user@test.com", displayName: "Test User")
+        let userA = UserProfile(id: "123", email: "user@test.com", displayName: "Test User", avatarUrl: "/api/user/avatar/123")
+        let userB = UserProfile(id: "123", email: "user@test.com", displayName: "Test User", avatarUrl: "/api/user/avatar/123")
         let userC = UserProfile(id: "456", email: "other@test.com", displayName: "Other")
 
         XCTAssertEqual(userA, userB)
         XCTAssertNotEqual(userA, userC)
+    }
+
+    func testUserProfileAvatarURLResolution() {
+        let relativeUser = UserProfile(id: "123", email: "u@test.com", displayName: "User", avatarUrl: "/api/user/avatar/123")
+        XCTAssertNotNil(relativeUser.resolvedAvatarURL)
+        XCTAssertTrue(relativeUser.resolvedAvatarURL?.absoluteString.hasPrefix("https://") == true)
+        XCTAssertTrue(relativeUser.resolvedAvatarURL?.absoluteString.contains("/api/user/avatar/123") == true)
+
+        let absoluteUser = UserProfile(id: "123", email: "u@test.com", displayName: "User", avatarUrl: "https://example.com/avatar.jpg")
+        XCTAssertEqual(absoluteUser.resolvedAvatarURL?.absoluteString, "https://example.com/avatar.jpg")
+
+        let nilUser = UserProfile(id: "123", email: "u@test.com", displayName: "User", avatarUrl: nil)
+        XCTAssertNil(nilUser.resolvedAvatarURL)
+    }
+
+    func testUserProfileCodableWithAvatarUrl() throws {
+        let profile = UserProfile(id: "u1", email: "test@domain.com", displayName: "Tester", avatarUrl: "/api/user/avatar/u1")
+        let data = try JSONEncoder().encode(profile)
+        let decoded = try JSONDecoder().decode(UserProfile.self, from: data)
+
+        XCTAssertEqual(decoded.id, "u1")
+        XCTAssertEqual(decoded.email, "test@domain.com")
+        XCTAssertEqual(decoded.displayName, "Tester")
+        XCTAssertEqual(decoded.avatarUrl, "/api/user/avatar/u1")
     }
 
     func testDoubleClickAreaCreatesNewTab() {

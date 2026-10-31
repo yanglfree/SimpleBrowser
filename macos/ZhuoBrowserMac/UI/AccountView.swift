@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// View for user login, registration, and cloud sync status management.
 public struct AccountView: View {
@@ -11,6 +12,8 @@ public struct AccountView: View {
     @State private var passwordInput: String = ""
     @State private var displayNameInput: String = ""
     @State private var isSubmitting: Bool = false
+    @State private var isUploadingAvatar: Bool = false
+    @State private var isHoveringAvatar: Bool = false
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -54,15 +57,57 @@ public struct AccountView: View {
         VStack(spacing: 20) {
             // Avatar & Profile
             VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.15))
-                        .frame(width: 64, height: 64)
+                Button(action: { pickAndUploadAvatar() }) {
+                    ZStack(alignment: .bottomTrailing) {
+                        avatarImage(size: 68)
+                            .overlay(
+                                Circle()
+                                    .fill(Color.black.opacity(isHoveringAvatar ? 0.35 : 0))
+                                    .overlay(
+                                        Image(systemName: "camera.fill")
+                                            .foregroundColor(.white)
+                                            .font(.system(size: 18))
+                                            .opacity(isHoveringAvatar ? 1.0 : 0)
+                                    )
+                            )
+                            .clipShape(Circle())
 
-                    Text(accountManager.currentUser?.displayName.prefix(1).uppercased() ?? "U")
-                        .font(.system(size: 26, weight: .bold))
+                        if isUploadingAvatar {
+                            Circle()
+                                .fill(Color.black.opacity(0.45))
+                                .frame(width: 68, height: 68)
+                                .overlay(
+                                    ProgressView()
+                                        .controlSize(.small)
+                                )
+                        }
+
+                        // Badge edit icon
+                        Circle()
+                            .fill(Color(nsColor: .windowBackgroundColor))
+                            .frame(width: 22, height: 22)
+                            .overlay(
+                                Image(systemName: "pencil.circle.fill")
+                                    .foregroundColor(.accentColor)
+                                    .font(.system(size: 18))
+                            )
+                            .offset(x: 2, y: 2)
+                    }
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    isHoveringAvatar = hovering
+                }
+                .disabled(isUploadingAvatar)
+                .help("点击更换头像")
+
+                Button(action: { pickAndUploadAvatar() }) {
+                    Text(isUploadingAvatar ? "正在上传头像..." : "更换头像")
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.accentColor)
                 }
+                .buttonStyle(.plain)
+                .disabled(isUploadingAvatar)
 
                 Text(accountManager.currentUser?.displayName ?? "用户")
                     .font(.system(size: 16, weight: .semibold))
@@ -245,6 +290,119 @@ public struct AccountView: View {
                     await accountManager.syncWithCloud(session: session)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func avatarImage(size: CGFloat) -> some View {
+        if let avatarURL = accountManager.currentUser?.resolvedAvatarURL {
+            AsyncImage(url: avatarURL) { phase in
+                switch phase {
+                case .success(let img):
+                    img
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: size, height: size)
+                case .failure:
+                    initialsAvatar(size: size)
+                case .empty:
+                    ZStack {
+                        Circle()
+                            .fill(Color.accentColor.opacity(0.15))
+                            .frame(width: size, height: size)
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                @unknown default:
+                    initialsAvatar(size: size)
+                }
+            }
+            .frame(width: size, height: size)
+        } else {
+            initialsAvatar(size: size)
+        }
+    }
+
+    private func initialsAvatar(size: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(Color.accentColor.opacity(0.15))
+                .frame(width: size, height: size)
+
+            Text(accountManager.currentUser?.displayName.prefix(1).uppercased() ?? "U")
+                .font(.system(size: size * 0.4, weight: .bold))
+                .foregroundColor(.accentColor)
+        }
+    }
+
+    private func pickAndUploadAvatar() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [UTType.jpeg, UTType.png, UTType.image]
+        panel.prompt = "选取"
+        panel.message = "请选择用作头像的图片 (支持 JPG / PNG 等)"
+
+        if panel.runModal() == .OK, let fileURL = panel.url {
+            processAndUploadImage(at: fileURL)
+        }
+    }
+
+    private func processAndUploadImage(at fileURL: URL) {
+        isUploadingAvatar = true
+        accountManager.errorMessage = nil
+
+        Task {
+            defer { isUploadingAvatar = false }
+            guard let image = NSImage(contentsOf: fileURL) else {
+                accountManager.errorMessage = "无法读取所选图片文件"
+                return
+            }
+
+            // Downscale to max 512x512 to preserve bandwidth and Cloudflare storage
+            let maxDimension: CGFloat = 512
+            let originalSize = image.size
+            guard originalSize.width > 0, originalSize.height > 0 else {
+                accountManager.errorMessage = "图片尺寸无效"
+                return
+            }
+
+            let targetSize: CGSize
+            if originalSize.width > maxDimension || originalSize.height > maxDimension {
+                let ratio = min(maxDimension / originalSize.width, maxDimension / originalSize.height)
+                targetSize = CGSize(width: originalSize.width * ratio, height: originalSize.height * ratio)
+            } else {
+                targetSize = originalSize
+            }
+
+            guard let rep = NSBitmapImageRep(
+                bitmapDataPlanes: nil,
+                pixelsWide: Int(targetSize.width),
+                pixelsHigh: Int(targetSize.height),
+                bitsPerSample: 8,
+                samplesPerPixel: 4,
+                hasAlpha: true,
+                isPlanar: false,
+                colorSpaceName: .calibratedRGB,
+                bytesPerRow: 0,
+                bitsPerPixel: 0
+            ) else {
+                accountManager.errorMessage = "图片位图解析失败"
+                return
+            }
+
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            image.draw(in: NSRect(origin: .zero, size: targetSize))
+            NSGraphicsContext.restoreGraphicsState()
+
+            guard let jpegData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) else {
+                accountManager.errorMessage = "图片格式转换失败"
+                return
+            }
+
+            await accountManager.uploadAvatar(imageData: jpegData, mimeType: "image/jpeg")
         }
     }
 }

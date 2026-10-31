@@ -1,5 +1,6 @@
 export interface Env {
   AUTH_DB: D1Database;
+  AVATARS?: R2Bucket;
   APP_ID?: string;
 }
 
@@ -9,6 +10,7 @@ interface UserRow {
   password_hash: string;
   salt: string;
   display_name: string;
+  avatar_url?: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -99,6 +101,24 @@ export default {
         return await handleSyncPush(request, user.id, env, corsHeaders);
       }
 
+      // User Avatar routes
+      if (url.pathname === '/api/user/avatar' && request.method === 'POST') {
+        const user = await authenticateRequest(request, env);
+        if (!user) {
+          return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
+        }
+        return await handleUploadAvatar(request, user, env, corsHeaders);
+      }
+
+      if (url.pathname.startsWith('/api/user/avatar/') && request.method === 'GET') {
+        const pathParts = url.pathname.split('/');
+        const targetUserId = pathParts[4];
+        if (!targetUserId) {
+          return jsonResponse({ error: 'User ID required' }, corsHeaders, 400);
+        }
+        return await handleGetAvatar(targetUserId, env, corsHeaders);
+      }
+
       return jsonResponse({ error: 'Not Found' }, corsHeaders, 404);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -159,6 +179,7 @@ async function handleRegister(request: Request, env: Env, headers: Record<string
         id: userId,
         email,
         displayName,
+        avatarUrl: null,
       },
     },
     headers,
@@ -282,6 +303,115 @@ async function handleSyncPush(request: Request, userId: string, env: Env, header
   );
 }
 
+async function handleUploadAvatar(
+  request: Request,
+  user: UserRow,
+  env: Env,
+  headers: Record<string, string>
+): Promise<Response> {
+  if (!env.AVATARS) {
+    return jsonResponse({ error: 'Avatar storage not configured' }, headers, 500);
+  }
+
+  const contentType = request.headers.get('Content-Type') || '';
+  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const mime = allowedMimeTypes.find((m) => contentType.toLowerCase().includes(m));
+
+  if (!mime) {
+    return jsonResponse(
+      { error: 'Invalid content type. Only JPEG, PNG, WebP, or GIF are supported.' },
+      headers,
+      400
+    );
+  }
+
+  const arrayBuffer = await request.arrayBuffer();
+  const MAX_SIZE = 2 * 1024 * 1024;
+  if (arrayBuffer.byteLength === 0) {
+    return jsonResponse({ error: 'Image body cannot be empty' }, headers, 400);
+  }
+  if (arrayBuffer.byteLength > MAX_SIZE) {
+    return jsonResponse({ error: 'Image file too large (max 2MB)' }, headers, 400);
+  }
+
+  const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : mime === 'image/gif' ? 'gif' : 'jpg';
+  const objectKey = `avatars/${user.id}.${ext}`;
+
+  await env.AVATARS.put(objectKey, arrayBuffer, {
+    httpMetadata: {
+      contentType: mime,
+      cacheControl: 'public, max-age=86400',
+    },
+  });
+
+  const now = Date.now();
+  const avatarUrl = `/api/user/avatar/${user.id}?v=${now}`;
+
+  await env.AUTH_DB.prepare('UPDATE users SET avatar_url = ?, updated_at = ? WHERE id = ?')
+    .bind(avatarUrl, now, user.id)
+    .run();
+
+  const updatedUser: UserRow = {
+    ...user,
+    avatar_url: avatarUrl,
+    updated_at: now,
+  };
+
+  return jsonResponse(
+    {
+      ok: true,
+      avatarUrl,
+      user: sanitizeUser(updatedUser),
+    },
+    headers
+  );
+}
+
+async function handleGetAvatar(
+  userId: string,
+  env: Env,
+  headers: Record<string, string>
+): Promise<Response> {
+  if (!env.AVATARS) {
+    return jsonResponse({ error: 'Avatar storage not configured' }, headers, 500);
+  }
+
+  const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!safeUserId) {
+    return jsonResponse({ error: 'Invalid user ID' }, headers, 400);
+  }
+
+  const extensions = ['jpg', 'png', 'webp', 'gif'];
+  let object: R2ObjectBody | null = null;
+
+  for (const ext of extensions) {
+    const key = `avatars/${safeUserId}.${ext}`;
+    const obj = await env.AVATARS.get(key);
+    if (obj) {
+      object = obj;
+      break;
+    }
+  }
+
+  if (!object) {
+    return jsonResponse({ error: 'Avatar not found' }, headers, 404);
+  }
+
+  const responseHeaders = new Headers();
+  object.writeHttpMetadata(responseHeaders);
+  responseHeaders.set('Access-Control-Allow-Origin', headers['Access-Control-Allow-Origin'] || '*');
+  responseHeaders.set('Cache-Control', 'public, max-age=86400');
+  responseHeaders.set('ETag', object.httpEtag);
+  if (!responseHeaders.has('Content-Type')) {
+    responseHeaders.set('Content-Type', 'image/jpeg');
+  }
+
+  return new Response(object.body, {
+    status: 200,
+    headers: responseHeaders,
+  });
+}
+
 // Helpers
 async function authenticateRequest(request: Request, env: Env): Promise<UserRow | null> {
   const token = extractBearerToken(request);
@@ -309,6 +439,7 @@ function sanitizeUser(user: UserRow) {
     id: user.id,
     email: user.email,
     displayName: user.display_name,
+    avatarUrl: user.avatar_url || null,
     createdAt: user.created_at,
   };
 }
