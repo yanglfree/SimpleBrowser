@@ -22,37 +22,56 @@ public struct SettingsView: View {
 
             Divider()
 
-            Form {
+            VStack(alignment: .leading, spacing: 16) {
                 // Search Engine
-                Section {
-                    Picker("默认搜索引擎", selection: $settings.searchEngine) {
+                HStack(alignment: .center) {
+                    Text("默认搜索引擎")
+                        .font(.system(size: 13))
+                    Spacer()
+                    Picker("", selection: $settings.searchEngine) {
                         ForEach(SearchEngine.allCases) { engine in
                             Text(engine.rawValue).tag(engine)
                         }
                     }
+                    .labelsHidden()
+                    .frame(width: 160)
                 }
 
+                Divider()
+
                 // Memory Saver Budget
-                Section {
-                    Picker("活跃标签配额 (Live WebViews)", selection: $settings.liveWebViewBudget) {
-                        Text("1 个 (极致省内存，后台立即休眠)").tag(1)
-                        Text("2 个 (默认推荐，平衡切换速度与内存)").tag(2)
-                        Text("3 个 (常驻 3 个活跃页面)").tag(3)
-                        Text("4 个 (宽松配额)").tag(4)
-                    }
-                    .onChange(of: settings.liveWebViewBudget) { _ in
-                        session.enforceMemoryBudget()
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .center) {
+                        Text("活跃标签配额 (Live WebViews)")
+                            .font(.system(size: 13))
+                        Spacer()
+                        Picker("", selection: $settings.liveWebViewBudget) {
+                            Text("1 个 (极致省内存，后台立即休眠)").tag(1)
+                            Text("2 个 (默认推荐，平衡切换速度与内存)").tag(2)
+                            Text("3 个 (常驻 3 个活跃页面)").tag(3)
+                            Text("4 个 (宽松配额)").tag(4)
+                        }
+                        .labelsHidden()
+                        .frame(width: 270)
+                        .onChange(of: settings.liveWebViewBudget) { _ in
+                            session.enforceMemoryBudget()
+                        }
                     }
 
                     Text("当后台标签数量超过该配额时，超出部分将自动销毁 WebKit 渲染进程以释放内存，点击该标签时自动无损恢复。")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
+                Divider()
+
                 // Privacy & Content Blocking
-                Section {
+                VStack(alignment: .leading, spacing: 10) {
                     Toggle("启用原生广告与跟踪拦截 (WKContentRuleList)", isOn: $settings.adBlockEnabled)
+                        .toggleStyle(.checkbox)
                     Toggle("启用页面元素去噪净化 (Cosmetic Cleanup)", isOn: $settings.cosmeticCleanupEnabled)
+                        .toggleStyle(.checkbox)
                 }
             }
 
@@ -67,6 +86,6 @@ public struct SettingsView: View {
             }
         }
         .padding(20)
-        .frame(width: 440)
+        .frame(width: 520)
     }
 }
