@@ -13,6 +13,13 @@ public struct ZhuoBrowserMacApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("偏好设置...") {
+                    session.isShowingSettings = true
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+
             CommandGroup(replacing: .newItem) {
                 Button("新建标签页") {
                     session.createTab()

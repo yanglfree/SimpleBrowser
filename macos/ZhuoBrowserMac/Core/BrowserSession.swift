@@ -17,6 +17,7 @@ public final class BrowserSession: ObservableObject {
     @Published public var bookmarks: [BookmarkEntry] = []
     @Published public var history: [HistoryEntry] = []
     @Published public var isShowingLibraryManager: Bool = false
+    @Published public var isShowingSettings: Bool = false
     @Published public var librarySelectedTab: Int = 0
 
     public let settings = BrowserSettings.shared
@@ -209,6 +210,28 @@ public final class BrowserSession: ObservableObject {
     public func clearHistory() {
         history = []
         libraryStore.clearHistory()
+    }
+
+    public func clearWebsiteData(clearCookies: Bool = true, clearCache: Bool = true, completion: (() -> Void)? = nil) {
+        var dataTypes = Set<String>()
+        if clearCache {
+            dataTypes.insert(WKWebsiteDataTypeDiskCache)
+            dataTypes.insert(WKWebsiteDataTypeMemoryCache)
+        }
+        if clearCookies {
+            dataTypes.insert(WKWebsiteDataTypeCookies)
+            dataTypes.insert(WKWebsiteDataTypeLocalStorage)
+            dataTypes.insert(WKWebsiteDataTypeSessionStorage)
+        }
+        guard !dataTypes.isEmpty else {
+            completion?()
+            return
+        }
+        WKWebsiteDataStore.default().removeData(ofTypes: dataTypes, modifiedSince: Date.distantPast) {
+            DispatchQueue.main.async {
+                completion?()
+            }
+        }
     }
 
     public func openLibrary(tabIndex: Int = 0) {

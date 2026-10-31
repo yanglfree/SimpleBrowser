@@ -14,6 +14,7 @@ public struct AccountView: View {
     @State private var isSubmitting: Bool = false
     @State private var isUploadingAvatar: Bool = false
     @State private var isHoveringAvatar: Bool = false
+    @State private var isShowingFilePicker: Bool = false
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -50,6 +51,19 @@ public struct AccountView: View {
         }
         .frame(width: 360)
         .background(Color(nsColor: .windowBackgroundColor))
+        .fileImporter(
+            isPresented: $isShowingFilePicker,
+            allowedContentTypes: [UTType.image, UTType.jpeg, UTType.png],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                processAndUploadImage(at: url)
+            case .failure(let error):
+                accountManager.errorMessage = "选取图片失败: \(error.localizedDescription)"
+            }
+        }
     }
 
     // Logged In State View
@@ -115,6 +129,14 @@ public struct AccountView: View {
                 Text(accountManager.currentUser?.email ?? "")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
+
+                if let errorMsg = accountManager.errorMessage {
+                    Text(errorMsg)
+                        .font(.system(size: 11))
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 12)
+                }
             }
             .padding(.top, 12)
 
@@ -336,29 +358,28 @@ public struct AccountView: View {
     }
 
     private func pickAndUploadAvatar() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [UTType.jpeg, UTType.png, UTType.image]
-        panel.prompt = "选取"
-        panel.message = "请选择用作头像的图片 (支持 JPG / PNG 等)"
-
-        if panel.runModal() == .OK, let fileURL = panel.url {
-            processAndUploadImage(at: fileURL)
-        }
+        accountManager.errorMessage = nil
+        isShowingFilePicker = true
     }
 
     private func processAndUploadImage(at fileURL: URL) {
-        isUploadingAvatar = true
         accountManager.errorMessage = nil
+        isUploadingAvatar = true
+
+        let isScoped = fileURL.startAccessingSecurityScopedResource()
+        let rawData = try? Data(contentsOf: fileURL)
+        if isScoped {
+            fileURL.stopAccessingSecurityScopedResource()
+        }
+
+        guard let data = rawData, let image = NSImage(data: data) else {
+            isUploadingAvatar = false
+            accountManager.errorMessage = "无法读取所选图片文件"
+            return
+        }
 
         Task {
             defer { isUploadingAvatar = false }
-            guard let image = NSImage(contentsOf: fileURL) else {
-                accountManager.errorMessage = "无法读取所选图片文件"
-                return
-            }
 
             // Downscale to max 512x512 to preserve bandwidth and Cloudflare storage
             let maxDimension: CGFloat = 512

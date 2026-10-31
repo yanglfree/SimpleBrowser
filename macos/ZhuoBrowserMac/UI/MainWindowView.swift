@@ -40,6 +40,9 @@ public struct MainWindowView: View {
         .ignoresSafeArea(.all, edges: .top)
         .background(WindowConfigurator())
         .background(Color(NSColor.windowBackgroundColor))
+        .sheet(isPresented: $session.isShowingSettings) {
+            SettingsView(session: session, isPresented: $session.isShowingSettings)
+        }
         .onAppear {
             if AccountManager.shared.isLoggedIn {
                 Task {

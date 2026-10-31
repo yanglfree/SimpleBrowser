@@ -77,7 +77,7 @@ public struct UserProfile: Codable, Identifiable, Equatable {
 public final class AccountManager: ObservableObject {
     public static let shared = AccountManager()
 
-    public static let serverBaseURL = "https://zhuobrowser-auth-service.memoryphoto.workers.dev"
+    nonisolated public static let serverBaseURL = "https://zhuobrowser-auth-service.memoryphoto.workers.dev"
 
     private let tokenKey = "ZhuoBrowser_Account_Token"
     private let userProfileKey = "ZhuoBrowser_Account_Profile"

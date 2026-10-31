@@ -26,23 +26,26 @@ public struct MinimalStartView: View {
 
     public var body: some View {
         ZStack {
-            // Background Layer
-            if let image = bgManager.currentImage, bgManager.source != .none {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .overlay(
-                        Color.black.opacity(0.38)
-                    )
-                    .transition(.opacity.animation(.easeInOut(duration: 0.35)))
-            } else {
-                Color(NSColor.windowBackgroundColor)
+            // Background Layer (constrained via GeometryReader to strictly fill viewport without pushing siblings)
+            GeometryReader { geo in
+                if let image = bgManager.currentImage, bgManager.source != .none {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                        .overlay(
+                            Color.black.opacity(0.38)
+                        )
+                        .transition(.opacity.animation(.easeInOut(duration: 0.35)))
+                } else {
+                    Color(NSColor.windowBackgroundColor)
+                }
             }
+            .ignoresSafeArea()
 
             // Main Content Area
-            VStack(spacing: 28) {
+            VStack(spacing: 24) {
                 Spacer()
 
                 // Header & Brand
@@ -121,22 +124,24 @@ public struct MinimalStartView: View {
                 .scaleEffect(isSearchFocused ? 1.01 : 1.0)
                 .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isSearchFocused)
 
-                // Quick Sites Grid with spring motion
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 80, maximum: 110), spacing: 16), count: 6), spacing: 16) {
-                    ForEach(quickSites, id: \.url) { site in
-                        QuickSiteItemView(
-                            site: site,
-                            hasWallpaper: hasWallpaper,
-                            onTap: {
-                                withAnimation(.easeOut(duration: 0.2)) {
-                                    session.navigate(to: site.url)
+                // Quick Sites Grid with spring motion (toggled via settings)
+                if session.settings.quickSitesEnabled {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 80, maximum: 110), spacing: 16), count: 6), spacing: 16) {
+                        ForEach(quickSites, id: \.url) { site in
+                            QuickSiteItemView(
+                                site: site,
+                                hasWallpaper: hasWallpaper,
+                                onTap: {
+                                    withAnimation(.easeOut(duration: 0.2)) {
+                                        session.navigate(to: site.url)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
+                    .frame(maxWidth: 580)
+                    .padding(.top, 4)
                 }
-                .frame(maxWidth: 580)
-                .padding(.top, 8)
 
                 Spacer()
 
@@ -153,15 +158,16 @@ public struct MinimalStartView: View {
                 .padding(.vertical, 5)
                 .background(hasWallpaper ? Color.black.opacity(0.28) : SwiftUI.Color.clear)
                 .cornerRadius(12)
-                .padding(.bottom, 20)
+                .padding(.bottom, 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Wallpaper Switcher Button (Bottom Right)
+            // Top-Right Action Controls: Wallpaper & Settings (matching HarmonyOS StartPage)
             VStack {
-                Spacer()
-                HStack {
+                HStack(spacing: 10) {
                     Spacer()
+
+                    // Background Wallpaper Button
                     Button(action: {
                         isShowingWallpaperPicker.toggle()
                     }) {
@@ -169,10 +175,10 @@ public struct MinimalStartView: View {
                             Image(systemName: "photo.on.rectangle.angled")
                                 .font(.system(size: 12))
                             Text("背景")
-                                .font(.system(size: 11, weight: .medium))
+                                .font(.system(size: 12, weight: .medium))
                         }
                         .foregroundColor(hasWallpaper ? .white : .primary)
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, 11)
                         .padding(.vertical, 6)
                         .background(
                             Group {
@@ -193,9 +199,62 @@ public struct MinimalStartView: View {
                     .popover(isPresented: $isShowingWallpaperPicker, arrowEdge: .bottom) {
                         WallpaperPickerPopover(bgManager: bgManager)
                     }
-                    .padding(.trailing, 22)
-                    .padding(.bottom, 18)
+
+                    // Settings Button
+                    Button(action: {
+                        session.isShowingSettings = true
+                    }) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(hasWallpaper ? .white : .primary)
+                            .frame(width: 28, height: 28)
+                            .background(
+                                Group {
+                                    if hasWallpaper {
+                                        Circle().fill(.ultraThinMaterial)
+                                    } else {
+                                        Circle().fill(Color(nsColor: .controlBackgroundColor))
+                                    }
+                                }
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(hasWallpaper ? Color.white.opacity(0.3) : Color.secondary.opacity(0.2), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .help("偏好设置 (Cmd+,)")
                 }
+                .padding(.top, 14)
+                .padding(.trailing, 18)
+
+                Spacer()
+            }
+        }
+        .contextMenu {
+            Button("更换主页背景壁纸...") {
+                isShowingWallpaperPicker = true
+            }
+            Divider()
+            Button("必应每日壁纸") {
+                bgManager.setSource(.daily)
+            }
+            Menu("精选壁纸") {
+                ForEach(HomeBackgroundManager.presets) { preset in
+                    Button(preset.name) {
+                        bgManager.selectPreset(id: preset.id)
+                    }
+                }
+            }
+            Button("选择本地图片...") {
+                bgManager.chooseCustomImage()
+            }
+            Button("无背景 (纯色)") {
+                bgManager.setSource(.none)
+            }
+            Divider()
+            Button("偏好设置...") {
+                session.isShowingSettings = true
             }
         }
     }
@@ -319,7 +378,7 @@ private struct WallpaperPickerPopover: View {
                         .foregroundColor(.secondary)
 
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             ForEach(HomeBackgroundManager.presets) { preset in
                                 Button(action: {
                                     bgManager.selectPreset(id: preset.id)
@@ -327,7 +386,7 @@ private struct WallpaperPickerPopover: View {
                                     VStack(spacing: 4) {
                                         RoundedRectangle(cornerRadius: 6)
                                             .fill(Color.secondary.opacity(0.15))
-                                            .frame(width: 60, height: 40)
+                                            .frame(width: 58, height: 38)
                                             .overlay(
                                                 Text(preset.name.prefix(2))
                                                     .font(.system(size: 11, weight: .bold))
@@ -391,6 +450,6 @@ private struct WallpaperPickerPopover: View {
             }
         }
         .padding(14)
-        .frame(width: 320)
+        .frame(width: 350)
     }
 }

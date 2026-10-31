@@ -119,4 +119,13 @@ final class WallpaperAndAccountTests: XCTestCase {
         XCTAssertEqual(session.activeTabID, newTab.id)
         XCTAssertTrue(newTab.isHome)
     }
+
+    func testClearWebsiteDataCompletes() {
+        let session = BrowserSession()
+        let expectation = expectation(description: "clearWebsiteData completion")
+        session.clearWebsiteData(clearCookies: true, clearCache: true) {
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5.0)
+    }
 }

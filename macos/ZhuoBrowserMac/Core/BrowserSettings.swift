@@ -33,11 +33,18 @@ public class BrowserSettings: ObservableObject {
         static let liveWebViewBudget = "ZhuoBrowser_LiveWebViewBudget"
         static let adBlockEnabled = "ZhuoBrowser_AdBlockEnabled"
         static let cosmeticCleanupEnabled = "ZhuoBrowser_CosmeticCleanupEnabled"
+        static let quickSitesEnabled = "ZhuoBrowser_QuickSitesEnabled"
     }
 
     @Published public var searchEngine: SearchEngine {
         didSet {
             UserDefaults.standard.set(searchEngine.rawValue, forKey: Keys.searchEngine)
+        }
+    }
+
+    @Published public var quickSitesEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(quickSitesEnabled, forKey: Keys.quickSitesEnabled)
         }
     }
 
@@ -78,6 +85,10 @@ public class BrowserSettings: ObservableObject {
 
         self.cosmeticCleanupEnabled = defaults.object(forKey: Keys.cosmeticCleanupEnabled) != nil
             ? defaults.bool(forKey: Keys.cosmeticCleanupEnabled)
+            : true
+
+        self.quickSitesEnabled = defaults.object(forKey: Keys.quickSitesEnabled) != nil
+            ? defaults.bool(forKey: Keys.quickSitesEnabled)
             : true
     }
 }
