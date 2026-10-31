@@ -37,6 +37,8 @@ public struct MainWindowView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 700, minHeight: 480)
+        .ignoresSafeArea(.all, edges: .top)
+        .background(WindowConfigurator())
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
             if AccountManager.shared.isLoggedIn {

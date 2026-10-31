@@ -8,13 +8,20 @@ public struct UnifiedToolbarView: View {
     @State private var currentText: String = ""
     @State private var isShowingSettings: Bool = false
     @State private var isShowingAccount: Bool = false
+    @State private var isFullScreen: Bool = false
 
     private var activeTab: BrowserTab? {
         session.activeTab
     }
 
     public var body: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
+            // Window Traffic Lights spacer for macOS full-size content view
+            if !isFullScreen {
+                Spacer()
+                    .frame(width: 70)
+            }
+
             // Navigation Buttons
             HStack(spacing: 4) {
                 Button(action: { session.goBackActiveTab() }) {
@@ -139,25 +146,33 @@ public struct UnifiedToolbarView: View {
             .help("新建标签页 (Cmd+T)")
 
             // Preferences
-            Button(action: { isShowingSettings.toggle() }) {
+            Button(action: { session.isShowingSettings.toggle() }) {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 13))
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(ToolbarHoverButtonStyle())
-            .help("偏好设置")
+            .help("偏好设置 (Cmd+,)")
 
             // User Account Button
             Button(action: { isShowingAccount.toggle() }) {
                 if accountManager.isLoggedIn {
-                    ZStack {
-                        Circle()
-                            .fill(Color.accentColor.opacity(0.2))
-                            .frame(width: 24, height: 24)
-
-                        Text(accountManager.currentUser?.displayName.prefix(1).uppercased() ?? "U")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.accentColor)
+                    if let avatarURL = accountManager.currentUser?.resolvedAvatarURL {
+                        AsyncImage(url: avatarURL) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 24, height: 24)
+                                    .clipShape(Circle())
+                            default:
+                                toolbarInitialsAvatar
+                            }
+                        }
+                        .frame(width: 24, height: 24)
+                    } else {
+                        toolbarInitialsAvatar
                     }
                 } else {
                     Image(systemName: "person.crop.circle")
@@ -171,18 +186,35 @@ public struct UnifiedToolbarView: View {
             .sheet(isPresented: $isShowingAccount) {
                 AccountView(session: session, isPresented: $isShowingAccount)
             }
-            .sheet(isPresented: $isShowingSettings) {
-                SettingsView(session: session, isPresented: $isShowingSettings)
-            }
             .sheet(isPresented: $session.isShowingLibraryManager) {
                 LibraryManagerView(session: session, isPresented: $session.isShowingLibraryManager)
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(NSColor.windowBackgroundColor))
+        .padding(.vertical, 6)
+        .frame(height: 38)
+        .background(
+            ZStack {
+                Color(NSColor.windowBackgroundColor)
+                WindowDragBackground()
+            }
+        )
+        .overlay(
+            Divider(),
+            alignment: .bottom
+        )
         .onAppear {
             syncDisplayAddress()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isFullScreen = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isFullScreen = false
+            }
         }
         .onChange(of: activeTab?.url) { _ in
             if !isOmniboxFocused {
@@ -222,6 +254,18 @@ public struct UnifiedToolbarView: View {
         let textToNavigate = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !textToNavigate.isEmpty else { return }
         session.navigate(to: textToNavigate)
+    }
+
+    private var toolbarInitialsAvatar: some View {
+        ZStack {
+            Circle()
+                .fill(Color.accentColor.opacity(0.2))
+                .frame(width: 24, height: 24)
+
+            Text(accountManager.currentUser?.displayName.prefix(1).uppercased() ?? "U")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.accentColor)
+        }
     }
 }
 

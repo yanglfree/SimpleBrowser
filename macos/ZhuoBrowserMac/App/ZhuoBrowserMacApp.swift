@@ -12,7 +12,6 @@ public struct ZhuoBrowserMacApp: App {
                 .navigationTitle("")
         }
         .windowStyle(.hiddenTitleBar)
-        .windowToolbarStyle(.unifiedCompact)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("新建标签页") {
