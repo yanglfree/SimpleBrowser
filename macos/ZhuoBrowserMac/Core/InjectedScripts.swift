@@ -50,4 +50,14 @@ public final class InjectedScripts: @unchecked Sendable {
             forMainFrameOnly: false
         )
     }
+
+    /// User script for passkey & WebAuthn platform adaptation and graceful fallback
+    public func makePasskeyAdapterScript() -> WKUserScript? {
+        guard let source = scriptContent(named: "passkey-adapter") else { return nil }
+        return WKUserScript(
+            source: source,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false
+        )
+    }
 }

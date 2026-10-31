@@ -610,14 +610,24 @@ run_macos() {
   local extra_flags=()
   if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
     extra_flags+=(CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY")
-  elif [[ -n "${DEVELOPMENT_TEAM:-}" ]]; then
-    extra_flags+=(
-      DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM"
-      CODE_SIGN_STYLE=Automatic
-      -allowProvisioningUpdates
-    )
   else
-    extra_flags+=(CODE_SIGN_IDENTITY="-")
+    local team_id="${DEVELOPMENT_TEAM:-}"
+    if [[ -z "$team_id" ]]; then
+      team_id="$(defaults read com.apple.dt.Xcode IDEProvisioningTeamManagerLastSelectedTeamID 2>/dev/null || true)"
+    fi
+    if [[ -z "$team_id" ]]; then
+      team_id="$(security find-identity -v -p codesigning 2>/dev/null | grep -o '([A-Z0-9]\{10\})' | tr -d '()' | head -n 1 || true)"
+    fi
+    if [[ -n "$team_id" ]]; then
+      print -- "Using Apple Development Team: $team_id"
+      extra_flags+=(
+        DEVELOPMENT_TEAM="$team_id"
+        CODE_SIGN_STYLE=Automatic
+        -allowProvisioningUpdates
+      )
+    else
+      extra_flags+=(CODE_SIGN_IDENTITY="-")
+    fi
   fi
 
   if [[ "$BUILD_APP" == true ]]; then

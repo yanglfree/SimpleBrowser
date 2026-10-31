@@ -38,6 +38,14 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         if let cosmeticScript = InjectedScripts.shared.makeCosmeticCleanupScript() {
             userContentController.addUserScript(cosmeticScript)
         }
+        if let passkeyScript = InjectedScripts.shared.makePasskeyAdapterScript() {
+            userContentController.addUserScript(passkeyScript)
+        }
+
+        // Initialize passkey manager authorization check
+        Task { @MainActor in
+            _ = await PasskeyManager.shared.requestAuthorizationIfNeeded()
+        }
 
         // Install native content blocker rules
         ContentBlocker.shared.install(on: userContentController)
