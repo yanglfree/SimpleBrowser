@@ -110,12 +110,31 @@ public struct ZhuoBrowserMacApp: App {
                 }
                 .keyboardShortcut("t", modifiers: .command)
 
+                Button("新建无痕标签页") {
+                    session.createTab(isPrivate: true)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+
+                Button("重新打开最后关闭的标签页") {
+                    _ = session.reopenLastClosedTab()
+                }
+                .keyboardShortcut("t", modifiers: [.command, .shift])
+                .disabled(!session.canReopenClosedTab)
+
+                Divider()
+
                 Button("关闭标签页") {
                     if let activeID = session.activeTabID {
                         session.closeTab(id: activeID)
                     }
                 }
                 .keyboardShortcut("w", modifiers: .command)
+
+                Button("关闭其他标签页") {
+                    session.closeOtherTabs()
+                }
+                .keyboardShortcut("w", modifiers: [.command, .option])
+                .disabled(session.tabs.count <= 1)
             }
 
             CommandMenu("浏览") {
@@ -131,15 +150,50 @@ public struct ZhuoBrowserMacApp: App {
                 .keyboardShortcut("]", modifiers: .command)
                 .disabled(!(session.activeTab?.canGoForward ?? false))
 
+                Button("前往主页") {
+                    session.goHomeActiveTab()
+                }
+                .keyboardShortcut("h", modifiers: [.command, .shift])
+                .disabled(session.activeTab?.isHome ?? true)
+
+                Divider()
+
                 Button("重新载入此页") {
                     session.reloadActiveTab()
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                .disabled(session.activeTab?.isHome ?? true)
+
+                Button("从原始位置重新载入") {
+                    session.reloadActiveTabFromOrigin()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .option])
+                .disabled(session.activeTab?.isHome ?? true)
+
+                Button("强制重新载入此页 (忽略缓存)") {
+                    session.reloadActiveTabFromOrigin()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(session.activeTab?.isHome ?? true)
+
+                Button("停止载入") {
+                    session.stopLoadingActiveTab()
+                }
+                .keyboardShortcut(".", modifiers: .command)
+                .disabled(!(session.activeTab?.isLoading ?? false))
+
+                Divider()
 
                 Button("聚焦地址栏") {
                     session.isOmniboxFocused = true
                 }
                 .keyboardShortcut("l", modifiers: .command)
+
+                Button("拷贝当前网页链接") {
+                    session.copyActiveTabURL()
+                }
+                .keyboardShortcut("c", modifiers: [.command, .shift])
+                .disabled(session.activeTab?.isHome ?? true)
 
                 Button("显示下载内容") {
                     DownloadManager.shared.isShowingPopover.toggle()
@@ -148,11 +202,52 @@ public struct ZhuoBrowserMacApp: App {
 
                 Divider()
 
-                ForEach(0..<min(session.tabs.count, 9), id: \.self) { index in
+                Button("实际大小") {
+                    session.resetZoomActiveTab()
+                }
+                .keyboardShortcut("0", modifiers: .command)
+                .disabled(session.activeTab?.isHome ?? true)
+
+                Button("放大") {
+                    session.zoomInActiveTab()
+                }
+                .keyboardShortcut("=", modifiers: .command)
+                .disabled(session.activeTab?.isHome ?? true)
+
+                Button("缩小") {
+                    session.zoomOutActiveTab()
+                }
+                .keyboardShortcut("-", modifiers: .command)
+                .disabled(session.activeTab?.isHome ?? true)
+
+                Divider()
+
+                Button("显示上一个标签页") {
+                    session.selectPreviousTab()
+                }
+                .keyboardShortcut("[", modifiers: [.command, .shift])
+                .disabled(session.tabs.count <= 1)
+
+                Button("显示下一个标签页") {
+                    session.selectNextTab()
+                }
+                .keyboardShortcut("]", modifiers: [.command, .shift])
+                .disabled(session.tabs.count <= 1)
+
+                Divider()
+
+                ForEach(0..<min(session.tabs.count, 8), id: \.self) { index in
                     Button("切换到标签 \(index + 1)") {
                         session.selectTab(id: session.tabs[index].id)
                     }
                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                }
+
+                if !session.tabs.isEmpty {
+                    Button("切换到最后一个标签页") {
+                        session.selectLastTab()
+                    }
+                    .keyboardShortcut("9", modifiers: .command)
                 }
             }
 

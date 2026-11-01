@@ -54,11 +54,15 @@ public final class BrowserSession: ObservableObject {
     @Published public var bookmarkManagerSelectedFolderID: String? = nil
     @Published public var isShowingSettings: Bool = false
     @Published public var librarySelectedTab: Int = 0
+    @Published public private(set) var canReopenClosedTab: Bool = false
 
     public let settings = BrowserSettings.shared
     private let libraryStore = LibraryStore.shared
     private let stateStore: TabStateStore
     private let pressureMonitor: MemoryPressureMonitor
+
+    private var recentlyClosedTabs: [(url: String, title: String)] = []
+    private static let maxRecentlyClosedTabs = 20
 
     private var siteIconLoadingHosts = Set<String>()
     private var deferredSiteIconRequests: [String: (pageURL: String, declaredURL: String)] = [:]
@@ -109,12 +113,16 @@ public final class BrowserSession: ObservableObject {
         let shouldRestore = restoresPreviousSession ?? Self.shouldRestorePreviousSession
         if shouldRestore, let savedTabs = stateStore.loadTabSession(), !savedTabs.isEmpty {
             tabs = savedTabs.map { persisted in
-                BrowserTab(
+                let restoredURL = URLPolicy.upgradeToHTTPSIfPublicHost(persisted.url)
+                if restoredURL != persisted.url {
+                    stateStore.removeSnapshot(for: persisted.id)
+                }
+                return BrowserTab(
                     id: persisted.id,
-                    url: persisted.url,
+                    url: restoredURL,
                     title: persisted.title,
                     isPrivate: false,
-                    isHibernated: !(persisted.url.isEmpty || persisted.url == "zhuo://home"),
+                    isHibernated: !(restoredURL.isEmpty || restoredURL == "zhuo://home"),
                     lastActiveTime: persisted.lastActiveTime
                 )
             }
@@ -192,6 +200,15 @@ public final class BrowserSession: ObservableObject {
     public func closeTab(id: String) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
 
+        let closingTab = tabs[index]
+        if !closingTab.isPrivate && !closingTab.isHome && !closingTab.url.isEmpty {
+            recentlyClosedTabs.append((url: closingTab.url, title: closingTab.title))
+            if recentlyClosedTabs.count > Self.maxRecentlyClosedTabs {
+                recentlyClosedTabs.removeFirst(recentlyClosedTabs.count - Self.maxRecentlyClosedTabs)
+            }
+            canReopenClosedTab = true
+        }
+
         pendingHibernations.remove(id)
         teardownController(for: id)
         stateStore.removeSnapshot(for: id)
@@ -209,6 +226,62 @@ public final class BrowserSession: ObservableObject {
         } else {
             enforceMemoryBudget()
         }
+        scheduleSessionPersistence()
+    }
+
+    @discardableResult
+    public func reopenLastClosedTab() -> BrowserTab? {
+        guard let last = recentlyClosedTabs.popLast() else { return nil }
+        canReopenClosedTab = !recentlyClosedTabs.isEmpty
+        var newTab = createTab(url: last.url, isPrivate: false, select: true)
+        if !last.title.isEmpty {
+            updateTab(newTab.id) { $0.title = last.title }
+            newTab.title = last.title
+        }
+        return newTab
+    }
+
+    public func closeOtherTabs(keeping keepID: String? = nil) {
+        guard let targetID = keepID ?? activeTabID,
+              tabs.contains(where: { $0.id == targetID }) else { return }
+        let otherIDs = tabs.map(\.id).filter { $0 != targetID }
+        guard !otherIDs.isEmpty else { return }
+
+        for id in otherIDs {
+            if let tab = tab(for: id), !tab.isPrivate && !tab.isHome && !tab.url.isEmpty {
+                recentlyClosedTabs.append((url: tab.url, title: tab.title))
+            }
+            pendingHibernations.remove(id)
+            teardownController(for: id)
+            stateStore.removeSnapshot(for: id)
+        }
+        if recentlyClosedTabs.count > Self.maxRecentlyClosedTabs {
+            recentlyClosedTabs.removeFirst(recentlyClosedTabs.count - Self.maxRecentlyClosedTabs)
+        }
+        canReopenClosedTab = !recentlyClosedTabs.isEmpty
+
+        tabs.removeAll { $0.id != targetID }
+        selectTab(id: targetID)
+        scheduleSessionPersistence()
+    }
+
+    public func selectNextTab() {
+        guard tabs.count > 1 else { return }
+        let currentIndex = tabs.firstIndex(where: { $0.id == activeTabID }) ?? 0
+        let nextIndex = (currentIndex + 1) % tabs.count
+        selectTab(id: tabs[nextIndex].id)
+    }
+
+    public func selectPreviousTab() {
+        guard tabs.count > 1 else { return }
+        let currentIndex = tabs.firstIndex(where: { $0.id == activeTabID }) ?? 0
+        let prevIndex = (currentIndex - 1 + tabs.count) % tabs.count
+        selectTab(id: tabs[prevIndex].id)
+    }
+
+    public func selectLastTab() {
+        guard let last = tabs.last else { return }
+        selectTab(id: last.id)
     }
 
     public func selectTab(id: String) {
@@ -414,7 +487,47 @@ public final class BrowserSession: ObservableObject {
     }
 
     public func reloadActiveTab() {
+        if let activeID = activeTabID {
+            stateStore.removeSnapshot(for: activeID)
+        }
         activeController?.reload()
+    }
+
+    public func reloadActiveTabFromOrigin() {
+        if let activeID = activeTabID {
+            stateStore.removeSnapshot(for: activeID)
+        }
+        activeController?.reloadFromOrigin()
+    }
+
+    public func stopLoadingActiveTab() {
+        activeController?.stopLoading()
+        if let activeID = activeTabID {
+            updateTab(activeID) { $0.isLoading = false }
+        }
+    }
+
+    public func goHomeActiveTab() {
+        navigate(to: "zhuo://home")
+    }
+
+    public func zoomInActiveTab() {
+        activeController?.zoomIn()
+    }
+
+    public func zoomOutActiveTab() {
+        activeController?.zoomOut()
+    }
+
+    public func resetZoomActiveTab() {
+        activeController?.resetZoom()
+    }
+
+    public func copyActiveTabURL() {
+        guard let tab = activeTab, !tab.isHome, !tab.url.isEmpty else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(tab.url, forType: .string)
     }
 
     public func goBackActiveTab() {

@@ -125,4 +125,14 @@ public struct URLPolicy {
         }
         return false
     }
+
+    /// Upgrades an `http://` URL string to `https://` when its host is a public domain
+    /// (not `localhost`, loopback, `.local`, or a raw IP literal).
+    public static func upgradeToHTTPSIfPublicHost(_ urlString: String) -> String {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.lowercased().hasPrefix("http://") else { return trimmed }
+        let host = rawHost(trimmed)
+        guard !host.isEmpty, !isLocalOrIPHost(host) else { return trimmed }
+        return "https://" + trimmed.dropFirst(7)
+    }
 }

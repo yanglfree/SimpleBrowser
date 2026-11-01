@@ -109,6 +109,9 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = self
         wv.uiDelegate = self
+        if #available(macOS 13.3, *) {
+            wv.isInspectable = true
+        }
         self.webView = wv
 
         // Setup KVO
@@ -202,9 +205,87 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     public func reload() {
         guard let webView else { return }
+        cancelRestoration()
         shouldRestoreScrollAfterLoad = lastKnownScrollPositionY > 0
         session?.updateTab(tabID) { $0.isSnapshotStale = false }
+        if let currentURLString = webView.url?.absoluteString ?? session?.tab(for: tabID)?.url {
+            let upgraded = URLPolicy.upgradeToHTTPSIfPublicHost(currentURLString)
+            if upgraded != currentURLString, let httpsURL = URL(string: upgraded) {
+                session?.updateTab(tabID) { $0.url = upgraded }
+                webView.load(URLRequest(url: httpsURL))
+                return
+            }
+        }
         webView.reload()
+    }
+
+    /// Forces a full reload from the origin server, bypassing local WebKit caches and
+    /// upgrading any plain-HTTP public domain to HTTPS.
+    public func reloadFromOrigin() {
+        guard let webView else { return }
+        cancelRestoration()
+        shouldRestoreScrollAfterLoad = lastKnownScrollPositionY > 0
+        session?.updateTab(tabID) { $0.isSnapshotStale = false }
+
+        let currentURLString = webView.url?.absoluteString ?? session?.tab(for: tabID)?.url ?? ""
+        let upgradedString = URLPolicy.upgradeToHTTPSIfPublicHost(currentURLString)
+        let didUpgradeScheme = upgradedString != currentURLString
+        if didUpgradeScheme {
+            session?.updateTab(tabID) { $0.url = upgradedString }
+        }
+        let host = URLPolicy.rawHost(upgradedString)
+
+        let performReload = { [weak webView] in
+            guard let webView else { return }
+            if didUpgradeScheme, let httpsURL = URL(string: upgradedString) {
+                let request = URLRequest(url: httpsURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData)
+                webView.load(request)
+            } else if webView.url != nil {
+                webView.reloadFromOrigin()
+            } else if let targetURL = URL(string: upgradedString), !upgradedString.isEmpty {
+                let request = URLRequest(url: targetURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData)
+                webView.load(request)
+            }
+        }
+
+        let cacheTypes: Set<String> = [
+            WKWebsiteDataTypeDiskCache,
+            WKWebsiteDataTypeMemoryCache,
+            WKWebsiteDataTypeFetchCache
+        ]
+        let store = webView.configuration.websiteDataStore
+        if !host.isEmpty {
+            store.fetchDataRecords(ofTypes: cacheTypes) { records in
+                let matching = records.filter { record in
+                    let name = record.displayName.lowercased()
+                    return host == name || host.hasSuffix("." + name) || name.hasSuffix("." + host)
+                }
+                guard !matching.isEmpty else {
+                    performReload()
+                    return
+                }
+                store.removeData(ofTypes: cacheTypes, for: matching) {
+                    performReload()
+                }
+            }
+        } else {
+            performReload()
+        }
+    }
+
+    public func zoomIn() {
+        guard let webView else { return }
+        webView.pageZoom = min(3.0, (webView.pageZoom * 10 + 1).rounded() / 10)
+    }
+
+    public func zoomOut() {
+        guard let webView else { return }
+        webView.pageZoom = max(0.5, (webView.pageZoom * 10 - 1).rounded() / 10)
+    }
+
+    public func resetZoom() {
+        guard let webView else { return }
+        webView.pageZoom = 1.0
     }
 
     public func goBack() {

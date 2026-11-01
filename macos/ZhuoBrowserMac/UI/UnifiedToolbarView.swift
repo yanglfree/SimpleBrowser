@@ -45,7 +45,15 @@ public struct UnifiedToolbarView: View {
                 .frame(width: 24, height: 24)
                 .help("前进 (Cmd+])")
 
-                Button(action: { session.reloadActiveTab() }) {
+                Button(action: {
+                    if activeTab?.isLoading == true {
+                        session.stopLoadingActiveTab()
+                    } else if NSEvent.modifierFlags.intersection([.option, .shift]).isEmpty == false {
+                        session.reloadActiveTabFromOrigin()
+                    } else {
+                        session.reloadActiveTab()
+                    }
+                }) {
                     Image(systemName: (activeTab?.isLoading ?? false) ? "xmark" : "arrow.clockwise")
                         .font(.system(size: 12, weight: .medium))
                 }
@@ -53,7 +61,7 @@ public struct UnifiedToolbarView: View {
                 .disabled(activeTab?.isHome ?? true)
                 .foregroundColor((activeTab?.isHome ?? true) ? .secondary.opacity(0.4) : .primary)
                 .frame(width: 24, height: 24)
-                .help("刷新 (Cmd+R)")
+                .help((activeTab?.isLoading ?? false) ? "停止载入 (Cmd+.)" : "重新载入 (Cmd+R) · 强制刷新 (Cmd+Option+R)")
             }
 
             // Omnibox (Address & Search Bar with 1/3 reduced width and balanced side spacing)
@@ -220,7 +228,7 @@ public struct UnifiedToolbarView: View {
                     if activeTab?.isHome == true {
                         currentText = ""
                     } else {
-                        currentText = activeTab?.url ?? ""
+                        currentText = URLPolicy.upgradeToHTTPSIfPublicHost(activeTab?.url ?? "")
                     }
                 }
             } else {

@@ -363,6 +363,71 @@ final class OmniboxSuggestionTests: XCTestCase {
         session.updateOmniboxSuggestions(for: "localhost")
         XCTAssertEqual(session.omniboxSuggestions.first?.kind, .host)
         XCTAssertEqual(session.omniboxSuggestions.first?.url, "http://localhost:5173")
+
+        // 3. Direct URL upgrade helper upgrades public domains and preserves localhost/IP
+        XCTAssertEqual(
+            URLPolicy.upgradeToHTTPSIfPublicHost("http://wpx.youdroid.top/"),
+            "https://wpx.youdroid.top/"
+        )
+        XCTAssertEqual(
+            URLPolicy.upgradeToHTTPSIfPublicHost("http://localhost:5173/"),
+            "http://localhost:5173/"
+        )
+        XCTAssertEqual(
+            URLPolicy.upgradeToHTTPSIfPublicHost("http://127.0.0.1:8787/api"),
+            "http://127.0.0.1:8787/api"
+        )
+    }
+
+    @MainActor
+    func testSafariShortcutActionsReopenClosedTabCycleTabsZoomAndForceReload() {
+        let session = BrowserSession(stateStore: TabStateStore(isPersistenceEnabled: false))
+        session.navigate(to: "http://wpx.youdroid.top/")
+        let firstID = session.activeTabID!
+
+        // Force reload upgrades a plain-HTTP public host tab to HTTPS
+        session.reloadActiveTabFromOrigin()
+        XCTAssertEqual(
+            LibraryPolicy.normalizeComparableURL(session.activeTab?.url ?? ""),
+            "https://wpx.youdroid.top"
+        )
+
+        // Page zoom in / out / reset
+        session.zoomInActiveTab()
+        XCTAssertEqual(session.activeController?.webView?.pageZoom ?? 0, 1.1, accuracy: 0.01)
+        session.zoomOutActiveTab()
+        XCTAssertEqual(session.activeController?.webView?.pageZoom ?? 0, 1.0, accuracy: 0.01)
+        session.zoomInActiveTab()
+        session.resetZoomActiveTab()
+        XCTAssertEqual(session.activeController?.webView?.pageZoom ?? 0, 1.0, accuracy: 0.01)
+
+        // Create additional tabs, cycle next/previous/last, close & reopen last closed tab
+        let tab2 = session.createTab(url: "https://swift.org", select: true)
+        let tab3 = session.createTab(url: "https://github.com", select: true)
+        XCTAssertEqual(session.activeTabID, tab3.id)
+
+        session.selectNextTab()
+        XCTAssertEqual(session.activeTabID, firstID)
+        session.selectPreviousTab()
+        XCTAssertEqual(session.activeTabID, tab3.id)
+        session.selectTab(id: firstID)
+        session.selectLastTab()
+        XCTAssertEqual(session.activeTabID, tab3.id)
+
+        // Close tab3 and reopen it via Cmd+Shift+T equivalent
+        session.closeTab(id: tab3.id)
+        XCTAssertTrue(session.canReopenClosedTab)
+        let reopened = session.reopenLastClosedTab()
+        XCTAssertEqual(
+            LibraryPolicy.normalizeComparableURL(reopened?.url ?? ""),
+            "https://github.com"
+        )
+        XCTAssertEqual(session.activeTabID, reopened?.id)
+
+        // Close other tabs keeps only active tab
+        session.closeOtherTabs(keeping: tab2.id)
+        XCTAssertEqual(session.tabs.count, 1)
+        XCTAssertEqual(session.activeTabID, tab2.id)
     }
 
     @MainActor
