@@ -337,6 +337,35 @@ final class OmniboxSuggestionTests: XCTestCase {
     }
 
     @MainActor
+    func testPublicHostWithLegacyHTTPHistoryUpgradesToHTTPSWhileLocalhostPreservesHTTP() {
+        let session = BrowserSession()
+        session.recordHistory(
+            url: "http://wpx.youdroid.top/",
+            title: "卓乐云文档"
+        )
+        session.recordHistory(
+            url: "http://localhost:5173/",
+            title: "Local Dev"
+        )
+
+        // 1. Public domain host candidate upgrades to https:// even if history had http://
+        session.updateOmniboxSuggestions(for: "wpx.youdroid.top")
+        XCTAssertEqual(session.omniboxSuggestions.first?.kind, .host)
+        XCTAssertEqual(session.omniboxSuggestions.first?.url, "https://wpx.youdroid.top")
+
+        session.submitOmniboxInput("wpx.youdroid.top")
+        XCTAssertEqual(
+            LibraryPolicy.normalizeComparableURL(session.activeTab?.url ?? ""),
+            "https://wpx.youdroid.top"
+        )
+
+        // 2. Localhost preserves http:// when recorded as http://
+        session.updateOmniboxSuggestions(for: "localhost")
+        XCTAssertEqual(session.omniboxSuggestions.first?.kind, .host)
+        XCTAssertEqual(session.omniboxSuggestions.first?.url, "http://localhost:5173")
+    }
+
+    @MainActor
     func testSuggestionPanelPositionsDirectlyBelowOmniboxAnchor() {
         let session = BrowserSession()
         session.recordHistory(url: "https://github.com/apple/swift", title: "Swift")

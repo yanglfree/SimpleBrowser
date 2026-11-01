@@ -253,6 +253,12 @@ public enum OmniboxSuggestionPolicy {
                 hostNeedle: hostNeedle,
                 bareNeedle: bareNeedle
             )
+            let targetURL: String
+            if let explicitScheme {
+                targetURL = "\(explicitScheme)://\(hostCandidate.authority)"
+            } else {
+                targetURL = hostCandidate.canonicalURL
+            }
 
             results.append(
                 OmniboxSuggestion(
@@ -261,7 +267,7 @@ public enum OmniboxSuggestionPolicy {
                     source: hostCandidate.source,
                     title: hostCandidate.authority,
                     subtitle: hostCandidate.displaySubtitle,
-                    url: hostCandidate.canonicalURL,
+                    url: targetURL,
                     completionText: completionText,
                     host: hostCandidate.rawHost,
                     iconName: hostCandidate.iconName
@@ -428,6 +434,10 @@ public enum OmniboxSuggestionPolicy {
                 || $0.title.caseInsensitiveCompare(trimmed) == .orderedSame
             )
         }) {
+            if let explicitScheme = extractExplicitScheme(from: trimmed) {
+                let authority = extractAuthority(from: matchingHost.url) ?? matchingHost.title
+                return "\(explicitScheme)://\(authority)"
+            }
             return matchingHost.url
         }
 
@@ -510,7 +520,8 @@ public enum OmniboxSuggestionPolicy {
 
             let authority = extractAuthority(from: trimmedURL) ?? rawHost
             let bareHost = stripWWW(authority)
-            let scheme = extractExplicitScheme(from: trimmedURL) ?? "https"
+            let rawScheme = extractExplicitScheme(from: trimmedURL) ?? "https"
+            let scheme = URLPolicy.isLocalOrIPHost(rawHost) ? rawScheme : "https"
             let isRoot = isRootHostURL(trimmedURL)
             let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
             let meaningfulTitle = (cleanTitle.lowercased() != trimmedURL.lowercased()
@@ -524,6 +535,8 @@ public enum OmniboxSuggestionPolicy {
                     existingHost.authority = authority
                     existingHost.rawHost = rawHost
                     existingHost.scheme = scheme
+                } else if existingHost.scheme != "https" && scheme == "https" {
+                    existingHost.scheme = "https"
                 }
                 if isRoot && !meaningfulTitle.isEmpty && (existingHost.rootTitle.isEmpty || isBookmark) {
                     existingHost.rootTitle = meaningfulTitle

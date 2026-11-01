@@ -99,4 +99,30 @@ public struct URLPolicy {
     public static func isHomeURL(_ url: String) -> Bool {
         url.isEmpty || url == "zhuo://home"
     }
+
+    /// Returns true when the host is loopback, localhost, mDNS `.local`, or a raw IPv4/IPv6 literal
+    /// that commonly runs plain HTTP in local development.
+    public static func isLocalOrIPHost(_ host: String) -> Bool {
+        let lower = host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if lower.isEmpty { return false }
+        if lower == "localhost"
+            || lower == "127.0.0.1"
+            || lower == "0.0.0.0"
+            || lower == "::1"
+            || lower == "[::1]"
+            || lower.hasSuffix(".local") {
+            return true
+        }
+        if lower.hasPrefix("[") && lower.hasSuffix("]") {
+            return true
+        }
+        let segments = lower.split(separator: ".", omittingEmptySubsequences: false)
+        if segments.count == 4 && segments.allSatisfy({ seg in
+            guard let value = Int(seg) else { return false }
+            return value >= 0 && value <= 255
+        }) {
+            return true
+        }
+        return false
+    }
 }
