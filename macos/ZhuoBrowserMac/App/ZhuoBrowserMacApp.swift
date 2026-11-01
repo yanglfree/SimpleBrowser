@@ -33,6 +33,7 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidResignActive(_ notification: Notification) {
+        BrowserSettings.shared.flushSynchronously()
         CookieSessionStore.shared.persistSessionCookies()
         WebSessionStorageStore.shared.flushSynchronously()
         BrowserSession.shared.captureSessionForTermination()
@@ -51,6 +52,7 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func flushAllStateForTermination() {
+        BrowserSettings.shared.flushSynchronously()
         CookieSessionStore.shared.persistSessionCookiesSynchronously()
         WebSessionStorageStore.shared.flushSynchronously()
         BrowserSession.shared.captureSessionForTermination(synchronously: true)

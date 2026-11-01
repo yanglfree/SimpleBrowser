@@ -86,34 +86,20 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         // Shared or private data store
         config.websiteDataStore = isPrivate ? .nonPersistent() : .default()
 
-        // Install injected scripts
+        // Install injected scripts & native content blocker rules according to user settings
         let userContentController = config.userContentController
         if !isPrivate {
-            if let sessionStorageScript = WebSessionStorageStore.shared.makeBootstrapUserScript() {
-                userContentController.addUserScript(sessionStorageScript)
-            }
             userContentController.add(
                 WeakSessionStorageMessageHandler(target: self),
                 name: WebSessionStorageStore.messageHandlerName
             )
         }
-        if let trackerScript = InjectedScripts.shared.makeTrackerBlockScript() {
-            userContentController.addUserScript(trackerScript)
-        }
-        if let cosmeticScript = InjectedScripts.shared.makeCosmeticCleanupScript() {
-            userContentController.addUserScript(cosmeticScript)
-        }
-        if let passkeyScript = InjectedScripts.shared.makePasskeyAdapterScript() {
-            userContentController.addUserScript(passkeyScript)
-        }
+        applyContentProtection(to: userContentController)
 
         // Initialize passkey manager authorization check
         Task { @MainActor in
             _ = await PasskeyManager.shared.requestAuthorizationIfNeeded()
         }
-
-        // Install native content blocker rules
-        ContentBlocker.shared.install(on: userContentController)
 
         // Preferences for performance
         let prefs = WKWebpagePreferences()
@@ -160,6 +146,45 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             self.session?.updateTab(self.tabID) { tab in
                 tab.canGoForward = canGoForward
             }
+        }
+    }
+
+    public func applyContentProtectionSettings(evaluateLiveScripts: Bool = false) {
+        guard let userContentController = webView?.configuration.userContentController else { return }
+        applyContentProtection(to: userContentController)
+
+        guard evaluateLiveScripts, let webView, webView.url != nil else { return }
+        let cosmeticEnabled = session?.settings.cosmeticCleanupEnabled ?? BrowserSettings.shared.cosmeticCleanupEnabled
+        if cosmeticEnabled {
+            if let script = InjectedScripts.shared.scriptContent(named: "content-cleanup-standard") {
+                webView.evaluateJavaScript(script, completionHandler: nil)
+            }
+        } else {
+            if let restoreScript = InjectedScripts.shared.scriptContent(named: "restore-hidden") {
+                webView.evaluateJavaScript(restoreScript, completionHandler: nil)
+            }
+        }
+    }
+
+    private func applyContentProtection(to userContentController: WKUserContentController) {
+        let activeSettings = session?.settings ?? BrowserSettings.shared
+        userContentController.removeAllUserScripts()
+        if !isPrivateTab, let sessionStorageScript = WebSessionStorageStore.shared.makeBootstrapUserScript() {
+            userContentController.addUserScript(sessionStorageScript)
+        }
+        if activeSettings.adBlockEnabled, let trackerScript = InjectedScripts.shared.makeTrackerBlockScript() {
+            userContentController.addUserScript(trackerScript)
+        }
+        if activeSettings.cosmeticCleanupEnabled, let cosmeticScript = InjectedScripts.shared.makeCosmeticCleanupScript() {
+            userContentController.addUserScript(cosmeticScript)
+        }
+        if let passkeyScript = InjectedScripts.shared.makePasskeyAdapterScript() {
+            userContentController.addUserScript(passkeyScript)
+        }
+
+        userContentController.removeAllContentRuleLists()
+        if activeSettings.adBlockEnabled {
+            ContentBlocker.shared.install(on: userContentController)
         }
     }
 

@@ -117,7 +117,8 @@ public final class HomeBackgroundManager: ObservableObject {
 
     private let bingArchiveURLBatch0 = URL(string: "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=zh-CN")!
     private let bingArchiveURLBatch1 = URL(string: "https://www.bing.com/HPImageArchive.aspx?format=js&idx=7&n=8&mkt=zh-CN")!
-    private let userDefaults = UserDefaults.standard
+    private let userDefaults: UserDefaults
+    private let isPersistenceEnabled: Bool
 
     private let sourceKey = "ZhuoBrowser_WallpaperSource"
     private let presetIdKey = "ZhuoBrowser_WallpaperPresetID"
@@ -146,7 +147,13 @@ public final class HomeBackgroundManager: ObservableObject {
         return bingHistory.first
     }
 
-    public init() {
+    public init(isPersistenceEnabled: Bool = !RuntimeEnvironment.isRunningUnitTests) {
+        self.isPersistenceEnabled = isPersistenceEnabled
+        if isPersistenceEnabled {
+            self.userDefaults = .standard
+        } else {
+            self.userDefaults = UserDefaults(suiteName: "com.youdroid.zhuobrowser.mac.wallpaper-tests.\(UUID().uuidString)") ?? .standard
+        }
         if let savedSource = userDefaults.string(forKey: sourceKey),
            let resolvedSource = WallpaperSource(rawValue: savedSource) {
             self.source = resolvedSource

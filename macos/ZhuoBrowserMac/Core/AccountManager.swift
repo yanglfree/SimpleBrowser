@@ -137,6 +137,7 @@ public final class AccountManager: ObservableObject {
     private let isPersistenceEnabled: Bool
     private var cachedAvatarUrl: String?
     private var cachedAvatarData: Data?
+    private var settingsSyncTask: Task<Void, Never>?
 
     @Published public private(set) var currentUser: UserProfile?
     @Published public private(set) var avatarImage: NSImage?
@@ -462,19 +463,83 @@ public final class AccountManager: ObservableObject {
         return false
     }
 
+    nonisolated public static func extractUpdatedAt(from dict: [String: Any]) -> Int64 {
+        if let number = dict["updatedAt"] as? NSNumber {
+            return number.int64Value
+        }
+        if let str = dict["updatedAt"] as? String, let parsed = Int64(str) {
+            return parsed
+        }
+        return 0
+    }
+
+    public func shouldApplyRemoteSettings(_ remoteSettings: [String: Any], to settings: BrowserSettings) -> Bool {
+        let remoteUpdatedAt = Self.extractUpdatedAt(from: remoteSettings)
+        if settings.hasPendingLocalChanges {
+            return remoteUpdatedAt > 0 && remoteUpdatedAt > settings.updatedAt
+        }
+        if settings.updatedAt == 0 {
+            return true
+        }
+        return remoteUpdatedAt > settings.updatedAt
+    }
+
     public func applySettings(_ dict: [String: Any], to settings: BrowserSettings) {
-        if let adBlock = dict["adBlockEnabled"] as? Bool {
-            settings.adBlockEnabled = adBlock
+        let remoteUpdatedAt = Self.extractUpdatedAt(from: dict)
+        settings.performRemoteUpdate(remoteUpdatedAt: remoteUpdatedAt > 0 ? remoteUpdatedAt : nil) { target in
+            if let adBlock = dict["adBlockEnabled"] as? Bool {
+                target.adBlockEnabled = adBlock
+            }
+            if let cosmetic = dict["cosmeticCleanupEnabled"] as? Bool {
+                target.cosmeticCleanupEnabled = cosmetic
+            }
+            if let budget = dict["liveWebViewBudget"] as? Int {
+                target.liveWebViewBudget = budget
+            }
+            if let hibernation = dict["tabHibernationEnabled"] as? Bool {
+                target.tabHibernationEnabled = hibernation
+            }
+            if let quickSites = dict["quickSitesEnabled"] as? Bool {
+                target.quickSitesEnabled = quickSites
+            }
+            if let restoreSession = dict["restoreSessionOnLaunch"] as? Bool {
+                target.restoreSessionOnLaunch = restoreSession
+            }
+            if let engineRaw = dict["searchEngine"] as? String,
+               let engine = SearchEngine.from(engineRaw) {
+                target.searchEngine = engine
+            }
         }
-        if let cosmetic = dict["cosmeticCleanupEnabled"] as? Bool {
-            settings.cosmeticCleanupEnabled = cosmetic
-        }
-        if let budget = dict["liveWebViewBudget"] as? Int {
-            settings.liveWebViewBudget = budget
-        }
-        if let engineRaw = dict["searchEngine"] as? String,
-           let engine = SearchEngine(rawValue: engineRaw) {
-            settings.searchEngine = engine
+    }
+
+    public func settingsPayload(from settings: BrowserSettings) -> [String: Any] {
+        let timestamp = settings.updatedAt > 0 ? settings.updatedAt : BrowserSettings.currentTimestampMillis()
+        return [
+            "adBlockEnabled": settings.adBlockEnabled,
+            "cosmeticCleanupEnabled": settings.cosmeticCleanupEnabled,
+            "liveWebViewBudget": settings.liveWebViewBudget,
+            "tabHibernationEnabled": settings.tabHibernationEnabled,
+            "quickSitesEnabled": settings.quickSitesEnabled,
+            "restoreSessionOnLaunch": settings.restoreSessionOnLaunch,
+            "searchEngine": settings.searchEngine.rawValue,
+            "updatedAt": timestamp
+        ]
+    }
+
+    /// Schedules a debounced cloud sync whenever the user changes a preference locally.
+    public func scheduleSettingsSync() {
+        guard isPersistenceEnabled, isLoggedIn else { return }
+        settingsSyncTask?.cancel()
+        settingsSyncTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled, let self else { return }
+            while self.isSyncing {
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                guard !Task.isCancelled else { return }
+            }
+            if BrowserSettings.shared.hasPendingLocalChanges {
+                await self.syncWithCloud(session: BrowserSession.shared)
+            }
         }
     }
 
@@ -541,9 +606,12 @@ public final class AccountManager: ObservableObject {
             }
         }
 
-        // Apply remote settings if present
-        if let remoteSettings = remoteSettings {
+        // Apply remote settings only when remote is newer than local settings and local has no pending edits.
+        if let remoteSettings = remoteSettings,
+           shouldApplyRemoteSettings(remoteSettings, to: session.settings) {
             applySettings(remoteSettings, to: session.settings)
+            session.enforceMemoryBudget()
+            session.applyContentProtectionSettingsToAllTabs()
         }
 
         // 2. Push merged bookmarks & settings to cloud
@@ -558,12 +626,8 @@ public final class AccountManager: ObservableObject {
         pushReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let localBookmarks = session.bookmarks.map { ["title": $0.title, "url": $0.url] }
-        let localSettings: [String: Any] = [
-            "adBlockEnabled": session.settings.adBlockEnabled,
-            "cosmeticCleanupEnabled": session.settings.cosmeticCleanupEnabled,
-            "liveWebViewBudget": session.settings.liveWebViewBudget,
-            "searchEngine": session.settings.searchEngine.rawValue
-        ]
+        let localSettings = settingsPayload(from: session.settings)
+        let pushedSettingsTimestamp = Self.extractUpdatedAt(from: localSettings)
 
         let payload: [String: Any] = [
             "bookmarks": localBookmarks,
@@ -598,6 +662,9 @@ public final class AccountManager: ObservableObject {
             return
         }
 
+        if session.settings.updatedAt <= pushedSettingsTimestamp {
+            session.settings.markSynced(at: pushedSettingsTimestamp)
+        }
         let now = Date()
         self.lastSyncTime = now
         self.userDefaults.set(now, forKey: lastSyncKey)

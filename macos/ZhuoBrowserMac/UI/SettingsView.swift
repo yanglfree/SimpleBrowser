@@ -94,6 +94,9 @@ public struct SettingsView: View {
         }
         .frame(width: 560)
         .background(Color(nsColor: .controlBackgroundColor))
+        .onDisappear {
+            settings.flushSynchronously()
+        }
         .sheet(isPresented: $isShowingAccountSheet) {
             AccountView(session: session, isPresented: $isShowingAccountSheet)
         }
@@ -419,10 +422,16 @@ public struct SettingsView: View {
             Toggle("启用原生广告与跟踪拦截 (基于 WebKit 原生字节码规则评估)", isOn: $settings.adBlockEnabled)
                 .toggleStyle(.checkbox)
                 .font(.system(size: 13))
+                .onChange(of: settings.adBlockEnabled) { _ in
+                    session.applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: false)
+                }
 
             Toggle("启用页面元素去噪净化 (Cosmetic Cleanup 屏蔽冗余干扰项)", isOn: $settings.cosmeticCleanupEnabled)
                 .toggleStyle(.checkbox)
                 .font(.system(size: 13))
+                .onChange(of: settings.cosmeticCleanupEnabled) { _ in
+                    session.applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: true)
+                }
         }
     }
 

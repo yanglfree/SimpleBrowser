@@ -76,7 +76,9 @@ public final class BrowserSession: ObservableObject {
         self.pressureMonitor = pressureMonitor
 
         // Prepare content blocking rules asynchronously
-        ContentBlocker.shared.prepare()
+        ContentBlocker.shared.prepare { [weak self] in
+            self?.applyContentProtectionSettingsToAllTabs()
+        }
 
         // Re-inject the session cookies archived at the last quit *before* any page
         // starts loading, otherwise sites would treat the first paint as logged out.
@@ -780,6 +782,12 @@ public final class BrowserSession: ObservableObject {
     }
 
     // MARK: - Memory Budget Enforcement & Hibernation
+
+    public func applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: Bool = false) {
+        for controller in controllers.values {
+            controller.applyContentProtectionSettings(evaluateLiveScripts: evaluateLiveScripts)
+        }
+    }
 
     public func enforceMemoryBudget() {
         let plan = MemoryBudgetPolicy.evaluate(

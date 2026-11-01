@@ -637,7 +637,7 @@ run_macos() {
       local wait_ticks=0
       while pgrep -x ZhuoBrowserMac >/dev/null 2>&1 && (( wait_ticks < 20 )); do
         sleep 0.1
-        (( wait_ticks++ ))
+        wait_ticks=$((wait_ticks + 1))
       done
       if pgrep -x ZhuoBrowserMac >/dev/null 2>&1; then
         pkill -TERM -x ZhuoBrowserMac >/dev/null 2>&1 || true
@@ -665,7 +665,7 @@ run_macos() {
       local wait_ticks=0
       while pgrep -x ZhuoBrowserMac >/dev/null 2>&1 && (( wait_ticks < 20 )); do
         sleep 0.1
-        (( wait_ticks++ ))
+        wait_ticks=$((wait_ticks + 1))
       done
       pkill -TERM -x ZhuoBrowserMac >/dev/null 2>&1 || true
       sleep 0.2

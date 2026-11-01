@@ -276,4 +276,99 @@ final class WallpaperAndAccountTests: XCTestCase {
         account.logout()
         XCTAssertNil(account.avatarImage)
     }
+
+    func testSearchEngineSettingPersistsAcrossRebuildAndIsNotOverwrittenByStaleCloudSync() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("zhuo-settings-test-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let settingsFile = tempDir.appendingPathComponent("settings.json")
+        let suiteName = "com.youdroid.zhuobrowser.mac.settings-persist.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        // 1. User changes search engine from default Bing to Google in Preferences
+        let firstLaunchSettings = BrowserSettings(
+            persistsAutomatically: true,
+            userDefaults: defaults,
+            settingsFileURL: settingsFile
+        )
+        XCTAssertEqual(firstLaunchSettings.searchEngine, .bing)
+        firstLaunchSettings.searchEngine = .google
+        firstLaunchSettings.flushSynchronously()
+        XCTAssertTrue(firstLaunchSettings.hasPendingLocalChanges)
+        XCTAssertGreaterThan(firstLaunchSettings.updatedAt, 0)
+
+        // 2. App is repackaged and relaunched; settings reload from disk/UserDefaults
+        let relaunchedSettings = BrowserSettings(
+            persistsAutomatically: true,
+            userDefaults: defaults,
+            settingsFileURL: settingsFile
+        )
+        XCTAssertEqual(relaunchedSettings.searchEngine, .google)
+        XCTAssertTrue(relaunchedSettings.hasPendingLocalChanges)
+
+        // 3. On launch, MainWindowView triggers cloud sync which pulls legacy/stale "Bing" from cloud
+        let account = AccountManager(isPersistenceEnabled: false)
+        let staleRemoteSettings: [String: Any] = [
+            "searchEngine": SearchEngine.bing.rawValue,
+            "adBlockEnabled": true,
+            "cosmeticCleanupEnabled": true,
+            "liveWebViewBudget": 2
+        ]
+        XCTAssertFalse(account.shouldApplyRemoteSettings(staleRemoteSettings, to: relaunchedSettings))
+        XCTAssertEqual(relaunchedSettings.searchEngine, .google)
+
+        // 4. After pushing local settings to cloud, hasPendingLocalChanges clears;
+        //    only a strictly newer remote timestamp from another device may update it.
+        let pushedPayload = account.settingsPayload(from: relaunchedSettings)
+        let pushedTimestamp = AccountManager.extractUpdatedAt(from: pushedPayload)
+        relaunchedSettings.markSynced(at: pushedTimestamp)
+        XCTAssertFalse(relaunchedSettings.hasPendingLocalChanges)
+        XCTAssertFalse(account.shouldApplyRemoteSettings(staleRemoteSettings, to: relaunchedSettings))
+
+        let newerRemoteSettings: [String: Any] = [
+            "searchEngine": SearchEngine.duckDuckGo.rawValue,
+            "updatedAt": pushedTimestamp + 5_000
+        ]
+        XCTAssertTrue(account.shouldApplyRemoteSettings(newerRemoteSettings, to: relaunchedSettings))
+        account.applySettings(newerRemoteSettings, to: relaunchedSettings)
+        XCTAssertEqual(relaunchedSettings.searchEngine, .duckDuckGo)
+        XCTAssertFalse(relaunchedSettings.hasPendingLocalChanges)
+    }
+
+    func testSettingsFallbackRestoresFromDiskWhenUserDefaultsDomainIsReset() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("zhuo-settings-fallback-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let settingsFile = tempDir.appendingPathComponent("settings.json")
+        let suiteA = "com.youdroid.zhuobrowser.mac.settings-a.\(UUID().uuidString)"
+        let defaultsA = try XCTUnwrap(UserDefaults(suiteName: suiteA))
+        defer { defaultsA.removePersistentDomain(forName: suiteA) }
+
+        let initial = BrowserSettings(
+            persistsAutomatically: true,
+            userDefaults: defaultsA,
+            settingsFileURL: settingsFile
+        )
+        initial.searchEngine = .baidu
+        initial.quickSitesEnabled = false
+        initial.flushSynchronously()
+
+        // Simulate empty UserDefaults domain on reinstall while Application Support settings.json survives
+        let suiteB = "com.youdroid.zhuobrowser.mac.settings-b.\(UUID().uuidString)"
+        let defaultsB = try XCTUnwrap(UserDefaults(suiteName: suiteB))
+        defer { defaultsB.removePersistentDomain(forName: suiteB) }
+
+        let restored = BrowserSettings(
+            persistsAutomatically: true,
+            userDefaults: defaultsB,
+            settingsFileURL: settingsFile
+        )
+        XCTAssertEqual(restored.searchEngine, .baidu)
+        XCTAssertFalse(restored.quickSitesEnabled)
+    }
 }
