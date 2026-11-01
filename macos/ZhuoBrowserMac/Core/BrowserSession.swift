@@ -241,14 +241,37 @@ public final class BrowserSession: ObservableObject {
 
     // MARK: - Omnibox Autocomplete & Suggestions
 
+    private func effectiveHistoryForSuggestions() -> [HistoryEntry] {
+        let nonPrivateTabs = tabs.filter { !$0.isPrivate && !URLPolicy.isHomeURL($0.url) }
+        guard !nonPrivateTabs.isEmpty else { return history }
+
+        var combined = history
+        var knownURLs = Set(history.map { LibraryPolicy.normalizeComparableURL($0.url) })
+        for tab in nonPrivateTabs {
+            let key = LibraryPolicy.normalizeComparableURL(tab.url)
+            guard !key.isEmpty, !knownURLs.contains(key) else { continue }
+            knownURLs.insert(key)
+            combined.append(
+                HistoryEntry(
+                    id: "tab-\(tab.id)",
+                    title: tab.title,
+                    url: tab.url,
+                    visitedAt: tab.lastActiveTime.timeIntervalSince1970,
+                    visitCount: 1
+                )
+            )
+        }
+        return combined
+    }
+
     public func suggestions(
         for query: String,
-        includeSearchSuggestion: Bool = true,
+        includeSearchSuggestion: Bool = false,
         maxCount: Int = OmniboxSuggestionPolicy.defaultMaxSuggestions
     ) -> [OmniboxSuggestion] {
         OmniboxSuggestionPolicy.suggestions(
             for: query,
-            history: history,
+            history: effectiveHistoryForSuggestions(),
             bookmarks: bookmarks,
             searchEngine: settings.searchEngine,
             includeSearchSuggestion: includeSearchSuggestion,
@@ -259,7 +282,7 @@ public final class BrowserSession: ObservableObject {
     public func inlineCompletion(for query: String) -> String? {
         OmniboxSuggestionPolicy.inlineCompletion(
             for: query,
-            history: history,
+            history: effectiveHistoryForSuggestions(),
             bookmarks: bookmarks
         )
     }
@@ -270,9 +293,9 @@ public final class BrowserSession: ObservableObject {
             dismissOmniboxSuggestions()
             return
         }
-        let next = suggestions(for: trimmed)
+        let next = suggestions(for: trimmed, includeSearchSuggestion: false)
         omniboxSuggestions = next
-        selectedOmniboxSuggestionIndex = next.isEmpty ? -1 : 0
+        selectedOmniboxSuggestionIndex = -1
         isShowingOmniboxSuggestions = !next.isEmpty
     }
 
@@ -292,6 +315,18 @@ public final class BrowserSession: ObservableObject {
         dismissOmniboxSuggestions()
         isOmniboxFocused = false
         navigate(to: suggestion.url)
+    }
+
+    public func submitOmniboxInput(_ rawInput: String) {
+        let target = OmniboxSuggestionPolicy.resolveSubmissionTarget(
+            for: rawInput,
+            suggestions: isShowingOmniboxSuggestions ? omniboxSuggestions : [],
+            selectedIndex: selectedOmniboxSuggestionIndex
+        )
+        dismissOmniboxSuggestions()
+        isOmniboxFocused = false
+        guard !target.isEmpty else { return }
+        navigate(to: target)
     }
 
     // MARK: - Navigation

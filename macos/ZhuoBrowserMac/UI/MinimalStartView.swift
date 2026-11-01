@@ -146,6 +146,21 @@ public struct MinimalStartView: View {
                                     RoundedRectangle(cornerRadius: 12).fill(Color(nsColor: .controlBackgroundColor))
                                 }
                             }
+                            .background(
+                                OmniboxDropdownAnchorView(
+                                    session: session,
+                                    suggestions: startSuggestions,
+                                    selectedIndex: selectedStartSuggestionIndex,
+                                    isPresented: (session.activeTab?.isHome ?? true) && isSearchFocused && isShowingStartSuggestions && !startSuggestions.isEmpty,
+                                    onSelect: { suggestion in
+                                        commitStartSuggestion(suggestion)
+                                    },
+                                    onDismiss: {
+                                        dismissStartSuggestions()
+                                        isSearchFocused = false
+                                    }
+                                )
+                            )
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
@@ -158,21 +173,6 @@ public struct MinimalStartView: View {
                         .frame(maxWidth: 480)
                         .scaleEffect(isSearchFocused ? 1.01 : 1.0)
                         .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isSearchFocused)
-                        .overlay(alignment: .top) {
-                            if isSearchFocused && isShowingStartSuggestions && !startSuggestions.isEmpty {
-                                OmniboxSuggestionsDropdownView(
-                                    session: session,
-                                    suggestions: startSuggestions,
-                                    selectedIndex: selectedStartSuggestionIndex,
-                                    onSelect: { suggestion in
-                                        commitStartSuggestion(suggestion)
-                                    }
-                                )
-                                .frame(maxWidth: 480)
-                                .offset(y: 50)
-                            }
-                        }
-                        .zIndex(50)
                         .onChange(of: isSearchFocused) { focused in
                             if focused {
                                 session.dismissOmniboxSuggestions()
@@ -313,6 +313,15 @@ public struct MinimalStartView: View {
                 session.isShowingSettings = true
             }
         }
+        .onChange(of: session.activeTabID) { _ in
+            if !searchInput.isEmpty {
+                searchInput = ""
+            }
+            dismissStartSuggestions()
+            if isSearchFocused {
+                isSearchFocused = false
+            }
+        }
     }
 
     private func dismissFocus() {
@@ -329,9 +338,9 @@ public struct MinimalStartView: View {
             dismissStartSuggestions()
             return
         }
-        let next = session.suggestions(for: trimmed)
+        let next = session.suggestions(for: trimmed, includeSearchSuggestion: false)
         startSuggestions = next
-        selectedStartSuggestionIndex = next.isEmpty ? -1 : 0
+        selectedStartSuggestionIndex = -1
         isShowingStartSuggestions = !next.isEmpty
     }
 
@@ -390,30 +399,15 @@ public struct MinimalStartView: View {
 
     private func performSearch(with committedText: String? = nil) {
         let rawInput = (committedText ?? searchInput).trimmingCharacters(in: .whitespacesAndNewlines)
-        let selectedIndex = selectedStartSuggestionIndex
-        let selectedSuggestion: OmniboxSuggestion? = {
-            guard isShowingStartSuggestions,
-                  selectedIndex >= 0,
-                  selectedIndex < startSuggestions.count else {
-                return nil
-            }
-            return startSuggestions[selectedIndex]
-        }()
-
+        let target = OmniboxSuggestionPolicy.resolveSubmissionTarget(
+            for: rawInput,
+            suggestions: isShowingStartSuggestions ? startSuggestions : [],
+            selectedIndex: selectedStartSuggestionIndex
+        )
         dismissStartSuggestions()
         isSearchFocused = false
-
-        if let selected = selectedSuggestion {
-            if selectedIndex > 0
-                || selected.completionText.caseInsensitiveCompare(rawInput) == .orderedSame
-                || selected.title.caseInsensitiveCompare(rawInput) == .orderedSame {
-                session.navigate(to: selected.url)
-                return
-            }
-        }
-
-        guard !rawInput.isEmpty else { return }
-        session.navigate(to: rawInput)
+        guard !target.isEmpty else { return }
+        session.navigate(to: target)
     }
 }
 

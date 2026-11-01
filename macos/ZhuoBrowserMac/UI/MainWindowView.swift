@@ -5,62 +5,37 @@ public struct MainWindowView: View {
     @ObservedObject var session: BrowserSession
 
     public var body: some View {
-        ZStack(alignment: .topLeading) {
-            VStack(spacing: 0) {
-                // Unified Minimal Toolbar
-                UnifiedToolbarView(session: session)
+        VStack(spacing: 0) {
+            // Unified Minimal Toolbar
+            UnifiedToolbarView(session: session)
 
-                // Compact Tab Strip
-                CompactTabBarView(session: session)
+            // Compact Tab Strip
+            CompactTabBarView(session: session)
 
-                // Slim Page Loading Progress Bar
-                if let tab = session.activeTab, tab.isLoading {
-                    ProgressView(value: max(0.05, tab.loadingProgress), total: 1.0)
-                        .progressViewStyle(.linear)
-                        .frame(height: 2)
-                        .tint(.accentColor)
-                        .transition(.opacity.animation(.easeInOut(duration: 0.2)))
-                        .animation(.easeInOut(duration: 0.15), value: tab.loadingProgress)
-                }
-
-                // Content Viewport
-                ZStack {
-                    if let activeTab = session.activeTab, !activeTab.isHome {
-                        WebContainerView(controller: session.activeController)
-                            .id(activeTab.id)
-                            .transition(.opacity)
-                    } else {
-                        MinimalStartView(session: session)
-                            .transition(.opacity)
-                    }
-                }
-                .animation(.easeInOut(duration: 0.18), value: session.activeTab?.isHome)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Slim Page Loading Progress Bar
+            if let tab = session.activeTab, tab.isLoading {
+                ProgressView(value: max(0.05, tab.loadingProgress), total: 1.0)
+                    .progressViewStyle(.linear)
+                    .frame(height: 2)
+                    .tint(.accentColor)
+                    .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+                    .animation(.easeInOut(duration: 0.15), value: tab.loadingProgress)
             }
 
-            if session.isShowingOmniboxSuggestions && !session.omniboxSuggestions.isEmpty {
-                let frame = session.omniboxFrameInWindow
-                let dropdownWidth = max(frame.width, 420)
-                let xOffset = max(12, frame.minX)
-                let yOffset = frame.height > 0 ? (frame.maxY + 4) : 40
-
-                FloatingOverlayHostView {
-                    OmniboxSuggestionsDropdownView(
-                        session: session,
-                        suggestions: session.omniboxSuggestions,
-                        selectedIndex: session.selectedOmniboxSuggestionIndex,
-                        onSelect: { suggestion in
-                            session.commitOmniboxSuggestion(suggestion)
-                        }
-                    )
-                    .frame(width: dropdownWidth)
+            // Content Viewport
+            ZStack {
+                if let activeTab = session.activeTab, !activeTab.isHome {
+                    WebContainerView(controller: session.activeController)
+                        .id(activeTab.id)
+                        .transition(.opacity)
+                } else {
+                    MinimalStartView(session: session)
+                        .transition(.opacity)
                 }
-                .frame(width: dropdownWidth)
-                .offset(x: xOffset, y: yOffset)
-                .zIndex(100)
             }
+            .animation(.easeInOut(duration: 0.18), value: session.activeTab?.isHome)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .coordinateSpace(name: "MainWindowSpace")
         .frame(minWidth: 700, minHeight: 480)
         .ignoresSafeArea(.all, edges: .top)
         .background(WindowConfigurator())

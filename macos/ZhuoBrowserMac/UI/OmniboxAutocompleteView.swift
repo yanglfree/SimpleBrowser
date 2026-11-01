@@ -5,9 +5,21 @@ import SwiftUI
 /// matching native macOS Safari / Chrome address bar behavior.
 public final class OmniboxNSTextField: NSTextField {
     var shouldSelectAllOnMouseUp: Bool = false
+    var onFocusBegan: (() -> Void)?
+
+    public override func becomeFirstResponder() -> Bool {
+        let became = super.becomeFirstResponder()
+        if became {
+            onFocusBegan?()
+        }
+        return became
+    }
 
     public override func mouseDown(with event: NSEvent) {
         let wasAlreadyEditing = (window?.firstResponder != nil) && (window?.firstResponder === currentEditor())
+        if !wasAlreadyEditing {
+            onFocusBegan?()
+        }
         shouldSelectAllOnMouseUp = !wasAlreadyEditing && !stringValue.isEmpty
         super.mouseDown(with: event)
         if shouldSelectAllOnMouseUp {
@@ -65,6 +77,9 @@ public struct MacOmniboxTextField: NSViewRepresentable {
     public func makeNSView(context: Context) -> OmniboxNSTextField {
         let field = OmniboxNSTextField()
         field.delegate = context.coordinator
+        field.onFocusBegan = { [weak coordinator = context.coordinator] in
+            coordinator?.handleFocusBegan()
+        }
         field.isBordered = false
         field.drawsBackground = false
         field.focusRingType = .none
@@ -146,16 +161,20 @@ public struct MacOmniboxTextField: NSViewRepresentable {
             self.lastUserQuery = parent.text
         }
 
-        public func controlTextDidBeginEditing(_ obj: Notification) {
+        func handleFocusBegan() {
             if !parent.isFocused {
                 parent.isFocused = true
             }
         }
 
+        public func controlTextDidBeginEditing(_ obj: Notification) {
+            handleFocusBegan()
+        }
+
         public func controlTextDidEndEditing(_ obj: Notification) {
             activeInlineDisplayedString = nil
             // Defer focus state teardown by one runloop tick so clicks on suggestion rows
-            // inside the dropdown overlay register cleanly before the overlay disappears.
+            // inside the dropdown panel register cleanly before the panel disappears.
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 if self.parent.isFocused {
@@ -251,6 +270,7 @@ public struct MacOmniboxTextField: NSViewRepresentable {
                     parent.text = committed
                 }
                 parent.onSubmit(committed)
+                control.window?.makeFirstResponder(nil)
                 return true
             }
 
@@ -286,32 +306,364 @@ public struct MacOmniboxTextField: NSViewRepresentable {
     }
 }
 
-/// AppKit subview host that ensures SwiftUI floating overlays composite and hit-test above `WKWebView`.
-public struct FloatingOverlayHostView<Content: View>: NSViewRepresentable {
-    public let rootView: Content
+/// Borderless non-activating child panel that floats directly below the Omnibox / Search bar.
+final class OmniboxSuggestionPanel: NSPanel {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
+}
 
-    public init(@ViewBuilder content: () -> Content) {
-        self.rootView = content()
+/// NSHostingView subclass that accepts first-mouse clicks so selecting a suggestion row
+/// works immediately on the first click without stealing focus from the Omnibox text field.
+final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+}
+
+/// Transparent AppKit anchor view attached to the Omnibox / Search bar background.
+/// Tracks layout and window attachment changes so the child `NSPanel` stays glued directly below the bar.
+public final class OmniboxAnchorNSView: NSView {
+    var onLayoutOrWindowChange: (() -> Void)?
+    var onWillDetachFromWindow: (() -> Void)?
+
+    public override func layout() {
+        super.layout()
+        onLayoutOrWindowChange?()
     }
 
-    public func makeNSView(context: Context) -> NSHostingView<Content> {
-        let hostingView = NSHostingView(rootView: rootView)
-        hostingView.wantsLayer = true
-        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
-        return hostingView
+    public override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        onLayoutOrWindowChange?()
     }
 
-    public func updateNSView(_ hostingView: NSHostingView<Content>, context: Context) {
-        hostingView.rootView = rootView
+    public override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil {
+            onWillDetachFromWindow?()
+        }
+        super.viewWillMove(toWindow: newWindow)
+    }
+}
+
+/// Manages a borderless non-activating child `NSPanel` anchored directly below the Omnibox `NSView`.
+public final class OmniboxSuggestionPanelController {
+    public static let verticalGap: CGFloat = 4
+
+    private var panel: OmniboxSuggestionPanel?
+    private var hostingView: FirstMouseHostingView<AnyView>?
+    private weak var observedWindow: NSWindow?
+    private weak var currentAnchorView: NSView?
+    private var windowObservers: [NSObjectProtocol] = []
+    private var localMouseMonitor: Any?
+    private var onDismissCallback: (() -> Void)?
+
+    public init() {}
+
+    deinit {
+        hide()
     }
 
-    public func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSHostingView<Content>, context: Context) -> CGSize {
-        nsView.rootView = rootView
-        let fitting = nsView.fittingSize
-        return CGSize(
-            width: proposal.width ?? fitting.width,
-            height: fitting.height
+    public var isPanelVisible: Bool {
+        panel?.isVisible ?? false
+    }
+
+    public var currentPanelFrame: NSRect? {
+        panel?.frame
+    }
+
+    /// Computes the screen frame for the dropdown panel so its top edge (`maxY`) sits `verticalGap` points
+    /// directly below `anchorView`'s bottom edge (`minY`), matching `anchorView`'s left edge and width.
+    public static func panelScreenFrame(
+        for anchorView: NSView,
+        in parentWindow: NSWindow,
+        contentHeight: CGFloat,
+        minWidth: CGFloat = 320,
+        verticalGap: CGFloat = OmniboxSuggestionPanelController.verticalGap
+    ) -> NSRect {
+        let rectInWindow = anchorView.convert(anchorView.bounds, to: nil)
+        let anchorScreenRect = parentWindow.convertToScreen(rectInWindow)
+        let width = max(round(anchorScreenRect.width), minWidth)
+        let height = max(ceil(contentHeight), 1)
+        let x = round(anchorScreenRect.minX)
+        let y = round(anchorScreenRect.minY - verticalGap - height)
+        return NSRect(x: x, y: y, width: width, height: height)
+    }
+
+    public func update(
+        anchorView: NSView,
+        session: BrowserSession,
+        suggestions: [OmniboxSuggestion],
+        selectedIndex: Int,
+        isPresented: Bool,
+        onSelect: @escaping (OmniboxSuggestion) -> Void,
+        onDismiss: @escaping () -> Void = {}
+    ) {
+        self.currentAnchorView = anchorView
+        self.onDismissCallback = onDismiss
+
+        guard isPresented,
+              !suggestions.isEmpty,
+              let parentWindow = anchorView.window,
+              anchorView.bounds.width > 0 else {
+            hide()
+            return
+        }
+
+        let rectInWindow = anchorView.convert(anchorView.bounds, to: nil)
+        let anchorScreenRect = parentWindow.convertToScreen(rectInWindow)
+        let targetWidth = max(round(anchorScreenRect.width), 320)
+
+        let dropdownRoot = AnyView(
+            OmniboxSuggestionsDropdownView(
+                session: session,
+                suggestions: suggestions,
+                selectedIndex: selectedIndex,
+                onSelect: onSelect
+            )
+            .frame(width: targetWidth)
+            .fixedSize(horizontal: false, vertical: true)
         )
+
+        let panel: OmniboxSuggestionPanel
+        let hostingView: FirstMouseHostingView<AnyView>
+        if let existingPanel = self.panel, let existingHost = self.hostingView {
+            panel = existingPanel
+            hostingView = existingHost
+            hostingView.rootView = dropdownRoot
+        } else {
+            let newHost = FirstMouseHostingView(rootView: dropdownRoot)
+            newHost.wantsLayer = true
+            newHost.layer?.backgroundColor = NSColor.clear.cgColor
+
+            let newPanel = OmniboxSuggestionPanel(
+                contentRect: NSRect(x: 0, y: 0, width: targetWidth, height: 80),
+                styleMask: [.borderless, .nonactivatingPanel],
+                backing: .buffered,
+                defer: false
+            )
+            newPanel.isOpaque = false
+            newPanel.backgroundColor = .clear
+            newPanel.hasShadow = true
+            newPanel.level = .popUpMenu
+            newPanel.acceptsMouseMovedEvents = true
+            newPanel.isMovable = false
+            newPanel.isReleasedWhenClosed = false
+            newPanel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+            newPanel.contentView = newHost
+
+            self.panel = newPanel
+            self.hostingView = newHost
+            panel = newPanel
+            hostingView = newHost
+        }
+
+        hostingView.frame = NSRect(x: 0, y: 0, width: targetWidth, height: 10)
+        hostingView.layoutSubtreeIfNeeded()
+        let fittingHeight = max(hostingView.fittingSize.height, 36)
+
+        let panelFrame = Self.panelScreenFrame(
+            for: anchorView,
+            in: parentWindow,
+            contentHeight: fittingHeight
+        )
+        panel.setFrame(panelFrame, display: true)
+        panel.invalidateShadow()
+
+        if panel.parent !== parentWindow {
+            panel.parent?.removeChildWindow(panel)
+            parentWindow.addChildWindow(panel, ordered: .above)
+        }
+        if !panel.isVisible {
+            panel.orderFront(nil)
+        }
+
+        observeWindowIfNeeded(parentWindow)
+        installLocalMouseMonitorIfNeeded()
+    }
+
+    public func repositionIfVisible() {
+        guard let panel,
+              panel.isVisible,
+              let anchorView = currentAnchorView,
+              let parentWindow = anchorView.window,
+              anchorView.bounds.width > 0,
+              let hostingView else {
+            return
+        }
+        let rectInWindow = anchorView.convert(anchorView.bounds, to: nil)
+        let anchorScreenRect = parentWindow.convertToScreen(rectInWindow)
+        let targetWidth = max(round(anchorScreenRect.width), 320)
+        hostingView.frame = NSRect(x: 0, y: 0, width: targetWidth, height: hostingView.frame.height)
+        hostingView.layoutSubtreeIfNeeded()
+        let fittingHeight = max(hostingView.fittingSize.height, 36)
+
+        let panelFrame = Self.panelScreenFrame(
+            for: anchorView,
+            in: parentWindow,
+            contentHeight: fittingHeight
+        )
+        if panel.frame != panelFrame {
+            panel.setFrame(panelFrame, display: true)
+            panel.invalidateShadow()
+        }
+    }
+
+    public func hide() {
+        removeWindowObservers()
+        removeLocalMouseMonitor()
+        if let panel {
+            panel.parent?.removeChildWindow(panel)
+            if panel.isVisible {
+                panel.orderOut(nil)
+            }
+        }
+    }
+
+    private func observeWindowIfNeeded(_ window: NSWindow) {
+        guard observedWindow !== window else { return }
+        removeWindowObservers()
+        observedWindow = window
+
+        let center = NotificationCenter.default
+        let resizeObs = center.addObserver(
+            forName: NSWindow.didResizeNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            self?.repositionIfVisible()
+        }
+        let moveObs = center.addObserver(
+            forName: NSWindow.didMoveNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            self?.repositionIfVisible()
+        }
+        let resignObs = center.addObserver(
+            forName: NSWindow.didResignKeyNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            self?.onDismissCallback?()
+            self?.hide()
+        }
+        let closeObs = center.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            self?.hide()
+        }
+        windowObservers = [resizeObs, moveObs, resignObs, closeObs]
+    }
+
+    private func removeWindowObservers() {
+        for observer in windowObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        windowObservers.removeAll()
+        observedWindow = nil
+    }
+
+    private func installLocalMouseMonitorIfNeeded() {
+        guard localMouseMonitor == nil else { return }
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self, let panel = self.panel, panel.isVisible else {
+                return event
+            }
+            if event.window === panel {
+                return event
+            }
+            if let anchorView = self.currentAnchorView,
+               event.window === anchorView.window {
+                let pointInAnchor = anchorView.convert(event.locationInWindow, from: nil)
+                if anchorView.bounds.contains(pointInAnchor) {
+                    return event
+                }
+            }
+            self.onDismissCallback?()
+            self.hide()
+            return event
+        }
+    }
+
+    private func removeLocalMouseMonitor() {
+        if let localMouseMonitor {
+            NSEvent.removeMonitor(localMouseMonitor)
+            self.localMouseMonitor = nil
+        }
+    }
+}
+
+/// SwiftUI background anchor that attaches an `OmniboxSuggestionPanelController` directly beneath
+/// the Omnibox or Start Page search bar.
+public struct OmniboxDropdownAnchorView: NSViewRepresentable {
+    @ObservedObject public var session: BrowserSession
+    public let suggestions: [OmniboxSuggestion]
+    public let selectedIndex: Int
+    public let isPresented: Bool
+    public let onSelect: (OmniboxSuggestion) -> Void
+    public var onDismiss: () -> Void = {}
+
+    public init(
+        session: BrowserSession,
+        suggestions: [OmniboxSuggestion],
+        selectedIndex: Int,
+        isPresented: Bool,
+        onSelect: @escaping (OmniboxSuggestion) -> Void,
+        onDismiss: @escaping () -> Void = {}
+    ) {
+        self.session = session
+        self.suggestions = suggestions
+        self.selectedIndex = selectedIndex
+        self.isPresented = isPresented
+        self.onSelect = onSelect
+        self.onDismiss = onDismiss
+    }
+
+    public func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    public func makeNSView(context: Context) -> OmniboxAnchorNSView {
+        let view = OmniboxAnchorNSView()
+        view.onLayoutOrWindowChange = { [weak view, weak coordinator = context.coordinator] in
+            guard let view, let coordinator else { return }
+            coordinator.syncPanel(with: view)
+        }
+        view.onWillDetachFromWindow = { [weak coordinator = context.coordinator] in
+            coordinator?.panelController.hide()
+        }
+        return view
+    }
+
+    public func updateNSView(_ nsView: OmniboxAnchorNSView, context: Context) {
+        context.coordinator.parent = self
+        context.coordinator.syncPanel(with: nsView)
+    }
+
+    public static func dismantleNSView(_ nsView: OmniboxAnchorNSView, coordinator: Coordinator) {
+        coordinator.panelController.hide()
+    }
+
+    public final class Coordinator {
+        var parent: OmniboxDropdownAnchorView
+        let panelController = OmniboxSuggestionPanelController()
+
+        init(parent: OmniboxDropdownAnchorView) {
+            self.parent = parent
+        }
+
+        func syncPanel(with anchorView: NSView) {
+            panelController.update(
+                anchorView: anchorView,
+                session: parent.session,
+                suggestions: parent.suggestions,
+                selectedIndex: parent.selectedIndex,
+                isPresented: parent.isPresented,
+                onSelect: parent.onSelect,
+                onDismiss: parent.onDismiss
+            )
+        }
     }
 }
 
@@ -402,7 +754,6 @@ public struct OmniboxSuggestionsDropdownView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(Color.secondary.opacity(0.24), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.2), radius: 14, x: 0, y: 6)
     }
 
     private func sectionHeader(title: String, icon: String) -> some View {

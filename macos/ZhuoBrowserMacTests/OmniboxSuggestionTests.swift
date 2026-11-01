@@ -256,7 +256,7 @@ final class OmniboxSuggestionTests: XCTestCase {
         session.updateOmniboxSuggestions(for: "swift")
         XCTAssertTrue(session.isShowingOmniboxSuggestions)
         XCTAssertFalse(session.omniboxSuggestions.isEmpty)
-        XCTAssertEqual(session.selectedOmniboxSuggestionIndex, 0)
+        XCTAssertEqual(session.selectedOmniboxSuggestionIndex, -1)
 
         // Top suggestion must be a .host suggestion
         let first = session.omniboxSuggestions.first
@@ -284,7 +284,7 @@ final class OmniboxSuggestionTests: XCTestCase {
             XCTAssertEqual(session.activeTab?.url, "https://swift.org/documentation/api-design-guidelines/")
         }
 
-        // Verify OmniboxSuggestionsDropdownView & MainWindowView host cleanly
+        // Verify OmniboxSuggestionsDropdownView hosts cleanly
         let sampleSuggestions = session.suggestions(for: "git")
         let dropdown = OmniboxSuggestionsDropdownView(
             session: session,
@@ -295,5 +295,95 @@ final class OmniboxSuggestionTests: XCTestCase {
         let dropdownHost = NSHostingView(rootView: dropdown)
         dropdownHost.frame = NSRect(x: 0, y: 0, width: 480, height: 320)
         XCTAssertNotNil(dropdownHost)
+    }
+
+    @MainActor
+    func testEnteringURLNavigatesDirectlyInsteadOfSearching() {
+        let session = BrowserSession()
+        session.settings.searchEngine = .google
+
+        // User types an unvisited domain "wpx.youdroid.top" and presses Enter
+        session.updateOmniboxSuggestions(for: "wpx.youdroid.top")
+        XCTAssertFalse(
+            session.omniboxSuggestions.contains(where: { $0.kind == .search }),
+            "Autocomplete dropdown must not inject a search item that hijacks URL submission"
+        )
+        session.submitOmniboxInput("wpx.youdroid.top")
+        XCTAssertEqual(
+            LibraryPolicy.normalizeComparableURL(session.activeTab?.url ?? ""),
+            "https://wpx.youdroid.top"
+        )
+        XCTAssertFalse(session.activeTab?.url.contains("google.com") ?? true)
+
+        // Even if a .search suggestion were present at index 0, resolveSubmissionTarget must never
+        // hijack a URL input to a search engine query URL
+        let fallbackSuggestions = OmniboxSuggestionPolicy.suggestions(
+            for: "wpx.youdroid.top",
+            history: [],
+            bookmarks: [],
+            searchEngine: .google,
+            includeSearchSuggestion: true
+        )
+        let resolvedTarget = OmniboxSuggestionPolicy.resolveSubmissionTarget(
+            for: "wpx.youdroid.top",
+            suggestions: fallbackSuggestions,
+            selectedIndex: 0
+        )
+        XCTAssertEqual(resolvedTarget, "wpx.youdroid.top")
+        XCTAssertEqual(
+            URLPolicy.normalizeAddress(resolvedTarget, searchEngine: .google),
+            "https://wpx.youdroid.top"
+        )
+    }
+
+    @MainActor
+    func testSuggestionPanelPositionsDirectlyBelowOmniboxAnchor() {
+        let session = BrowserSession()
+        session.recordHistory(url: "https://github.com/apple/swift", title: "Swift")
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 200, y: 300, width: 900, height: 600),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 900, height: 600))
+        window.contentView = contentView
+
+        let anchorView = OmniboxAnchorNSView(frame: NSRect(x: 180, y: 556, width: 540, height: 28))
+        contentView.addSubview(anchorView)
+        contentView.layoutSubtreeIfNeeded()
+
+        let controller = OmniboxSuggestionPanelController()
+        let suggestions = session.suggestions(for: "git")
+        XCTAssertFalse(suggestions.isEmpty)
+
+        controller.update(
+            anchorView: anchorView,
+            session: session,
+            suggestions: suggestions,
+            selectedIndex: -1,
+            isPresented: true,
+            onSelect: { _ in }
+        )
+
+        let anchorScreenRect = window.convertToScreen(anchorView.convert(anchorView.bounds, to: nil))
+        guard let panelFrame = controller.currentPanelFrame else {
+            XCTFail("Expected suggestion child panel frame to be created")
+            return
+        }
+
+        XCTAssertTrue(controller.isPanelVisible)
+        XCTAssertEqual(panelFrame.minX, round(anchorScreenRect.minX), accuracy: 1.0)
+        XCTAssertEqual(panelFrame.width, round(anchorScreenRect.width), accuracy: 1.0)
+        XCTAssertEqual(
+            panelFrame.maxY,
+            round(anchorScreenRect.minY - OmniboxSuggestionPanelController.verticalGap),
+            accuracy: 1.0,
+            "Top edge of suggestion panel must sit directly below the bottom edge of the omnibox"
+        )
+
+        controller.hide()
+        XCTAssertFalse(controller.isPanelVisible)
     }
 }

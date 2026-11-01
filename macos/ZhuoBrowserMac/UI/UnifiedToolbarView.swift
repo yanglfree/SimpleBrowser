@@ -215,10 +215,13 @@ public struct UnifiedToolbarView: View {
         }
         .onChange(of: isOmniboxFocused) { focused in
             if focused {
-                if activeTab?.isHome == true {
-                    currentText = ""
-                } else {
-                    currentText = activeTab?.url ?? ""
+                let displayed = activeTab.map { URLPolicy.displayAddress(for: $0.url) } ?? ""
+                if currentText == displayed {
+                    if activeTab?.isHome == true {
+                        currentText = ""
+                    } else {
+                        currentText = activeTab?.url ?? ""
+                    }
                 }
             } else {
                 session.dismissOmniboxSuggestions()
@@ -345,20 +348,25 @@ public struct UnifiedToolbarView: View {
         .padding(.vertical, 5)
         .frame(height: 28)
         .background(
-            GeometryReader { proxy in
-                let frame = proxy.frame(in: .named("MainWindowSpace"))
-                Color(NSColor.textBackgroundColor)
-                    .onAppear {
-                        if session.omniboxFrameInWindow != frame {
-                            session.omniboxFrameInWindow = frame
+            Color(NSColor.textBackgroundColor)
+                .background(
+                    OmniboxDropdownAnchorView(
+                        session: session,
+                        suggestions: session.omniboxSuggestions,
+                        selectedIndex: session.selectedOmniboxSuggestionIndex,
+                        isPresented: isOmniboxFocused && session.isShowingOmniboxSuggestions && !session.omniboxSuggestions.isEmpty,
+                        onSelect: { suggestion in
+                            isOmniboxFocused = false
+                            session.commitOmniboxSuggestion(suggestion)
+                            syncDisplayAddress()
+                        },
+                        onDismiss: {
+                            session.dismissOmniboxSuggestions()
+                            isOmniboxFocused = false
+                            session.isOmniboxFocused = false
                         }
-                    }
-                    .onChange(of: frame) { newFrame in
-                        if session.omniboxFrameInWindow != newFrame {
-                            session.omniboxFrameInWindow = newFrame
-                        }
-                    }
-            }
+                    )
+                )
         )
         .cornerRadius(8)
         .overlay(
@@ -413,31 +421,9 @@ public struct UnifiedToolbarView: View {
 
     private func submitNavigation(with committedText: String? = nil) {
         let rawInput = (committedText ?? currentText).trimmingCharacters(in: .whitespacesAndNewlines)
-        let selectedIndex = session.selectedOmniboxSuggestionIndex
-        let selectedSuggestion: OmniboxSuggestion? = {
-            guard session.isShowingOmniboxSuggestions,
-                  selectedIndex >= 0,
-                  selectedIndex < session.omniboxSuggestions.count else {
-                return nil
-            }
-            return session.omniboxSuggestions[selectedIndex]
-        }()
-
-        session.dismissOmniboxSuggestions()
         isOmniboxFocused = false
-        session.isOmniboxFocused = false
-
-        if let selected = selectedSuggestion {
-            if selectedIndex > 0
-                || selected.completionText.caseInsensitiveCompare(rawInput) == .orderedSame
-                || selected.title.caseInsensitiveCompare(rawInput) == .orderedSame {
-                session.navigate(to: selected.url)
-                return
-            }
-        }
-
-        guard !rawInput.isEmpty else { return }
-        session.navigate(to: rawInput)
+        session.submitOmniboxInput(rawInput)
+        syncDisplayAddress()
     }
 
     private var toolbarInitialsAvatar: some View {

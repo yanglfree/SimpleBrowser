@@ -150,7 +150,7 @@ public enum OmniboxSuggestionPolicy {
         history: [HistoryEntry],
         bookmarks: [BookmarkEntry],
         searchEngine: SearchEngine = .bing,
-        includeSearchSuggestion: Bool = true,
+        includeSearchSuggestion: Bool = false,
         maxCount: Int = defaultMaxSuggestions
     ) -> [OmniboxSuggestion] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -393,12 +393,102 @@ public enum OmniboxSuggestionPolicy {
         return nil
     }
 
+    /// Resolves the navigation target string when the user submits the Omnibox or Start Page search bar.
+    ///
+    /// - Rules:
+    ///   1. If the user explicitly selected a dropdown row via arrow keys (`selectedIndex >= 0`),
+    ///      and that row is a URL suggestion (`.host`, `.history`, `.bookmark`) matching `rawInput`,
+    ///      navigate to `selected.url`.
+    ///   2. If `rawInput` matches a Tier 1 `.host` suggestion's `completionText` or `title`
+    ///      (e.g. inline-completed `"v2ex.com"` for `"https://www.v2ex.com"`), navigate to that host's canonical URL.
+    ///   3. Otherwise, return the user's trimmed `rawInput` directly so `URLPolicy.normalizeAddress`
+    ///      visits any URL (such as `"wpx.youdroid.top"` -> `"https://wpx.youdroid.top"`) instead of searching.
+    public static func resolveSubmissionTarget(
+        for rawInput: String,
+        suggestions: [OmniboxSuggestion],
+        selectedIndex: Int
+    ) -> String {
+        let trimmed = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+
+        if selectedIndex >= 0 && selectedIndex < suggestions.count {
+            let selected = suggestions[selectedIndex]
+            if selected.kind != .search {
+                if selected.completionText.caseInsensitiveCompare(trimmed) == .orderedSame
+                    || selected.title.caseInsensitiveCompare(trimmed) == .orderedSame
+                    || selected.url.caseInsensitiveCompare(trimmed) == .orderedSame {
+                    return selected.url
+                }
+            }
+        }
+
+        if let matchingHost = suggestions.first(where: {
+            $0.kind == .host && (
+                $0.completionText.caseInsensitiveCompare(trimmed) == .orderedSame
+                || $0.title.caseInsensitiveCompare(trimmed) == .orderedSame
+            )
+        }) {
+            return matchingHost.url
+        }
+
+        return trimmed
+    }
+
     // MARK: - Candidate Aggregation
+
+    private struct CandidateCacheKey: Equatable {
+        let historyCount: Int
+        let firstHistoryID: String
+        let firstHistoryVisitedAt: TimeInterval
+        let lastHistoryID: String
+        let bookmarksCount: Int
+        let firstBookmarkID: String
+        let lastBookmarkID: String
+        let bookmarkChecksum: Int
+    }
+
+    private static let cacheLock = NSLock()
+    private static var cachedKey: CandidateCacheKey?
+    private static var cachedHosts: [AggregatedHostCandidate] = []
+    private static var cachedFullLinks: [AggregatedFullLinkCandidate] = []
+
+    private static func makeCacheKey(history: [HistoryEntry], bookmarks: [BookmarkEntry]) -> CandidateCacheKey {
+        var checksum = bookmarks.count &* 31 &+ history.count
+        if let firstBM = bookmarks.first {
+            checksum = checksum &* 31 &+ firstBM.url.hashValue &+ firstBM.title.hashValue
+        }
+        if let lastBM = bookmarks.last {
+            checksum = checksum &* 31 &+ lastBM.url.hashValue &+ Int(lastBM.updatedAt)
+        }
+        if let firstH = history.first {
+            checksum = checksum &* 31 &+ firstH.url.hashValue &+ firstH.visitCount
+        }
+        return CandidateCacheKey(
+            historyCount: history.count,
+            firstHistoryID: history.first?.id ?? "",
+            firstHistoryVisitedAt: history.first?.visitedAt ?? 0,
+            lastHistoryID: history.last?.id ?? "",
+            bookmarksCount: bookmarks.count,
+            firstBookmarkID: bookmarks.first?.id ?? "",
+            lastBookmarkID: bookmarks.last?.id ?? "",
+            bookmarkChecksum: checksum
+        )
+    }
 
     private static func aggregateCandidates(
         history: [HistoryEntry],
         bookmarks: [BookmarkEntry]
     ) -> (hosts: [AggregatedHostCandidate], fullLinks: [AggregatedFullLinkCandidate]) {
+        let key = makeCacheKey(history: history, bookmarks: bookmarks)
+        cacheLock.lock()
+        if cachedKey == key {
+            let hosts = cachedHosts
+            let links = cachedFullLinks
+            cacheLock.unlock()
+            return (hosts, links)
+        }
+        cacheLock.unlock()
+
         var hostsByBareHost: [String: AggregatedHostCandidate] = [:]
         var linksByNormalizedURL: [String: AggregatedFullLinkCandidate] = [:]
 
@@ -524,7 +614,14 @@ public enum OmniboxSuggestionPolicy {
             )
         }
 
-        return (Array(hostsByBareHost.values), Array(linksByNormalizedURL.values))
+        let hostsResult = Array(hostsByBareHost.values)
+        let linksResult = Array(linksByNormalizedURL.values)
+        cacheLock.lock()
+        cachedKey = key
+        cachedHosts = hostsResult
+        cachedFullLinks = linksResult
+        cacheLock.unlock()
+        return (hostsResult, linksResult)
     }
 
     // MARK: - Scoring
@@ -706,16 +803,16 @@ public enum OmniboxSuggestionPolicy {
     /// Checks whether the URL points to the root of a host (no non-empty path, query, or fragment).
     public static func isRootHostURL(_ urlString: String) -> Bool {
         let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let components = URLComponents(string: trimmed) else {
-            let noScheme = stripScheme(trimmed)
-            let strippedSlash = noScheme.hasSuffix("/") ? String(noScheme.dropLast()) : noScheme
-            return !strippedSlash.contains("/") && !strippedSlash.contains("?") && !strippedSlash.contains("#")
+        let noScheme = stripScheme(trimmed)
+        guard !noScheme.isEmpty else { return false }
+        if noScheme.contains("?") || noScheme.contains("#") {
+            return false
         }
-        let path = components.path
-        let hasNonRootPath = !path.isEmpty && path != "/"
-        let hasQuery = !(components.query ?? "").isEmpty
-        let hasFragment = !(components.fragment ?? "").isEmpty
-        return !hasNonRootPath && !hasQuery && !hasFragment
+        guard let firstSlash = noScheme.firstIndex(of: "/") else {
+            return true
+        }
+        let remainder = noScheme[noScheme.index(after: firstSlash)...]
+        return remainder.isEmpty
     }
 
     private static func extractExplicitScheme(from text: String) -> String? {
