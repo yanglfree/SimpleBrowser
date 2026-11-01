@@ -166,25 +166,21 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
                 completion?()
                 return
             }
-            let now = Date()
-            let validCookies = cookies.filter { cookie in
-                if let expires = cookie.expiresDate {
-                    return expires > now
-                }
-                return true
-            }
-            guard !validCookies.isEmpty else {
-                completion?()
-                return
-            }
-            guard let data = Self.encodeCookies(validCookies) else {
-                completion?()
-                return
-            }
             self.ioQueue.async {
-                try? data.write(to: archiveURL, options: .atomic)
-                DispatchQueue.main.async {
-                    completion?()
+                let now = Date()
+                let validCookies = cookies.filter { cookie in
+                    if let expires = cookie.expiresDate {
+                        return expires > now
+                    }
+                    return true
+                }
+                if !validCookies.isEmpty, let data = Self.encodeCookies(validCookies) {
+                    try? data.write(to: archiveURL, options: .atomic)
+                }
+                if let completion {
+                    DispatchQueue.main.async {
+                        completion()
+                    }
                 }
             }
         }
@@ -372,6 +368,8 @@ public final class WebSessionStorageStore {
 
     private let lock = NSLock()
     private var storageByOrigin: [String: [String: String]] = [:]
+    private var cachedBootstrapScript: WKUserScript?
+    private var isBootstrapScriptDirty: Bool = true
     private var debounceWorkItem: DispatchWorkItem?
     private let ioQueue = DispatchQueue(label: "com.youdroid.zhuobrowser.session-storage", qos: .utility)
 
@@ -428,6 +426,8 @@ public final class WebSessionStorageStore {
         } else {
             storageByOrigin[origin] = entries
         }
+        isBootstrapScriptDirty = true
+        cachedBootstrapScript = nil
         lock.unlock()
         scheduleFlush()
     }
@@ -435,12 +435,27 @@ public final class WebSessionStorageStore {
     public func clearAll() {
         lock.lock()
         storageByOrigin.removeAll()
+        isBootstrapScriptDirty = true
+        cachedBootstrapScript = nil
         lock.unlock()
         debounceWorkItem?.cancel()
         debounceWorkItem = nil
         guard isPersistenceEnabled, let fileURL else { return }
         ioQueue.async { [weak self] in
             try? self?.fileManager.removeItem(at: fileURL)
+        }
+    }
+
+    public func flushAsync() {
+        guard isPersistenceEnabled, let fileURL else { return }
+        debounceWorkItem?.cancel()
+        debounceWorkItem = nil
+        lock.lock()
+        let snapshot = storageByOrigin
+        lock.unlock()
+        ioQueue.async {
+            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            try? data.write(to: fileURL, options: .atomic)
         }
     }
 
@@ -457,17 +472,10 @@ public final class WebSessionStorageStore {
     }
 
     private func scheduleFlush() {
-        guard isPersistenceEnabled, let fileURL else { return }
+        guard isPersistenceEnabled else { return }
         debounceWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.lock.lock()
-            let snapshot = self.storageByOrigin
-            self.lock.unlock()
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            self.ioQueue.async {
-                try? data.write(to: fileURL, options: .atomic)
-            }
+            self?.flushAsync()
         }
         debounceWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
@@ -475,6 +483,10 @@ public final class WebSessionStorageStore {
 
     public func makeBootstrapUserScript() -> WKUserScript? {
         lock.lock()
+        if !isBootstrapScriptDirty, let cached = cachedBootstrapScript {
+            lock.unlock()
+            return cached
+        }
         let snapshot = storageByOrigin
         lock.unlock()
         guard let jsonData = try? JSONEncoder().encode(snapshot),
@@ -537,6 +549,11 @@ public final class WebSessionStorageStore {
             } catch (_) {}
         })();
         """
-        return WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        let script = WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        lock.lock()
+        cachedBootstrapScript = script
+        isBootstrapScriptDirty = false
+        lock.unlock()
+        return script
     }
 }

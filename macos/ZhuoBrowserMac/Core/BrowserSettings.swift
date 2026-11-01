@@ -90,6 +90,7 @@ public class BrowserSettings: ObservableObject {
     private let userDefaults: UserDefaults
     private let settingsFileURL: URL?
     private var isApplyingRemoteSettings: Bool = false
+    private let ioQueue = DispatchQueue(label: "com.youdroid.zhuobrowser.mac.settings", qos: .utility)
 
     /// Monotonic millisecond timestamp of the most recent settings change (local or cloud).
     public private(set) var updatedAt: Int64
@@ -289,7 +290,7 @@ public class BrowserSettings: ObservableObject {
 
     /// Synchronously flushes current settings to both UserDefaults and Application Support disk storage.
     public func flushSynchronously() {
-        persistToStorage()
+        persistToStorage(synchronously: true)
         if persistsAutomatically {
             userDefaults.synchronize()
         }
@@ -299,7 +300,7 @@ public class BrowserSettings: ObservableObject {
         guard !isApplyingRemoteSettings else { return }
         self.updatedAt = max(Self.currentTimestampMillis(), self.updatedAt + 1)
         self.hasPendingLocalChanges = true
-        persistToStorage()
+        persistToStorage(synchronously: false)
         onLocalSettingsChanged?(self)
         if persistsAutomatically && self === BrowserSettings.shared {
             Task { @MainActor in
@@ -308,7 +309,7 @@ public class BrowserSettings: ObservableObject {
         }
     }
 
-    private func persistToStorage() {
+    private func persistToStorage(synchronously: Bool = false) {
         guard persistsAutomatically || settingsFileURL != nil else { return }
         let current = snapshot
         userDefaults.set(current.searchEngine.rawValue, forKey: Keys.searchEngine)
@@ -321,8 +322,16 @@ public class BrowserSettings: ObservableObject {
         userDefaults.set(current.updatedAt, forKey: Keys.updatedAt)
         userDefaults.set(current.hasPendingLocalChanges, forKey: Keys.hasPendingLocalChanges)
 
-        if let settingsFileURL, let data = try? JSONEncoder().encode(current) {
-            try? data.write(to: settingsFileURL, options: .atomic)
+        guard let settingsFileURL else { return }
+        let writeWork = {
+            if let data = try? JSONEncoder().encode(current) {
+                try? data.write(to: settingsFileURL, options: .atomic)
+            }
+        }
+        if synchronously {
+            ioQueue.sync(execute: writeWork)
+        } else {
+            ioQueue.async(execute: writeWork)
         }
     }
 

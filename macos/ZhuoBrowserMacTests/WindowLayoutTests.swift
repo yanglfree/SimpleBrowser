@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WebKit
 import XCTest
 @testable import ZhuoBrowserMac
 
@@ -69,5 +70,48 @@ final class WindowLayoutTests: XCTestCase {
         let hostingView = NSHostingView(rootView: startView)
         hostingView.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
         XCTAssertNotNil(hostingView)
+    }
+
+    func testWebContainerHostViewRetainsWarmWebViewsAcrossHomeAndTabSwitches() {
+        let host = WebContainerView.HostView(frame: NSRect(x: 0, y: 0, width: 1024, height: 768))
+        let webViewA = WKWebView(frame: .zero)
+        let webViewB = WKWebView(frame: .zero)
+
+        host.attach(webView: webViewA)
+        XCTAssertTrue(webViewA.superview === host)
+        XCTAssertFalse(webViewA.isHidden)
+        XCTAssertEqual(webViewA.frame, host.bounds)
+
+        // Switching to a New Tab (home page) passes nil: webViewA must stay attached in host and become hidden
+        host.attach(webView: nil)
+        XCTAssertTrue(webViewA.superview === host)
+        XCTAssertTrue(webViewA.isHidden)
+
+        // Switching to a second web tab attaches webViewB without tearing webViewA out of host
+        host.attach(webView: webViewB)
+        XCTAssertTrue(webViewA.superview === host)
+        XCTAssertTrue(webViewA.isHidden)
+        XCTAssertTrue(webViewB.superview === host)
+        XCTAssertFalse(webViewB.isHidden)
+        XCTAssertEqual(webViewB.frame, host.bounds)
+
+        // Resizing the host updates both foreground and hidden warm WebViews
+        host.setFrameSize(NSSize(width: 1440, height: 900))
+        host.resizeSubviews(withOldSize: NSSize(width: 1024, height: 768))
+        XCTAssertEqual(webViewA.frame.size, NSSize(width: 1440, height: 900))
+        XCTAssertEqual(webViewB.frame.size, NSSize(width: 1440, height: 900))
+
+        // Dismantle detaches all subviews cleanly
+        host.detachAll()
+        XCTAssertNil(webViewA.superview)
+        XCTAssertNil(webViewB.superview)
+    }
+
+    func testHomeBackgroundManagerInitDoesNotBlockMainThread() {
+        let start = CFAbsoluteTimeGetCurrent()
+        let manager = HomeBackgroundManager(isPersistenceEnabled: false)
+        let elapsedMs = (CFAbsoluteTimeGetCurrent() - start) * 1000
+        XCTAssertNotNil(manager)
+        XCTAssertLessThan(elapsedMs, 50, "HomeBackgroundManager init should not decode 4K/6K presets synchronously on the main thread")
     }
 }

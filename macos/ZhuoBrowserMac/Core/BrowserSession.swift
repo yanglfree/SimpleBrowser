@@ -24,7 +24,17 @@ public final class BrowserSession: ObservableObject {
     @Published public var omniboxSuggestions: [OmniboxSuggestion] = []
     @Published public var selectedOmniboxSuggestionIndex: Int = -1
     @Published public var isShowingOmniboxSuggestions: Bool = false
-    @Published public var omniboxFrameInWindow: CGRect = .zero
+    public var omniboxFrameInWindow: CGRect = .zero {
+        didSet {
+            guard isShowingOmniboxSuggestions,
+                  abs(omniboxFrameInWindow.minX - oldValue.minX) > 0.5
+                    || abs(omniboxFrameInWindow.maxY - oldValue.maxY) > 0.5
+                    || abs(omniboxFrameInWindow.width - oldValue.width) > 0.5 else {
+                return
+            }
+            objectWillChange.send()
+        }
+    }
     @Published public var activeLiveControllersCount: Int = 0
     @Published public private(set) var activeController: TabController?
     @Published public private(set) var memoryPressure: MemoryPressureLevel = .nominal
@@ -205,36 +215,52 @@ public final class BrowserSession: ObservableObject {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
 
         let changed = activeTabID != id
-        activeTabID = id
-        omniboxText = URLPolicy.displayAddress(for: tabs[index].url)
+        if changed {
+            activeTabID = id
+        }
+        let nextOmnibox = URLPolicy.displayAddress(for: tabs[index].url)
+        if omniboxText != nextOmnibox {
+            omniboxText = nextOmnibox
+        }
         dismissOmniboxSuggestions()
 
         // Instant path: reuse the warm WebView, or revive the frozen snapshot. No
         // `load(url:)` happens here, which is what removes the reload flash.
         ensureLiveController(for: id)
         if changed, let currentIndex = tabs.firstIndex(where: { $0.id == id }) {
-            tabs[currentIndex].lastActiveTime = Date()
+            let now = Date()
+            if now.timeIntervalSince(tabs[currentIndex].lastActiveTime) > 1.0 {
+                tabs[currentIndex].lastActiveTime = now
+            }
         }
         enforceMemoryBudget()
     }
 
     public func updateTab(_ id: String, mutate: (inout BrowserTab) -> Void) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
-        let previousURL = tabs[index].url
-        let previousTitle = tabs[index].title
-        mutate(&tabs[index])
-        let currentURL = tabs[index].url
-        let currentTitle = tabs[index].title
-        if activeTabID == id {
-            omniboxText = URLPolicy.displayAddress(for: currentURL)
+        let previous = tabs[index]
+        var updated = previous
+        mutate(&updated)
+        let currentURL = updated.url
+        let currentTitle = updated.title
+        if previous.url != currentURL {
+            updated.lastActiveTime = Date()
         }
-        if previousURL != currentURL {
-            tabs[index].lastActiveTime = Date()
+        if updated != previous {
+            tabs[index] = updated
+        }
+        if activeTabID == id {
+            let nextOmnibox = URLPolicy.displayAddress(for: currentURL)
+            if omniboxText != nextOmnibox {
+                omniboxText = nextOmnibox
+            }
+        }
+        if previous.url != currentURL {
             if controllers[id] != nil {
                 stateStore.removeSnapshot(for: id)
             }
             scheduleSessionPersistence()
-        } else if previousTitle != currentTitle {
+        } else if previous.title != currentTitle {
             scheduleSessionPersistence()
         }
     }
@@ -915,7 +941,10 @@ public final class BrowserSession: ObservableObject {
     }
 
     private func publishMemoryStats() {
-        activeLiveControllersCount = committedLiveControllerCount
+        let nextLiveCount = committedLiveControllerCount
+        if activeLiveControllersCount != nextLiveCount {
+            activeLiveControllersCount = nextLiveCount
+        }
 
         let active = activeTabID.flatMap { controllers[$0] }
         if activeController !== active {
@@ -961,20 +990,23 @@ public final class BrowserSession: ObservableObject {
             return
         }
         siteIconLoadingHosts.insert(host)
-        Task { @MainActor [weak self] in
+        Task.detached(priority: .utility) { [weak self] in
             let data = await SiteIconStore.shared.iconData(
                 for: pageURL,
                 declaredURL: declaredURL.isEmpty ? nil : declaredURL
             )
-            guard let self else { return }
-            self.siteIconLoadingHosts.remove(host)
-            if let data, let image = SiteIconImage.decode(data) {
-                self.siteIcons[host] = image
-                self.deferredSiteIconRequests.removeValue(forKey: host)
-                return
-            }
-            if let deferred = self.deferredSiteIconRequests.removeValue(forKey: host) {
-                self.requestSiteIcon(pageURL: deferred.pageURL, declaredURL: deferred.declaredURL)
+            let decodedImage = data.flatMap { SiteIconImage.decode($0) }
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.siteIconLoadingHosts.remove(host)
+                if let decodedImage {
+                    self.siteIcons[host] = decodedImage
+                    self.deferredSiteIconRequests.removeValue(forKey: host)
+                    return
+                }
+                if let deferred = self.deferredSiteIconRequests.removeValue(forKey: host) {
+                    self.requestSiteIcon(pageURL: deferred.pageURL, declaredURL: deferred.declaredURL)
+                }
             }
         }
     }
@@ -996,6 +1028,27 @@ public final class BrowserSession: ObservableObject {
         }
         stateStore.saveTabSession(states, synchronously: synchronously)
         stateStore.pruneSnapshots(keeping: Set(restorableTabs.map(\.id)))
+    }
+
+    /// Lightweight background checkpoint when the app resigns active, avoiding synchronous
+    /// main-thread snapshot encoding across all background WebViews.
+    public func captureSessionOnResignActive() {
+        if let activeID = activeTabID,
+           let controller = controllers[activeID],
+           let index = tabs.firstIndex(where: { $0.id == activeID }),
+           !tabs[index].isPrivate,
+           !tabs[index].isHome {
+            if let liveURL = controller.webView?.url?.absoluteString, !liveURL.isEmpty, tabs[index].url != liveURL {
+                tabs[index].url = liveURL
+            }
+            if let liveTitle = controller.webView?.title, !liveTitle.isEmpty, tabs[index].title != liveTitle {
+                tabs[index].title = liveTitle
+            }
+            if let snapshot = controller.makeSnapshot() {
+                stateStore.store(snapshot, for: activeID, synchronously: false)
+            }
+        }
+        persistSession(synchronously: false)
     }
 
     /// Called right before the app terminates so a relaunch resumes every visible

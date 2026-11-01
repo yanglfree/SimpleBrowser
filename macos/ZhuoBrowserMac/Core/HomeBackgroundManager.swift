@@ -139,6 +139,12 @@ public final class HomeBackgroundManager: ObservableObject {
     @Published public private(set) var isLoading: Bool = false
     @Published public private(set) var isLoadingHistory: Bool = false
 
+    private let storageDirectory: URL
+    private let bingCacheDirectory: URL
+    private var wallpaperMemoryCache: [String: NSImage] = [:]
+    private var wallpaperLoadGeneration: UInt64 = 0
+    private var isPreloadingPresetThumbnails: Bool = false
+
     public var activeBingWallpaper: BingWallpaperItem? {
         if let selectedBingDate,
            let item = bingHistory.first(where: { $0.date == selectedBingDate }) {
@@ -149,6 +155,14 @@ public final class HomeBackgroundManager: ObservableObject {
 
     public init(isPersistenceEnabled: Bool = !RuntimeEnvironment.isRunningUnitTests) {
         self.isPersistenceEnabled = isPersistenceEnabled
+        let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+        let appSupport = paths[0].appendingPathComponent("ZhuoBrowserMac", isDirectory: true)
+        let bingDir = appSupport.appendingPathComponent("bing_cache", isDirectory: true)
+        self.storageDirectory = appSupport
+        self.bingCacheDirectory = bingDir
+        try? FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: bingDir, withIntermediateDirectories: true)
+
         if isPersistenceEnabled {
             self.userDefaults = .standard
         } else {
@@ -176,7 +190,7 @@ public final class HomeBackgroundManager: ObservableObject {
         }
 
         loadCachedBingHistory()
-        loadPresetThumbnails()
+        loadPresetThumbnailsAsync()
         loadCurrentWallpaper()
     }
 
@@ -349,6 +363,7 @@ public final class HomeBackgroundManager: ObservableObject {
     // MARK: - Internal Loading
 
     private func loadCurrentWallpaper() {
+        wallpaperLoadGeneration &+= 1
         switch source {
         case .none:
             currentImage = nil
@@ -361,7 +376,7 @@ public final class HomeBackgroundManager: ObservableObject {
         }
     }
 
-    private func resolvePresetFileURL(filename: String) -> URL? {
+    nonisolated private static func resolvePresetFileURL(filename: String) -> URL? {
         if let imageURL = Bundle.main.url(forResource: filename, withExtension: nil, subdirectory: "wallpapers") ??
             Bundle.main.url(forResource: filename, withExtension: nil) {
             return imageURL
@@ -377,11 +392,28 @@ public final class HomeBackgroundManager: ObservableObject {
         return nil
     }
 
-    private func loadPresetThumbnails() {
-        for preset in Self.presets {
-            guard let url = resolvePresetFileURL(filename: preset.filename) else { continue }
-            if let thumb = Self.downsampleImage(at: url, maxPixelSize: 240) ?? NSImage(contentsOf: url) {
-                presetThumbnails[preset.id] = thumb
+    private func loadPresetThumbnailsAsync() {
+        guard presetThumbnails.count < Self.presets.count, !isPreloadingPresetThumbnails else { return }
+        isPreloadingPresetThumbnails = true
+        let presetsToLoad = Self.presets.filter { presetThumbnails[$0.id] == nil }
+        Task.detached(priority: .utility) { [weak self] in
+            var loaded: [String: NSImage] = [:]
+            for preset in presetsToLoad {
+                guard let url = Self.resolvePresetFileURL(filename: preset.filename) else { continue }
+                if let thumb = Self.downsampleImage(at: url, maxPixelSize: 240) {
+                    loaded[preset.id] = thumb
+                }
+            }
+            await MainActor.run { [weak self, loaded] in
+                guard let self else { return }
+                self.isPreloadingPresetThumbnails = false
+                if !loaded.isEmpty {
+                    var updated = self.presetThumbnails
+                    for (k, v) in loaded {
+                        updated[k] = v
+                    }
+                    self.presetThumbnails = updated
+                }
             }
         }
     }
@@ -391,35 +423,64 @@ public final class HomeBackgroundManager: ObservableObject {
             currentImage = nil
             return
         }
-
-        if let url = resolvePresetFileURL(filename: preset.filename),
-           let image = NSImage(contentsOf: url) {
-            self.currentImage = image
+        let cacheKey = "preset:\(id)"
+        if let cached = wallpaperMemoryCache[cacheKey] {
+            self.currentImage = cached
             return
         }
-
-        self.currentImage = nil
+        if let thumb = presetThumbnails[id] {
+            self.currentImage = thumb
+        }
+        guard let url = Self.resolvePresetFileURL(filename: preset.filename) else {
+            self.currentImage = nil
+            return
+        }
+        let generation = wallpaperLoadGeneration
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let decoded = Self.downsampleImage(at: url, maxPixelSize: 2880) ?? NSImage(contentsOf: url)
+            await MainActor.run { [weak self] in
+                guard let self, let decoded else { return }
+                self.wallpaperMemoryCache[cacheKey] = decoded
+                if self.wallpaperLoadGeneration == generation && self.source == .preset && self.selectedPresetId == id {
+                    self.currentImage = decoded
+                }
+            }
+        }
     }
 
     private func loadCustomImage() {
         let fileURL = storageDirectory.appendingPathComponent(customImageFileName)
-        if FileManager.default.fileExists(atPath: fileURL.path),
-           let image = NSImage(contentsOf: fileURL) {
-            self.currentImage = image
-        } else {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
             self.currentImage = nil
+            return
+        }
+        let cacheKey = "custom"
+        if let cached = wallpaperMemoryCache[cacheKey] {
+            self.currentImage = cached
+            return
+        }
+        let generation = wallpaperLoadGeneration
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let decoded = Self.downsampleImage(at: fileURL, maxPixelSize: 2880) ?? NSImage(contentsOf: fileURL)
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                if let decoded {
+                    self.wallpaperMemoryCache[cacheKey] = decoded
+                }
+                if self.wallpaperLoadGeneration == generation && self.source == .custom {
+                    self.currentImage = decoded
+                }
+            }
         }
     }
 
     private func loadDailyImage(forceNetwork: Bool) {
-        // 1. If a specific date (or today's top item) is already cached on disk, apply immediately for instant preview.
+        // 1. If a specific date (or today's top item) is already cached in memory or on disk, apply without blocking the main thread.
         let targetDate = selectedBingDate ?? bingHistory.first?.date
         if !forceNetwork, let targetDate {
-            let cachedDateFile = bingFullCacheURL(for: targetDate)
-            if FileManager.default.fileExists(atPath: cachedDateFile.path),
-               let image = NSImage(contentsOf: cachedDateFile) {
-                self.currentImage = image
-                // Still refresh history in background if today's date isn't fetched yet
+            let cacheKey = "bing:\(targetDate)"
+            if let memCached = wallpaperMemoryCache[cacheKey] {
+                self.currentImage = memCached
                 if selectedBingDate == nil && !isDateTodayInBeijing(targetDate) {
                     Task {
                         await refreshBingHistory(force: false)
@@ -428,16 +489,47 @@ public final class HomeBackgroundManager: ObservableObject {
                 }
                 return
             }
-            // Show thumbnail immediately as a fast preview while full HD loads
             if let thumb = bingThumbnails[targetDate] {
                 self.currentImage = thumb
+            }
+            let cachedDateFile = bingFullCacheURL(for: targetDate)
+            if FileManager.default.fileExists(atPath: cachedDateFile.path) {
+                let generation = wallpaperLoadGeneration
+                let needsBackgroundRefresh = (selectedBingDate == nil && !isDateTodayInBeijing(targetDate))
+                Task.detached(priority: .userInitiated) { [weak self] in
+                    let decoded = Self.downsampleImage(at: cachedDateFile, maxPixelSize: 2880) ?? NSImage(contentsOf: cachedDateFile)
+                    await MainActor.run { [weak self] in
+                        guard let self else { return }
+                        if let decoded {
+                            self.wallpaperMemoryCache[cacheKey] = decoded
+                            if self.wallpaperLoadGeneration == generation && self.source == .daily {
+                                self.currentImage = decoded
+                            }
+                        }
+                        if needsBackgroundRefresh {
+                            Task {
+                                await self.refreshBingHistory(force: false)
+                                await self.fetchAndApplyActiveBingWallpaper(force: false)
+                            }
+                        }
+                    }
+                }
+                return
             }
         } else if !forceNetwork && selectedBingDate == nil {
             let legacyURL = storageDirectory.appendingPathComponent(dailyImageFileName)
             if FileManager.default.fileExists(atPath: legacyURL.path),
-               isFileFresh(url: legacyURL),
-               let image = NSImage(contentsOf: legacyURL) {
-                self.currentImage = image
+               isFileFresh(url: legacyURL) {
+                let generation = wallpaperLoadGeneration
+                Task.detached(priority: .userInitiated) { [weak self] in
+                    let decoded = Self.downsampleImage(at: legacyURL, maxPixelSize: 2880) ?? NSImage(contentsOf: legacyURL)
+                    await MainActor.run { [weak self] in
+                        guard let self, let decoded else { return }
+                        if self.wallpaperLoadGeneration == generation && self.source == .daily {
+                            self.currentImage = decoded
+                        }
+                    }
+                }
             }
         }
 
@@ -456,11 +548,10 @@ public final class HomeBackgroundManager: ObservableObject {
                 try FileManager.default.removeItem(at: targetURL)
             }
             try FileManager.default.copyItem(at: url, to: targetURL)
-            if let image = NSImage(contentsOf: targetURL) {
-                self.currentImage = image
-                self.source = .custom
-                self.userDefaults.set(WallpaperSource.custom.rawValue, forKey: sourceKey)
-            }
+            self.wallpaperMemoryCache.removeValue(forKey: "custom")
+            self.source = .custom
+            self.userDefaults.set(WallpaperSource.custom.rawValue, forKey: sourceKey)
+            loadCustomImage()
         } catch {
             print("Failed to import custom background image: \(error)")
         }
@@ -530,18 +621,33 @@ public final class HomeBackgroundManager: ObservableObject {
 
         let dateFileURL = bingFullCacheURL(for: targetItem.date)
         let legacyFileURL = storageDirectory.appendingPathComponent(dailyImageFileName)
+        let cacheKey = "bing:\(targetItem.date)"
 
-        if !force && FileManager.default.fileExists(atPath: dateFileURL.path),
-           let cachedImage = NSImage(contentsOf: dateFileURL) {
+        if !force, let memCached = wallpaperMemoryCache[cacheKey] {
             if source == .daily {
-                self.currentImage = cachedImage
+                self.currentImage = memCached
             }
             return
+        }
+
+        if !force && FileManager.default.fileExists(atPath: dateFileURL.path) {
+            let decoded = await Task.detached(priority: .userInitiated) {
+                Self.downsampleImage(at: dateFileURL, maxPixelSize: 2880) ?? NSImage(contentsOf: dateFileURL)
+            }.value
+            if let decoded {
+                wallpaperMemoryCache[cacheKey] = decoded
+                if source == .daily {
+                    self.currentImage = decoded
+                }
+                return
+            }
         }
 
         self.isLoading = true
         defer { self.isLoading = false }
 
+        let shouldWriteLegacy = (selectedBingDate == nil || selectedBingDate == bingHistory.first?.date)
+        let needsThumb = (bingThumbnails[targetItem.date] == nil)
         let candidateURLs = [targetItem.resolvedImageURL, targetItem.fallbackBingImageURL].compactMap { $0 }
         for url in candidateURLs {
             do {
@@ -549,16 +655,22 @@ public final class HomeBackgroundManager: ObservableObject {
                 request.timeoutInterval = 15
                 let (imageData, response) = try await URLSession.shared.data(for: request)
                 guard let http = response as? HTTPURLResponse,
-                      (200..<300).contains(http.statusCode),
-                      let image = NSImage(data: imageData) else {
+                      (200..<300).contains(http.statusCode) else {
                     continue
                 }
-                try? imageData.write(to: dateFileURL, options: .atomic)
-                if selectedBingDate == nil || selectedBingDate == bingHistory.first?.date {
-                    try? imageData.write(to: legacyFileURL, options: .atomic)
-                }
-                if bingThumbnails[targetItem.date] == nil,
-                   let thumb = Self.downsampleImage(data: imageData, maxPixelSize: 280) {
+                let processed = await Task.detached(priority: .userInitiated) { () -> (NSImage?, NSImage?) in
+                    let full = Self.downsampleImage(data: imageData, maxPixelSize: 2880) ?? NSImage(data: imageData)
+                    guard full != nil else { return (nil, nil) }
+                    try? imageData.write(to: dateFileURL, options: .atomic)
+                    if shouldWriteLegacy {
+                        try? imageData.write(to: legacyFileURL, options: .atomic)
+                    }
+                    let thumb = needsThumb ? Self.downsampleImage(data: imageData, maxPixelSize: 280) : nil
+                    return (full, thumb)
+                }.value
+                guard let image = processed.0 else { continue }
+                wallpaperMemoryCache[cacheKey] = image
+                if let thumb = processed.1, bingThumbnails[targetItem.date] == nil {
                     bingThumbnails[targetItem.date] = thumb
                 }
                 if source == .daily {
@@ -571,32 +683,56 @@ public final class HomeBackgroundManager: ObservableObject {
         }
 
         // Fallback to cached file if network failed
-        if let cached = NSImage(contentsOf: dateFileURL) ?? NSImage(contentsOf: legacyFileURL),
-           source == .daily {
-            self.currentImage = cached
+        let fallbackImage = await Task.detached(priority: .utility) {
+            Self.downsampleImage(at: dateFileURL, maxPixelSize: 2880)
+                ?? Self.downsampleImage(at: legacyFileURL, maxPixelSize: 2880)
+        }.value
+        if let fallbackImage, source == .daily {
+            self.currentImage = fallbackImage
         }
     }
 
     private func preloadMissingBingThumbnails() {
-        for item in bingHistory {
-            if bingThumbnails[item.date] != nil { continue }
+        let missingItems = bingHistory.filter { bingThumbnails[$0.date] == nil }
+        guard !missingItems.isEmpty else { return }
+        let cacheDir = bingCacheDirectory
 
-            let thumbFile = bingThumbCacheURL(for: item.date)
-            if FileManager.default.fileExists(atPath: thumbFile.path),
-               let diskThumb = NSImage(contentsOf: thumbFile) {
-                bingThumbnails[item.date] = diskThumb
-                continue
+        Task.detached(priority: .utility) { [weak self] in
+            var diskLoaded: [String: NSImage] = [:]
+            var needsNetwork: [BingWallpaperItem] = []
+
+            for item in missingItems {
+                let thumbFile = cacheDir.appendingPathComponent("thumb_\(item.date).jpg")
+                if FileManager.default.fileExists(atPath: thumbFile.path),
+                   let diskThumb = Self.downsampleImage(at: thumbFile, maxPixelSize: 280) ?? NSImage(contentsOf: thumbFile) {
+                    diskLoaded[item.date] = diskThumb
+                    continue
+                }
+
+                let fullFile = cacheDir.appendingPathComponent("full_\(item.date).jpg")
+                if FileManager.default.fileExists(atPath: fullFile.path),
+                   let downsampled = Self.downsampleImage(at: fullFile, maxPixelSize: 280) {
+                    diskLoaded[item.date] = downsampled
+                    continue
+                }
+
+                needsNetwork.append(item)
             }
 
-            let fullFile = bingFullCacheURL(for: item.date)
-            if FileManager.default.fileExists(atPath: fullFile.path),
-               let downsampled = Self.downsampleImage(at: fullFile, maxPixelSize: 280) {
-                bingThumbnails[item.date] = downsampled
-                continue
+            if !diskLoaded.isEmpty {
+                await MainActor.run { [weak self, diskLoaded] in
+                    guard let self else { return }
+                    var updated = self.bingThumbnails
+                    for (k, v) in diskLoaded where updated[k] == nil {
+                        updated[k] = v
+                    }
+                    self.bingThumbnails = updated
+                }
             }
 
-            Task {
-                await fetchThumbnail(for: item)
+            for item in needsNetwork {
+                guard let self else { break }
+                await self.fetchThumbnail(for: item)
             }
         }
     }
@@ -609,11 +745,18 @@ public final class HomeBackgroundManager: ObservableObject {
             request.timeoutInterval = 12
             if let (data, response) = try? await URLSession.shared.data(for: request),
                let http = response as? HTTPURLResponse,
-               (200..<300).contains(http.statusCode),
-               let image = NSImage(data: data) {
-                try? data.write(to: thumbFile, options: .atomic)
-                self.bingThumbnails[item.date] = image
-                return
+               (200..<300).contains(http.statusCode) {
+                let image = await Task.detached(priority: .utility) { () -> NSImage? in
+                    guard let decoded = Self.downsampleImage(data: data, maxPixelSize: 280) ?? NSImage(data: data) else {
+                        return nil
+                    }
+                    try? data.write(to: thumbFile, options: .atomic)
+                    return decoded
+                }.value
+                if let image {
+                    self.bingThumbnails[item.date] = image
+                    return
+                }
             }
         }
     }
@@ -633,8 +776,10 @@ public final class HomeBackgroundManager: ObservableObject {
 
     private func saveCachedBingHistory(_ items: [BingWallpaperItem]) {
         let fileURL = storageDirectory.appendingPathComponent(bingHistoryCacheFileName)
-        if let data = try? JSONEncoder().encode(items) {
-            try? data.write(to: fileURL, options: .atomic)
+        Task.detached(priority: .utility) {
+            if let data = try? JSONEncoder().encode(items) {
+                try? data.write(to: fileURL, options: .atomic)
+            }
         }
     }
 
@@ -654,19 +799,6 @@ public final class HomeBackgroundManager: ObservableObject {
             return false
         }
         return Calendar.current.isDateInToday(modDate)
-    }
-
-    private var storageDirectory: URL {
-        let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-        let appSupport = paths[0].appendingPathComponent("ZhuoBrowserMac", isDirectory: true)
-        try? FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
-        return appSupport
-    }
-
-    private var bingCacheDirectory: URL {
-        let dir = storageDirectory.appendingPathComponent("bing_cache", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
     }
 
     private func bingFullCacheURL(for date: String) -> URL {
@@ -691,6 +823,7 @@ public final class HomeBackgroundManager: ObservableObject {
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
         ]
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {

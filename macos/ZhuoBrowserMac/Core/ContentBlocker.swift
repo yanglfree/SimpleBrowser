@@ -44,23 +44,33 @@ public final class ContentBlocker: @unchecked Sendable {
 
         for name in ruleNames {
             group.enter()
-            store.lookUpContentRuleList(forIdentifier: name) { list, error in
+            store.lookUpContentRuleList(forIdentifier: name) { [weak self] list, _ in
                 if let list = list {
                     resultsLock.lock()
                     results.append(list)
                     resultsLock.unlock()
                     group.leave()
-                } else if let jsonString = self.loadRuleJSON(named: name) {
-                    store.compileContentRuleList(forIdentifier: name, encodedContentRuleList: jsonString) { compiled, compileError in
-                        if let compiled = compiled {
-                            resultsLock.lock()
-                            results.append(compiled)
-                            resultsLock.unlock()
-                        }
-                        group.leave()
-                    }
                 } else {
-                    group.leave()
+                    guard let self else {
+                        group.leave()
+                        return
+                    }
+                    self.queue.async { [weak self] in
+                        guard let self, let jsonString = self.loadRuleJSON(named: name) else {
+                            group.leave()
+                            return
+                        }
+                        DispatchQueue.main.async {
+                            store.compileContentRuleList(forIdentifier: name, encodedContentRuleList: jsonString) { compiled, _ in
+                                if let compiled = compiled {
+                                    resultsLock.lock()
+                                    results.append(compiled)
+                                    resultsLock.unlock()
+                                }
+                                group.leave()
+                            }
+                        }
+                    }
                 }
             }
         }

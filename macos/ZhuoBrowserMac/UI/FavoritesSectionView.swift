@@ -154,9 +154,14 @@ public struct FavoritesSectionView: View {
             }
         )
 
+        let resolvedSiteIcon: NSImage? = (item.iconName.isEmpty && !item.isFolder)
+            ? session.siteIcon(for: item.url)
+            : nil
+
         FavoriteTileItemView(
             session: session,
             item: item,
+            siteIcon: resolvedSiteIcon,
             hasWallpaper: hasWallpaper,
             onOpen: {
                 handleOpen(item)
@@ -375,8 +380,9 @@ public struct FavoritesSectionView: View {
 
 /// Single favorite tile with icon, title label, and full context menu for editing, moving, and deleting.
 private struct FavoriteTileItemView: View {
-    @ObservedObject var session: BrowserSession
+    let session: BrowserSession
     let item: FavoriteItem
+    let siteIcon: NSImage?
     let hasWallpaper: Bool
     let onOpen: () -> Void
     let onOpenInNewTab: () -> Void
@@ -398,7 +404,7 @@ private struct FavoriteTileItemView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 13.5, style: .continuous))
                     } else if item.isFolder {
                         customFolderTileIcon
-                    } else if let siteIcon = session.siteIcon(for: item.url) {
+                    } else if let siteIcon {
                         RoundedRectangle(cornerRadius: 13.5, style: .continuous)
                             .fill(Color(nsColor: .controlBackgroundColor))
                             .frame(width: 60, height: 60)

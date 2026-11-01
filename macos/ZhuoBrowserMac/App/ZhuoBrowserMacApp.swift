@@ -14,6 +14,10 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
         guard !RuntimeEnvironment.isRunningUnitTests else { return }
         installTerminationSignalHandlers()
         handleInitialLaunchArguments()
+        Task { @MainActor in
+            _ = HomeBackgroundManager.shared
+            _ = FavoritesManager.shared
+        }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -33,10 +37,9 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidResignActive(_ notification: Notification) {
-        BrowserSettings.shared.flushSynchronously()
         CookieSessionStore.shared.persistSessionCookies()
-        WebSessionStorageStore.shared.flushSynchronously()
-        BrowserSession.shared.captureSessionForTermination()
+        WebSessionStorageStore.shared.flushAsync()
+        BrowserSession.shared.captureSessionOnResignActive()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -75,7 +78,7 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
 @main
 public struct ZhuoBrowserMacApp: App {
     @NSApplicationDelegateAdaptor(ZhuoBrowserMacAppDelegate.self) private var appDelegate
-    @StateObject private var session = BrowserSession.shared
+    private let session = BrowserSession.shared
 
     /// How many of the most recent visits are listed directly in the History menu.
     private static let recentHistoryLimit = 10

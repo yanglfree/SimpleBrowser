@@ -115,8 +115,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         progressObservation = wv.observe(\.estimatedProgress, options: [.new]) { [weak self] _, change in
             guard let self = self, let progress = change.newValue else { return }
             self.session?.updateTab(self.tabID) { tab in
-                tab.loadingProgress = progress
-                tab.isLoading = progress < 1.0
+                let nextLoading = progress < 1.0
+                if tab.isLoading != nextLoading || progress >= 1.0 || progress <= 0.1 || abs(progress - tab.loadingProgress) >= 0.03 {
+                    tab.loadingProgress = progress
+                    tab.isLoading = nextLoading
+                }
             }
         }
 

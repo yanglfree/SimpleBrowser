@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ImageIO
 import SwiftUI
 
 /// Represents a single bookmark link inside a folder on the Start Page.
@@ -67,6 +68,26 @@ public final class FavoritesManager: ObservableObject {
 
     public init() {
         self.items = Self.defaultFavorites
+        preloadIconsAsync()
+    }
+
+    private func preloadIconsAsync() {
+        let iconNames = Array(Set(Self.defaultFavorites.map(\.iconName).filter { !$0.isEmpty }))
+        Task.detached(priority: .utility) { [weak self] in
+            var decoded: [String: NSImage] = [:]
+            for name in iconNames {
+                if let img = Self.loadAndDecodeIcon(named: name) {
+                    decoded[name] = img
+                }
+            }
+            guard !decoded.isEmpty else { return }
+            await MainActor.run { [weak self, decoded] in
+                guard let self else { return }
+                for (name, img) in decoded where self.imageCache[name] == nil {
+                    self.imageCache[name] = img
+                }
+            }
+        }
     }
 
     /// Synchronizes the Start Page Favorites tiles with the live bookmark folders and entries.
@@ -206,36 +227,43 @@ public final class FavoritesManager: ObservableObject {
         if let cached = imageCache[name] {
             return cached
         }
+        if let loaded = Self.loadAndDecodeIcon(named: name) {
+            imageCache[name] = loaded
+            return loaded
+        }
+        return nil
+    }
 
-        // 1. Try bundle subdirectory "favorites"
+    nonisolated private static func resolveIconURL(named name: String) -> URL? {
         if let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "favorites") ??
             Bundle.main.url(forResource: name, withExtension: "png") {
-            if let image = NSImage(contentsOf: url) {
-                imageCache[name] = image
-                return image
-            }
+            return url
         }
-
-        // 2. Try bundle resourcePath directly
         if let resPath = Bundle.main.resourcePath {
             let directURL = URL(fileURLWithPath: resPath)
                 .appendingPathComponent("favorites")
                 .appendingPathComponent("\(name).png")
-            if let image = NSImage(contentsOf: directURL) {
-                imageCache[name] = image
-                return image
+            if FileManager.default.fileExists(atPath: directURL.path) {
+                return directURL
             }
         }
-
-        // 3. Fallback to developer workspace relative path (useful during development / preview)
         let localPath = "macos/ZhuoBrowserMac/Resources/favorites/\(name).png"
-        if FileManager.default.fileExists(atPath: localPath),
-           let image = NSImage(contentsOfFile: localPath) {
-            imageCache[name] = image
-            return image
+        if FileManager.default.fileExists(atPath: localPath) {
+            return URL(fileURLWithPath: localPath)
         }
-
         return nil
+    }
+
+    nonisolated private static func loadAndDecodeIcon(named name: String) -> NSImage? {
+        guard let url = resolveIconURL(named: name) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        if let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+           let cgImage = CGImageSourceCreateImageAtIndex(source, 0, options as CFDictionary) {
+            return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        }
+        return NSImage(contentsOf: url)
     }
 
     // MARK: - Curated Default Favorites (Matching Screenshot 1:1)

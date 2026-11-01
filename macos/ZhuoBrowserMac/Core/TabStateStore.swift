@@ -75,8 +75,9 @@ public final class TabStateStore {
         synchronously: Bool = false
     ) {
         guard snapshot.hasRestorableState else { return }
-        guard let encoded = try? JSONEncoder().encode(snapshot) else { return }
-        guard encoded.count <= Self.maxSnapshotBytes else { return }
+        if let rawBytes = snapshot.interactionState?.count, rawBytes > Self.maxSnapshotBytes {
+            return
+        }
 
         memoryCache[tabID] = snapshot
         touch(tabID)
@@ -84,6 +85,8 @@ public final class TabStateStore {
         guard persistToDisk, isPersistenceEnabled, let url = snapshotURL(for: tabID) else { return }
         let writeWork = { [weak self] in
             guard let self else { return }
+            guard let encoded = try? JSONEncoder().encode(snapshot),
+                  encoded.count <= Self.maxSnapshotBytes else { return }
             try? encoded.write(to: url, options: .atomic)
             self.evictIfNeeded(protecting: tabID)
         }
@@ -137,8 +140,8 @@ public final class TabStateStore {
 
     public func saveTabSession(_ tabs: [PersistedTabState], synchronously: Bool = false) {
         guard isPersistenceEnabled, let url = sessionURL else { return }
-        guard let data = try? JSONEncoder().encode(tabs) else { return }
         let writeWork: () -> Void = {
+            guard let data = try? JSONEncoder().encode(tabs) else { return }
             try? data.write(to: url, options: .atomic)
         }
         if synchronously {

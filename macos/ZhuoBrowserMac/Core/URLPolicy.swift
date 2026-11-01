@@ -66,20 +66,33 @@ public struct URLPolicy {
         return urlString
     }
 
-    /// Extracts the clean host for a URL string, lowercased and stripped of port/scheme.
+    /// Extracts the clean host for a URL string, lowercased and stripped of port/scheme,
+    /// without compiling a regular expression on hot render paths.
     public static func rawHost(_ url: String) -> String {
         if isHomeURL(url) {
             return ""
         }
-        guard let match = url.range(of: "^[a-z][a-z0-9+.-]*://([^/?#]+)", options: [.regularExpression, .caseInsensitive]) else {
+        guard let schemeEnd = url.range(of: "://") else {
             return (URL(string: url)?.host ?? "").lowercased()
         }
-        let matched = String(url[match])
-        guard let schemeEnd = matched.range(of: "://") else {
+        let scheme = url[..<schemeEnd.lowerBound]
+        guard let firstChar = scheme.unicodeScalars.first,
+              (firstChar.value >= 65 && firstChar.value <= 90) || (firstChar.value >= 97 && firstChar.value <= 122) else {
+            return (URL(string: url)?.host ?? "").lowercased()
+        }
+        let afterScheme = url[schemeEnd.upperBound...]
+        let authorityEnd = afterScheme.firstIndex(where: { $0 == "/" || $0 == "?" || $0 == "#" }) ?? afterScheme.endIndex
+        let authority = afterScheme[..<authorityEnd]
+        if authority.isEmpty {
             return ""
         }
-        let hostPort = String(matched[schemeEnd.upperBound...])
-        return (hostPort.split(separator: ":").first.map(String.init) ?? hostPort).lowercased()
+        let hostSlice: Substring
+        if let colonIndex = authority.firstIndex(of: ":") {
+            hostSlice = authority[..<colonIndex]
+        } else {
+            hostSlice = authority
+        }
+        return hostSlice.lowercased()
     }
 
     /// Checks if the url is an empty/new tab or internal home url
