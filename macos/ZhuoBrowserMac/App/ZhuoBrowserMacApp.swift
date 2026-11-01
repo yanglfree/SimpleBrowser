@@ -152,18 +152,61 @@ public struct ZhuoBrowserMacApp: App {
             }
 
             CommandMenu("书签") {
-                Button("添加/移除书签") {
-                    session.toggleBookmarkForActiveTab()
+                Button("添加/编辑当前页书签...") {
+                    _ = session.ensureActiveTabBookmarked()
+                    session.isShowingOmniboxBookmarkPopover = true
                 }
                 .keyboardShortcut("d", modifiers: .command)
                 .disabled(session.activeTab?.isHome ?? true)
 
-                Divider()
-
-                Button("显示所有书签") {
-                    session.openLibrary(tabIndex: 0)
+                Button("书签管理器...") {
+                    session.openBookmarkManager()
                 }
                 .keyboardShortcut("b", modifiers: [.command, .option])
+
+                Button("显示书签快捷弹窗") {
+                    session.openLibrary(tabIndex: 0)
+                }
+                .keyboardShortcut("b", modifiers: [.command, .shift])
+
+                Divider()
+
+                Button("导入书签 (HTML)...") {
+                    session.importBookmarksFromPanel()
+                }
+
+                Button("导出书签 (HTML)...") {
+                    session.exportBookmarksToPanel()
+                }
+
+                if !session.bookmarkFolders.isEmpty || !session.ungroupedBookmarks.isEmpty {
+                    Divider()
+
+                    ForEach(session.bookmarkFolders) { folder in
+                        let items = session.bookmarks(inFolder: folder.id)
+                        Menu(folder.name) {
+                            if items.isEmpty {
+                                Text("暂无书签")
+                            } else {
+                                ForEach(items) { bm in
+                                    Button(bm.displayTitle) {
+                                        session.navigate(to: bm.url)
+                                    }
+                                }
+                                Divider()
+                                Button("全部在新标签页中打开 (\(items.count))") {
+                                    session.openAllBookmarks(inFolder: folder.id)
+                                }
+                            }
+                        }
+                    }
+
+                    ForEach(session.ungroupedBookmarks.prefix(15)) { bm in
+                        Button(bm.displayTitle) {
+                            session.navigate(to: bm.url)
+                        }
+                    }
+                }
             }
 
             CommandMenu("历史") {

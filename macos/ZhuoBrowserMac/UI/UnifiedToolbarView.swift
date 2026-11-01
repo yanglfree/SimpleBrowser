@@ -171,6 +171,9 @@ public struct UnifiedToolbarView: View {
             .sheet(isPresented: $isShowingAccount) {
                 AccountView(session: session, isPresented: $isShowingAccount)
             }
+            .sheet(isPresented: $session.isShowingBookmarkManager) {
+                BookmarkManagerView(session: session, isPresented: $session.isShowingBookmarkManager)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -250,18 +253,29 @@ public struct UnifiedToolbarView: View {
                     submitNavigation()
                 }
 
-            // Bookmark star toggle button
+            // Bookmark star button with quick folder & edit popover
             if let tab = activeTab, !tab.isHome, !tab.url.isEmpty {
                 let isBookmarked = session.isBookmarked(url: tab.url)
                 Button(action: {
-                    session.toggleBookmarkForActiveTab()
+                    _ = session.ensureActiveTabBookmarked()
+                    session.isShowingOmniboxBookmarkPopover = true
                 }) {
                     Image(systemName: isBookmarked ? "star.fill" : "star")
                         .font(.system(size: 12))
                         .foregroundColor(isBookmarked ? .yellow : .secondary)
                 }
                 .buttonStyle(.plain)
-                .help(isBookmarked ? "已收藏至书签 (点击移除)" : "添加到书签 (Cmd+D)")
+                .help(isBookmarked ? "编辑此书签或修改所属分组 (Cmd+D)" : "添加到书签并选择分组 (Cmd+D)")
+                .popover(
+                    isPresented: $session.isShowingOmniboxBookmarkPopover,
+                    attachmentAnchor: .rect(.bounds),
+                    arrowEdge: .bottom
+                ) {
+                    OmniboxBookmarkPopoverView(
+                        session: session,
+                        isPresented: $session.isShowingOmniboxBookmarkPopover
+                    )
+                }
             }
 
             // Ad blocker shield indicator
@@ -345,5 +359,183 @@ private struct ToolbarHoverButtonStyle: ButtonStyle {
             .onHover { hovering in
                 isHovered = hovering
             }
+    }
+}
+
+/// Popover anchored to the Omnibox star button for editing the active page's bookmark name, URL, and target folder.
+private struct OmniboxBookmarkPopoverView: View {
+    @ObservedObject var session: BrowserSession
+    @Binding var isPresented: Bool
+
+    @State private var bookmarkID: String = ""
+    @State private var title: String = ""
+    @State private var url: String = ""
+    @State private var folderID: String? = nil
+    @State private var pinToStartPage: Bool = true
+    @State private var isCreatingFolder: Bool = false
+    @State private var newFolderName: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                        .font(.system(size: 13))
+                    Text("已添加到书签")
+                        .font(.system(size: 13.5, weight: .bold))
+                }
+                Spacer()
+                Button("管理所有书签...") {
+                    isPresented = false
+                    session.openBookmarkManager(selectingFolderID: folderID)
+                }
+                .font(.system(size: 11, weight: .medium))
+                .buttonStyle(.plain)
+                .foregroundColor(.accentColor)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("名称")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                    TextField("书签名称", text: $title)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 12))
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("网址")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                    TextField("网址 URL", text: $url)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 12))
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("所属分组")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button(action: {
+                            isCreatingFolder.toggle()
+                            newFolderName = ""
+                        }) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "folder.badge.plus")
+                                    .font(.system(size: 10))
+                                Text("新建分组")
+                                    .font(.system(size: 10.5, weight: .medium))
+                            }
+                            .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Picker("", selection: $folderID) {
+                        Text("未分组 (主页个人收藏)").tag(String?.none)
+                        Divider()
+                        ForEach(session.bookmarkFolders) { folder in
+                            Text("📁 \(folder.name)").tag(String?.some(folder.id))
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
+                }
+
+                if isCreatingFolder {
+                    HStack(spacing: 6) {
+                        TextField("输入新分组名称...", text: $newFolderName)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 11.5))
+                            .onSubmit {
+                                createAndSelectFolder()
+                            }
+
+                        Button("创建") {
+                            createAndSelectFolder()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(newFolderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                    .padding(6)
+                    .background(Color.accentColor.opacity(0.08))
+                    .cornerRadius(6)
+                }
+
+                if folderID == nil {
+                    Toggle("显示在主页个人收藏", isOn: $pinToStartPage)
+                        .toggleStyle(.checkbox)
+                        .font(.system(size: 11.5))
+                        .padding(.top, 2)
+                }
+            }
+
+            Divider()
+
+            HStack {
+                Button("移除书签", role: .destructive) {
+                    if !bookmarkID.isEmpty {
+                        session.removeBookmark(id: bookmarkID)
+                    } else if let tabURL = session.activeTab?.url {
+                        session.removeBookmarkByUrl(tabURL)
+                    }
+                    isPresented = false
+                }
+                .controlSize(.small)
+
+                Spacer()
+
+                Button("完成") {
+                    saveChanges()
+                    isPresented = false
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(14)
+        .frame(width: 310)
+        .onAppear {
+            loadActiveBookmarkState()
+        }
+    }
+
+    private func loadActiveBookmarkState() {
+        guard let tab = session.activeTab else { return }
+        if let existing = session.bookmark(forURL: tab.url) ?? session.ensureActiveTabBookmarked() {
+            bookmarkID = existing.id
+            title = existing.title
+            url = existing.url
+            folderID = existing.folderID
+            pinToStartPage = existing.isPinnedToStartPage
+        }
+    }
+
+    private func createAndSelectFolder() {
+        let trimmed = newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        if let created = session.createBookmarkFolder(name: trimmed) {
+            folderID = created.id
+            pinToStartPage = false
+        }
+        isCreatingFolder = false
+        newFolderName = ""
+    }
+
+    private func saveChanges() {
+        guard !bookmarkID.isEmpty else { return }
+        session.updateBookmark(
+            id: bookmarkID,
+            title: title,
+            url: url,
+            folderID: folderID,
+            isPinnedToStartPage: folderID == nil ? pinToStartPage : false
+        )
     }
 }

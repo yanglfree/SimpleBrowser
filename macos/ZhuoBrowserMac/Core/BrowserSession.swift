@@ -31,9 +31,13 @@ public final class BrowserSession: ObservableObject {
     @Published public private(set) var pageRebuildCount: Int = 0
 
     @Published public var bookmarks: [BookmarkEntry] = []
+    @Published public var bookmarkFolders: [BookmarkFolder] = []
     @Published public var history: [HistoryEntry] = []
     @Published public private(set) var siteIcons: [String: NSImage] = [:]
     @Published public var isShowingLibraryManager: Bool = false
+    @Published public var isShowingBookmarkManager: Bool = false
+    @Published public var isShowingOmniboxBookmarkPopover: Bool = false
+    @Published public var bookmarkManagerSelectedFolderID: String? = nil
     @Published public var isShowingSettings: Bool = false
     @Published public var librarySelectedTab: Int = 0
 
@@ -79,9 +83,12 @@ public final class BrowserSession: ObservableObject {
         CookieSessionStore.shared.restoreArchivedCookies()
         CookieSessionStore.shared.startPeriodicFlush()
 
-        // Load saved bookmarks and history
-        bookmarks = libraryStore.loadBookmarks()
+        // Load saved bookmarks, folders, and history
+        let initialLibrary = libraryStore.loadInitialBookmarksAndFolders()
+        bookmarkFolders = initialLibrary.folders
+        bookmarks = initialLibrary.bookmarks
         history = libraryStore.loadHistory()
+        syncFavoritesManager()
 
         let shouldRestore = restoresPreviousSession ?? Self.shouldRestorePreviousSession
         if shouldRestore, let savedTabs = stateStore.loadTabSession(), !savedTabs.isEmpty {
@@ -429,6 +436,44 @@ public final class BrowserSession: ObservableObject {
         LibraryPolicy.isBookmarked(bookmarks, url: url)
     }
 
+    public func bookmark(forURL url: String) -> BookmarkEntry? {
+        let target = LibraryPolicy.normalizeComparableURL(url)
+        guard !target.isEmpty else { return nil }
+        return bookmarks.first { LibraryPolicy.normalizeComparableURL($0.url) == target }
+    }
+
+    public func bookmark(forID id: String) -> BookmarkEntry? {
+        bookmarks.first { $0.id == id }
+    }
+
+    public func folder(forID id: String?) -> BookmarkFolder? {
+        guard let id else { return nil }
+        return bookmarkFolders.first { $0.id == id }
+    }
+
+    public func folderName(for folderID: String?) -> String {
+        guard let folderID, let folder = folder(forID: folderID) else {
+            return "未分组"
+        }
+        return folder.name
+    }
+
+    public func bookmarks(inFolder folderID: String?) -> [BookmarkEntry] {
+        LibraryPolicy.bookmarks(inFolderID: folderID, from: bookmarks)
+    }
+
+    public var ungroupedBookmarks: [BookmarkEntry] {
+        let validFolderIDs = Set(bookmarkFolders.map(\.id))
+        return bookmarks.filter {
+            guard let fid = $0.folderID else { return true }
+            return !validFolderIDs.contains(fid)
+        }
+    }
+
+    public var startPagePinnedBookmarks: [BookmarkEntry] {
+        bookmarks.filter { $0.folderID == nil && $0.isPinnedToStartPage }
+    }
+
     public func toggleBookmarkForActiveTab() {
         guard let tab = activeTab, !tab.isHome, !tab.url.isEmpty else { return }
         if isBookmarked(url: tab.url) {
@@ -436,22 +481,230 @@ public final class BrowserSession: ObservableObject {
         } else {
             bookmarks = LibraryPolicy.addBookmark(bookmarks, url: tab.url, title: tab.title)
         }
-        libraryStore.saveBookmarks(bookmarks)
+        persistAndSyncBookmarks()
+    }
+
+    /// Ensures the active tab is bookmarked (creating it if needed) and returns the entry for quick popover editing.
+    @discardableResult
+    public func ensureActiveTabBookmarked(defaultFolderID: String? = nil) -> BookmarkEntry? {
+        guard let tab = activeTab, !tab.isHome, !tab.url.isEmpty else { return nil }
+        if let existing = bookmark(forURL: tab.url) {
+            return existing
+        }
+        return addBookmark(
+            url: tab.url,
+            title: tab.title,
+            folderID: defaultFolderID,
+            isPinnedToStartPage: defaultFolderID == nil
+        )
     }
 
     public func addBookmark(url: String, title: String) {
-        bookmarks = LibraryPolicy.addBookmark(bookmarks, url: url, title: title)
-        libraryStore.saveBookmarks(bookmarks)
+        _ = addBookmark(url: url, title: title, folderID: nil, isPinnedToStartPage: nil)
+    }
+
+    @discardableResult
+    public func addBookmark(
+        url: String,
+        title: String,
+        folderID: String?,
+        isPinnedToStartPage: Bool? = nil,
+        iconName: String? = nil,
+        iconLetter: String? = nil,
+        colorHex: String? = nil
+    ) -> BookmarkEntry? {
+        bookmarks = LibraryPolicy.addBookmark(
+            bookmarks,
+            url: url,
+            title: title,
+            folderID: folderID,
+            isPinnedToStartPage: isPinnedToStartPage,
+            iconName: iconName,
+            iconLetter: iconLetter,
+            colorHex: colorHex
+        )
+        persistAndSyncBookmarks()
+        if !RuntimeEnvironment.isRunningUnitTests {
+            requestSiteIcon(pageURL: LibraryPolicy.normalizeBookmarkURLInput(url))
+        }
+        return bookmark(forURL: LibraryPolicy.normalizeBookmarkURLInput(url))
     }
 
     public func removeBookmark(id: String) {
         bookmarks = LibraryPolicy.removeBookmark(bookmarks, id: id)
-        libraryStore.saveBookmarks(bookmarks)
+        persistAndSyncBookmarks()
+    }
+
+    public func removeBookmarks(ids: Set<String>) {
+        bookmarks = LibraryPolicy.removeBookmarks(bookmarks, ids: ids)
+        persistAndSyncBookmarks()
+    }
+
+    public func removeBookmarkByUrl(_ url: String) {
+        bookmarks = LibraryPolicy.removeBookmarkByUrl(bookmarks, url: url)
+        persistAndSyncBookmarks()
     }
 
     public func updateBookmark(id: String, title: String, url: String) {
         bookmarks = LibraryPolicy.updateBookmark(bookmarks, id: id, title: title, url: url)
+        persistAndSyncBookmarks()
+    }
+
+    public func updateBookmark(
+        id: String,
+        title: String,
+        url: String,
+        folderID: String?,
+        isPinnedToStartPage: Bool? = nil
+    ) {
+        bookmarks = LibraryPolicy.updateBookmark(
+            bookmarks,
+            id: id,
+            title: title,
+            url: url,
+            folderID: folderID,
+            isPinnedToStartPage: isPinnedToStartPage
+        )
+        persistAndSyncBookmarks()
+    }
+
+    public func moveBookmark(id: String, toFolderID folderID: String?) {
+        bookmarks = LibraryPolicy.moveBookmark(bookmarks, id: id, toFolderID: folderID)
+        persistAndSyncBookmarks()
+    }
+
+    public func moveBookmarks(ids: Set<String>, toFolderID folderID: String?) {
+        bookmarks = LibraryPolicy.moveBookmarks(bookmarks, ids: ids, toFolderID: folderID)
+        persistAndSyncBookmarks()
+    }
+
+    public func togglePinBookmarkToStartPage(id: String) {
+        bookmarks = LibraryPolicy.togglePinToStartPage(bookmarks, id: id)
+        persistAndSyncBookmarks()
+    }
+
+    // MARK: - Bookmark Folder Management
+
+    @discardableResult
+    public func createBookmarkFolder(name: String, iconName: String = "folder.fill") -> BookmarkFolder? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        bookmarkFolders = LibraryPolicy.createFolder(bookmarkFolders, name: trimmed, iconName: iconName)
+        persistAndSyncBookmarks()
+        return bookmarkFolders.first { $0.name.lowercased() == trimmed.lowercased() }
+    }
+
+    public func renameBookmarkFolder(id: String, newName: String) {
+        bookmarkFolders = LibraryPolicy.renameFolder(bookmarkFolders, id: id, newName: newName)
+        persistAndSyncBookmarks()
+    }
+
+    public func removeBookmarkFolder(id: String, deleteContainedBookmarks: Bool = false) {
+        let result = LibraryPolicy.removeFolder(
+            bookmarkFolders,
+            bookmarks: bookmarks,
+            folderID: id,
+            deleteContainedBookmarks: deleteContainedBookmarks
+        )
+        bookmarkFolders = result.folders
+        bookmarks = result.bookmarks
+        if bookmarkManagerSelectedFolderID == id {
+            bookmarkManagerSelectedFolderID = nil
+        }
+        persistAndSyncBookmarks()
+    }
+
+    public func moveBookmarkFolder(id: String, direction: Int) {
+        bookmarkFolders = LibraryPolicy.moveFolder(bookmarkFolders, id: id, direction: direction)
+        persistAndSyncBookmarks()
+    }
+
+    public func openAllBookmarks(inFolder folderID: String?) {
+        let items = bookmarks(inFolder: folderID)
+        for item in items where !item.url.isEmpty {
+            _ = createTab(url: item.url, select: true)
+        }
+    }
+
+    public func openBookmarkManager(selectingFolderID: String? = nil) {
+        if let selectingFolderID {
+            bookmarkManagerSelectedFolderID = selectingFolderID
+        }
+        isShowingLibraryManager = false
+        isShowingOmniboxBookmarkPopover = false
+        isShowingBookmarkManager = true
+    }
+
+    // MARK: - Bookmark HTML Import / Export
+
+    @discardableResult
+    public func importBookmarksHTML(_ html: String) -> Int {
+        let result = BookmarkHTMLTransfer.importHTML(
+            html,
+            existingFolders: bookmarkFolders,
+            existingBookmarks: bookmarks
+        )
+        bookmarkFolders = result.folders
+        bookmarks = result.bookmarks
+        persistAndSyncBookmarks()
+        return result.importedCount
+    }
+
+    public func exportBookmarksHTML() -> String {
+        BookmarkHTMLTransfer.exportHTML(folders: bookmarkFolders, bookmarks: bookmarks)
+    }
+
+    public func importBookmarksFromPanel(completion: ((Int) -> Void)? = nil) {
+        let panel = NSOpenPanel()
+        panel.title = "导入书签 (HTML)"
+        panel.allowedFileTypes = ["html", "htm"]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+
+        if panel.runModal() == .OK, let url = panel.url,
+           let html = try? String(contentsOf: url, encoding: .utf8) {
+            let count = importBookmarksHTML(html)
+            completion?(count)
+        }
+    }
+
+    public func exportBookmarksToPanel(completion: ((Bool) -> Void)? = nil) {
+        let panel = NSSavePanel()
+        panel.title = "导出书签 (HTML)"
+        panel.nameFieldStringValue = "zhuo-bookmarks.html"
+        panel.allowedFileTypes = ["html"]
+        panel.canCreateDirectories = true
+
+        if panel.runModal() == .OK, let url = panel.url {
+            let html = exportBookmarksHTML()
+            do {
+                try html.write(to: url, atomically: true, encoding: .utf8)
+                completion?(true)
+            } catch {
+                completion?(false)
+            }
+        }
+    }
+
+    private func persistAndSyncBookmarks() {
+        libraryStore.saveBookmarkFolders(bookmarkFolders)
         libraryStore.saveBookmarks(bookmarks)
+        syncFavoritesManager()
+    }
+
+    private func syncFavoritesManager() {
+        let foldersSnapshot = bookmarkFolders
+        let bookmarksSnapshot = bookmarks
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                FavoritesManager.shared.sync(folders: foldersSnapshot, bookmarks: bookmarksSnapshot)
+            }
+        } else {
+            Task { @MainActor in
+                FavoritesManager.shared.sync(folders: foldersSnapshot, bookmarks: bookmarksSnapshot)
+            }
+        }
     }
 
     public func recordHistory(url: String, title: String) {
