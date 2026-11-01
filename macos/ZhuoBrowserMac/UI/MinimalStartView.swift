@@ -43,21 +43,31 @@ public struct MinimalStartView: View {
                 }
             }
             .ignoresSafeArea()
+            .contentShape(Rectangle())
+            .onTapGesture {
+                dismissFocus()
+            }
 
             // Main Content Area
             VStack(spacing: 24) {
                 Spacer()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        dismissFocus()
+                    }
 
                 // Header & Brand
                 VStack(spacing: 10) {
-                    Image(systemName: "safari")
+                    Image("ZhuoMark")
                         .resizable()
+                        .renderingMode(.template)
                         .scaledToFit()
                         .frame(width: 58, height: 58)
                         .foregroundColor(hasWallpaper ? .white : .accentColor)
                         .shadow(color: hasWallpaper ? Color.black.opacity(0.4) : SwiftUI.Color.clear, radius: 8, y: 3)
+                        .accessibilityHidden(true)
 
-                    Text("卓阅")
+                    Text("Zhuo浏览器")
                         .font(.system(size: 30, weight: .bold))
                         .foregroundColor(hasWallpaper ? .white : .primary)
                         .shadow(color: hasWallpaper ? Color.black.opacity(0.4) : SwiftUI.Color.clear, radius: 4, y: 2)
@@ -66,6 +76,10 @@ public struct MinimalStartView: View {
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(hasWallpaper ? Color.white.opacity(0.85) : .secondary)
                         .shadow(color: hasWallpaper ? Color.black.opacity(0.4) : SwiftUI.Color.clear, radius: 2, y: 1)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    dismissFocus()
                 }
 
                 // Minimalist Search Bar with Focus animation
@@ -144,13 +158,17 @@ public struct MinimalStartView: View {
                 }
 
                 Spacer()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        dismissFocus()
+                    }
 
-                // Footer Memory Saver Info
+                // Footer tab residency info
                 HStack(spacing: 6) {
-                    Image(systemName: "leaf.fill")
+                    Image(systemName: "square.stack.3d.up.fill")
                         .foregroundColor(.green)
                         .font(.system(size: 11))
-                    Text("内存卫士运行中：后台标签自动休眠，常驻内存仅需 ~50MB")
+                    Text("标签全部常驻：切换即可瞬时恢复，不重新加载页面")
                         .font(.system(size: 11))
                         .foregroundColor(hasWallpaper ? Color.white.opacity(0.85) : .secondary)
                 }
@@ -159,6 +177,10 @@ public struct MinimalStartView: View {
                 .background(hasWallpaper ? Color.black.opacity(0.28) : SwiftUI.Color.clear)
                 .cornerRadius(12)
                 .padding(.bottom, 16)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    dismissFocus()
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -257,6 +279,13 @@ public struct MinimalStartView: View {
                 session.isShowingSettings = true
             }
         }
+    }
+
+    private func dismissFocus() {
+        if isSearchFocused {
+            isSearchFocused = false
+        }
+        NSApp.keyWindow?.makeFirstResponder(nil)
     }
 
     private func performSearch() {

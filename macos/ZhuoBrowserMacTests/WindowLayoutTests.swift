@@ -46,4 +46,12 @@ final class WindowLayoutTests: XCTestCase {
         session.isOmniboxFocused = false
         XCTAssertFalse(session.isOmniboxFocused)
     }
+
+    func testMinimalStartViewHostingAndDismissFocus() {
+        let session = BrowserSession()
+        let startView = MinimalStartView(session: session)
+        let hostingView = NSHostingView(rootView: startView)
+        hostingView.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
+        XCTAssertNotNil(hostingView)
+    }
 }

@@ -232,13 +232,28 @@ public struct AccountView: View {
                 if isRegisterMode {
                     TextField("昵称", text: $displayNameInput)
                         .textFieldStyle(.roundedBorder)
+                        .onSubmit {
+                            if canSubmit {
+                                submitAuth()
+                            }
+                        }
                 }
 
                 TextField("邮箱地址", text: $emailInput)
                     .textFieldStyle(.roundedBorder)
+                    .onSubmit {
+                        if canSubmit {
+                            submitAuth()
+                        }
+                    }
 
                 SecureField("密码 (至少 6 位)", text: $passwordInput)
                     .textFieldStyle(.roundedBorder)
+                    .onSubmit {
+                        if canSubmit {
+                            submitAuth()
+                        }
+                    }
             }
             .padding(.top, 10)
 
@@ -270,7 +285,8 @@ public struct AccountView: View {
                 .cornerRadius(8)
             }
             .buttonStyle(.plain)
-            .disabled(isSubmitting || emailInput.isEmpty || passwordInput.isEmpty)
+            .keyboardShortcut(.defaultAction)
+            .disabled(!canSubmit)
 
             // Switch Mode Button
             Button(action: {
@@ -289,7 +305,15 @@ public struct AccountView: View {
         .padding(.top, 10)
     }
 
+    private var canSubmit: Bool {
+        !isSubmitting &&
+        !emailInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !passwordInput.isEmpty &&
+        (!isRegisterMode || !displayNameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
     private func submitAuth() {
+        guard canSubmit else { return }
         isSubmitting = true
         Task {
             if isRegisterMode {

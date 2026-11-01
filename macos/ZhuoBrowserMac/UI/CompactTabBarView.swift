@@ -15,6 +15,7 @@ public struct CompactTabBarView: View {
                             siteIcon: session.siteIcon(for: tab),
                             isActive: tab.id == session.activeTabID,
                             onSelect: {
+                                NSApp.keyWindow?.makeFirstResponder(nil)
                                 withAnimation(.easeInOut(duration: 0.15)) {
                                     session.selectTab(id: tab.id)
                                 }

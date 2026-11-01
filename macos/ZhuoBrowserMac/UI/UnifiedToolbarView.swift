@@ -57,20 +57,27 @@ public struct UnifiedToolbarView: View {
 
             // Omnibox (Address & Search Bar)
             HStack(spacing: 6) {
-                // Security / Status Icon
-                if let tab = activeTab, !tab.isHome {
-                    Image(systemName: tab.url.hasPrefix("https://") ? "lock.fill" : "globe")
-                        .font(.system(size: 11))
-                        .foregroundColor(tab.url.hasPrefix("https://") ? .secondary : .orange)
-                } else {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                // Security / Status Icon (clickable to focus omnibox)
+                Group {
+                    if let tab = activeTab, !tab.isHome {
+                        Image(systemName: tab.url.hasPrefix("https://") ? "lock.fill" : "globe")
+                            .font(.system(size: 11))
+                            .foregroundColor(tab.url.hasPrefix("https://") ? .secondary : .orange)
+                    } else {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    isOmniboxFocused = true
                 }
 
                 TextField("搜索或输入网址", text: $currentText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .focused($isOmniboxFocused)
                     .onSubmit {
                         submitNavigation()
@@ -117,16 +124,13 @@ public struct UnifiedToolbarView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
+            .frame(height: 28)
             .background(Color(NSColor.textBackgroundColor))
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isOmniboxFocused ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isOmniboxFocused ? 1.5 : 1)
             )
-            .contentShape(Rectangle())
-            .onTapGesture {
-                isOmniboxFocused = true
-            }
 
             // Memory Saver Badge
             MemorySaverBadge(session: session)
@@ -221,7 +225,6 @@ public struct UnifiedToolbarView: View {
             }
         }
         .onChange(of: isOmniboxFocused) { focused in
-            session.isOmniboxFocused = focused
             if focused {
                 if activeTab?.isHome == true {
                     currentText = ""
@@ -230,6 +233,11 @@ public struct UnifiedToolbarView: View {
                 }
             } else {
                 syncDisplayAddress()
+            }
+            if session.isOmniboxFocused != focused {
+                DispatchQueue.main.async {
+                    session.isOmniboxFocused = focused
+                }
             }
         }
         .onChange(of: session.isOmniboxFocused) { focused in
