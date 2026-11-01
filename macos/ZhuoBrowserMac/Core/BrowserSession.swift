@@ -504,6 +504,19 @@ public final class BrowserSession: ObservableObject {
         isShowingLibraryManager = true
     }
 
+    public func toggleLibrary(tabIndex: Int? = nil) {
+        if let tabIndex {
+            if isShowingLibraryManager && librarySelectedTab == tabIndex {
+                isShowingLibraryManager = false
+            } else {
+                librarySelectedTab = tabIndex
+                isShowingLibraryManager = true
+            }
+        } else {
+            isShowingLibraryManager.toggle()
+        }
+    }
+
     /// Opens a history entry picked from the History menu.
     public func openHistoryEntry(_ entry: HistoryEntry) {
         guard activeTabID != nil else {

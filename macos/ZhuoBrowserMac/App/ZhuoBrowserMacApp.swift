@@ -136,6 +136,11 @@ public struct ZhuoBrowserMacApp: App {
                 }
                 .keyboardShortcut("l", modifiers: .command)
 
+                Button("显示下载内容") {
+                    DownloadManager.shared.isShowingPopover.toggle()
+                }
+                .keyboardShortcut("l", modifiers: [.command, .option])
+
                 Divider()
 
                 ForEach(0..<min(session.tabs.count, 9), id: \.self) { index in

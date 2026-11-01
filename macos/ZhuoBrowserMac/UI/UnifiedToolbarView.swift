@@ -4,6 +4,7 @@ import SwiftUI
 public struct UnifiedToolbarView: View {
     @ObservedObject var session: BrowserSession
     @ObservedObject private var accountManager = AccountManager.shared
+    @ObservedObject private var downloadManager = DownloadManager.shared
     @FocusState private var isOmniboxFocused: Bool
     @State private var currentText: String = ""
     @State private var isShowingSettings: Bool = false
@@ -75,14 +76,50 @@ public struct UnifiedToolbarView: View {
             // Memory Saver Badge
             MemorySaverBadge(session: session)
 
-            // Library (Bookmarks & History) Button
-            Button(action: { session.openLibrary() }) {
+            // On-Demand Downloads Button (Safari / Mainstream Browser style)
+            if downloadManager.shouldShowToolbarButton {
+                Button(action: { downloadManager.isShowingPopover.toggle() }) {
+                    ZStack {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 13))
+
+                        if let progress = downloadManager.overallProgress {
+                            Circle()
+                                .trim(from: 0, to: CGFloat(progress))
+                                .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1.8, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+                                .frame(width: 17, height: 17)
+                        }
+                    }
+                    .frame(width: 24, height: 24)
+                }
+                .buttonStyle(ToolbarHoverButtonStyle())
+                .help("下载内容 (Cmd+Option+L)")
+                .transition(.scale(scale: 0.85).combined(with: .opacity))
+                .popover(
+                    isPresented: $downloadManager.isShowingPopover,
+                    attachmentAnchor: .rect(.bounds),
+                    arrowEdge: .bottom
+                ) {
+                    DownloadsPopoverView(downloadManager: downloadManager, session: session)
+                }
+            }
+
+            // Library (Bookmarks & History) Button — anchored Popover
+            Button(action: { session.toggleLibrary() }) {
                 Image(systemName: "book")
                     .font(.system(size: 13))
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(ToolbarHoverButtonStyle())
             .help("书签与历史记录 (Cmd+Y / Cmd+Option+B)")
+            .popover(
+                isPresented: $session.isShowingLibraryManager,
+                attachmentAnchor: .rect(.bounds),
+                arrowEdge: .bottom
+            ) {
+                LibraryManagerView(session: session, isPresented: $session.isShowingLibraryManager)
+            }
 
             // New Tab Button
             Button(action: { session.createTab() }) {
@@ -133,9 +170,6 @@ public struct UnifiedToolbarView: View {
             .help(accountManager.isLoggedIn ? "账号中心 (\(accountManager.currentUser?.displayName ?? ""))" : "登录 / 注册账号")
             .sheet(isPresented: $isShowingAccount) {
                 AccountView(session: session, isPresented: $isShowingAccount)
-            }
-            .sheet(isPresented: $session.isShowingLibraryManager) {
-                LibraryManagerView(session: session, isPresented: $session.isShowingLibraryManager)
             }
         }
         .padding(.horizontal, 12)

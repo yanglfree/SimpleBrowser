@@ -443,12 +443,53 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
+        if navigationAction.shouldPerformDownload {
+            decisionHandler(.download)
+            return
+        }
         if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
             webView.load(URLRequest(url: url))
             decisionHandler(.cancel)
             return
         }
         decisionHandler(.allow)
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationResponse: WKNavigationResponse,
+        decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
+    ) {
+        if DownloadPolicy.shouldDownloadResponse(
+            navigationResponse.response,
+            canShowMIMEType: navigationResponse.canShowMIMEType
+        ) {
+            decisionHandler(.download)
+            return
+        }
+        decisionHandler(.allow)
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        navigationAction: WKNavigationAction,
+        didBecome download: WKDownload
+    ) {
+        let fallbackURL = navigationAction.request.url
+        Task { @MainActor in
+            DownloadManager.shared.handleWebKitDownload(download, fallbackURL: fallbackURL)
+        }
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        navigationResponse: WKNavigationResponse,
+        didBecome download: WKDownload
+    ) {
+        let fallbackURL = navigationResponse.response.url
+        Task { @MainActor in
+            DownloadManager.shared.handleWebKitDownload(download, fallbackURL: fallbackURL)
+        }
     }
 
     public func webView(
