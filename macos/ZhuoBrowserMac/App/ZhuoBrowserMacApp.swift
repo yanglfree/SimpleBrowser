@@ -13,6 +13,23 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !RuntimeEnvironment.isRunningUnitTests else { return }
         installTerminationSignalHandlers()
+        handleInitialLaunchArguments()
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard !RuntimeEnvironment.isRunningUnitTests else { return }
+        for url in urls {
+            BrowserSession.shared.openExternalURL(url.absoluteString)
+        }
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            for window in sender.windows {
+                window.makeKeyAndOrderFront(self)
+            }
+        }
+        return true
     }
 
     func applicationDidResignActive(_ notification: Notification) {
@@ -22,7 +39,15 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        SingleInstanceGuard.shared.releaseLock()
         flushAllStateForTermination()
+    }
+
+    private func handleInitialLaunchArguments() {
+        let urls = SingleInstanceGuard.extractURLs(from: CommandLine.arguments)
+        for url in urls {
+            BrowserSession.shared.openExternalURL(url)
+        }
     }
 
     private func flushAllStateForTermination() {
@@ -53,11 +78,17 @@ public struct ZhuoBrowserMacApp: App {
     /// How many of the most recent visits are listed directly in the History menu.
     private static let recentHistoryLimit = 10
 
-    public init() {}
+    public init() {
+        guard !RuntimeEnvironment.isRunningUnitTests else { return }
+        SingleInstanceGuard.shared.enforceSingleInstanceOrExit()
+    }
 
     public var body: some Scene {
         WindowGroup {
             MainWindowView(session: session)
+                .onOpenURL { url in
+                    session.openExternalURL(url.absoluteString)
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .commands {

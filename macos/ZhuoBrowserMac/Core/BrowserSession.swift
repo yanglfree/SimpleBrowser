@@ -227,6 +227,17 @@ public final class BrowserSession: ObservableObject {
 
     // MARK: - Navigation
 
+    public func openExternalURL(_ rawText: String) {
+        let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        if let active = activeTab, active.isHome {
+            navigate(to: trimmed)
+        } else {
+            createTab(url: trimmed, select: true)
+        }
+    }
+
     public func navigate(to text: String) {
         let normalizedURL = URLPolicy.normalizeAddress(text, searchEngine: settings.searchEngine)
         guard let activeID = activeTabID, let index = tabs.firstIndex(where: { $0.id == activeID }) else { return }
