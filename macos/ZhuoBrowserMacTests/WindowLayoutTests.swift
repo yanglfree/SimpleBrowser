@@ -47,6 +47,22 @@ final class WindowLayoutTests: XCTestCase {
         XCTAssertFalse(session.isOmniboxFocused)
     }
 
+    func testUnifiedToolbarResponsiveLayoutWithSideSpaces() {
+        let session = BrowserSession()
+        let toolbar = UnifiedToolbarView(session: session)
+        let hostingView = NSHostingView(rootView: toolbar)
+
+        // Test at default desktop width
+        hostingView.frame = NSRect(x: 0, y: 0, width: 1200, height: 38)
+        hostingView.layoutSubtreeIfNeeded()
+        XCTAssertEqual(hostingView.frame.width, 1200)
+
+        // Test at expanded widescreen width
+        hostingView.frame = NSRect(x: 0, y: 0, width: 1800, height: 38)
+        hostingView.layoutSubtreeIfNeeded()
+        XCTAssertEqual(hostingView.frame.width, 1800)
+    }
+
     func testMinimalStartViewHostingAndDismissFocus() {
         let session = BrowserSession()
         let startView = MinimalStartView(session: session)

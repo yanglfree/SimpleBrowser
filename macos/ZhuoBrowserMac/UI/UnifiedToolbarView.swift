@@ -55,82 +55,22 @@ public struct UnifiedToolbarView: View {
                 .help("刷新 (Cmd+R)")
             }
 
-            // Omnibox (Address & Search Bar)
-            HStack(spacing: 6) {
-                // Security / Status Icon (clickable to focus omnibox)
-                Group {
-                    if let tab = activeTab, !tab.isHome {
-                        Image(systemName: tab.url.hasPrefix("https://") ? "lock.fill" : "globe")
-                            .font(.system(size: 11))
-                            .foregroundColor(tab.url.hasPrefix("https://") ? .secondary : .orange)
-                    } else {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    isOmniboxFocused = true
-                }
+            // Omnibox (Address & Search Bar with 1/3 reduced width and balanced side spacing)
+            GeometryReader { geometry in
+                let omniboxWidth = geometry.size.width * (2.0 / 3.0)
+                HStack(spacing: 0) {
+                    WindowDragBackground()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                TextField("搜索或输入网址", text: $currentText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .focused($isOmniboxFocused)
-                    .onSubmit {
-                        submitNavigation()
-                    }
+                    omniboxView
+                        .frame(width: omniboxWidth)
 
-                // Bookmark star toggle button
-                if let tab = activeTab, !tab.isHome, !tab.url.isEmpty {
-                    let isBookmarked = session.isBookmarked(url: tab.url)
-                    Button(action: {
-                        session.toggleBookmarkForActiveTab()
-                    }) {
-                        Image(systemName: isBookmarked ? "star.fill" : "star")
-                            .font(.system(size: 12))
-                            .foregroundColor(isBookmarked ? .yellow : .secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help(isBookmarked ? "已收藏至书签 (点击移除)" : "添加到书签 (Cmd+D)")
+                    WindowDragBackground()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-
-                // Ad blocker shield indicator
-                if session.settings.adBlockEnabled {
-                    Image(systemName: "shield.checkered")
-                        .font(.system(size: 12))
-                        .foregroundColor(.accentColor)
-                        .help("原生规则去广告与追踪保护已开启")
-                }
-
-                if isOmniboxFocused && !currentText.isEmpty {
-                    Button(action: { currentText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-
-                    Button(action: submitNavigation) {
-                        Image(systemName: "arrow.right.circle.fill")
-                            .font(.system(size: 13))
-                            .foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help("前往")
-                }
+                .frame(width: geometry.size.width, height: geometry.size.height)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
             .frame(height: 28)
-            .background(Color(NSColor.textBackgroundColor))
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isOmniboxFocused ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isOmniboxFocused ? 1.5 : 1)
-            )
 
             // Memory Saver Badge
             MemorySaverBadge(session: session)
@@ -245,6 +185,85 @@ public struct UnifiedToolbarView: View {
                 isOmniboxFocused = focused
             }
         }
+    }
+
+    @ViewBuilder
+    private var omniboxView: some View {
+        HStack(spacing: 6) {
+            // Security / Status Icon (clickable to focus omnibox)
+            Group {
+                if let tab = activeTab, !tab.isHome {
+                    Image(systemName: tab.url.hasPrefix("https://") ? "lock.fill" : "globe")
+                        .font(.system(size: 11))
+                        .foregroundColor(tab.url.hasPrefix("https://") ? .secondary : .orange)
+                } else {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isOmniboxFocused = true
+            }
+
+            TextField("搜索或输入网址", text: $currentText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .focused($isOmniboxFocused)
+                .onSubmit {
+                    submitNavigation()
+                }
+
+            // Bookmark star toggle button
+            if let tab = activeTab, !tab.isHome, !tab.url.isEmpty {
+                let isBookmarked = session.isBookmarked(url: tab.url)
+                Button(action: {
+                    session.toggleBookmarkForActiveTab()
+                }) {
+                    Image(systemName: isBookmarked ? "star.fill" : "star")
+                        .font(.system(size: 12))
+                        .foregroundColor(isBookmarked ? .yellow : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(isBookmarked ? "已收藏至书签 (点击移除)" : "添加到书签 (Cmd+D)")
+            }
+
+            // Ad blocker shield indicator
+            if session.settings.adBlockEnabled {
+                Image(systemName: "shield.checkered")
+                    .font(.system(size: 12))
+                    .foregroundColor(.accentColor)
+                    .help("原生规则去广告与追踪保护已开启")
+            }
+
+            if isOmniboxFocused && !currentText.isEmpty {
+                Button(action: { currentText = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+
+                Button(action: submitNavigation) {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundColor(.accentColor)
+                }
+                .buttonStyle(.plain)
+                .help("前往")
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .frame(height: 28)
+        .background(Color(NSColor.textBackgroundColor))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isOmniboxFocused ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isOmniboxFocused ? 1.5 : 1)
+        )
     }
 
     private func syncDisplayAddress() {
