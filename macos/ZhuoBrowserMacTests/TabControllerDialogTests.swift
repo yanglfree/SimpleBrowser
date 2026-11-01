@@ -139,6 +139,32 @@ final class TabControllerDialogTests: XCTestCase {
         waitForExpectations(timeout: 2.0)
         XCTAssertTrue(challengeIntercepted)
     }
+
+    @MainActor
+    func testWebViewUserAgentIncludesSafariVersionToken() {
+        let session = BrowserSession()
+        let controller = TabController(tabID: "ua-test", session: session, initialURL: nil, isPrivate: false)
+        guard let webView = controller.webView else {
+            XCTFail("TabController should have a webView")
+            return
+        }
+
+        XCTAssertEqual(
+            webView.configuration.applicationNameForUserAgent,
+            TabController.safariApplicationNameForUserAgent
+        )
+
+        let expectation = self.expectation(description: "User-Agent evaluated")
+        webView.evaluateJavaScript("navigator.userAgent") { result, error in
+            XCTAssertNil(error)
+            let ua = result as? String ?? ""
+            XCTAssertTrue(ua.contains("AppleWebKit/605.1.15"), "Unexpected UA: \(ua)")
+            XCTAssertTrue(ua.contains("Version/18.3 Safari/605.1.15"), "Unexpected UA: \(ua)")
+            expectation.fulfill()
+        }
+
+        waitForExpectations(timeout: 5.0)
+    }
 }
 
 private final class DummyChallengeSender: NSObject, URLAuthenticationChallengeSender {

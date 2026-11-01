@@ -27,6 +27,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     static let restoreWatchdogTimeout: TimeInterval = 1.2
     static let scrollProbeScript = "window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0"
+    public static let safariApplicationNameForUserAgent = "Version/18.3 Safari/605.1.15"
 
     /// Optional closure used in unit tests or custom integrations to intercept text input prompts
     public var promptHandler: ((String, String?) -> String?)?
@@ -78,6 +79,9 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     private func setupWebView(isPrivate: Bool) {
         let config = WKWebViewConfiguration()
+        // Append standard Safari version/token so search engines (e.g. Google) do not
+        // downgrade bare WKWebView User-Agent requests to legacy basic HTML pipelines.
+        config.applicationNameForUserAgent = Self.safariApplicationNameForUserAgent
 
         // Shared or private data store
         config.websiteDataStore = isPrivate ? .nonPersistent() : .default()
