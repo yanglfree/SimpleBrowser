@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import WebKit
 
@@ -7,6 +8,15 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     public let tabID: String
     public private(set) var webView: WKWebView?
     public weak var session: BrowserSession?
+
+    /// Optional closure used in unit tests or custom integrations to intercept text input prompts
+    public var promptHandler: ((String, String?) -> String?)?
+    /// Optional closure used in unit tests or custom integrations to intercept alert panels
+    public var alertHandler: ((String) -> Void)?
+    /// Optional closure used in unit tests or custom integrations to intercept confirm panels
+    public var confirmHandler: ((String) -> Bool)?
+    /// Optional closure used in unit tests or custom integrations to intercept auth challenges
+    public var authChallengeHandler: ((URLAuthenticationChallenge) -> (URLSession.AuthChallengeDisposition, URLCredential?))?
 
     private var progressObservation: NSKeyValueObservation?
     private var titleObservation: NSKeyValueObservation?
@@ -216,6 +226,70 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         decisionHandler(.allow)
     }
 
+    public func webView(
+        _ webView: WKWebView,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        if let customHandler = authChallengeHandler {
+            let (disposition, credential) = customHandler(challenge)
+            completionHandler(disposition, credential)
+            return
+        }
+
+        let authMethod = challenge.protectionSpace.authenticationMethod
+        guard authMethod == NSURLAuthenticationMethodHTTPBasic ||
+              authMethod == NSURLAuthenticationMethodHTTPDigest ||
+              authMethod == NSURLAuthenticationMethodDefault else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "需要身份验证"
+        let host = challenge.protectionSpace.host
+        let realm = challenge.protectionSpace.realm ?? ""
+        alert.informativeText = realm.isEmpty
+            ? "\(host) 请求输入用户名和密码或访问令牌 (Token)："
+            : "\(host) (\(realm)) 请求输入用户名和密码或访问令牌 (Token)："
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "登录")
+        alert.addButton(withTitle: "取消")
+
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 60))
+        let userField = NSTextField(frame: NSRect(x: 0, y: 32, width: 280, height: 24))
+        userField.placeholderString = "用户名 / Token"
+        let passField = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+        passField.placeholderString = "密码 / Token"
+        container.addSubview(userField)
+        container.addSubview(passField)
+        alert.accessoryView = container
+
+        if let window = webView.window {
+            alert.beginSheetModal(for: window) { response in
+                if response == .alertFirstButtonReturn {
+                    let user = userField.stringValue
+                    let pass = passField.stringValue
+                    let credential = URLCredential(user: user, password: pass, persistence: .forSession)
+                    completionHandler(.useCredential, credential)
+                } else {
+                    completionHandler(.cancelAuthenticationChallenge, nil)
+                }
+            }
+            alert.window.initialFirstResponder = userField
+        } else {
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                let user = userField.stringValue
+                let pass = passField.stringValue
+                let credential = URLCredential(user: user, password: pass, persistence: .forSession)
+                completionHandler(.useCredential, credential)
+            } else {
+                completionHandler(.cancelAuthenticationChallenge, nil)
+            }
+        }
+    }
+
     // MARK: - WKUIDelegate
 
     public func webView(
@@ -228,5 +302,133 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             webView.load(URLRequest(url: url))
         }
         return nil
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        runJavaScriptAlertPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping () -> Void
+    ) {
+        if let customHandler = alertHandler {
+            customHandler(message)
+            completionHandler()
+            return
+        }
+
+        let alert = NSAlert()
+        let host = frame.request.url?.host ?? webView.url?.host ?? "网页提示"
+        alert.messageText = host
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+
+        if let window = webView.window {
+            alert.beginSheetModal(for: window) { _ in
+                completionHandler()
+            }
+        } else {
+            alert.runModal()
+            completionHandler()
+        }
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        runJavaScriptConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        if let customHandler = confirmHandler {
+            completionHandler(customHandler(message))
+            return
+        }
+
+        let alert = NSAlert()
+        let host = frame.request.url?.host ?? webView.url?.host ?? "网页提示"
+        alert.messageText = host
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.addButton(withTitle: "取消")
+
+        if let window = webView.window {
+            alert.beginSheetModal(for: window) { response in
+                completionHandler(response == .alertFirstButtonReturn)
+            }
+        } else {
+            let response = alert.runModal()
+            completionHandler(response == .alertFirstButtonReturn)
+        }
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        runJavaScriptTextInputPanelWithPrompt prompt: String,
+        defaultText: String?,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (String?) -> Void
+    ) {
+        if let customHandler = promptHandler {
+            completionHandler(customHandler(prompt, defaultText))
+            return
+        }
+
+        let alert = NSAlert()
+        let host = frame.request.url?.host ?? webView.url?.host ?? "网页提示"
+        alert.messageText = host
+        alert.informativeText = prompt
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "确定")
+        alert.addButton(withTitle: "取消")
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+        input.stringValue = defaultText ?? ""
+        alert.accessoryView = input
+
+        if let window = webView.window {
+            alert.beginSheetModal(for: window) { response in
+                if response == .alertFirstButtonReturn {
+                    completionHandler(input.stringValue)
+                } else {
+                    completionHandler(nil)
+                }
+            }
+            alert.window.initialFirstResponder = input
+        } else {
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                completionHandler(input.stringValue)
+            } else {
+                completionHandler(nil)
+            }
+        }
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        runOpenPanelWith parameters: WKOpenPanelParameters,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping ([URL]?) -> Void
+    ) {
+        let openPanel = NSOpenPanel()
+        openPanel.allowsMultipleSelection = parameters.allowsMultipleSelection
+        openPanel.canChooseDirectories = parameters.allowsDirectories
+        openPanel.canChooseFiles = true
+        if let window = webView.window {
+            openPanel.beginSheetModal(for: window) { response in
+                if response == .OK {
+                    completionHandler(openPanel.urls)
+                } else {
+                    completionHandler(nil)
+                }
+            }
+        } else {
+            if openPanel.runModal() == .OK {
+                completionHandler(openPanel.urls)
+            } else {
+                completionHandler(nil)
+            }
+        }
     }
 }

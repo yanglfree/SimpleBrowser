@@ -65,10 +65,19 @@
   function assistAuthenticationFallback() {
     try {
       // 1. If inside GitHub 2FA / Passkey challenge, reveal "More options" automatically
-      const buttons = Array.from(document.querySelectorAll('button, summary'));
+      const buttons = Array.from(document.querySelectorAll('button, summary, a, input[type="submit"]'));
       for (const btn of buttons) {
-        const text = (btn.textContent || '').trim().toLowerCase();
-        if (text.includes('more options') || text.includes('try another way') || text.includes('other options')) {
+        const text = (btn.textContent || btn.value || '').trim().toLowerCase();
+        if (text.includes('more options') ||
+            text.includes('try another way') ||
+            text.includes('other options') ||
+            text.includes('use password') ||
+            text.includes('use a password') ||
+            text.includes('security key') ||
+            text.includes('token') ||
+            text.includes('two-factor') ||
+            text.includes('2fa') ||
+            text.includes('authenticator')) {
           if (btn.tagName.toLowerCase() === 'summary') {
             const parentDetails = btn.closest('details');
             if (parentDetails && !parentDetails.open) {
@@ -86,7 +95,7 @@
       for (const details of detailsList) {
         if (!details.open) {
           const content = (details.textContent || '').toLowerCase();
-          if (content.includes('authenticator') || content.includes('password') || content.includes('options')) {
+          if (content.includes('authenticator') || content.includes('password') || content.includes('options') || content.includes('token') || content.includes('code') || content.includes('key')) {
             details.open = true;
           }
         }
@@ -97,11 +106,15 @@
   // 4. Wrap credentials.get with error resilience and graceful fallback
   origCredentials.get = async function(options) {
     try {
-      return await origGet(options);
+      const res = await origGet(options);
+      if (!res) {
+        setTimeout(assistAuthenticationFallback, 100);
+      }
+      return res;
     } catch (err) {
       // If the platform/WKWebView rejected the passkey assertion (e.g. domain restriction or user cancel),
       // assist user with fallback options so they are never trapped in a failed state
-      setTimeout(assistAuthenticationFallback, 150);
+      setTimeout(assistAuthenticationFallback, 100);
       throw err;
     }
   };
@@ -114,4 +127,12 @@
       throw err;
     }
   };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(assistAuthenticationFallback, 200);
+    });
+  } else {
+    setTimeout(assistAuthenticationFallback, 200);
+  }
 })();
