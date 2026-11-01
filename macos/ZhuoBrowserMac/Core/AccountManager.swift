@@ -6,24 +6,52 @@ import Security
 public enum KeychainHelper {
     private static let service = "com.youdroid.zhuobrowser.mac.auth"
     private static let account = "authToken"
+    private static let lock = NSLock()
+    private static var unitTestToken: String?
 
     @discardableResult
     public static func saveToken(_ token: String) -> Bool {
-        guard let data = token.data(using: .utf8) else { return false }
-        deleteToken()
+        if RuntimeEnvironment.isRunningUnitTests {
+            lock.lock()
+            unitTestToken = token
+            lock.unlock()
+            return true
+        }
 
-        let query: [String: Any] = [
+        guard let data = token.data(using: .utf8) else { return false }
+
+        let matchQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        let attributesToUpdate: [String: Any] = [
+            kSecValueData as String: data
+        ]
+        let updateStatus = SecItemUpdate(matchQuery as CFDictionary, attributesToUpdate as CFDictionary)
+        if updateStatus == errSecSuccess {
+            return true
+        }
+
+        deleteToken()
+        let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
         ]
-        let status = SecItemAdd(query as CFDictionary, nil)
-        return status == errSecSuccess
+        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+        return addStatus == errSecSuccess
     }
 
     public static func loadToken() -> String? {
+        if RuntimeEnvironment.isRunningUnitTests {
+            lock.lock()
+            defer { lock.unlock() }
+            return unitTestToken
+        }
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -38,6 +66,13 @@ public enum KeychainHelper {
     }
 
     public static func deleteToken() {
+        if RuntimeEnvironment.isRunningUnitTests {
+            lock.lock()
+            unitTestToken = nil
+            lock.unlock()
+            return
+        }
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -72,6 +107,12 @@ public struct UserProfile: Codable, Identifiable, Equatable {
     }
 }
 
+private struct PersistedAccountSession: Codable {
+    let token: String
+    let profile: UserProfile?
+    let lastSyncTime: Date?
+}
+
 /// Cloud-backed account and cross-device sync manager.
 @MainActor
 public final class AccountManager: ObservableObject {
@@ -82,7 +123,9 @@ public final class AccountManager: ObservableObject {
     private let tokenKey = "ZhuoBrowser_Account_Token"
     private let userProfileKey = "ZhuoBrowser_Account_Profile"
     private let lastSyncKey = "ZhuoBrowser_Account_LastSync"
-    private let userDefaults = UserDefaults.standard
+    private let userDefaults: UserDefaults
+    private let sessionFileURL: URL?
+    private let isPersistenceEnabled: Bool
 
     @Published public private(set) var currentUser: UserProfile?
     @Published public private(set) var token: String?
@@ -92,31 +135,65 @@ public final class AccountManager: ObservableObject {
     @Published public var errorMessage: String?
     @Published public var syncErrorMessage: String?
 
-    public init() {
-        var resolvedToken = KeychainHelper.loadToken()
-        if resolvedToken == nil, let savedToken = userDefaults.string(forKey: tokenKey), !savedToken.isEmpty {
-            // Migrate legacy token from UserDefaults to Keychain
-            if KeychainHelper.saveToken(savedToken) {
-                userDefaults.removeObject(forKey: tokenKey)
+    public init(isPersistenceEnabled: Bool = !RuntimeEnvironment.isRunningUnitTests) {
+        self.isPersistenceEnabled = isPersistenceEnabled
+        if isPersistenceEnabled {
+            self.userDefaults = .standard
+            if let base = try? FileManager.default.url(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            ) {
+                let dir = base.appendingPathComponent("ZhuoBrowserMac", isDirectory: true)
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                self.sessionFileURL = dir.appendingPathComponent("account-session.json")
+            } else {
+                self.sessionFileURL = nil
             }
-            resolvedToken = savedToken
+        } else {
+            let suite = UserDefaults(suiteName: "com.youdroid.zhuobrowser.mac.unit-tests.\(UUID().uuidString)") ?? .standard
+            self.userDefaults = suite
+            self.sessionFileURL = nil
+        }
+
+        reloadStoredSession()
+    }
+
+    func reloadStoredSession() {
+        let fileSession = Self.loadFileSession(from: sessionFileURL)
+        let defaultsProfile: UserProfile? = {
+            guard let data = userDefaults.data(forKey: userProfileKey) else { return nil }
+            return try? JSONDecoder().decode(UserProfile.self, from: data)
+        }()
+        let resolvedProfile = defaultsProfile ?? fileSession?.profile
+        let resolvedSyncTime = (userDefaults.object(forKey: lastSyncKey) as? Date) ?? fileSession?.lastSyncTime
+
+        if let resolvedProfile {
+            self.currentUser = resolvedProfile
+        }
+        if let resolvedSyncTime {
+            self.lastSyncTime = resolvedSyncTime
+        }
+
+        var resolvedToken = KeychainHelper.loadToken()
+        if resolvedToken == nil || resolvedToken?.isEmpty == true {
+            if let savedToken = userDefaults.string(forKey: tokenKey), !savedToken.isEmpty {
+                resolvedToken = savedToken
+            } else if let fileToken = fileSession?.token, !fileToken.isEmpty {
+                resolvedToken = fileToken
+            }
         }
 
         if let token = resolvedToken, !token.isEmpty {
             self.token = token
             self.isLoggedIn = true
+            persistSessionLocally(token: token, profile: self.currentUser)
 
-            if let data = userDefaults.data(forKey: userProfileKey),
-               let profile = try? JSONDecoder().decode(UserProfile.self, from: data) {
-                self.currentUser = profile
-            }
-
-            if let syncTime = userDefaults.object(forKey: lastSyncKey) as? Date {
-                self.lastSyncTime = syncTime
-            }
-
-            Task {
-                await verifySession()
+            if isPersistenceEnabled {
+                Task {
+                    await verifySession()
+                }
             }
         }
     }
@@ -207,7 +284,9 @@ public final class AccountManager: ObservableObject {
     }
 
     public func logout() {
-        if let token = self.token, let url = URL(string: "\(Self.serverBaseURL)/api/auth/logout") {
+        if isPersistenceEnabled,
+           let token = self.token,
+           let url = URL(string: "\(Self.serverBaseURL)/api/auth/logout") {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -223,6 +302,9 @@ public final class AccountManager: ObservableObject {
         self.syncErrorMessage = nil
         self.userDefaults.removeObject(forKey: tokenKey)
         self.userDefaults.removeObject(forKey: userProfileKey)
+        if let sessionFileURL {
+            try? FileManager.default.removeItem(at: sessionFileURL)
+        }
     }
 
     @discardableResult
@@ -263,9 +345,7 @@ public final class AccountManager: ObservableObject {
                     createdAt: currentUser.createdAt
                 )
                 self.currentUser = updatedProfile
-                if let encoded = try? JSONEncoder().encode(updatedProfile) {
-                    self.userDefaults.set(encoded, forKey: userProfileKey)
-                }
+                persistSessionLocally(token: token, profile: updatedProfile)
                 return true
             } else {
                 errorMessage = json["error"] as? String ?? "头像上传失败 (HTTP \(httpResponse.statusCode))"
@@ -317,7 +397,7 @@ public final class AccountManager: ObservableObject {
                 return
             }
 
-            if httpResp.statusCode == 401 {
+            if httpResp.statusCode == 401 || httpResp.statusCode == 403 {
                 logout()
                 syncErrorMessage = "登录凭据已过期，请重新登录"
                 return
@@ -397,7 +477,7 @@ public final class AccountManager: ObservableObject {
                 return
             }
 
-            if httpResp.statusCode == 401 {
+            if httpResp.statusCode == 401 || httpResp.statusCode == 403 {
                 logout()
                 syncErrorMessage = "登录凭据已过期，请重新登录"
                 return
@@ -415,6 +495,9 @@ public final class AccountManager: ObservableObject {
         let now = Date()
         self.lastSyncTime = now
         self.userDefaults.set(now, forKey: lastSyncKey)
+        if let token = self.token {
+            persistSessionLocally(token: token, profile: self.currentUser)
+        }
         self.syncErrorMessage = nil
     }
 
@@ -438,28 +521,51 @@ public final class AccountManager: ObservableObject {
                     let profile = UserProfile(id: userId, email: userEmail, displayName: userDisplayName, avatarUrl: userAvatarUrl)
                     self.currentUser = profile
                     self.isLoggedIn = true
+                    persistSessionLocally(token: token, profile: profile)
                 }
-            } else {
-                // Session expired or invalid
+            } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                // Only an explicit auth rejection may destroy the local session.
                 logout()
+            } else {
+                // Transient server/CDN failure: keep the user signed in locally instead
+                // of silently wiping the keychain token and cached profile.
+                syncErrorMessage = "账号服务暂时不可用 (HTTP \(httpResponse.statusCode))，已保留本地登录状态"
             }
         } catch {
             // Network failure: keep local offline session intact
         }
     }
 
-    private func saveSession(token: String, profile: UserProfile) {
+    func saveSession(token: String, profile: UserProfile) {
         self.token = token
         self.currentUser = profile
         self.isLoggedIn = true
-        if !KeychainHelper.saveToken(token) {
-            // Fallback to UserDefaults only if Keychain is unavailable in runtime environment
-            self.userDefaults.set(token, forKey: tokenKey)
-        } else {
-            self.userDefaults.removeObject(forKey: tokenKey)
-        }
-        if let data = try? JSONEncoder().encode(profile) {
+        persistSessionLocally(token: token, profile: profile)
+    }
+
+    private func persistSessionLocally(token: String, profile: UserProfile?) {
+        _ = KeychainHelper.saveToken(token)
+        // Always retain redundant copies in UserDefaults and Application Support so that
+        // rebuilding or re-signing the app via run_release never drops the auth token
+        // when macOS legacy Keychain ACL rejects a new binary CDHash.
+        self.userDefaults.set(token, forKey: tokenKey)
+        if let profile, let data = try? JSONEncoder().encode(profile) {
             self.userDefaults.set(data, forKey: userProfileKey)
         }
+        if isPersistenceEnabled, let sessionFileURL {
+            let persisted = PersistedAccountSession(
+                token: token,
+                profile: profile,
+                lastSyncTime: self.lastSyncTime
+            )
+            if let encoded = try? JSONEncoder().encode(persisted) {
+                try? encoded.write(to: sessionFileURL, options: .atomic)
+            }
+        }
+    }
+
+    private static func loadFileSession(from url: URL?) -> PersistedAccountSession? {
+        guard let url, let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(PersistedAccountSession.self, from: data)
     }
 }

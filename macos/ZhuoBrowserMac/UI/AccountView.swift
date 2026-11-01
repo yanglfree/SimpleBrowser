@@ -51,6 +51,14 @@ public struct AccountView: View {
         }
         .frame(width: 360)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear {
+            if emailInput.isEmpty, let savedEmail = accountManager.currentUser?.email {
+                emailInput = savedEmail
+            }
+            if displayNameInput.isEmpty, let savedName = accountManager.currentUser?.displayName {
+                displayNameInput = savedName
+            }
+        }
         .fileImporter(
             isPresented: $isShowingFilePicker,
             allowedContentTypes: [UTType.image, UTType.jpeg, UTType.png],

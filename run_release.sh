@@ -631,6 +631,19 @@ run_macos() {
   fi
 
   if [[ "$BUILD_APP" == true ]]; then
+    if pgrep -x ZhuoBrowserMac >/dev/null 2>&1; then
+      print -- "Stopping running ZhuoBrowserMac cleanly before build ..."
+      osascript -e 'tell application id "com.youdroid.zhuobrowser.mac" to quit' >/dev/null 2>&1 || true
+      local wait_ticks=0
+      while pgrep -x ZhuoBrowserMac >/dev/null 2>&1 && (( wait_ticks < 20 )); do
+        sleep 0.1
+        (( wait_ticks++ ))
+      done
+      if pgrep -x ZhuoBrowserMac >/dev/null 2>&1; then
+        pkill -TERM -x ZhuoBrowserMac >/dev/null 2>&1 || true
+        sleep 0.3
+      fi
+    fi
     print -- "Building macOS $configuration ..."
     "$xcodebuild_bin" \
       -project "$MACOS_DIR/ZhuoBrowserMac.xcodeproj" \
@@ -647,7 +660,16 @@ run_macos() {
 
   if [[ "$LAUNCH_APP" == true ]]; then
     print -- "Launching $app_bundle ..."
-    pkill -x ZhuoBrowserMac >/dev/null 2>&1 || true
+    if pgrep -x ZhuoBrowserMac >/dev/null 2>&1; then
+      osascript -e 'tell application id "com.youdroid.zhuobrowser.mac" to quit' >/dev/null 2>&1 || true
+      local wait_ticks=0
+      while pgrep -x ZhuoBrowserMac >/dev/null 2>&1 && (( wait_ticks < 20 )); do
+        sleep 0.1
+        (( wait_ticks++ ))
+      done
+      pkill -TERM -x ZhuoBrowserMac >/dev/null 2>&1 || true
+      sleep 0.2
+    fi
     open "$app_bundle"
   fi
   print -- "Done."

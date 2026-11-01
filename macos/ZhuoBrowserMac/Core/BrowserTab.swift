@@ -18,6 +18,10 @@ public struct BrowserTab: Identifiable, Codable, Equatable {
     public var blockedItemsCount: Int
     public var isReaderModeActive: Bool
     public var readerContentHTML: String?
+    /// True when the tab was revived from a snapshot old enough that its content may
+    /// no longer reflect the live site. Purely informational: the page is already
+    /// visible, so the user can keep reading or refresh on demand.
+    public var isSnapshotStale: Bool
 
     public init(
         id: String = UUID().uuidString,
@@ -33,7 +37,8 @@ public struct BrowserTab: Identifiable, Codable, Equatable {
         scrollPositionY: Double = 0.0,
         blockedItemsCount: Int = 0,
         isReaderModeActive: Bool = false,
-        readerContentHTML: String? = nil
+        readerContentHTML: String? = nil,
+        isSnapshotStale: Bool = false
     ) {
         self.id = id
         self.url = url
@@ -49,6 +54,7 @@ public struct BrowserTab: Identifiable, Codable, Equatable {
         self.blockedItemsCount = blockedItemsCount
         self.isReaderModeActive = isReaderModeActive
         self.readerContentHTML = readerContentHTML
+        self.isSnapshotStale = isSnapshotStale
     }
 
     public var isHome: Bool {

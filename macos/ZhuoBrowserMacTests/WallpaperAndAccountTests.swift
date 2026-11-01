@@ -128,4 +128,28 @@ final class WallpaperAndAccountTests: XCTestCase {
         }
         wait(for: [expectation], timeout: 5.0)
     }
+
+    func testAccountSessionPersistsAndRestoresAcrossReload() {
+        let account = AccountManager.shared
+        let profile = UserProfile(
+            id: "user_persist_1",
+            email: "persist@youdroid.com",
+            displayName: "Persist User",
+            avatarUrl: "/api/user/avatar/user_persist_1"
+        )
+        account.saveSession(token: "tok_persist_abc", profile: profile)
+        XCTAssertTrue(account.isLoggedIn)
+        XCTAssertEqual(account.token, "tok_persist_abc")
+        XCTAssertEqual(account.currentUser, profile)
+
+        // Simulate relaunching the app where Keychain fails after re-signing and fallback storage restores the session.
+        KeychainHelper.deleteToken()
+        account.reloadStoredSession()
+        XCTAssertTrue(account.isLoggedIn)
+        XCTAssertEqual(account.token, "tok_persist_abc")
+        XCTAssertEqual(account.currentUser, profile)
+
+        account.logout()
+        XCTAssertFalse(account.isLoggedIn)
+    }
 }

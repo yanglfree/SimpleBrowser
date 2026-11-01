@@ -3,11 +3,30 @@ import Foundation
 import WebKit
 
 /// Manages the live WKWebView for a BrowserTab.
-/// Can be torn down when hibernating to free memory, and recreated on demand.
+///
+/// Two teardown-free paths keep tab switching instantaneous:
+/// * the same WebView object is detached/re-attached when the tab stays inside the
+///   live budget (nothing is reloaded, scroll and DOM stay exactly as they were);
+/// * when the tab must be frozen, `makeSnapshot()` archives the WebKit interaction
+///   state so a fresh WebView can reproduce the page without a network round trip.
 public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     public let tabID: String
     public private(set) var webView: WKWebView?
     public weak var session: BrowserSession?
+
+    /// Set while a snapshot restore is in flight, so a failing/hanging restore can
+    /// gracefully fall back to a normal navigation instead of leaving a blank page.
+    public private(set) var isRestoringFromSnapshot: Bool = false
+
+    private var restoreWatchdog: DispatchWorkItem?
+    private var restoreFallbackURL: URL?
+    private var shouldAutoRefreshAfterRestore: Bool = false
+    private var shouldRestoreScrollAfterLoad: Bool = false
+    private var lastKnownScrollPositionY: Double = 0
+    private var didAttemptRestoreFallback: Bool = false
+
+    static let restoreWatchdogTimeout: TimeInterval = 1.2
+    static let scrollProbeScript = "window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0"
 
     /// Optional closure used in unit tests or custom integrations to intercept text input prompts
     public var promptHandler: ((String, String?) -> String?)?
@@ -23,14 +42,37 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     private var urlObservation: NSKeyValueObservation?
     private var canGoBackObservation: NSKeyValueObservation?
     private var canGoForwardObservation: NSKeyValueObservation?
+    private let isPrivateTab: Bool
 
-    public init(tabID: String, session: BrowserSession, initialURL: URL?, isPrivate: Bool) {
+    /// - Parameters:
+    ///   - initialURL: navigation target used only when no restorable snapshot exists
+    ///   - restoring: frozen page state to revive without touching the network
+    public init(
+        tabID: String,
+        session: BrowserSession,
+        initialURL: URL?,
+        isPrivate: Bool,
+        restoring snapshot: TabStateSnapshot? = nil
+    ) {
         self.tabID = tabID
         self.session = session
+        self.isPrivateTab = isPrivate
         super.init()
         setupWebView(isPrivate: isPrivate)
-        if let initialURL = initialURL {
-            load(url: initialURL)
+
+        let startNavigation = { [weak self] in
+            guard let self else { return }
+            if let snapshot, snapshot.hasRestorableState {
+                self.restore(from: snapshot, fallbackURL: initialURL)
+            } else if let initialURL = initialURL {
+                self.load(url: initialURL)
+            }
+        }
+
+        if isPrivate {
+            startNavigation()
+        } else {
+            CookieSessionStore.shared.performWhenReady(startNavigation)
         }
     }
 
@@ -42,6 +84,15 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
         // Install injected scripts
         let userContentController = config.userContentController
+        if !isPrivate {
+            if let sessionStorageScript = WebSessionStorageStore.shared.makeBootstrapUserScript() {
+                userContentController.addUserScript(sessionStorageScript)
+            }
+            userContentController.add(
+                WeakSessionStorageMessageHandler(target: self),
+                name: WebSessionStorageStore.messageHandlerName
+            )
+        }
         if let trackerScript = InjectedScripts.shared.makeTrackerBlockScript() {
             userContentController.addUserScript(trackerScript)
         }
@@ -110,12 +161,18 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     public func load(url: URL) {
         guard let webView = webView else { return }
+        cancelRestoration()
+        // A typed/open navigation is an explicit intent: never restore an old offset.
+        shouldRestoreScrollAfterLoad = false
         let request = URLRequest(url: url)
         webView.load(request)
     }
 
     public func reload() {
-        webView?.reload()
+        guard let webView else { return }
+        shouldRestoreScrollAfterLoad = lastKnownScrollPositionY > 0
+        session?.updateTab(tabID) { $0.isSnapshotStale = false }
+        webView.reload()
     }
 
     public func goBack() {
@@ -130,27 +187,130 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         webView?.stopLoading()
     }
 
-    /// Captures the current scroll position before tab eviction
-    public func captureScrollPosition(completion: @escaping (Double) -> Void) {
-        guard let webView = webView else {
-            completion(0)
+    // MARK: - Snapshot / Restore
+
+    /// Captures the page state synchronously (interaction state read is cheap and
+    /// main-thread safe), which is what makes "freeze without losing anything" work.
+    public func makeSnapshot(scrollPositionY: Double? = nil) -> TabStateSnapshot? {
+        guard let webView else { return nil }
+        let tab = session?.tab(for: tabID)
+        let rawState = webView.interactionState
+        return TabStateSnapshot(
+            url: webView.url?.absoluteString ?? tab?.url ?? "",
+            title: webView.title ?? tab?.title ?? "",
+            scrollPositionY: scrollPositionY ?? lastKnownScrollPositionY,
+            canGoBack: webView.canGoBack,
+            canGoForward: webView.canGoForward,
+            capturedAt: Date(),
+            interactionState: InteractionStateCodec.encode(rawState),
+            rawInteractionState: rawState
+        )
+    }
+
+    /// Captures a snapshot and additionally probes the live scroll offset.
+    ///
+    /// The probe is bounded by `timeout` so a wedged content process can never block
+    /// freezing; the caller destroys the WebView only after `completion` returns,
+    /// which removes the previous race where the scroll read happened after teardown.
+    public func captureSnapshotWithScrollPosition(
+        timeout: TimeInterval = 0.25,
+        completion: @escaping (TabStateSnapshot?) -> Void
+    ) {
+        guard let webView, let base = makeSnapshot() else {
+            completion(nil)
             return
         }
-        webView.evaluateJavaScript("window.scrollY || window.pageYOffset || 0") { result, _ in
-            let y = (result as? NSNumber)?.doubleValue ?? 0.0
-            completion(y)
+
+        var finished = false
+        let finish: (Double?) -> Void = { [weak self] probedY in
+            guard !finished else { return }
+            finished = true
+            guard let probedY else {
+                completion(base)
+                return
+            }
+            self?.lastKnownScrollPositionY = probedY
+            completion(base.withScrollPosition(probedY))
         }
+
+        webView.evaluateJavaScript(Self.scrollProbeScript) { result, _ in
+            finish((result as? NSNumber)?.doubleValue)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+            finish(nil)
+        }
+    }
+
+    /// Revives a frozen page from its interaction archive — no network navigation.
+    @discardableResult
+    public func restore(from snapshot: TabStateSnapshot, fallbackURL: URL?) -> TabRestorePolicy.Strategy {
+        guard let webView else { return .reload }
+
+        let strategy = TabRestorePolicy.decide(hasLiveWebView: false, snapshot: snapshot)
+        lastKnownScrollPositionY = snapshot.scrollPositionY
+        shouldRestoreScrollAfterLoad = snapshot.scrollPositionY > 0
+        restoreFallbackURL = fallbackURL
+        didAttemptRestoreFallback = false
+        shouldAutoRefreshAfterRestore = (strategy == .restoreStateThenRefresh)
+
+        // When an archived snapshot has already expired (>1h), load the URL directly
+        // instead of briefly mounting a stale interactionState whose cached JS could
+        // overwrite newer localStorage/sessionStorage auth state before reloading.
+        if strategy == .restoreStateThenRefresh,
+           let targetURL = fallbackURL ?? URL(string: snapshot.url) {
+            load(url: targetURL)
+            shouldRestoreScrollAfterLoad = snapshot.scrollPositionY > 0
+            return strategy
+        }
+
+        guard strategy.restoresFromSnapshot,
+              let archivableState = snapshot.restorableInteractionState() else {
+            if let fallbackURL {
+                load(url: fallbackURL)
+            }
+            return .reload
+        }
+
+        isRestoringFromSnapshot = true
+        webView.interactionState = archivableState
+        scheduleRestoreWatchdog()
+        return strategy
     }
 
     /// Restores the scroll position after webview recreation
     public func restoreScrollPosition(_ y: Double) {
-        guard y > 0, let webView = webView else { return }
+        guard y > 0, let webView else { return }
         let js = "window.scrollTo(0, \(y));"
         webView.evaluateJavaScript(js, completionHandler: nil)
     }
 
+    private func scheduleRestoreWatchdog() {
+        restoreWatchdog?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.isRestoringFromSnapshot else { return }
+            self.isRestoringFromSnapshot = false
+            // A restore that never produced a URL silently failed (corrupt/stale
+            // archive): fall back to a real navigation instead of showing a blank page.
+            if self.webView?.url == nil, let fallback = self.restoreFallbackURL {
+                self.restoreFallbackURL = nil
+                self.load(url: fallback)
+            }
+        }
+        restoreWatchdog = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.restoreWatchdogTimeout, execute: work)
+    }
+
+    private func cancelRestoration() {
+        restoreWatchdog?.cancel()
+        restoreWatchdog = nil
+        isRestoringFromSnapshot = false
+        shouldAutoRefreshAfterRestore = false
+    }
+
     /// Completely destroys the WKWebView and its observers to release memory to the system
     public func destroy() {
+        cancelRestoration()
         progressObservation?.invalidate()
         titleObservation?.invalidate()
         urlObservation?.invalidate()
@@ -166,6 +326,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         webView?.stopLoading()
         webView?.navigationDelegate = nil
         webView?.uiDelegate = nil
+        if !isPrivateTab {
+            webView?.configuration.userContentController.removeScriptMessageHandler(
+                forName: WebSessionStorageStore.messageHandlerName
+            )
+        }
         webView?.configuration.userContentController.removeAllUserScripts()
         webView?.removeFromSuperview()
         webView = nil
@@ -181,6 +346,14 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        restoreWatchdog?.cancel()
+        restoreWatchdog = nil
+        let wasRestoring = isRestoringFromSnapshot
+        isRestoringFromSnapshot = false
+        restoreFallbackURL = nil
+        didAttemptRestoreFallback = false
+
+        let restoredScrollY = lastKnownScrollPositionY
         session?.updateTab(tabID) { tab in
             tab.isLoading = false
             tab.loadingProgress = 1.0
@@ -190,27 +363,78 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             if let url = webView.url?.absoluteString, !url.isEmpty {
                 tab.url = url
             }
+            if wasRestoring {
+                tab.isHibernated = false
+                // Keep the stale marker: it describes the snapshot we just revived and
+                // should survive until a real navigation brings fresh content.
+            } else {
+                tab.isSnapshotStale = false
+            }
+            if restoredScrollY > 0 {
+                tab.scrollPositionY = restoredScrollY
+            }
         }
-        // Record browsing history for normal tabs
-        if let tab = session?.tab(for: tabID), !tab.isPrivate && !tab.isHome {
+
+        // Record browsing history for real navigations only. Reviving a frozen page is
+        // not a visit and must not inflate history counters.
+        if !wasRestoring, let tab = session?.tab(for: tabID), !tab.isPrivate && !tab.isHome {
             session?.recordHistory(url: tab.url, title: tab.title)
         }
-        // Restore scroll position if previously saved
-        if let tab = session?.tab(for: tabID), tab.scrollPositionY > 0 {
-            restoreScrollPosition(tab.scrollPositionY)
+
+        // Restore scroll position only for snapshot revival / explicit reloads, never
+        // for a fresh navigation (that would jump a brand-new page to an old offset).
+        if shouldRestoreScrollAfterLoad, lastKnownScrollPositionY > 0 {
+            shouldRestoreScrollAfterLoad = false
+            restoreScrollPosition(lastKnownScrollPositionY)
         }
+
+        // A long-frozen page is shown instantly and then refreshed transparently so the
+        // user never stares at a spinner but also never keeps week-old content.
+        if wasRestoring, shouldAutoRefreshAfterRestore {
+            shouldAutoRefreshAfterRestore = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+                guard let self, let webView = self.webView, webView.url != nil else { return }
+                self.shouldRestoreScrollAfterLoad = true
+                webView.reload()
+            }
+        }
+
         resolveSiteIcon()
     }
 
+    public func resolveSiteIcon() {
+        guard let session, let tab = session.tab(for: tabID), !tab.isPrivate, !tab.isHome else { return }
+        guard let script = InjectedScripts.shared.scriptContent(named: "read-favicon") else { return }
+        webView?.evaluateJavaScript(script) { [weak self] result, _ in
+            guard let self else { return }
+            let declaredURL = (result as? String) ?? ""
+            self.session?.refreshSiteIcon(tabID: self.tabID, declaredURL: declaredURL)
+        }
+    }
+
     public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        restoreWatchdog?.cancel()
+        restoreWatchdog = nil
+        isRestoringFromSnapshot = false
         session?.updateTab(tabID) { tab in
             tab.isLoading = false
         }
     }
 
     public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        restoreWatchdog?.cancel()
+        restoreWatchdog = nil
+        let wasRestoring = isRestoringFromSnapshot
+        isRestoringFromSnapshot = false
         session?.updateTab(tabID) { tab in
             tab.isLoading = false
+        }
+
+        // A failed restore must degrade into a normal load, silently and exactly once.
+        if wasRestoring, !didAttemptRestoreFallback, let fallback = restoreFallbackURL {
+            didAttemptRestoreFallback = true
+            restoreFallbackURL = nil
+            load(url: fallback)
         }
     }
 
@@ -433,13 +657,34 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
     }
 
-    public func resolveSiteIcon() {
-        guard let session, let tab = session.tab(for: tabID), !tab.isPrivate, !tab.isHome else { return }
-        guard let script = InjectedScripts.shared.scriptContent(named: "read-favicon") else { return }
-        webView?.evaluateJavaScript(script) { [weak self] result, _ in
-            guard let self else { return }
-            let declaredURL = (result as? String) ?? ""
-            self.session?.refreshSiteIcon(tabID: self.tabID, declaredURL: declaredURL)
+    fileprivate func handleSessionStorageMessage(_ message: WKScriptMessage) {
+        guard !isPrivateTab,
+              let payload = message.body as? [String: Any],
+              let origin = payload["origin"] as? String,
+              let rawEntries = payload["entries"] as? [String: Any] else {
+            return
         }
+        var entries: [String: String] = [:]
+        for (key, value) in rawEntries {
+            if let str = value as? String {
+                entries[key] = str
+            }
+        }
+        WebSessionStorageStore.shared.updateEntries(entries, forOrigin: origin)
+    }
+}
+
+private final class WeakSessionStorageMessageHandler: NSObject, WKScriptMessageHandler {
+    private weak var target: TabController?
+
+    init(target: TabController) {
+        self.target = target
+    }
+
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        target?.handleSessionStorageMessage(message)
     }
 }

@@ -52,10 +52,10 @@ final class MemoryBudgetPolicyTests: XCTestCase {
         let minPlan = MemoryBudgetPolicy.evaluate(tabs: tabs, activeTabID: "tab-1", budget: 0)
         XCTAssertEqual(minPlan.tabsToKeepAlive.count, 1)
 
-        // Budget requested 100 (should clamp to max 4)
+        // Budget requested 100 (should clamp to the hard maximum)
         let maxPlan = MemoryBudgetPolicy.evaluate(tabs: tabs, activeTabID: "tab-1", budget: 100)
-        XCTAssertEqual(maxPlan.tabsToKeepAlive.count, 4)
-        XCTAssertEqual(maxPlan.tabsToHibernate.count, 6)
+        XCTAssertEqual(maxPlan.tabsToKeepAlive.count, MemoryBudgetPolicy.maxLiveBudget)
+        XCTAssertEqual(maxPlan.tabsToHibernate.count, tabs.count - MemoryBudgetPolicy.maxLiveBudget)
     }
 
     func testURLPolicyLooksLikeURLAndNormalization() {
@@ -99,9 +99,12 @@ final class MemoryBudgetPolicyTests: XCTestCase {
         XCTAssertNil(session.activeController)
     }
 
+    /// Opt-in memory-saver mode (off by default): only here is a background tab
+    /// allowed to give up its WebView.
     @MainActor
     func testTabCreationAndMemoryEvictionInSession() {
-        let session = BrowserSession()
+        let session = BrowserSession(stateStore: TabStateStore(isPersistenceEnabled: false))
+        session.settings.tabHibernationEnabled = true
         session.settings.liveWebViewBudget = 2
 
         // Tab 1 (active)
@@ -110,12 +113,12 @@ final class MemoryBudgetPolicyTests: XCTestCase {
         XCTAssertNotNil(session.activeController)
 
         // Tab 2 (active)
-        let tab2 = session.createTab(url: "https://example.com/2", select: true)
+        _ = session.createTab(url: "https://example.com/2", select: true)
         session.navigate(to: "https://example.com/2")
         XCTAssertEqual(session.activeLiveControllersCount, 2)
 
         // Tab 3 (active): exceeds budget 2, so tab 1 should be evicted (hibernated)
-        let tab3 = session.createTab(url: "https://example.com/3", select: true)
+        _ = session.createTab(url: "https://example.com/3", select: true)
         session.navigate(to: "https://example.com/3")
         XCTAssertEqual(session.activeLiveControllersCount, 2)
 

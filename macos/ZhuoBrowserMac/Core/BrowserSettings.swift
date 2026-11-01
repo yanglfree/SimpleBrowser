@@ -34,40 +34,70 @@ public class BrowserSettings: ObservableObject {
         static let adBlockEnabled = "ZhuoBrowser_AdBlockEnabled"
         static let cosmeticCleanupEnabled = "ZhuoBrowser_CosmeticCleanupEnabled"
         static let quickSitesEnabled = "ZhuoBrowser_QuickSitesEnabled"
+        static let restoreSessionOnLaunch = "ZhuoBrowser_RestoreSessionOnLaunch"
+        static let tabHibernationEnabled = "ZhuoBrowser_TabHibernationEnabled"
     }
+
+    /// Unit tests mutate settings to exercise policies; they must not leak into the
+    /// user's real preferences.
+    private let persistsAutomatically: Bool
 
     @Published public var searchEngine: SearchEngine {
         didSet {
+            guard persistsAutomatically else { return }
             UserDefaults.standard.set(searchEngine.rawValue, forKey: Keys.searchEngine)
         }
     }
 
     @Published public var quickSitesEnabled: Bool {
         didSet {
+            guard persistsAutomatically else { return }
             UserDefaults.standard.set(quickSitesEnabled, forKey: Keys.quickSitesEnabled)
         }
     }
 
+    /// Only takes effect when `tabHibernationEnabled` is on.
     @Published public var liveWebViewBudget: Int {
         didSet {
             let clamped = max(MemoryBudgetPolicy.minLiveBudget, min(liveWebViewBudget, MemoryBudgetPolicy.maxLiveBudget))
+            guard persistsAutomatically else { return }
             UserDefaults.standard.set(clamped, forKey: Keys.liveWebViewBudget)
+        }
+    }
+
+    /// Opt-in memory-saver mode. **Off by default**: every open tab keeps its live
+    /// `WKWebView`, so switching tabs never reloads a page.
+    @Published public var tabHibernationEnabled: Bool {
+        didSet {
+            guard persistsAutomatically else { return }
+            UserDefaults.standard.set(tabHibernationEnabled, forKey: Keys.tabHibernationEnabled)
         }
     }
 
     @Published public var adBlockEnabled: Bool {
         didSet {
+            guard persistsAutomatically else { return }
             UserDefaults.standard.set(adBlockEnabled, forKey: Keys.adBlockEnabled)
         }
     }
 
     @Published public var cosmeticCleanupEnabled: Bool {
         didSet {
+            guard persistsAutomatically else { return }
             UserDefaults.standard.set(cosmeticCleanupEnabled, forKey: Keys.cosmeticCleanupEnabled)
         }
     }
 
-    public init() {
+    /// Reopens the tabs from the previous launch.
+    @Published public var restoreSessionOnLaunch: Bool {
+        didSet {
+            guard persistsAutomatically else { return }
+            UserDefaults.standard.set(restoreSessionOnLaunch, forKey: Keys.restoreSessionOnLaunch)
+        }
+    }
+
+    public init(persistsAutomatically: Bool = !RuntimeEnvironment.isRunningUnitTests) {
+        self.persistsAutomatically = persistsAutomatically
         let defaults = UserDefaults.standard
         if let engineRaw = defaults.string(forKey: Keys.searchEngine),
            let engine = SearchEngine(rawValue: engineRaw) {
@@ -77,7 +107,14 @@ public class BrowserSettings: ObservableObject {
         }
 
         let savedBudget = defaults.integer(forKey: Keys.liveWebViewBudget)
-        self.liveWebViewBudget = savedBudget > 0 ? savedBudget : MemoryBudgetPolicy.defaultLiveBudget
+        self.liveWebViewBudget = savedBudget > 0
+            ? max(MemoryBudgetPolicy.minLiveBudget, min(savedBudget, MemoryBudgetPolicy.maxLiveBudget))
+            : MemoryBudgetPolicy.defaultLiveBudget
+
+        // Absent key ⇒ resident mode (the safe default for tab switching).
+        self.tabHibernationEnabled = defaults.object(forKey: Keys.tabHibernationEnabled) != nil
+            ? defaults.bool(forKey: Keys.tabHibernationEnabled)
+            : false
 
         self.adBlockEnabled = defaults.object(forKey: Keys.adBlockEnabled) != nil
             ? defaults.bool(forKey: Keys.adBlockEnabled)
@@ -89,6 +126,10 @@ public class BrowserSettings: ObservableObject {
 
         self.quickSitesEnabled = defaults.object(forKey: Keys.quickSitesEnabled) != nil
             ? defaults.bool(forKey: Keys.quickSitesEnabled)
+            : true
+
+        self.restoreSessionOnLaunch = defaults.object(forKey: Keys.restoreSessionOnLaunch) != nil
+            ? defaults.bool(forKey: Keys.restoreSessionOnLaunch)
             : true
     }
 }

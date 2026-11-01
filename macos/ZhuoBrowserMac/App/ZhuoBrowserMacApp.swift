@@ -1,15 +1,63 @@
+import AppKit
 import SwiftUI
+
+/// Captures the live page snapshots on quit so the next launch can restore every
+/// tab — including tabs that were never frozen — without a single reload.
+///
+/// It also flushes WebKit's *session* cookies (the ones that only live in the network
+/// process memory). Without this, quitting or updating the app signs the user out of
+/// every website.
+final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
+    private var signalSources: [DispatchSourceSignal] = []
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !RuntimeEnvironment.isRunningUnitTests else { return }
+        installTerminationSignalHandlers()
+    }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        CookieSessionStore.shared.persistSessionCookies()
+        WebSessionStorageStore.shared.flushSynchronously()
+        BrowserSession.shared.captureSessionForTermination()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        flushAllStateForTermination()
+    }
+
+    private func flushAllStateForTermination() {
+        CookieSessionStore.shared.persistSessionCookiesSynchronously()
+        WebSessionStorageStore.shared.flushSynchronously()
+        BrowserSession.shared.captureSessionForTermination(synchronously: true)
+    }
+
+    private func installTerminationSignalHandlers() {
+        for sig in [SIGTERM, SIGINT] {
+            signal(sig, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            source.setEventHandler { [weak self] in
+                self?.flushAllStateForTermination()
+                exit(0)
+            }
+            source.resume()
+            signalSources.append(source)
+        }
+    }
+}
 
 @main
 public struct ZhuoBrowserMacApp: App {
+    @NSApplicationDelegateAdaptor(ZhuoBrowserMacAppDelegate.self) private var appDelegate
     @StateObject private var session = BrowserSession.shared
+
+    /// How many of the most recent visits are listed directly in the History menu.
+    private static let recentHistoryLimit = 10
 
     public init() {}
 
     public var body: some Scene {
         WindowGroup {
             MainWindowView(session: session)
-                .navigationTitle("")
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
@@ -88,7 +136,21 @@ public struct ZhuoBrowserMacApp: App {
                 }
                 .keyboardShortcut("y", modifiers: .command)
 
-                Divider()
+                let recentHistory = Array(session.history.prefix(Self.recentHistoryLimit))
+
+                if !recentHistory.isEmpty {
+                    Divider()
+
+                    Section("最近访问") {
+                        ForEach(recentHistory) { entry in
+                            Button(entry.displayTitle) {
+                                session.openHistoryEntry(entry)
+                            }
+                        }
+                    }
+
+                    Divider()
+                }
 
                 Button("清空所有历史记录...") {
                     session.clearHistory()

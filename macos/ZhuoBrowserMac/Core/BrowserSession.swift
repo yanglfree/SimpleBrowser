@@ -3,7 +3,17 @@ import SwiftUI
 import WebKit
 
 /// The central state manager for ZhuoBrowser Mac.
-/// Manages tab lifecycle, omnibox navigation, and memory budget enforcement.
+///
+/// Tab lifecycle is organised in three tiers so switching tabs never reloads a page:
+///
+/// | tier | owner | switching cost |
+/// |------|-------|----------------|
+/// | hot  | active tab, WebView attached | 0 — same view is re-shown |
+/// | warm | recent tabs, WebView detached but alive | 0 — re-attach |
+/// | cold | frozen `TabStateSnapshot` in `TabStateStore` | no network, rebuilt from archive |
+///
+/// The live pool is capped by `MemoryBudgetPolicy` (and auto-shrunk under system
+/// memory pressure), so parallel tabs stay bounded without ever forcing a re-fetch.
 public final class BrowserSession: ObservableObject {
     public static let shared = BrowserSession()
 
@@ -13,6 +23,12 @@ public final class BrowserSession: ObservableObject {
     @Published public var isOmniboxFocused: Bool = false
     @Published public var activeLiveControllersCount: Int = 0
     @Published public private(set) var activeController: TabController?
+    @Published public private(set) var memoryPressure: MemoryPressureLevel = .nominal
+
+    /// Diagnostics: how often a tab switch reused the resident WebView versus how
+    /// often the page had to be rebuilt. A healthy session shows rebuilds == 0.
+    @Published public private(set) var liveReuseCount: Int = 0
+    @Published public private(set) var pageRebuildCount: Int = 0
 
     @Published public var bookmarks: [BookmarkEntry] = []
     @Published public var history: [HistoryEntry] = []
@@ -23,24 +39,96 @@ public final class BrowserSession: ObservableObject {
 
     public let settings = BrowserSettings.shared
     private let libraryStore = LibraryStore.shared
+    private let stateStore: TabStateStore
+    private let pressureMonitor: MemoryPressureMonitor
+
     private var siteIconLoadingHosts = Set<String>()
     private var deferredSiteIconRequests: [String: (pageURL: String, declaredURL: String)] = [:]
     private var controllers: [String: TabController] = [:]
+    /// Guards against a second freeze being scheduled for the same tab while the
+    /// scroll probe of the first one is still in flight.
+    private var pendingHibernations: Set<String> = []
+    private var sessionPersistenceWork: DispatchWorkItem?
 
-    public init() {
+    /// WebViews that are live and not already scheduled for freezing.
+    private var committedLiveControllerCount: Int {
+        controllers.keys.filter { !pendingHibernations.contains($0) }.count
+    }
+
+    public var warmControllersCount: Int {
+        max(0, committedLiveControllerCount - (activeController != nil ? 1 : 0))
+    }
+
+    public var frozenTabCount: Int {
+        tabs.filter(\.isHibernated).count
+    }
+
+    public init(
+        stateStore: TabStateStore = .shared,
+        pressureMonitor: MemoryPressureMonitor = .shared,
+        restoresPreviousSession: Bool? = nil
+    ) {
+        self.stateStore = stateStore
+        self.pressureMonitor = pressureMonitor
+
         // Prepare content blocking rules asynchronously
         ContentBlocker.shared.prepare()
+
+        // Re-inject the session cookies archived at the last quit *before* any page
+        // starts loading, otherwise sites would treat the first paint as logged out.
+        CookieSessionStore.shared.restoreArchivedCookies()
+        CookieSessionStore.shared.startPeriodicFlush()
 
         // Load saved bookmarks and history
         bookmarks = libraryStore.loadBookmarks()
         history = libraryStore.loadHistory()
 
-        // Create initial tab
-        let initialTab = BrowserTab(url: "zhuo://home", title: "新标签页")
-        tabs = [initialTab]
-        activeTabID = initialTab.id
+        let shouldRestore = restoresPreviousSession ?? Self.shouldRestorePreviousSession
+        if shouldRestore, let savedTabs = stateStore.loadTabSession(), !savedTabs.isEmpty {
+            tabs = savedTabs.map { persisted in
+                BrowserTab(
+                    id: persisted.id,
+                    url: persisted.url,
+                    title: persisted.title,
+                    isPrivate: false,
+                    isHibernated: !(persisted.url.isEmpty || persisted.url == "zhuo://home"),
+                    lastActiveTime: persisted.lastActiveTime
+                )
+            }
+            let preferred = savedTabs.first(where: \.isActive)?.id
+            if let preferred, tabs.contains(where: { $0.id == preferred }) {
+                activeTabID = preferred
+            } else {
+                activeTabID = tabs.first?.id
+            }
+        } else {
+            let initialTab = BrowserTab(url: "zhuo://home", title: "新标签页")
+            tabs = [initialTab]
+            activeTabID = initialTab.id
+        }
+
+        if let activeTab {
+            omniboxText = URLPolicy.displayAddress(for: activeTab.url)
+        }
+
+        memoryPressure = pressureMonitor.level
+        pressureMonitor.onChange = { [weak self] level in
+            guard let self else { return }
+            self.memoryPressure = level
+            self.enforceMemoryBudget()
+        }
+
+        // Only the visible tab materialises a WebView; frozen tabs wake on demand.
+        if let activeID = activeTabID {
+            ensureLiveController(for: activeID)
+        }
         enforceMemoryBudget()
         refreshSiteIcons()
+    }
+
+    private static var shouldRestorePreviousSession: Bool {
+        guard !RuntimeEnvironment.isRunningUnitTests else { return false }
+        return BrowserSettings.shared.restoreSessionOnLaunch
     }
 
     public var activeTab: BrowserTab? {
@@ -69,6 +157,8 @@ public final class BrowserSession: ObservableObject {
         tabs.append(newTab)
 
         if select {
+            // `selectTab` materialises the controller, which already navigates to the
+            // tab URL — calling `navigate(to:)` as well would issue a second load.
             selectTab(id: newTab.id)
         } else {
             enforceMemoryBudget()
@@ -79,11 +169,9 @@ public final class BrowserSession: ObservableObject {
     public func closeTab(id: String) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
 
-        // Destroy controller if active
-        if let controller = controllers[id] {
-            controller.destroy()
-            controllers.removeValue(forKey: id)
-        }
+        pendingHibernations.remove(id)
+        teardownController(for: id)
+        stateStore.removeSnapshot(for: id)
 
         tabs.remove(at: index)
 
@@ -102,20 +190,38 @@ public final class BrowserSession: ObservableObject {
 
     public func selectTab(id: String) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
-        tabs[index].lastActiveTime = Date()
+
+        let changed = activeTabID != id
         activeTabID = id
+        omniboxText = URLPolicy.displayAddress(for: tabs[index].url)
 
-        let currentTab = tabs[index]
-        omniboxText = URLPolicy.displayAddress(for: currentTab.url)
-
+        // Instant path: reuse the warm WebView, or revive the frozen snapshot. No
+        // `load(url:)` happens here, which is what removes the reload flash.
+        ensureLiveController(for: id)
+        if changed, let currentIndex = tabs.firstIndex(where: { $0.id == id }) {
+            tabs[currentIndex].lastActiveTime = Date()
+        }
         enforceMemoryBudget()
     }
 
     public func updateTab(_ id: String, mutate: (inout BrowserTab) -> Void) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let previousURL = tabs[index].url
+        let previousTitle = tabs[index].title
         mutate(&tabs[index])
+        let currentURL = tabs[index].url
+        let currentTitle = tabs[index].title
         if activeTabID == id {
-            omniboxText = URLPolicy.displayAddress(for: tabs[index].url)
+            omniboxText = URLPolicy.displayAddress(for: currentURL)
+        }
+        if previousURL != currentURL {
+            tabs[index].lastActiveTime = Date()
+            if controllers[id] != nil {
+                stateStore.removeSnapshot(for: id)
+            }
+            scheduleSessionPersistence()
+        } else if previousTitle != currentTitle {
+            scheduleSessionPersistence()
         }
     }
 
@@ -127,21 +233,28 @@ public final class BrowserSession: ObservableObject {
 
         tabs[index].url = normalizedURL
         tabs[index].isHibernated = false
+        tabs[index].isSnapshotStale = false
         omniboxText = URLPolicy.displayAddress(for: normalizedURL)
 
         if normalizedURL == "zhuo://home" {
-            // Home page: tear down live webview to maximize memory savings
-            if let controller = controllers[activeID] {
-                controller.destroy()
-                controllers.removeValue(forKey: activeID)
-            }
+            // Explicit reset to the start page: the old page is no longer reachable
+            // from this tab, so releasing it is intentional rather than a reload.
+            pendingHibernations.remove(activeID)
+            teardownController(for: activeID)
+            stateStore.removeSnapshot(for: activeID)
             tabs[index].title = tabs[index].isPrivate ? "无痕新标签" : "新标签页"
-            activeLiveControllersCount = controllers.count
-            activeController = nil
+            tabs[index].scrollPositionY = 0
+            publishMemoryStats()
             return
         }
 
         guard let url = URL(string: normalizedURL) else { return }
+
+        // A typed address is a new document: drop the frozen copy so a later switch
+        // can never resurrect the previous page.
+        stateStore.removeSnapshot(for: activeID)
+        tabs[index].scrollPositionY = 0
+        requestSiteIcon(pageURL: normalizedURL)
 
         if let controller = controllers[activeID] {
             controller.load(url: url)
@@ -155,7 +268,6 @@ public final class BrowserSession: ObservableObject {
             controllers[activeID] = controller
         }
 
-        requestSiteIcon(pageURL: normalizedURL)
         enforceMemoryBudget()
     }
 
@@ -169,6 +281,135 @@ public final class BrowserSession: ObservableObject {
 
     public func goForwardActiveTab() {
         activeController?.goForward()
+    }
+
+    // MARK: - Live controller pool
+
+    /// Makes sure a WebView exists for the tab without forcing any navigation.
+    private func ensureLiveController(for id: String) {
+        guard let tab = tab(for: id), !tab.isHome else { return }
+        pendingHibernations.remove(id)
+
+        if controllers[id] != nil {
+            // Warm tab (or a freeze that was cancelled mid-flight): re-attach as-is and
+            // clear the frozen flag so the UI never claims a resident page is asleep.
+            if tab.isHibernated {
+                updateTab(id) { $0.isHibernated = false }
+                pageRebuildCount += 1
+            } else {
+                liveReuseCount += 1
+            }
+            return
+        }
+
+        let wasFrozen = tab.isHibernated
+        let rawSnapshot = stateStore.snapshot(for: id)
+        let snapshot: TabStateSnapshot?
+        if let rawSnapshot, Self.isSnapshotUsable(rawSnapshot, for: tab) {
+            snapshot = rawSnapshot
+        } else {
+            snapshot = nil
+        }
+        // A live controller now owns the tab's state; remove any disk/cached snapshot so
+        // an older frozen state can never overwrite subsequent navigations or logins.
+        if rawSnapshot != nil {
+            stateStore.removeSnapshot(for: id)
+        }
+        if wasFrozen || snapshot != nil {
+            pageRebuildCount += 1
+        }
+
+        let controller = TabController(
+            tabID: id,
+            session: self,
+            initialURL: URL(string: tab.url),
+            isPrivate: tab.isPrivate,
+            restoring: snapshot
+        )
+        controllers[id] = controller
+
+        let strategy = TabRestorePolicy.decide(hasLiveWebView: false, snapshot: snapshot)
+        let isStale = strategy == .restoreStateMarkedStale
+        let canRestoreWithoutNetwork = snapshot?.hasRestorableState == true
+        updateTab(id) { current in
+            current.isHibernated = false
+            current.isSnapshotStale = isStale
+            if let snapshot, canRestoreWithoutNetwork {
+                current.title = snapshot.title.isEmpty ? current.title : snapshot.title
+                current.canGoBack = snapshot.canGoBack
+                current.canGoForward = snapshot.canGoForward
+                current.scrollPositionY = snapshot.scrollPositionY
+            }
+        }
+    }
+
+    /// Validates that a persisted snapshot still matches the tab's current URL and was
+    /// not superseded by a later navigation or login after the snapshot was captured.
+    public static func isSnapshotUsable(_ snapshot: TabStateSnapshot, for tab: BrowserTab) -> Bool {
+        let snapshotURL = LibraryPolicy.normalizeComparableURL(snapshot.url)
+        let tabURL = LibraryPolicy.normalizeComparableURL(tab.url)
+        if !snapshotURL.isEmpty && !tabURL.isEmpty && snapshotURL != tabURL {
+            return false
+        }
+        // Allow 2s tolerance for clock/timer jitter around snapshot capture.
+        if snapshot.capturedAt.addingTimeInterval(2) < tab.lastActiveTime {
+            return false
+        }
+        return true
+    }
+
+    private func teardownController(for id: String) {
+        guard let controller = controllers.removeValue(forKey: id) else { return }
+        controller.destroy()
+    }
+
+    /// Freezes a tab: archive its page state, then release the WebView.
+    private func hibernate(_ id: String) {
+        guard let controller = controllers[id], !pendingHibernations.contains(id) else {
+            updateTab(id) { $0.isHibernated = true }
+            return
+        }
+        let isPrivate = tab(for: id)?.isPrivate ?? false
+        pendingHibernations.insert(id)
+        // Reflect the eviction immediately (badge + tab strip), while the archive probe
+        // finishes in the background.
+        updateTab(id) { tab in
+            tab.isHibernated = true
+        }
+        publishMemoryStats()
+
+        controller.captureSnapshotWithScrollPosition { [weak self, weak controller] snapshot in
+            guard let self else { return }
+            self.pendingHibernations.remove(id)
+
+            if let snapshot {
+                self.stateStore.store(snapshot, for: id, persistToDisk: !isPrivate)
+                self.updateTab(id) { tab in
+                    tab.lastActiveTime = snapshot.capturedAt
+                    tab.scrollPositionY = snapshot.scrollPositionY
+                    if !snapshot.title.isEmpty {
+                        tab.title = snapshot.title
+                    }
+                }
+            }
+
+            // The user may have switched back while the probe was running: never
+            // destroy a WebView that just became visible again.
+            guard let controller,
+                  self.controllers[id] === controller,
+                  self.activeTabID != id else {
+                self.publishMemoryStats()
+                return
+            }
+
+            controller.destroy()
+            self.controllers.removeValue(forKey: id)
+            self.updateTab(id) { tab in
+                tab.isHibernated = true
+                tab.isLoading = false
+            }
+            self.publishMemoryStats()
+        }
     }
 
     // MARK: - Bookmarks & History Management
@@ -232,7 +473,15 @@ public final class BrowserSession: ObservableObject {
             completion?()
             return
         }
-        WKWebsiteDataStore.default().removeData(ofTypes: dataTypes, modifiedSince: Date.distantPast) {
+        // Never wipe the user's real WebKit cookies/storage when running unit tests.
+        let targetStore: WKWebsiteDataStore = RuntimeEnvironment.isRunningUnitTests
+            ? .nonPersistent()
+            : .default()
+        if clearCookies && !RuntimeEnvironment.isRunningUnitTests {
+            CookieSessionStore.shared.clearArchive()
+            WebSessionStorageStore.shared.clearAll()
+        }
+        targetStore.removeData(ofTypes: dataTypes, modifiedSince: Date.distantPast) {
             DispatchQueue.main.async {
                 completion?()
             }
@@ -244,52 +493,55 @@ public final class BrowserSession: ObservableObject {
         isShowingLibraryManager = true
     }
 
+    /// Opens a history entry picked from the History menu.
+    public func openHistoryEntry(_ entry: HistoryEntry) {
+        guard activeTabID != nil else {
+            createTab(url: entry.url)
+            return
+        }
+        navigate(to: entry.url)
+    }
+
     // MARK: - Memory Budget Enforcement & Hibernation
 
     public func enforceMemoryBudget() {
         let plan = MemoryBudgetPolicy.evaluate(
             tabs: tabs,
             activeTabID: activeTabID,
-            budget: settings.liveWebViewBudget
+            budget: settings.liveWebViewBudget,
+            pressure: memoryPressure,
+            hibernationEnabled: settings.tabHibernationEnabled
         )
 
-        // 1. Evict tabs that exceed budget
-        for id in plan.tabsToHibernate {
-            if let controller = controllers[id] {
-                controller.captureScrollPosition { [weak self] scrollY in
-                    self?.updateTab(id) { tab in
-                        tab.scrollPositionY = scrollY
-                    }
-                }
-                controller.destroy()
-                controllers.removeValue(forKey: id)
+        // 1. The visible tab must always own a live WebView.
+        if let activeID = activeTabID, controllers[activeID] == nil {
+            ensureLiveController(for: activeID)
+        }
+
+        // 2. Freeze everything that fell outside the pool. The budget is only a cap:
+        //    tabs inside it are never rebuilt, they simply keep their WebView.
+        for id in plan.tabsToHibernate where id != activeTabID {
+            guard controllers[id] != nil else {
                 updateTab(id) { tab in
-                    tab.isHibernated = true
+                    if !tab.isHome { tab.isHibernated = true }
                 }
+                continue
             }
+            hibernate(id)
         }
 
-        // 2. Ensure tabs to keep alive have controllers if not on home
-        for id in plan.tabsToKeepAlive {
-            guard let tab = tab(for: id) else { continue }
-            if !tab.isHome && controllers[id] == nil {
-                if let url = URL(string: tab.url) {
-                    let controller = TabController(
-                        tabID: id,
-                        session: self,
-                        initialURL: url,
-                        isPrivate: tab.isPrivate
-                    )
-                    controllers[id] = controller
-                    updateTab(id) { tab in
-                        tab.isHibernated = false
-                    }
-                }
-            }
+        publishMemoryStats()
+    }
+
+    private func publishMemoryStats() {
+        activeLiveControllersCount = committedLiveControllerCount
+
+        let active = activeTabID.flatMap { controllers[$0] }
+        if activeController !== active {
+            activeController = active
         }
 
-        activeLiveControllersCount = controllers.count
-        activeController = activeTabID != nil ? controllers[activeTabID!] : nil
+        scheduleSessionPersistence()
     }
 
     // MARK: - Site Icons
@@ -344,5 +596,55 @@ public final class BrowserSession: ObservableObject {
                 self.requestSiteIcon(pageURL: deferred.pageURL, declaredURL: deferred.declaredURL)
             }
         }
+    }
+
+    // MARK: - Session persistence
+
+    /// Persists the tab strip plus the frozen state of every non-live tab.
+    /// Private tabs are never written: their URLs and page state stay in memory only.
+    public func persistSession(synchronously: Bool = false) {
+        let restorableTabs = tabs.filter { !$0.isPrivate }
+        let states = restorableTabs.map {
+            PersistedTabState(
+                id: $0.id,
+                url: $0.url,
+                title: $0.title,
+                isActive: $0.id == activeTabID,
+                lastActiveTime: $0.lastActiveTime
+            )
+        }
+        stateStore.saveTabSession(states, synchronously: synchronously)
+        stateStore.pruneSnapshots(keeping: Set(restorableTabs.map(\.id)))
+    }
+
+    /// Called right before the app terminates so a relaunch resumes every visible
+    /// page instantly, including live tabs that were never hibernated.
+    public func captureSessionForTermination(synchronously: Bool = false) {
+        for (id, controller) in controllers {
+            guard let index = tabs.firstIndex(where: { $0.id == id }),
+                  !tabs[index].isPrivate,
+                  !tabs[index].isHome else { continue }
+            if let liveURL = controller.webView?.url?.absoluteString, !liveURL.isEmpty {
+                tabs[index].url = liveURL
+            }
+            if let liveTitle = controller.webView?.title, !liveTitle.isEmpty {
+                tabs[index].title = liveTitle
+            }
+            if let snapshot = controller.makeSnapshot() {
+                tabs[index].lastActiveTime = snapshot.capturedAt
+                stateStore.store(snapshot, for: id, synchronously: synchronously)
+            }
+        }
+        persistSession(synchronously: synchronously)
+    }
+
+    private func scheduleSessionPersistence() {
+        guard stateStore.isPersistenceEnabled else { return }
+        sessionPersistenceWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.persistSession()
+        }
+        sessionPersistenceWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: work)
     }
 }
