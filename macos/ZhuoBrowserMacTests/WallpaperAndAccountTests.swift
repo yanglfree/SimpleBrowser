@@ -233,4 +233,47 @@ final class WallpaperAndAccountTests: XCTestCase {
         account.logout()
         XCTAssertFalse(account.isLoggedIn)
     }
+
+    func testAvatarCompressionCenterCropsAndDownscalesToCompactSquare() throws {
+        let largeSize = NSSize(width: 1200, height: 800)
+        let sourceImage = NSImage(size: largeSize)
+        sourceImage.lockFocus()
+        NSColor.systemTeal.setFill()
+        NSRect(origin: .zero, size: largeSize).fill()
+        sourceImage.unlockFocus()
+
+        let compressedData = try XCTUnwrap(AccountManager.compressAvatarImage(sourceImage))
+        XCTAssertLessThan(compressedData.count, 15 * 1024)
+
+        let decodedRep = try XCTUnwrap(NSBitmapImageRep(data: compressedData))
+        XCTAssertEqual(decodedRep.pixelsWide, AccountManager.maxAvatarDimension)
+        XCTAssertEqual(decodedRep.pixelsHigh, AccountManager.maxAvatarDimension)
+    }
+
+    func testAvatarLocalCachePersistsAcrossSessionReloadAndClearsOnLogout() throws {
+        let account = AccountManager(isPersistenceEnabled: false)
+        let profile = UserProfile(
+            id: "u_avatar_cache",
+            email: "avatar@youdroid.com",
+            displayName: "Avatar User",
+            avatarUrl: "/api/user/avatar/u_avatar_cache?v=1"
+        )
+
+        let sampleImage = NSImage(size: NSSize(width: 300, height: 300))
+        sampleImage.lockFocus()
+        NSColor.systemOrange.setFill()
+        NSRect(x: 0, y: 0, width: 300, height: 300).fill()
+        sampleImage.unlockFocus()
+
+        let compactData = try XCTUnwrap(AccountManager.compressAvatarImage(sampleImage))
+        account.cacheAvatarLocally(data: compactData, for: profile.avatarUrl)
+        account.saveSession(token: "tok_avatar_1", profile: profile)
+        XCTAssertNotNil(account.avatarImage)
+
+        account.reloadStoredSession()
+        XCTAssertNotNil(account.avatarImage)
+
+        account.logout()
+        XCTAssertNil(account.avatarImage)
+    }
 }

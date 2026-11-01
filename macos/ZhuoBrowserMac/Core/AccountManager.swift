@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 import Security
@@ -111,6 +112,8 @@ private struct PersistedAccountSession: Codable {
     let token: String
     let profile: UserProfile?
     let lastSyncTime: Date?
+    let cachedAvatarUrl: String?
+    let cachedAvatarData: Data?
 }
 
 /// Cloud-backed account and cross-device sync manager.
@@ -119,15 +122,24 @@ public final class AccountManager: ObservableObject {
     public static let shared = AccountManager()
 
     nonisolated public static let serverBaseURL = "https://zhuobrowser-auth-service.memoryphoto.workers.dev"
+    nonisolated public static let maxAvatarDimension: Int = 160
+    nonisolated public static let avatarCompressionQuality: CGFloat = 0.75
+    nonisolated private static let legacyAvatarByteThreshold: Int = 20 * 1024
 
     private let tokenKey = "ZhuoBrowser_Account_Token"
     private let userProfileKey = "ZhuoBrowser_Account_Profile"
     private let lastSyncKey = "ZhuoBrowser_Account_LastSync"
+    private let cachedAvatarUrlKey = "ZhuoBrowser_Account_AvatarURL"
+    private let cachedAvatarDataKey = "ZhuoBrowser_Account_AvatarData"
     private let userDefaults: UserDefaults
     private let sessionFileURL: URL?
+    private let avatarFileURL: URL?
     private let isPersistenceEnabled: Bool
+    private var cachedAvatarUrl: String?
+    private var cachedAvatarData: Data?
 
     @Published public private(set) var currentUser: UserProfile?
+    @Published public private(set) var avatarImage: NSImage?
     @Published public private(set) var token: String?
     @Published public private(set) var isLoggedIn: Bool = false
     @Published public private(set) var isSyncing: Bool = false
@@ -148,16 +160,84 @@ public final class AccountManager: ObservableObject {
                 let dir = base.appendingPathComponent("ZhuoBrowserMac", isDirectory: true)
                 try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                 self.sessionFileURL = dir.appendingPathComponent("account-session.json")
+                self.avatarFileURL = dir.appendingPathComponent("avatar-cache.jpg")
             } else {
                 self.sessionFileURL = nil
+                self.avatarFileURL = nil
             }
         } else {
             let suite = UserDefaults(suiteName: "com.youdroid.zhuobrowser.mac.unit-tests.\(UUID().uuidString)") ?? .standard
             self.userDefaults = suite
             self.sessionFileURL = nil
+            self.avatarFileURL = nil
         }
 
         reloadStoredSession()
+    }
+
+    /// Center-crops an image to 1:1 square and downscales it to `maxDimension` px as a compact JPEG.
+    nonisolated public static func compressAvatarImage(
+        _ image: NSImage,
+        maxDimension: Int = AccountManager.maxAvatarDimension,
+        compressionQuality: CGFloat = AccountManager.avatarCompressionQuality
+    ) -> Data? {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+        let srcWidth = cgImage.width
+        let srcHeight = cgImage.height
+        guard srcWidth > 0, srcHeight > 0 else { return nil }
+
+        let cropSide = min(srcWidth, srcHeight)
+        let cropX = (srcWidth - cropSide) / 2
+        let cropY = (srcHeight - cropSide) / 2
+        let cropRect = CGRect(x: cropX, y: cropY, width: cropSide, height: cropSide)
+        let squareCGImage = cgImage.cropping(to: cropRect) ?? cgImage
+
+        let targetSide = max(1, min(maxDimension, cropSide))
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: targetSide,
+            pixelsHigh: targetSide,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            return nil
+        }
+        rep.size = NSSize(width: targetSide, height: targetSide)
+
+        NSGraphicsContext.saveGraphicsState()
+        if let ctx = NSGraphicsContext(bitmapImageRep: rep) {
+            NSGraphicsContext.current = ctx
+            ctx.imageInterpolation = .high
+            NSColor.white.setFill()
+            NSRect(x: 0, y: 0, width: targetSide, height: targetSide).fill()
+            let croppedNSImage = NSImage(cgImage: squareCGImage, size: NSSize(width: targetSide, height: targetSide))
+            croppedNSImage.draw(
+                in: NSRect(x: 0, y: 0, width: targetSide, height: targetSide),
+                from: .zero,
+                operation: .sourceOver,
+                fraction: 1.0
+            )
+        }
+        NSGraphicsContext.restoreGraphicsState()
+
+        return rep.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
+    }
+
+    /// Downscales and compresses raw image data into a compact square avatar JPEG.
+    nonisolated public static func compressAvatarData(
+        _ data: Data,
+        maxDimension: Int = AccountManager.maxAvatarDimension,
+        compressionQuality: CGFloat = AccountManager.avatarCompressionQuality
+    ) -> Data? {
+        guard let image = NSImage(data: data) else { return nil }
+        return compressAvatarImage(image, maxDimension: maxDimension, compressionQuality: compressionQuality)
     }
 
     func reloadStoredSession() {
@@ -176,6 +256,17 @@ public final class AccountManager: ObservableObject {
             self.lastSyncTime = resolvedSyncTime
         }
 
+        let storedAvatarUrl = userDefaults.string(forKey: cachedAvatarUrlKey) ?? fileSession?.cachedAvatarUrl
+        let storedAvatarData = userDefaults.data(forKey: cachedAvatarDataKey)
+            ?? fileSession?.cachedAvatarData
+            ?? (avatarFileURL.flatMap { try? Data(contentsOf: $0) })
+
+        if let storedAvatarData, let image = NSImage(data: storedAvatarData) {
+            self.cachedAvatarUrl = storedAvatarUrl ?? resolvedProfile?.avatarUrl
+            self.cachedAvatarData = storedAvatarData
+            self.avatarImage = image
+        }
+
         var resolvedToken = KeychainHelper.loadToken()
         if resolvedToken == nil || resolvedToken?.isEmpty == true {
             if let savedToken = userDefaults.string(forKey: tokenKey), !savedToken.isEmpty {
@@ -191,6 +282,11 @@ public final class AccountManager: ObservableObject {
             persistSessionLocally(token: token, profile: self.currentUser)
 
             if isPersistenceEnabled {
+                if let profile = self.currentUser {
+                    Task {
+                        await fetchAndCacheAvatarIfNeeded(for: profile)
+                    }
+                }
                 Task {
                     await verifySession()
                 }
@@ -300,6 +396,7 @@ public final class AccountManager: ObservableObject {
         self.currentUser = nil
         self.isLoggedIn = false
         self.syncErrorMessage = nil
+        clearCachedAvatar()
         self.userDefaults.removeObject(forKey: tokenKey)
         self.userDefaults.removeObject(forKey: userProfileKey)
         if let sessionFileURL {
@@ -319,12 +416,19 @@ public final class AccountManager: ObservableObject {
             return false
         }
 
+        let compactData = Self.compressAvatarData(imageData) ?? imageData
+        let uploadMimeType = compactData == imageData ? mimeType : "image/jpeg"
+
+        if let optimisticImage = NSImage(data: compactData) {
+            self.avatarImage = optimisticImage
+        }
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(mimeType, forHTTPHeaderField: "Content-Type")
+        request.setValue(uploadMimeType, forHTTPHeaderField: "Content-Type")
         request.setValue("ZhuoBrowserMac/1.0", forHTTPHeaderField: "User-Agent")
-        request.httpBody = imageData
+        request.httpBody = compactData
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -337,14 +441,16 @@ public final class AccountManager: ObservableObject {
 
             if httpResponse.statusCode == 200 {
                 let returnedAvatarUrl = json["avatarUrl"] as? String
+                let resolvedAvatarUrl = returnedAvatarUrl ?? currentUser.avatarUrl
                 let updatedProfile = UserProfile(
                     id: currentUser.id,
                     email: currentUser.email,
                     displayName: currentUser.displayName,
-                    avatarUrl: returnedAvatarUrl ?? currentUser.avatarUrl,
+                    avatarUrl: resolvedAvatarUrl,
                     createdAt: currentUser.createdAt
                 )
                 self.currentUser = updatedProfile
+                cacheAvatarLocally(data: compactData, for: resolvedAvatarUrl)
                 persistSessionLocally(token: token, profile: updatedProfile)
                 return true
             } else {
@@ -522,6 +628,7 @@ public final class AccountManager: ObservableObject {
                     self.currentUser = profile
                     self.isLoggedIn = true
                     persistSessionLocally(token: token, profile: profile)
+                    await fetchAndCacheAvatarIfNeeded(for: profile)
                 }
             } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
                 // Only an explicit auth rejection may destroy the local session.
@@ -541,6 +648,74 @@ public final class AccountManager: ObservableObject {
         self.currentUser = profile
         self.isLoggedIn = true
         persistSessionLocally(token: token, profile: profile)
+        if isPersistenceEnabled {
+            Task {
+                await fetchAndCacheAvatarIfNeeded(for: profile)
+            }
+        }
+    }
+
+    func cacheAvatarLocally(data: Data, for avatarUrl: String?) {
+        guard let image = NSImage(data: data) else { return }
+        self.cachedAvatarUrl = avatarUrl
+        self.cachedAvatarData = data
+        self.avatarImage = image
+        if let avatarUrl {
+            self.userDefaults.set(avatarUrl, forKey: cachedAvatarUrlKey)
+        } else {
+            self.userDefaults.removeObject(forKey: cachedAvatarUrlKey)
+        }
+        self.userDefaults.set(data, forKey: cachedAvatarDataKey)
+        if isPersistenceEnabled, let avatarFileURL {
+            try? data.write(to: avatarFileURL, options: .atomic)
+        }
+    }
+
+    private func clearCachedAvatar() {
+        self.avatarImage = nil
+        self.cachedAvatarUrl = nil
+        self.cachedAvatarData = nil
+        self.userDefaults.removeObject(forKey: cachedAvatarUrlKey)
+        self.userDefaults.removeObject(forKey: cachedAvatarDataKey)
+        if let avatarFileURL {
+            try? FileManager.default.removeItem(at: avatarFileURL)
+        }
+    }
+
+    private func fetchAndCacheAvatarIfNeeded(for profile: UserProfile) async {
+        guard let avatarUrl = profile.avatarUrl, !avatarUrl.isEmpty, let remoteURL = profile.resolvedAvatarURL else {
+            clearCachedAvatar()
+            return
+        }
+
+        if self.cachedAvatarUrl == avatarUrl,
+           let existingData = self.cachedAvatarData,
+           self.avatarImage != nil,
+           existingData.count <= Self.legacyAvatarByteThreshold {
+            return
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: remoteURL)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200,
+                  !data.isEmpty else {
+                return
+            }
+
+            let compactData = Self.compressAvatarData(data) ?? data
+            cacheAvatarLocally(data: compactData, for: avatarUrl)
+            if let token = self.token {
+                persistSessionLocally(token: token, profile: self.currentUser)
+            }
+
+            // Automatically shrink and re-upload legacy oversized avatars once so Cloudflare R2 stays fast for all pulls.
+            if data.count > Self.legacyAvatarByteThreshold && compactData.count < data.count {
+                _ = await uploadAvatar(imageData: compactData, mimeType: "image/jpeg")
+            }
+        } catch {
+            // Keep existing cached avatar if network fails
+        }
     }
 
     private func persistSessionLocally(token: String, profile: UserProfile?) {
@@ -556,7 +731,9 @@ public final class AccountManager: ObservableObject {
             let persisted = PersistedAccountSession(
                 token: token,
                 profile: profile,
-                lastSyncTime: self.lastSyncTime
+                lastSyncTime: self.lastSyncTime,
+                cachedAvatarUrl: self.cachedAvatarUrl,
+                cachedAvatarData: self.cachedAvatarData
             )
             if let encoded = try? JSONEncoder().encode(persisted) {
                 try? encoded.write(to: sessionFileURL, options: .atomic)

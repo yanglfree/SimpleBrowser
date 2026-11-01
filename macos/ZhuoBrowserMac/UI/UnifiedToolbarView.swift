@@ -142,7 +142,13 @@ public struct UnifiedToolbarView: View {
             // User Account Button
             Button(action: { isShowingAccount.toggle() }) {
                 if accountManager.isLoggedIn {
-                    if let avatarURL = accountManager.currentUser?.resolvedAvatarURL {
+                    if let cachedImage = accountManager.avatarImage {
+                        Image(nsImage: cachedImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 24, height: 24)
+                            .clipShape(Circle())
+                    } else if let avatarURL = accountManager.currentUser?.resolvedAvatarURL {
                         AsyncImage(url: avatarURL) { phase in
                             switch phase {
                             case .success(let image):

@@ -349,7 +349,12 @@ public struct AccountView: View {
 
     @ViewBuilder
     private func avatarImage(size: CGFloat) -> some View {
-        if let avatarURL = accountManager.currentUser?.resolvedAvatarURL {
+        if let cachedImage = accountManager.avatarImage {
+            Image(nsImage: cachedImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: size, height: size)
+        } else if let avatarURL = accountManager.currentUser?.resolvedAvatarURL {
             AsyncImage(url: avatarURL) { phase in
                 switch phase {
                 case .success(let img):
@@ -413,45 +418,9 @@ public struct AccountView: View {
         Task {
             defer { isUploadingAvatar = false }
 
-            // Downscale to max 512x512 to preserve bandwidth and Cloudflare storage
-            let maxDimension: CGFloat = 512
-            let originalSize = image.size
-            guard originalSize.width > 0, originalSize.height > 0 else {
-                accountManager.errorMessage = "图片尺寸无效"
-                return
-            }
-
-            let targetSize: CGSize
-            if originalSize.width > maxDimension || originalSize.height > maxDimension {
-                let ratio = min(maxDimension / originalSize.width, maxDimension / originalSize.height)
-                targetSize = CGSize(width: originalSize.width * ratio, height: originalSize.height * ratio)
-            } else {
-                targetSize = originalSize
-            }
-
-            guard let rep = NSBitmapImageRep(
-                bitmapDataPlanes: nil,
-                pixelsWide: Int(targetSize.width),
-                pixelsHigh: Int(targetSize.height),
-                bitsPerSample: 8,
-                samplesPerPixel: 4,
-                hasAlpha: true,
-                isPlanar: false,
-                colorSpaceName: .calibratedRGB,
-                bytesPerRow: 0,
-                bitsPerPixel: 0
-            ) else {
-                accountManager.errorMessage = "图片位图解析失败"
-                return
-            }
-
-            NSGraphicsContext.saveGraphicsState()
-            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-            image.draw(in: NSRect(origin: .zero, size: targetSize))
-            NSGraphicsContext.restoreGraphicsState()
-
-            guard let jpegData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) else {
-                accountManager.errorMessage = "图片格式转换失败"
+            // Center-crop to 1:1 and downscale to 160x160 JPEG (~5-8 KB) for fast Cloudflare upload & pull
+            guard let jpegData = AccountManager.compressAvatarImage(image) else {
+                accountManager.errorMessage = "图片压缩转换失败"
                 return
             }
 

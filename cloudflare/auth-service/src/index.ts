@@ -143,7 +143,7 @@ export default {
         if (!targetUserId) {
           return jsonResponse({ error: 'User ID required' }, corsHeaders, 400);
         }
-        return await handleGetAvatar(targetUserId, env, corsHeaders);
+        return await handleGetAvatar(request, url, targetUserId, env, corsHeaders);
       }
 
       // Bing Daily Wallpaper Archive routes
@@ -395,9 +395,14 @@ async function handleUploadAvatar(
   await env.AVATARS.put(objectKey, arrayBuffer, {
     httpMetadata: {
       contentType: mime,
-      cacheControl: 'public, max-age=86400',
+      cacheControl: 'public, max-age=31536000, immutable',
     },
   });
+
+  const staleKeys = ['jpg', 'png', 'webp', 'gif']
+    .filter((otherExt) => otherExt !== ext)
+    .map((otherExt) => `avatars/${user.id}.${otherExt}`);
+  await Promise.all(staleKeys.map((key) => env.AVATARS?.delete(key).catch(() => undefined)));
 
   const now = Date.now();
   const avatarUrl = `/api/user/avatar/${user.id}?v=${now}`;
@@ -423,6 +428,8 @@ async function handleUploadAvatar(
 }
 
 async function handleGetAvatar(
+  request: Request,
+  url: URL,
   userId: string,
   env: Env,
   headers: Record<string, string>
@@ -452,13 +459,24 @@ async function handleGetAvatar(
     return jsonResponse({ error: 'Avatar not found' }, headers, 404);
   }
 
+  const hasVersionParam = url.searchParams.has('v');
+  const cacheControl = hasVersionParam ? 'public, max-age=31536000, immutable' : 'public, max-age=86400';
+
   const responseHeaders = new Headers();
   object.writeHttpMetadata(responseHeaders);
   responseHeaders.set('Access-Control-Allow-Origin', headers['Access-Control-Allow-Origin'] || '*');
-  responseHeaders.set('Cache-Control', 'public, max-age=86400');
+  responseHeaders.set('Cache-Control', cacheControl);
   responseHeaders.set('ETag', object.httpEtag);
   if (!responseHeaders.has('Content-Type')) {
     responseHeaders.set('Content-Type', 'image/jpeg');
+  }
+
+  const ifNoneMatch = request.headers.get('If-None-Match');
+  if (ifNoneMatch && ifNoneMatch === object.httpEtag) {
+    return new Response(null, {
+      status: 304,
+      headers: responseHeaders,
+    });
   }
 
   return new Response(object.body, {
