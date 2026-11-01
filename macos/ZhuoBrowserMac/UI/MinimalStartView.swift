@@ -296,39 +296,134 @@ private struct WallpaperPickerPopover: View {
 
             // Options Row
             VStack(alignment: .leading, spacing: 10) {
-                // Bing Daily option
-                Button(action: {
-                    bgManager.setSource(.daily)
-                }) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "sun.max.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.orange)
-                            .frame(width: 24, height: 24)
-                            .background(Color.orange.opacity(0.15))
-                            .cornerRadius(6)
+                // Bing Daily option & history gallery
+                VStack(alignment: .leading, spacing: 8) {
+                    Button(action: {
+                        bgManager.selectBingWallpaper(date: nil)
+                    }) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "sun.max.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.orange)
+                                .frame(width: 24, height: 24)
+                                .background(Color.orange.opacity(0.15))
+                                .cornerRadius(6)
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("必应每日壁纸")
-                                .font(.system(size: 12, weight: .medium))
-                            Text("每日自动获取官方高清风光")
-                                .font(.system(size: 10))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("必应每日壁纸")
+                                    .font(.system(size: 12, weight: .medium))
+                                if let active = bgManager.activeBingWallpaper, bgManager.source == .daily {
+                                    Text("\(active.formattedFullDate) · \(active.title)")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                } else {
+                                    Text("每日自动获取官方高清风光，支持切换往期壁纸")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+
+                            Spacer()
+
+                            if bgManager.source == .daily && bgManager.selectedBingDate == nil {
+                                Text("自动更新")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundColor(.accentColor)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(Color.accentColor.opacity(0.12))
+                                    .cornerRadius(4)
+                            } else if bgManager.source == .daily {
+                                Text("往期锁定")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundColor(.orange)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(Color.orange.opacity(0.14))
+                                    .cornerRadius(4)
+                            }
+                        }
+                        .padding(8)
+                        .background(bgManager.source == .daily ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.06))
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+
+                    if !bgManager.bingHistory.isEmpty {
+                        HStack {
+                            Text("往期必应壁纸 (Cloudflare 云端归档)")
+                                .font(.system(size: 10, weight: .medium))
                                 .foregroundColor(.secondary)
+                            Spacer()
+                            if bgManager.source == .daily && bgManager.selectedBingDate != nil {
+                                Button("恢复今日自动") {
+                                    bgManager.selectBingWallpaper(date: nil)
+                                }
+                                .font(.system(size: 10))
+                                .buttonStyle(.plain)
+                                .foregroundColor(.accentColor)
+                            }
                         }
 
-                        Spacer()
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(bgManager.bingHistory) { item in
+                                    let isItemSelected = bgManager.source == .daily &&
+                                        (bgManager.selectedBingDate == item.date ||
+                                         (bgManager.selectedBingDate == nil && item.date == bgManager.bingHistory.first?.date))
+                                    Button(action: {
+                                        if item.date == bgManager.bingHistory.first?.date && bgManager.selectedBingDate == nil {
+                                            bgManager.selectBingWallpaper(date: nil)
+                                        } else {
+                                            bgManager.selectBingWallpaper(date: item.date)
+                                        }
+                                    }) {
+                                        VStack(spacing: 3) {
+                                            ZStack(alignment: .bottomLeading) {
+                                                if let thumb = bgManager.bingThumbnails[item.date] {
+                                                    Image(nsImage: thumb)
+                                                        .resizable()
+                                                        .scaledToFill()
+                                                        .frame(width: 68, height: 42)
+                                                        .clipped()
+                                                } else {
+                                                    Color.secondary.opacity(0.15)
+                                                        .frame(width: 68, height: 42)
+                                                }
+                                                LinearGradient(
+                                                    colors: [Color.black.opacity(0.6), Color.clear],
+                                                    startPoint: .bottom,
+                                                    endPoint: .top
+                                                )
+                                                .frame(height: 16)
+                                                Text(item.formattedShortDate)
+                                                    .font(.system(size: 8, weight: .semibold))
+                                                    .foregroundColor(.white)
+                                                    .padding(.leading, 4)
+                                                    .padding(.bottom, 2)
+                                            }
+                                            .frame(width: 68, height: 42)
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 6)
+                                                    .stroke(isItemSelected ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isItemSelected ? 2 : 1)
+                                            )
 
-                        if bgManager.source == .daily {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.accentColor)
+                                            Text(item.title)
+                                                .font(.system(size: 9))
+                                                .foregroundColor(isItemSelected ? .accentColor : .primary)
+                                                .frame(width: 68)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("\(item.formattedFullDate) · \(item.title)")
+                                }
+                            }
                         }
                     }
-                    .padding(8)
-                    .background(bgManager.source == .daily ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.06))
-                    .cornerRadius(8)
                 }
-                .buttonStyle(.plain)
 
                 // Presets list
                 VStack(alignment: .leading, spacing: 6) {
@@ -343,21 +438,29 @@ private struct WallpaperPickerPopover: View {
                                     bgManager.selectPreset(id: preset.id)
                                 }) {
                                     VStack(spacing: 4) {
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .fill(Color.secondary.opacity(0.15))
-                                            .frame(width: 58, height: 38)
-                                            .overlay(
+                                        ZStack {
+                                            if let thumb = bgManager.presetThumbnails[preset.id] {
+                                                Image(nsImage: thumb)
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 58, height: 38)
+                                                    .clipped()
+                                            } else {
+                                                Color.secondary.opacity(0.15)
                                                 Text(preset.name.prefix(2))
                                                     .font(.system(size: 11, weight: .bold))
                                                     .foregroundColor(.secondary)
-                                            )
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 6)
-                                                    .stroke(
-                                                        bgManager.source == .preset && bgManager.selectedPresetId == preset.id ? Color.accentColor : SwiftUI.Color.clear,
-                                                        lineWidth: 2
-                                                    )
-                                            )
+                                            }
+                                        }
+                                        .frame(width: 58, height: 38)
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .stroke(
+                                                    bgManager.source == .preset && bgManager.selectedPresetId == preset.id ? Color.accentColor : SwiftUI.Color.clear,
+                                                    lineWidth: 2
+                                                )
+                                        )
 
                                         Text(preset.name)
                                             .font(.system(size: 10))
@@ -409,6 +512,9 @@ private struct WallpaperPickerPopover: View {
             }
         }
         .padding(14)
-        .frame(width: 350)
+        .frame(width: 370)
+        .onAppear {
+            bgManager.refreshBingHistoryIfNeeded()
+        }
     }
 }

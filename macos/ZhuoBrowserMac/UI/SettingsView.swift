@@ -181,18 +181,26 @@ public struct SettingsView: View {
                                     bgManager.selectPreset(id: preset.id)
                                 }) {
                                     VStack(spacing: 4) {
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .fill(Color.secondary.opacity(0.15))
-                                            .frame(width: 64, height: 42)
-                                            .overlay(
+                                        ZStack {
+                                            if let thumb = bgManager.presetThumbnails[preset.id] {
+                                                Image(nsImage: thumb)
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 78, height: 48)
+                                                    .clipped()
+                                            } else {
+                                                Color.secondary.opacity(0.15)
                                                 Text(preset.name.prefix(2))
                                                     .font(.system(size: 11, weight: .bold))
                                                     .foregroundColor(.secondary)
-                                            )
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 6)
-                                                    .stroke(bgManager.selectedPresetId == preset.id ? Color.accentColor : Color.clear, lineWidth: 2)
-                                            )
+                                            }
+                                        }
+                                        .frame(width: 78, height: 48)
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .stroke(bgManager.selectedPresetId == preset.id ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: bgManager.selectedPresetId == preset.id ? 2 : 1)
+                                        )
 
                                         Text(preset.name)
                                             .font(.system(size: 10))
@@ -218,11 +226,189 @@ public struct SettingsView: View {
                     .font(.system(size: 12))
                 }
             } else if bgManager.source == .daily {
-                Text("已开启必应每日壁纸：系统每日自动从微软必应抓取最新高清风光照片并本地缓存。")
+                bingDailyHistorySection
+            }
+        }
+        .onAppear {
+            bgManager.refreshBingHistoryIfNeeded()
+        }
+    }
+
+    private var bingDailyHistorySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                if let active = bgManager.activeBingWallpaper {
+                    HStack(spacing: 4) {
+                        Image(systemName: bgManager.selectedBingDate == nil ? "sparkles" : "calendar")
+                            .font(.system(size: 11))
+                            .foregroundColor(.accentColor)
+                        Text(bgManager.selectedBingDate == nil
+                             ? "今日自动更新：\(active.title) (\(active.formattedFullDate))"
+                             : "已选历史壁纸：\(active.title) (\(active.formattedFullDate))")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                    }
+                } else {
+                    Text("正在从 Cloudflare 云端加载必应壁纸归档...")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                if bgManager.isLoading || bgManager.isLoadingHistory {
+                    ProgressView()
+                        .controlSize(.mini)
+                }
+
+                if bgManager.selectedBingDate != nil {
+                    Button("跟随今日") {
+                        bgManager.selectBingWallpaper(date: nil)
+                    }
+                    .font(.system(size: 11))
+                    .controlSize(.small)
+                    .help("恢复每日自动跟随最新必应壁纸")
+                }
+
+                HStack(spacing: 2) {
+                    Button(action: { bgManager.stepBingWallpaper(offset: -1) }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 10, weight: .semibold))
+                            .frame(width: 20, height: 20)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(bgManager.bingHistory.isEmpty || (bgManager.selectedBingDate == nil || bgManager.selectedBingDate == bgManager.bingHistory.first?.date))
+                    .help("切换到更新一天的壁纸")
+
+                    Button(action: { bgManager.stepBingWallpaper(offset: 1) }) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .frame(width: 20, height: 20)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(bgManager.bingHistory.isEmpty || bgManager.selectedBingDate == bgManager.bingHistory.last?.date)
+                    .help("切换到更早一天的历史壁纸")
+
+                    Button(action: { bgManager.refreshDaily() }) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 10, weight: .semibold))
+                            .frame(width: 20, height: 20)
+                    }
+                    .buttonStyle(.plain)
+                    .help("同步最新必应壁纸归档")
+                }
+            }
+
+            if !bgManager.bingHistory.isEmpty {
+                ScrollView(.horizontal, showsIndicators: true) {
+                    HStack(spacing: 10) {
+                        // Auto-daily option card
+                        if let latest = bgManager.bingHistory.first {
+                            bingWallpaperCard(
+                                item: latest,
+                                badgeText: "今日自动",
+                                subtitleText: "每日更新",
+                                isSelected: bgManager.selectedBingDate == nil
+                            ) {
+                                bgManager.selectBingWallpaper(date: nil)
+                            }
+                        }
+
+                        // Historical archive cards
+                        ForEach(bgManager.bingHistory) { item in
+                            bingWallpaperCard(
+                                item: item,
+                                badgeText: item.formattedShortDate,
+                                subtitleText: item.title,
+                                isSelected: bgManager.selectedBingDate == item.date
+                            ) {
+                                bgManager.selectBingWallpaper(date: item.date)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            if let copyright = bgManager.activeBingWallpaper?.copyright, !copyright.isEmpty {
+                Text(copyright)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            } else {
+                Text("每日壁纸已自动持久化保存在 Cloudflare (D1 + R2) 云端归档，点击任意往期缩略图即可实时预览切换。")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
         }
+    }
+
+    private func bingWallpaperCard(
+        item: BingWallpaperItem,
+        badgeText: String,
+        subtitleText: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                ZStack(alignment: .bottomLeading) {
+                    if let thumb = bgManager.bingThumbnails[item.date] {
+                        Image(nsImage: thumb)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 86, height: 52)
+                            .clipped()
+                    } else {
+                        Color.secondary.opacity(0.15)
+                            .frame(width: 86, height: 52)
+                            .overlay(
+                                ProgressView()
+                                    .controlSize(.mini)
+                            )
+                    }
+
+                    LinearGradient(
+                        colors: [Color.black.opacity(0.65), Color.clear],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                    .frame(height: 22)
+
+                    HStack(spacing: 4) {
+                        Text(badgeText)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                        Spacer(minLength: 0)
+                        if isSelected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(.accentColor)
+                                .background(Circle().fill(Color.white).frame(width: 9, height: 9))
+                                .padding(.trailing, 4)
+                        }
+                    }
+                    .padding(.bottom, 2)
+                }
+                .frame(width: 86, height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 2 : 1)
+                )
+
+                Text(subtitleText)
+                    .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
+                    .foregroundColor(isSelected ? .accentColor : .primary)
+                    .frame(width: 86)
+                    .lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+        .help("\(item.formattedFullDate) · \(item.title)\n\(item.copyright)")
     }
 
     // 3. 内容安全与拦截 (参考 HarmonyOS 端)

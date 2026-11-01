@@ -17,8 +17,18 @@
     {
       "binding": "AVATARS",
       "bucket_name": "zhuobrowser-avatars"
+    },
+    {
+      "binding": "WALLPAPERS",
+      "bucket_name": "zhuobrowser-wallpapers"
     }
   ],
+  "triggers": {
+    "crons": [
+      "10 16 * * *",
+      "10 0 * * *"
+    ]
+  },
   "vars": {
     "APP_ID": "zhuobrowser-mac"
   }

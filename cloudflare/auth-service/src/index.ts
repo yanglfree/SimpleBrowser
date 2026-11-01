@@ -1,7 +1,34 @@
 export interface Env {
   AUTH_DB: D1Database;
   AVATARS?: R2Bucket;
+  WALLPAPERS?: R2Bucket;
   APP_ID?: string;
+}
+
+interface BingWallpaperRow {
+  end_date: string;
+  start_date: string;
+  title: string;
+  copyright: string;
+  copyright_link: string | null;
+  url_base: string;
+  full_r2_key: string;
+  thumb_r2_key: string;
+  byte_size: number;
+  thumb_byte_size: number;
+  mkt: string;
+  created_at: number;
+  updated_at: number;
+}
+
+interface BingUpstreamImage {
+  startdate?: string;
+  enddate?: string;
+  url?: string;
+  urlbase?: string;
+  copyright?: string;
+  copyrightlink?: string;
+  title?: string;
 }
 
 interface UserRow {
@@ -34,7 +61,7 @@ interface SyncRow {
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get('Origin') || '*';
 
@@ -119,11 +146,39 @@ export default {
         return await handleGetAvatar(targetUserId, env, corsHeaders);
       }
 
+      // Bing Daily Wallpaper Archive routes
+      if (url.pathname === '/api/wallpapers/bing' && request.method === 'GET') {
+        return await handleListBingWallpapers(url, env, corsHeaders, ctx);
+      }
+
+      if (url.pathname === '/api/wallpapers/bing/sync' && request.method === 'POST') {
+        return await handleSyncBingWallpapers(env, corsHeaders);
+      }
+
+      if (url.pathname.startsWith('/api/wallpapers/bing/') && (request.method === 'GET' || request.method === 'HEAD')) {
+        const pathParts = url.pathname.split('/');
+        const targetDate = pathParts[4];
+        if (!targetDate) {
+          return jsonResponse({ error: 'Wallpaper date required' }, corsHeaders, 400);
+        }
+        return await handleGetBingWallpaperImage(targetDate, url, env, corsHeaders, ctx);
+      }
+
       return jsonResponse({ error: 'Not Found' }, corsHeaders, 404);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       return jsonResponse({ error: 'Internal Server Error', details: message }, corsHeaders, 500);
     }
+  },
+
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      (async () => {
+        await ensureBingWallpapersSchema(env);
+        await syncBingMetadataFromUpstream(env, true);
+        await archivePendingBingImagesToR2(env, 16);
+      })()
+    );
   },
 };
 
@@ -481,4 +536,365 @@ async function hashPassword(password: string, salt: string): Promise<string> {
   );
 
   return Array.from(new Uint8Array(derivedBits), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ============================================================================
+// Bing Daily Wallpaper Archive & R2 Storage Handlers
+// ============================================================================
+
+async function ensureBingWallpapersSchema(env: Env): Promise<void> {
+  await env.AUTH_DB.prepare(
+    `CREATE TABLE IF NOT EXISTS bing_wallpapers (
+      end_date TEXT PRIMARY KEY,
+      start_date TEXT NOT NULL,
+      title TEXT NOT NULL,
+      copyright TEXT NOT NULL,
+      copyright_link TEXT,
+      url_base TEXT NOT NULL,
+      full_r2_key TEXT NOT NULL,
+      thumb_r2_key TEXT NOT NULL,
+      byte_size INTEGER NOT NULL DEFAULT 0,
+      thumb_byte_size INTEGER NOT NULL DEFAULT 0,
+      mkt TEXT NOT NULL DEFAULT 'zh-CN',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`
+  ).run();
+}
+
+function getBeijingDateYYYYMMDD(nowMs = Date.now()): string {
+  const beijingDate = new Date(nowMs + 8 * 60 * 60 * 1000);
+  const y = beijingDate.getUTCFullYear();
+  const m = String(beijingDate.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(beijingDate.getUTCDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
+}
+
+function isValidJpeg(bytes: Uint8Array): boolean {
+  return (
+    bytes.byteLength >= 4 &&
+    bytes.byteLength <= 20 * 1024 * 1024 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[bytes.byteLength - 2] === 0xff &&
+    bytes[bytes.byteLength - 1] === 0xd9
+  );
+}
+
+function normalizeBingUrlBase(item: BingUpstreamImage): string | null {
+  if (item.urlbase && /^\/th\?id=OHR\.[A-Za-z0-9._%-]+$/.test(item.urlbase)) {
+    return item.urlbase;
+  }
+  if (item.url) {
+    const match = item.url.match(/^(\/th\?id=OHR\.[A-Za-z0-9._%-]+)_(?:1920x1080|UHD)\b/);
+    if (match) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
+async function fetchBingArchiveBatch(idx: number, count: number): Promise<BingUpstreamImage[]> {
+  const archiveUrl = `https://www.bing.com/HPImageArchive.aspx?format=js&idx=${idx}&n=${count}&mkt=zh-CN`;
+  const resp = await fetch(archiveUrl, {
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': 'ZhuoBrowser-WallpaperArchiver/1.0',
+    },
+  });
+  if (!resp.ok) {
+    return [];
+  }
+  const data = (await resp.json().catch(() => ({}))) as { images?: BingUpstreamImage[] };
+  return Array.isArray(data.images) ? data.images : [];
+}
+
+async function syncBingMetadataFromUpstream(env: Env, includeOlderBatch = false): Promise<number> {
+  const firstBatch = await fetchBingArchiveBatch(0, 8);
+  const secondBatch = includeOlderBatch ? await fetchBingArchiveBatch(7, 8) : [];
+  const allItems = [...firstBatch, ...secondBatch];
+
+  const seenDates = new Set<string>();
+  const now = Date.now();
+  let upserted = 0;
+
+  for (const item of allItems) {
+    const endDate = (item.enddate || '').trim();
+    const startDate = (item.startdate || endDate).trim();
+    const urlBase = normalizeBingUrlBase(item);
+    if (!/^\d{8}$/.test(endDate) || !urlBase || seenDates.has(endDate)) {
+      continue;
+    }
+    seenDates.add(endDate);
+
+    const title = (item.title || '').trim() || `必应每日壁纸 ${endDate}`;
+    const copyright = (item.copyright || '').trim();
+    const copyrightLink = (item.copyrightlink || '').trim() || null;
+    const fullR2Key = `bing/zh-CN/${endDate}_1920x1080.jpg`;
+    const thumbR2Key = `bing/zh-CN/${endDate}_400x240.jpg`;
+
+    await env.AUTH_DB.prepare(
+      `INSERT INTO bing_wallpapers (
+        end_date, start_date, title, copyright, copyright_link,
+        url_base, full_r2_key, thumb_r2_key, mkt, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'zh-CN', ?, ?)
+      ON CONFLICT(end_date) DO UPDATE SET
+        start_date = excluded.start_date,
+        title = excluded.title,
+        copyright = excluded.copyright,
+        copyright_link = excluded.copyright_link,
+        url_base = excluded.url_base,
+        updated_at = excluded.updated_at`
+    )
+      .bind(endDate, startDate, title, copyright, copyrightLink, urlBase, fullR2Key, thumbR2Key, now, now)
+      .run();
+
+    upserted += 1;
+  }
+
+  return upserted;
+}
+
+async function archiveSingleBingVariantToR2(
+  row: BingWallpaperRow,
+  variant: 'full' | 'thumb',
+  env: Env
+): Promise<Uint8Array | null> {
+  const bucket = env.WALLPAPERS || env.AVATARS;
+  const suffix = variant === 'thumb' ? '400x240' : '1920x1080';
+  const r2Key = variant === 'thumb' ? row.thumb_r2_key : row.full_r2_key;
+  const upstreamUrl = `https://www.bing.com${row.url_base}_${suffix}.jpg`;
+
+  const resp = await fetch(upstreamUrl, {
+    headers: {
+      Accept: 'image/jpeg',
+      'User-Agent': 'ZhuoBrowser-WallpaperArchiver/1.0',
+    },
+  });
+  if (!resp.ok) {
+    return null;
+  }
+
+  const buffer = await resp.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  if (!isValidJpeg(bytes)) {
+    return null;
+  }
+
+  if (bucket) {
+    await bucket.put(r2Key, bytes, {
+      httpMetadata: {
+        contentType: 'image/jpeg',
+        cacheControl: 'public, max-age=31536000, immutable',
+      },
+      customMetadata: {
+        endDate: row.end_date,
+        title: row.title,
+        variant,
+      },
+    });
+  }
+
+  const now = Date.now();
+  if (variant === 'thumb') {
+    await env.AUTH_DB.prepare('UPDATE bing_wallpapers SET thumb_byte_size = ?, updated_at = ? WHERE end_date = ?')
+      .bind(bytes.byteLength, now, row.end_date)
+      .run();
+  } else {
+    await env.AUTH_DB.prepare('UPDATE bing_wallpapers SET byte_size = ?, updated_at = ? WHERE end_date = ?')
+      .bind(bytes.byteLength, now, row.end_date)
+      .run();
+  }
+
+  return bytes;
+}
+
+async function archivePendingBingImagesToR2(env: Env, maxRows = 8): Promise<number> {
+  const pending = await env.AUTH_DB.prepare(
+    'SELECT * FROM bing_wallpapers WHERE byte_size = 0 OR thumb_byte_size = 0 ORDER BY end_date DESC LIMIT ?'
+  )
+    .bind(maxRows)
+    .all<BingWallpaperRow>();
+
+  const rows = pending.results || [];
+  let archivedCount = 0;
+
+  for (const row of rows) {
+    if (row.thumb_byte_size === 0) {
+      const thumbBytes = await archiveSingleBingVariantToR2(row, 'thumb', env);
+      if (thumbBytes) archivedCount += 1;
+    }
+    if (row.byte_size === 0) {
+      const fullBytes = await archiveSingleBingVariantToR2(row, 'full', env);
+      if (fullBytes) archivedCount += 1;
+    }
+  }
+
+  return archivedCount;
+}
+
+async function handleListBingWallpapers(
+  url: URL,
+  env: Env,
+  headers: Record<string, string>,
+  ctx?: ExecutionContext
+): Promise<Response> {
+  await ensureBingWallpapersSchema(env);
+
+  const limit = Math.min(90, Math.max(1, parseInt(url.searchParams.get('limit') || '30', 10) || 30));
+  const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10) || 0);
+
+  const stats = await env.AUTH_DB.prepare(
+    'SELECT COUNT(*) as total, MAX(end_date) as latest_date, SUM(CASE WHEN byte_size = 0 OR thumb_byte_size = 0 THEN 1 ELSE 0 END) as pending_r2 FROM bing_wallpapers'
+  ).first<{ total: number; latest_date: string | null; pending_r2: number }>();
+
+  const totalBefore = stats?.total || 0;
+  const latestDate = stats?.latest_date || '';
+  const todayBeijing = getBeijingDateYYYYMMDD();
+
+  if (totalBefore < 14 || latestDate < todayBeijing) {
+    await syncBingMetadataFromUpstream(env, totalBefore < 14);
+    if (ctx) {
+      ctx.waitUntil(archivePendingBingImagesToR2(env, 8));
+    } else {
+      await archivePendingBingImagesToR2(env, 2);
+    }
+  } else if ((stats?.pending_r2 || 0) > 0 && ctx) {
+    ctx.waitUntil(archivePendingBingImagesToR2(env, 6));
+  }
+
+  const rowsResult = await env.AUTH_DB.prepare(
+    'SELECT * FROM bing_wallpapers ORDER BY end_date DESC LIMIT ? OFFSET ?'
+  )
+    .bind(limit, offset)
+    .all<BingWallpaperRow>();
+
+  const countAfter = await env.AUTH_DB.prepare('SELECT COUNT(*) as total FROM bing_wallpapers').first<{
+    total: number;
+  }>();
+
+  const rows = rowsResult.results || [];
+  const wallpapers = rows.map((row) => ({
+    date: row.end_date,
+    startDate: row.start_date,
+    title: row.title,
+    copyright: row.copyright,
+    copyrightLink: row.copyright_link,
+    imageUrl: `/api/wallpapers/bing/${row.end_date}?variant=full`,
+    thumbnailUrl: `/api/wallpapers/bing/${row.end_date}?variant=thumb`,
+    bingImageUrl: `https://www.bing.com${row.url_base}_1920x1080.jpg`,
+    bingThumbnailUrl: `https://www.bing.com${row.url_base}_400x240.jpg`,
+    byteSize: row.byte_size,
+    thumbByteSize: row.thumb_byte_size,
+  }));
+
+  return jsonResponse(
+    {
+      ok: true,
+      wallpapers,
+      total: countAfter?.total || wallpapers.length,
+    },
+    headers
+  );
+}
+
+async function handleSyncBingWallpapers(env: Env, headers: Record<string, string>): Promise<Response> {
+  await ensureBingWallpapersSchema(env);
+  const syncedMetadata = await syncBingMetadataFromUpstream(env, true);
+  const archivedImages = await archivePendingBingImagesToR2(env, 16);
+  const countRow = await env.AUTH_DB.prepare('SELECT COUNT(*) as total FROM bing_wallpapers').first<{
+    total: number;
+  }>();
+
+  return jsonResponse(
+    {
+      ok: true,
+      syncedMetadata,
+      archivedImages,
+      total: countRow?.total || 0,
+    },
+    headers
+  );
+}
+
+async function handleGetBingWallpaperImage(
+  targetDateParam: string,
+  url: URL,
+  env: Env,
+  headers: Record<string, string>,
+  ctx?: ExecutionContext
+): Promise<Response> {
+  await ensureBingWallpapersSchema(env);
+
+  const variant: 'full' | 'thumb' = url.searchParams.get('variant') === 'thumb' ? 'thumb' : 'full';
+  let row: BingWallpaperRow | null = null;
+
+  if (targetDateParam === 'latest' || targetDateParam === 'today') {
+    row = await env.AUTH_DB.prepare('SELECT * FROM bing_wallpapers ORDER BY end_date DESC LIMIT 1').first<BingWallpaperRow>();
+    if (!row) {
+      await syncBingMetadataFromUpstream(env, true);
+      row = await env.AUTH_DB.prepare('SELECT * FROM bing_wallpapers ORDER BY end_date DESC LIMIT 1').first<BingWallpaperRow>();
+    }
+  } else {
+    const cleanDate = targetDateParam.replace(/[^0-9]/g, '');
+    if (!/^\d{8}$/.test(cleanDate)) {
+      return jsonResponse({ error: 'Invalid date format. Expected YYYYMMDD.' }, headers, 400);
+    }
+    row = await env.AUTH_DB.prepare('SELECT * FROM bing_wallpapers WHERE end_date = ?')
+      .bind(cleanDate)
+      .first<BingWallpaperRow>();
+    if (!row) {
+      await syncBingMetadataFromUpstream(env, true);
+      row = await env.AUTH_DB.prepare('SELECT * FROM bing_wallpapers WHERE end_date = ?')
+        .bind(cleanDate)
+        .first<BingWallpaperRow>();
+    }
+  }
+
+  if (!row) {
+    return jsonResponse({ error: 'Wallpaper not found for specified date' }, headers, 404);
+  }
+
+  const bucket = env.WALLPAPERS || env.AVATARS;
+  const r2Key = variant === 'thumb' ? row.thumb_r2_key : row.full_r2_key;
+
+  if (bucket) {
+    const cachedObj = await bucket.get(r2Key);
+    if (cachedObj) {
+      const responseHeaders = new Headers();
+      cachedObj.writeHttpMetadata(responseHeaders);
+      responseHeaders.set('Access-Control-Allow-Origin', headers['Access-Control-Allow-Origin'] || '*');
+      responseHeaders.set('Cache-Control', 'public, max-age=31536000, immutable');
+      responseHeaders.set('ETag', cachedObj.httpEtag);
+      responseHeaders.set('X-Wallpaper-Date', row.end_date);
+      if (!responseHeaders.has('Content-Type')) {
+        responseHeaders.set('Content-Type', 'image/jpeg');
+      }
+      return new Response(cachedObj.body, {
+        status: 200,
+        headers: responseHeaders,
+      });
+    }
+  }
+
+  // Lazy fetch from Bing and persist into R2
+  const archivedBytes = await archiveSingleBingVariantToR2(row, variant, env);
+  if (!archivedBytes) {
+    return jsonResponse({ error: 'Upstream wallpaper image unavailable' }, headers, 502);
+  }
+
+  if (ctx && ((variant === 'thumb' && row.byte_size === 0) || (variant === 'full' && row.thumb_byte_size === 0))) {
+    const otherVariant: 'full' | 'thumb' = variant === 'thumb' ? 'full' : 'thumb';
+    ctx.waitUntil(archiveSingleBingVariantToR2(row, otherVariant, env));
+  }
+
+  return new Response(archivedBytes, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': headers['Access-Control-Allow-Origin'] || '*',
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'X-Wallpaper-Date': row.end_date,
+    },
+  });
 }
