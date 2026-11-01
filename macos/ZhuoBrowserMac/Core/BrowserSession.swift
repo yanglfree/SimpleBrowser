@@ -16,12 +16,15 @@ public final class BrowserSession: ObservableObject {
 
     @Published public var bookmarks: [BookmarkEntry] = []
     @Published public var history: [HistoryEntry] = []
+    @Published public private(set) var siteIcons: [String: NSImage] = [:]
     @Published public var isShowingLibraryManager: Bool = false
     @Published public var isShowingSettings: Bool = false
     @Published public var librarySelectedTab: Int = 0
 
     public let settings = BrowserSettings.shared
     private let libraryStore = LibraryStore.shared
+    private var siteIconLoadingHosts = Set<String>()
+    private var deferredSiteIconRequests: [String: (pageURL: String, declaredURL: String)] = [:]
     private var controllers: [String: TabController] = [:]
 
     public init() {
@@ -37,6 +40,7 @@ public final class BrowserSession: ObservableObject {
         tabs = [initialTab]
         activeTabID = initialTab.id
         enforceMemoryBudget()
+        refreshSiteIcons()
     }
 
     public var activeTab: BrowserTab? {
@@ -151,6 +155,7 @@ public final class BrowserSession: ObservableObject {
             controllers[activeID] = controller
         }
 
+        requestSiteIcon(pageURL: normalizedURL)
         enforceMemoryBudget()
     }
 
@@ -285,5 +290,59 @@ public final class BrowserSession: ObservableObject {
 
         activeLiveControllersCount = controllers.count
         activeController = activeTabID != nil ? controllers[activeTabID!] : nil
+    }
+
+    // MARK: - Site Icons
+
+    public func siteIcon(for url: String) -> NSImage? {
+        let host = URLPolicy.rawHost(url)
+        return host.isEmpty ? nil : siteIcons[host]
+    }
+
+    public func siteIcon(for tab: BrowserTab) -> NSImage? {
+        tab.isPrivate ? nil : siteIcon(for: tab.url)
+    }
+
+    public func refreshSiteIcons() {
+        for tab in tabs where !tab.isPrivate && !tab.isHome {
+            requestSiteIcon(pageURL: tab.url)
+        }
+    }
+
+    public func refreshSiteIcon(tabID: String, declaredURL: String) {
+        guard let tab = tab(for: tabID),
+              !tab.isPrivate,
+              !tab.isHome else {
+            return
+        }
+        requestSiteIcon(pageURL: tab.url, declaredURL: declaredURL)
+    }
+
+    public func requestSiteIcon(pageURL: String, declaredURL: String = "") {
+        let host = URLPolicy.rawHost(pageURL)
+        guard !host.isEmpty, siteIcons[host] == nil else { return }
+        if siteIconLoadingHosts.contains(host) {
+            if !declaredURL.isEmpty {
+                deferredSiteIconRequests[host] = (pageURL, declaredURL)
+            }
+            return
+        }
+        siteIconLoadingHosts.insert(host)
+        Task { @MainActor [weak self] in
+            let data = await SiteIconStore.shared.iconData(
+                for: pageURL,
+                declaredURL: declaredURL.isEmpty ? nil : declaredURL
+            )
+            guard let self else { return }
+            self.siteIconLoadingHosts.remove(host)
+            if let data, let image = SiteIconImage.decode(data) {
+                self.siteIcons[host] = image
+                self.deferredSiteIconRequests.removeValue(forKey: host)
+                return
+            }
+            if let deferred = self.deferredSiteIconRequests.removeValue(forKey: host) {
+                self.requestSiteIcon(pageURL: deferred.pageURL, declaredURL: deferred.declaredURL)
+            }
+        }
     }
 }

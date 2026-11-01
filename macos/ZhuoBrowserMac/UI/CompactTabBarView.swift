@@ -12,6 +12,7 @@ public struct CompactTabBarView: View {
                     ForEach(session.tabs) { tab in
                         TabItemView(
                             tab: tab,
+                            siteIcon: session.siteIcon(for: tab),
                             isActive: tab.id == session.activeTabID,
                             onSelect: {
                                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -57,6 +58,7 @@ public struct CompactTabBarView: View {
 /// Single tab item with hover effects, smooth transitions, and distinct hibernated badges.
 private struct TabItemView: View {
     let tab: BrowserTab
+    let siteIcon: NSImage?
     let isActive: Bool
     let onSelect: () -> Void
     let onClose: () -> Void
@@ -65,20 +67,58 @@ private struct TabItemView: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            // Status indicator: Loading, Hibernated, or Normal
+            // Status indicator: Loading, Frozen, Possibly-stale, or Normal
             if tab.isLoading {
                 ProgressView()
                     .controlSize(.mini)
-                    .frame(width: 12, height: 12)
+                    .frame(width: 14, height: 14)
             } else if tab.isHibernated {
-                Image(systemName: "moon.zzz.fill")
-                    .font(.system(size: 10))
-                    .foregroundColor(.blue.opacity(0.85))
-                    .help("此标签已休眠冻结，释放了系统内存。点击即可瞬间唤醒。")
-            } else {
-                Image(systemName: tab.isPrivate ? "lock.shield" : "globe")
+                if let siteIcon {
+                    SiteIconThumbnail(image: siteIcon, size: 14)
+                        .opacity(0.65)
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "moon.zzz.fill")
+                                .font(.system(size: 6))
+                                .foregroundColor(.blue)
+                                .offset(x: 2, y: 2)
+                        }
+                        .help("此标签已冻结并释放渲染进程，页面快照已保留。点击即可瞬时恢复，无需重新加载。")
+                } else {
+                    Image(systemName: "moon.zzz.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.blue.opacity(0.85))
+                        .frame(width: 14, height: 14)
+                        .help("此标签已冻结并释放渲染进程，页面快照已保留。点击即可瞬时恢复，无需重新加载。")
+                }
+            } else if tab.isSnapshotStale {
+                if let siteIcon {
+                    SiteIconThumbnail(image: siteIcon, size: 14)
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 6))
+                                .foregroundColor(.orange)
+                                .offset(x: 2, y: 2)
+                        }
+                        .help("此页面由较旧的快照恢复，内容可能已过期。按 Cmd+R 可刷新最新内容。")
+                } else {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 10))
+                        .foregroundColor(.orange)
+                        .frame(width: 14, height: 14)
+                        .help("此页面由较旧的快照恢复，内容可能已过期。按 Cmd+R 可刷新最新内容。")
+                }
+            } else if tab.isPrivate {
+                Image(systemName: "lock.shield")
                     .font(.system(size: 11))
                     .foregroundColor(isActive ? .primary : .secondary)
+                    .frame(width: 14, height: 14)
+            } else if let siteIcon {
+                SiteIconThumbnail(image: siteIcon, size: 14)
+            } else {
+                Image(systemName: "globe")
+                    .font(.system(size: 11))
+                    .foregroundColor(isActive ? .primary : .secondary)
+                    .frame(width: 14, height: 14)
             }
 
             // Tab title

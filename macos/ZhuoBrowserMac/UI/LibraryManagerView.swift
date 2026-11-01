@@ -218,9 +218,14 @@ public struct LibraryManagerView: View {
             List {
                 ForEach(filteredHistory) { entry in
                     HStack(spacing: 10) {
-                        Image(systemName: "globe")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                        if let siteIcon = session.siteIcon(for: entry.url) {
+                            SiteIconThumbnail(image: siteIcon, size: 14)
+                        } else {
+                            Image(systemName: "globe")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                                .frame(width: 14, height: 14)
+                        }
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(entry.displayTitle)

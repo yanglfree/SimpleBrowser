@@ -199,6 +199,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         if let tab = session?.tab(for: tabID), tab.scrollPositionY > 0 {
             restoreScrollPosition(tab.scrollPositionY)
         }
+        resolveSiteIcon()
     }
 
     public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -429,6 +430,16 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             } else {
                 completionHandler(nil)
             }
+        }
+    }
+
+    public func resolveSiteIcon() {
+        guard let session, let tab = session.tab(for: tabID), !tab.isPrivate, !tab.isHome else { return }
+        guard let script = InjectedScripts.shared.scriptContent(named: "read-favicon") else { return }
+        webView?.evaluateJavaScript(script) { [weak self] result, _ in
+            guard let self else { return }
+            let declaredURL = (result as? String) ?? ""
+            self.session?.refreshSiteIcon(tabID: self.tabID, declaredURL: declaredURL)
         }
     }
 }

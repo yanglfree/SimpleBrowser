@@ -19,9 +19,9 @@ public final class InjectedScripts: @unchecked Sendable {
         // Try direct resource or js subfolder
         let bundle = Bundle.main
         var fileURL = bundle.url(forResource: name, withExtension: "js", subdirectory: "js")
-        if fileURL == nil {
-            fileURL = bundle.url(forResource: name, withExtension: "js")
-        }
+            ?? bundle.url(forResource: name, withExtension: "js")
+            ?? Bundle(for: InjectedScripts.self).url(forResource: name, withExtension: "js", subdirectory: "js")
+            ?? Bundle(for: InjectedScripts.self).url(forResource: name, withExtension: "js")
 
         guard let url = fileURL, let content = try? String(contentsOf: url, encoding: .utf8) else {
             return nil

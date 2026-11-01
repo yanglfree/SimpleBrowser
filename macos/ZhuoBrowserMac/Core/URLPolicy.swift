@@ -65,4 +65,25 @@ public struct URLPolicy {
         }
         return urlString
     }
+
+    /// Extracts the clean host for a URL string, lowercased and stripped of port/scheme.
+    public static func rawHost(_ url: String) -> String {
+        if isHomeURL(url) {
+            return ""
+        }
+        guard let match = url.range(of: "^[a-z][a-z0-9+.-]*://([^/?#]+)", options: [.regularExpression, .caseInsensitive]) else {
+            return (URL(string: url)?.host ?? "").lowercased()
+        }
+        let matched = String(url[match])
+        guard let schemeEnd = matched.range(of: "://") else {
+            return ""
+        }
+        let hostPort = String(matched[schemeEnd.upperBound...])
+        return (hostPort.split(separator: ":").first.map(String.init) ?? hostPort).lowercased()
+    }
+
+    /// Checks if the url is an empty/new tab or internal home url
+    public static func isHomeURL(_ url: String) -> Bool {
+        url.isEmpty || url == "zhuo://home"
+    }
 }
