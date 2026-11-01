@@ -5,6 +5,7 @@ public struct UnifiedToolbarView: View {
     @ObservedObject var session: BrowserSession
     @ObservedObject private var accountManager = AccountManager.shared
     @ObservedObject private var downloadManager = DownloadManager.shared
+    @ObservedObject private var extensionManager = ExtensionManager.shared
     @State private var isOmniboxFocused: Bool = false
     @State private var currentText: String = ""
     @State private var isShowingSettings: Bool = false
@@ -83,6 +84,9 @@ public struct UnifiedToolbarView: View {
 
             // Memory Saver Badge
             MemorySaverBadge(session: session)
+
+            // Chrome-Style Extensions Toolbar Bar (Pinned Actions + Puzzle Menu)
+            ExtensionToolbarBarView(session: session, extensionManager: extensionManager)
 
             // On-Demand Downloads Button (Safari / Mainstream Browser style)
             if downloadManager.shouldShowToolbarButton {
@@ -187,6 +191,13 @@ public struct UnifiedToolbarView: View {
             }
             .sheet(isPresented: $session.isShowingBookmarkManager) {
                 BookmarkManagerView(session: session, isPresented: $session.isShowingBookmarkManager)
+            }
+            .sheet(isPresented: $extensionManager.isShowingExtensionManager) {
+                ExtensionManagerView(
+                    session: session,
+                    extensionManager: extensionManager,
+                    isPresented: $extensionManager.isShowingExtensionManager
+                )
             }
         }
         .padding(.horizontal, 12)

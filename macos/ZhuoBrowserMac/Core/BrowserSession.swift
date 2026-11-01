@@ -57,6 +57,7 @@ public final class BrowserSession: ObservableObject {
     @Published public private(set) var canReopenClosedTab: Bool = false
 
     public let settings = BrowserSettings.shared
+    public let extensionManager: ExtensionManager
     private let libraryStore = LibraryStore.shared
     private let stateStore: TabStateStore
     private let pressureMonitor: MemoryPressureMonitor
@@ -88,10 +89,13 @@ public final class BrowserSession: ObservableObject {
     public init(
         stateStore: TabStateStore = .shared,
         pressureMonitor: MemoryPressureMonitor = .shared,
+        extensionManager: ExtensionManager = .shared,
         restoresPreviousSession: Bool? = nil
     ) {
         self.stateStore = stateStore
         self.pressureMonitor = pressureMonitor
+        self.extensionManager = extensionManager
+        extensionManager.session = self
 
         // Prepare content blocking rules asynchronously
         ContentBlocker.shared.prepare { [weak self] in
@@ -441,9 +445,21 @@ public final class BrowserSession: ObservableObject {
         }
     }
 
+    public func openExtensionManager() {
+        isShowingLibraryManager = false
+        isShowingBookmarkManager = false
+        isShowingOmniboxBookmarkPopover = false
+        extensionManager.isShowingToolbarPuzzlePopover = false
+        extensionManager.isShowingExtensionManager = true
+    }
+
     public func navigate(to text: String) {
         dismissOmniboxSuggestions()
         let normalizedURL = URLPolicy.normalizeAddress(text, searchEngine: settings.searchEngine)
+        if normalizedURL == "zhuo://extensions" {
+            openExtensionManager()
+            return
+        }
         guard let activeID = activeTabID, let index = tabs.firstIndex(where: { $0.id == activeID }) else { return }
 
         tabs[index].url = normalizedURL

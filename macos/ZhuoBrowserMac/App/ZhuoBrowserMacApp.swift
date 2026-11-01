@@ -336,6 +336,45 @@ public struct ZhuoBrowserMacApp: App {
                 }
                 .disabled(session.history.isEmpty)
             }
+
+            CommandMenu("扩展") {
+                Button("管理扩展程序...") {
+                    session.openExtensionManager()
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+
+                Button("新建自定义脚本 / 扩展...") {
+                    session.extensionManager.isShowingCreatorSheet = true
+                    session.openExtensionManager()
+                }
+                .keyboardShortcut("e", modifiers: [.command, .option])
+
+                Divider()
+
+                Button("加载已解压的扩展程序...") {
+                    session.extensionManager.promptLoadUnpackedExtension()
+                }
+
+                Button("安装扩展程序包 (.crx / .zip / .user.js)...") {
+                    session.extensionManager.promptInstallExtensionPackage()
+                }
+
+                Button("重新加载全部扩展") {
+                    session.extensionManager.reloadAllExtensions()
+                }
+
+                if !session.extensionManager.enabledExtensions.isEmpty {
+                    Divider()
+
+                    Section("已启用的扩展") {
+                        ForEach(session.extensionManager.enabledExtensions) { ext in
+                            Button(ext.manifest.name) {
+                                session.extensionManager.triggerExtensionAction(id: ext.id, in: session)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

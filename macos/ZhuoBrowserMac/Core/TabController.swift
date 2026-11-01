@@ -86,6 +86,13 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         // Shared or private data store
         config.websiteDataStore = isPrivate ? .nonPersistent() : .default()
 
+        // Custom scheme handler for `zhuo-extension://<id>/<path>`
+        let extManager = session?.extensionManager ?? ExtensionManager.shared
+        config.setURLSchemeHandler(
+            ExtensionSchemeHandler(extensionManager: extManager),
+            forURLScheme: ExtensionSchemeHandler.scheme
+        )
+
         // Install injected scripts & native content blocker rules according to user settings
         let userContentController = config.userContentController
         if !isPrivate {
@@ -94,6 +101,10 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 name: WebSessionStorageStore.messageHandlerName
             )
         }
+        userContentController.add(
+            WeakExtensionBridgeMessageHandler(target: self),
+            name: ExtensionRuntimeBridge.messageHandlerName
+        )
         applyContentProtection(to: userContentController)
 
         // Initialize passkey manager authorization check
@@ -170,6 +181,8 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 webView.evaluateJavaScript(restoreScript, completionHandler: nil)
             }
         }
+        let extManager = session?.extensionManager ?? ExtensionManager.shared
+        extManager.evaluateEnabledExtensions(on: webView, tabID: tabID, isPrivate: isPrivateTab)
     }
 
     private func applyContentProtection(to userContentController: WKUserContentController) {
@@ -186,6 +199,12 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
         if let passkeyScript = InjectedScripts.shared.makePasskeyAdapterScript() {
             userContentController.addUserScript(passkeyScript)
+        }
+
+        // Install user scripts from enabled Chrome / UserScript extensions
+        let extManager = session?.extensionManager ?? ExtensionManager.shared
+        for extScript in extManager.makeUserScripts(forTabID: tabID, isPrivate: isPrivateTab) {
+            userContentController.addUserScript(extScript)
         }
 
         userContentController.removeAllContentRuleLists()
@@ -444,6 +463,9 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 forName: WebSessionStorageStore.messageHandlerName
             )
         }
+        webView?.configuration.userContentController.removeScriptMessageHandler(
+            forName: ExtensionRuntimeBridge.messageHandlerName
+        )
         webView?.configuration.userContentController.removeAllUserScripts()
         webView?.removeFromSuperview()
         webView = nil
@@ -826,6 +848,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
         WebSessionStorageStore.shared.updateEntries(entries, forOrigin: origin)
     }
+
+    fileprivate func handleExtensionBridgeMessage(_ message: WKScriptMessage) {
+        let extManager = session?.extensionManager ?? ExtensionManager.shared
+        extManager.handleScriptMessage(message, sourceWebView: webView, tabID: tabID)
+    }
 }
 
 private final class WeakSessionStorageMessageHandler: NSObject, WKScriptMessageHandler {
@@ -840,5 +867,20 @@ private final class WeakSessionStorageMessageHandler: NSObject, WKScriptMessageH
         didReceive message: WKScriptMessage
     ) {
         target?.handleSessionStorageMessage(message)
+    }
+}
+
+private final class WeakExtensionBridgeMessageHandler: NSObject, WKScriptMessageHandler {
+    private weak var target: TabController?
+
+    init(target: TabController) {
+        self.target = target
+    }
+
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        target?.handleExtensionBridgeMessage(message)
     }
 }

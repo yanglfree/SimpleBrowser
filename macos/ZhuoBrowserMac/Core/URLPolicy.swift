@@ -5,7 +5,11 @@ public struct URLPolicy {
     public static func looksLikeURL(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return false }
-        if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") || trimmed.hasPrefix("zhuo://") {
+        if trimmed.hasPrefix("http://")
+            || trimmed.hasPrefix("https://")
+            || trimmed.hasPrefix("zhuo://")
+            || trimmed.hasPrefix("zhuo-extension://")
+            || trimmed.hasPrefix("chrome://") {
             return true
         }
         if trimmed.contains(" ") {
@@ -37,6 +41,12 @@ public struct URLPolicy {
             return "zhuo://home"
         }
         if trimmed == "zhuo://home" {
+            return trimmed
+        }
+        if trimmed.lowercased() == "zhuo://extensions" || trimmed.lowercased() == "chrome://extensions" {
+            return "zhuo://extensions"
+        }
+        if trimmed.hasPrefix("zhuo-extension://") {
             return trimmed
         }
         if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {

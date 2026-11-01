@@ -8,6 +8,7 @@ public struct SettingsView: View {
     @ObservedObject private var settings = BrowserSettings.shared
     @ObservedObject private var accountManager = AccountManager.shared
     @ObservedObject private var bgManager = HomeBackgroundManager.shared
+    @ObservedObject private var extensionManager = ExtensionManager.shared
 
     @State private var isShowingAccountSheet: Bool = false
     @State private var isShowingClearHistoryAlert: Bool = false
@@ -53,6 +54,11 @@ public struct SettingsView: View {
 
                     // 3. 安全防护与规则拦截 (Content Protection - 参考 HarmonyOS 端)
                     protectionSection
+
+                    Divider()
+
+                    // 3.5. 扩展程序与插件中心 (Chrome Extensions & UserScripts)
+                    extensionsSection
 
                     Divider()
 
@@ -432,6 +438,45 @@ public struct SettingsView: View {
                 .onChange(of: settings.cosmeticCleanupEnabled) { _ in
                     session.applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: true)
                 }
+        }
+    }
+
+    // 3.5. 扩展程序与插件中心 (Extensions & UserScripts)
+    private var extensionsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                sectionHeader(title: "扩展程序与插件系统 (Chrome Manifest V3 / UserScript)", icon: "puzzlepiece.extension.fill")
+                Spacer()
+                Button("管理扩展程序...") {
+                    isPresented = false
+                    session.openExtensionManager()
+                }
+                .font(.system(size: 12))
+            }
+
+            HStack(spacing: 12) {
+                Text("已安装 \(extensionManager.extensions.count) 个扩展 · 已启用 \(extensionManager.enabledExtensions.count) 个 · 工具栏固定 \(extensionManager.pinnedToolbarExtensions.count) 个")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button("加载已解压扩展...") {
+                    extensionManager.promptLoadUnpackedExtension()
+                }
+                .font(.system(size: 11.5))
+                .controlSize(.small)
+
+                Button("导入 CRX / 脚本...") {
+                    extensionManager.promptInstallExtensionPackage()
+                }
+                .font(.system(size: 11.5))
+                .controlSize(.small)
+            }
+
+            Toggle("开启扩展开发者模式 (支持直接加载本地解包目录与热重载调试)", isOn: $extensionManager.isDeveloperMode)
+                .toggleStyle(.checkbox)
+                .font(.system(size: 13))
         }
     }
 
