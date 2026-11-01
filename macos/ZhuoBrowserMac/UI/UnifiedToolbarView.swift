@@ -16,10 +16,10 @@ public struct UnifiedToolbarView: View {
 
     public var body: some View {
         HStack(alignment: .center, spacing: 8) {
-            // Window Traffic Lights spacer for macOS full-size content view
+            // Window Traffic Lights drag area for macOS full-size content view
             if !isFullScreen {
-                Spacer()
-                    .frame(width: 70)
+                WindowDragBackground()
+                    .frame(width: 70, height: 28)
             }
 
             // Navigation Buttons
@@ -123,6 +123,10 @@ public struct UnifiedToolbarView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isOmniboxFocused ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isOmniboxFocused ? 1.5 : 1)
             )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isOmniboxFocused = true
+            }
 
             // Memory Saver Badge
             MemorySaverBadge(session: session)
@@ -193,12 +197,7 @@ public struct UnifiedToolbarView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .frame(height: 38)
-        .background(
-            ZStack {
-                Color(NSColor.windowBackgroundColor)
-                WindowDragBackground()
-            }
-        )
+        .background(Color(NSColor.windowBackgroundColor))
         .overlay(
             Divider(),
             alignment: .bottom

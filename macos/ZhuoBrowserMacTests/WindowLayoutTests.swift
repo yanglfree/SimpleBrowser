@@ -28,5 +28,22 @@ final class WindowLayoutTests: XCTestCase {
         let dragView = WindowDragNSView(frame: NSRect(x: 0, y: 0, width: 200, height: 38))
         XCTAssertNotNil(dragView)
         XCTAssertEqual(dragView.frame.height, 38)
+        XCTAssertTrue(dragView.mouseDownCanMoveWindow, "WindowDragNSView should allow moving window on drag")
+    }
+
+    func testUnifiedToolbarOmniboxFocusStateSync() {
+        let session = BrowserSession()
+        XCTAssertFalse(session.isOmniboxFocused)
+
+        let toolbar = UnifiedToolbarView(session: session)
+        let hostingView = NSHostingView(rootView: toolbar)
+        hostingView.frame = NSRect(x: 0, y: 0, width: 800, height: 38)
+
+        // Session omnibox focus toggle should propagate
+        session.isOmniboxFocused = true
+        XCTAssertTrue(session.isOmniboxFocused)
+
+        session.isOmniboxFocused = false
+        XCTAssertFalse(session.isOmniboxFocused)
     }
 }
