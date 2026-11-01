@@ -9,7 +9,10 @@ public struct MinimalStartView: View {
 
     @State private var searchInput: String = ""
     @State private var isShowingWallpaperPicker: Bool = false
-    @FocusState private var isSearchFocused: Bool
+    @State private var isSearchFocused: Bool = false
+    @State private var startSuggestions: [OmniboxSuggestion] = []
+    @State private var selectedStartSuggestionIndex: Int = -1
+    @State private var isShowingStartSuggestions: Bool = false
 
     private var hasWallpaper: Bool {
         bgManager.source != .none && bgManager.currentImage != nil
@@ -75,29 +78,54 @@ public struct MinimalStartView: View {
                             dismissFocus()
                         }
 
-                        // Minimalist Search Bar with Focus animation
+                        // Minimalist Search Bar with Focus animation & URL Autocomplete
                         HStack(spacing: 10) {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(hasWallpaper ? Color.white.opacity(0.8) : .secondary)
 
-                            TextField("输入网址或搜索内容...", text: $searchInput)
-                                .textFieldStyle(.plain)
-                                .font(.system(size: 14))
-                                .foregroundColor(hasWallpaper ? .white : .primary)
-                                .focused($isSearchFocused)
-                                .onSubmit {
-                                    performSearch()
+                            MacOmniboxTextField(
+                                text: $searchInput,
+                                isFocused: $isSearchFocused,
+                                placeholder: "输入网址或搜索内容...",
+                                font: .systemFont(ofSize: 14),
+                                textColor: hasWallpaper ? .white : .labelColor,
+                                inlineCompletionProvider: { query in
+                                    session.inlineCompletion(for: query)
+                                },
+                                onUserInput: { query in
+                                    updateStartSuggestions(for: query)
+                                },
+                                onMoveSelection: { delta in
+                                    handleMoveStartSuggestionSelection(delta: delta)
+                                },
+                                onAcceptSuggestion: {
+                                    handleAcceptSelectedStartSuggestion()
+                                },
+                                onCancelSuggestions: {
+                                    if isShowingStartSuggestions {
+                                        dismissStartSuggestions()
+                                        return true
+                                    }
+                                    return false
+                                },
+                                onSubmit: { committed in
+                                    performSearch(with: committed)
                                 }
+                            )
+                            .frame(maxWidth: .infinity, minHeight: 20)
 
                             if !searchInput.isEmpty {
-                                Button(action: { searchInput = "" }) {
+                                Button(action: {
+                                    searchInput = ""
+                                    dismissStartSuggestions()
+                                }) {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(hasWallpaper ? Color.white.opacity(0.7) : .secondary)
                                 }
                                 .buttonStyle(.plain)
                             }
 
-                            Button(action: performSearch) {
+                            Button(action: { performSearch() }) {
                                 Text("前往")
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(hasWallpaper ? .white : .primary)
@@ -130,6 +158,28 @@ public struct MinimalStartView: View {
                         .frame(maxWidth: 480)
                         .scaleEffect(isSearchFocused ? 1.01 : 1.0)
                         .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isSearchFocused)
+                        .overlay(alignment: .top) {
+                            if isSearchFocused && isShowingStartSuggestions && !startSuggestions.isEmpty {
+                                OmniboxSuggestionsDropdownView(
+                                    session: session,
+                                    suggestions: startSuggestions,
+                                    selectedIndex: selectedStartSuggestionIndex,
+                                    onSelect: { suggestion in
+                                        commitStartSuggestion(suggestion)
+                                    }
+                                )
+                                .frame(maxWidth: 480)
+                                .offset(y: 50)
+                            }
+                        }
+                        .zIndex(50)
+                        .onChange(of: isSearchFocused) { focused in
+                            if focused {
+                                session.dismissOmniboxSuggestions()
+                            } else {
+                                dismissStartSuggestions()
+                            }
+                        }
 
                         // Favorites Section ("个人收藏", toggled via settings)
                         if session.settings.quickSitesEnabled {
@@ -266,15 +316,104 @@ public struct MinimalStartView: View {
     }
 
     private func dismissFocus() {
+        dismissStartSuggestions()
         if isSearchFocused {
             isSearchFocused = false
         }
         NSApp.keyWindow?.makeFirstResponder(nil)
     }
 
-    private func performSearch() {
-        guard !searchInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        session.navigate(to: searchInput)
+    private func updateStartSuggestions(for query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            dismissStartSuggestions()
+            return
+        }
+        let next = session.suggestions(for: trimmed)
+        startSuggestions = next
+        selectedStartSuggestionIndex = next.isEmpty ? -1 : 0
+        isShowingStartSuggestions = !next.isEmpty
+    }
+
+    private func dismissStartSuggestions() {
+        if isShowingStartSuggestions {
+            isShowingStartSuggestions = false
+        }
+        if selectedStartSuggestionIndex != -1 {
+            selectedStartSuggestionIndex = -1
+        }
+        if !startSuggestions.isEmpty {
+            startSuggestions = []
+        }
+    }
+
+    private func handleMoveStartSuggestionSelection(delta: Int) -> Bool {
+        if !isShowingStartSuggestions {
+            let trimmed = searchInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return false }
+            updateStartSuggestions(for: trimmed)
+            return isShowingStartSuggestions
+        }
+
+        let count = startSuggestions.count
+        guard count > 0 else { return false }
+
+        let nextIndex: Int
+        if selectedStartSuggestionIndex < 0 {
+            nextIndex = delta > 0 ? 0 : (count - 1)
+        } else {
+            nextIndex = (selectedStartSuggestionIndex + delta + count) % count
+        }
+
+        selectedStartSuggestionIndex = nextIndex
+        searchInput = startSuggestions[nextIndex].completionText
+        return true
+    }
+
+    private func handleAcceptSelectedStartSuggestion() -> Bool {
+        guard isShowingStartSuggestions,
+              selectedStartSuggestionIndex >= 0,
+              selectedStartSuggestionIndex < startSuggestions.count else {
+            return false
+        }
+        let chosen = startSuggestions[selectedStartSuggestionIndex]
+        searchInput = chosen.completionText
+        updateStartSuggestions(for: chosen.completionText)
+        return true
+    }
+
+    private func commitStartSuggestion(_ suggestion: OmniboxSuggestion) {
+        dismissStartSuggestions()
+        isSearchFocused = false
+        session.navigate(to: suggestion.url)
+    }
+
+    private func performSearch(with committedText: String? = nil) {
+        let rawInput = (committedText ?? searchInput).trimmingCharacters(in: .whitespacesAndNewlines)
+        let selectedIndex = selectedStartSuggestionIndex
+        let selectedSuggestion: OmniboxSuggestion? = {
+            guard isShowingStartSuggestions,
+                  selectedIndex >= 0,
+                  selectedIndex < startSuggestions.count else {
+                return nil
+            }
+            return startSuggestions[selectedIndex]
+        }()
+
+        dismissStartSuggestions()
+        isSearchFocused = false
+
+        if let selected = selectedSuggestion {
+            if selectedIndex > 0
+                || selected.completionText.caseInsensitiveCompare(rawInput) == .orderedSame
+                || selected.title.caseInsensitiveCompare(rawInput) == .orderedSame {
+                session.navigate(to: selected.url)
+                return
+            }
+        }
+
+        guard !rawInput.isEmpty else { return }
+        session.navigate(to: rawInput)
     }
 }
 

@@ -21,6 +21,10 @@ public final class BrowserSession: ObservableObject {
     @Published public var activeTabID: String?
     @Published public var omniboxText: String = ""
     @Published public var isOmniboxFocused: Bool = false
+    @Published public var omniboxSuggestions: [OmniboxSuggestion] = []
+    @Published public var selectedOmniboxSuggestionIndex: Int = -1
+    @Published public var isShowingOmniboxSuggestions: Bool = false
+    @Published public var omniboxFrameInWindow: CGRect = .zero
     @Published public var activeLiveControllersCount: Int = 0
     @Published public private(set) var activeController: TabController?
     @Published public private(set) var memoryPressure: MemoryPressureLevel = .nominal
@@ -203,6 +207,7 @@ public final class BrowserSession: ObservableObject {
         let changed = activeTabID != id
         activeTabID = id
         omniboxText = URLPolicy.displayAddress(for: tabs[index].url)
+        dismissOmniboxSuggestions()
 
         // Instant path: reuse the warm WebView, or revive the frozen snapshot. No
         // `load(url:)` happens here, which is what removes the reload flash.
@@ -234,6 +239,61 @@ public final class BrowserSession: ObservableObject {
         }
     }
 
+    // MARK: - Omnibox Autocomplete & Suggestions
+
+    public func suggestions(
+        for query: String,
+        includeSearchSuggestion: Bool = true,
+        maxCount: Int = OmniboxSuggestionPolicy.defaultMaxSuggestions
+    ) -> [OmniboxSuggestion] {
+        OmniboxSuggestionPolicy.suggestions(
+            for: query,
+            history: history,
+            bookmarks: bookmarks,
+            searchEngine: settings.searchEngine,
+            includeSearchSuggestion: includeSearchSuggestion,
+            maxCount: maxCount
+        )
+    }
+
+    public func inlineCompletion(for query: String) -> String? {
+        OmniboxSuggestionPolicy.inlineCompletion(
+            for: query,
+            history: history,
+            bookmarks: bookmarks
+        )
+    }
+
+    public func updateOmniboxSuggestions(for query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            dismissOmniboxSuggestions()
+            return
+        }
+        let next = suggestions(for: trimmed)
+        omniboxSuggestions = next
+        selectedOmniboxSuggestionIndex = next.isEmpty ? -1 : 0
+        isShowingOmniboxSuggestions = !next.isEmpty
+    }
+
+    public func dismissOmniboxSuggestions() {
+        if isShowingOmniboxSuggestions {
+            isShowingOmniboxSuggestions = false
+        }
+        if selectedOmniboxSuggestionIndex != -1 {
+            selectedOmniboxSuggestionIndex = -1
+        }
+        if !omniboxSuggestions.isEmpty {
+            omniboxSuggestions = []
+        }
+    }
+
+    public func commitOmniboxSuggestion(_ suggestion: OmniboxSuggestion) {
+        dismissOmniboxSuggestions()
+        isOmniboxFocused = false
+        navigate(to: suggestion.url)
+    }
+
     // MARK: - Navigation
 
     public func openExternalURL(_ rawText: String) {
@@ -248,6 +308,7 @@ public final class BrowserSession: ObservableObject {
     }
 
     public func navigate(to text: String) {
+        dismissOmniboxSuggestions()
         let normalizedURL = URLPolicy.normalizeAddress(text, searchEngine: settings.searchEngine)
         guard let activeID = activeTabID, let index = tabs.firstIndex(where: { $0.id == activeID }) else { return }
 

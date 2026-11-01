@@ -5,7 +5,7 @@ public struct UnifiedToolbarView: View {
     @ObservedObject var session: BrowserSession
     @ObservedObject private var accountManager = AccountManager.shared
     @ObservedObject private var downloadManager = DownloadManager.shared
-    @FocusState private var isOmniboxFocused: Bool
+    @State private var isOmniboxFocused: Bool = false
     @State private var currentText: String = ""
     @State private var isShowingSettings: Bool = false
     @State private var isShowingAccount: Bool = false
@@ -202,6 +202,12 @@ public struct UnifiedToolbarView: View {
                 isFullScreen = false
             }
         }
+        .onChange(of: activeTab?.id) { _ in
+            session.dismissOmniboxSuggestions()
+            if !isOmniboxFocused {
+                syncDisplayAddress()
+            }
+        }
         .onChange(of: activeTab?.url) { _ in
             if !isOmniboxFocused {
                 syncDisplayAddress()
@@ -215,6 +221,7 @@ public struct UnifiedToolbarView: View {
                     currentText = activeTab?.url ?? ""
                 }
             } else {
+                session.dismissOmniboxSuggestions()
                 syncDisplayAddress()
             }
             if session.isOmniboxFocused != focused {
@@ -250,14 +257,36 @@ public struct UnifiedToolbarView: View {
                 isOmniboxFocused = true
             }
 
-            TextField("搜索或输入网址", text: $currentText)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .focused($isOmniboxFocused)
-                .onSubmit {
-                    submitNavigation()
+            MacOmniboxTextField(
+                text: $currentText,
+                isFocused: $isOmniboxFocused,
+                placeholder: "搜索或输入网址",
+                font: .systemFont(ofSize: 13),
+                textColor: .labelColor,
+                inlineCompletionProvider: { query in
+                    session.inlineCompletion(for: query)
+                },
+                onUserInput: { query in
+                    session.updateOmniboxSuggestions(for: query)
+                },
+                onMoveSelection: { delta in
+                    handleMoveSuggestionSelection(delta: delta)
+                },
+                onAcceptSuggestion: {
+                    handleAcceptSelectedSuggestion()
+                },
+                onCancelSuggestions: {
+                    if session.isShowingOmniboxSuggestions {
+                        session.dismissOmniboxSuggestions()
+                        return true
+                    }
+                    return false
+                },
+                onSubmit: { committed in
+                    submitNavigation(with: committed)
                 }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Bookmark star button with quick folder & edit popover
             if let tab = activeTab, !tab.isHome, !tab.url.isEmpty {
@@ -293,14 +322,17 @@ public struct UnifiedToolbarView: View {
             }
 
             if isOmniboxFocused && !currentText.isEmpty {
-                Button(action: { currentText = "" }) {
+                Button(action: {
+                    currentText = ""
+                    session.dismissOmniboxSuggestions()
+                }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
 
-                Button(action: submitNavigation) {
+                Button(action: { submitNavigation() }) {
                     Image(systemName: "arrow.right.circle.fill")
                         .font(.system(size: 13))
                         .foregroundColor(.accentColor)
@@ -312,12 +344,63 @@ public struct UnifiedToolbarView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .frame(height: 28)
-        .background(Color(NSColor.textBackgroundColor))
+        .background(
+            GeometryReader { proxy in
+                let frame = proxy.frame(in: .named("MainWindowSpace"))
+                Color(NSColor.textBackgroundColor)
+                    .onAppear {
+                        if session.omniboxFrameInWindow != frame {
+                            session.omniboxFrameInWindow = frame
+                        }
+                    }
+                    .onChange(of: frame) { newFrame in
+                        if session.omniboxFrameInWindow != newFrame {
+                            session.omniboxFrameInWindow = newFrame
+                        }
+                    }
+            }
+        )
         .cornerRadius(8)
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(isOmniboxFocused ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isOmniboxFocused ? 1.5 : 1)
         )
+    }
+
+    private func handleMoveSuggestionSelection(delta: Int) -> Bool {
+        if !session.isShowingOmniboxSuggestions {
+            let trimmed = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return false }
+            session.updateOmniboxSuggestions(for: trimmed)
+            return session.isShowingOmniboxSuggestions
+        }
+
+        let count = session.omniboxSuggestions.count
+        guard count > 0 else { return false }
+
+        let currentIndex = session.selectedOmniboxSuggestionIndex
+        let nextIndex: Int
+        if currentIndex < 0 {
+            nextIndex = delta > 0 ? 0 : (count - 1)
+        } else {
+            nextIndex = (currentIndex + delta + count) % count
+        }
+
+        session.selectedOmniboxSuggestionIndex = nextIndex
+        currentText = session.omniboxSuggestions[nextIndex].completionText
+        return true
+    }
+
+    private func handleAcceptSelectedSuggestion() -> Bool {
+        guard session.isShowingOmniboxSuggestions,
+              session.selectedOmniboxSuggestionIndex >= 0,
+              session.selectedOmniboxSuggestionIndex < session.omniboxSuggestions.count else {
+            return false
+        }
+        let chosen = session.omniboxSuggestions[session.selectedOmniboxSuggestionIndex]
+        currentText = chosen.completionText
+        session.updateOmniboxSuggestions(for: chosen.completionText)
+        return true
     }
 
     private func syncDisplayAddress() {
@@ -328,12 +411,33 @@ public struct UnifiedToolbarView: View {
         }
     }
 
-    private func submitNavigation() {
+    private func submitNavigation(with committedText: String? = nil) {
+        let rawInput = (committedText ?? currentText).trimmingCharacters(in: .whitespacesAndNewlines)
+        let selectedIndex = session.selectedOmniboxSuggestionIndex
+        let selectedSuggestion: OmniboxSuggestion? = {
+            guard session.isShowingOmniboxSuggestions,
+                  selectedIndex >= 0,
+                  selectedIndex < session.omniboxSuggestions.count else {
+                return nil
+            }
+            return session.omniboxSuggestions[selectedIndex]
+        }()
+
+        session.dismissOmniboxSuggestions()
         isOmniboxFocused = false
         session.isOmniboxFocused = false
-        let textToNavigate = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !textToNavigate.isEmpty else { return }
-        session.navigate(to: textToNavigate)
+
+        if let selected = selectedSuggestion {
+            if selectedIndex > 0
+                || selected.completionText.caseInsensitiveCompare(rawInput) == .orderedSame
+                || selected.title.caseInsensitiveCompare(rawInput) == .orderedSame {
+                session.navigate(to: selected.url)
+                return
+            }
+        }
+
+        guard !rawInput.isEmpty else { return }
+        session.navigate(to: rawInput)
     }
 
     private var toolbarInitialsAvatar: some View {
