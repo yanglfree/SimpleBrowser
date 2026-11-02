@@ -111,22 +111,40 @@ public final class BrowserSession: ObservableObject {
         let initialLibrary = libraryStore.loadInitialBookmarksAndFolders()
         bookmarkFolders = initialLibrary.folders
         bookmarks = initialLibrary.bookmarks
-        history = libraryStore.loadHistory()
+        let loadedHistory = libraryStore.loadHistory()
+        let cleanedHistory = loadedHistory.filter { !URLPolicy.isBlankURL($0.url) }
+        history = cleanedHistory
+        if cleanedHistory.count != loadedHistory.count {
+            libraryStore.saveHistory(cleanedHistory)
+        }
         syncFavoritesManager()
 
         let shouldRestore = restoresPreviousSession ?? Self.shouldRestorePreviousSession
         if shouldRestore, let savedTabs = stateStore.loadTabSession(), !savedTabs.isEmpty {
+            let currentHistory = cleanedHistory
+            let currentBookmarks = bookmarks
             tabs = savedTabs.map { persisted in
-                let restoredURL = URLPolicy.upgradeToHTTPSIfPublicHost(persisted.url)
+                let candidateURL: String
+                if URLPolicy.isBlankURL(persisted.url) {
+                    candidateURL = Self.recoverURLForBlankTab(
+                        title: persisted.title,
+                        history: currentHistory,
+                        bookmarks: currentBookmarks
+                    ) ?? "zhuo://home"
+                } else {
+                    candidateURL = persisted.url
+                }
+                let restoredURL = URLPolicy.upgradeToHTTPSIfPublicHost(candidateURL)
                 if restoredURL != persisted.url {
                     stateStore.removeSnapshot(for: persisted.id)
                 }
+                let isHome = restoredURL.isEmpty || restoredURL == "zhuo://home"
                 return BrowserTab(
                     id: persisted.id,
                     url: restoredURL,
-                    title: persisted.title,
+                    title: isHome && persisted.title.isEmpty ? "新标签页" : persisted.title,
                     isPrivate: false,
-                    isHibernated: !(restoredURL.isEmpty || restoredURL == "zhuo://home"),
+                    isHibernated: !isHome,
                     lastActiveTime: persisted.lastActiveTime
                 )
             }
@@ -614,9 +632,40 @@ public final class BrowserSession: ObservableObject {
         }
     }
 
+    /// Recovers the original URL of a persisted tab whose URL was previously overwritten with
+    /// `about:blank` by matching its title against recent browsing history or bookmarks.
+    public static func recoverURLForBlankTab(
+        title: String,
+        history: [HistoryEntry],
+        bookmarks: [BookmarkEntry]
+    ) -> String? {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty, trimmedTitle != "新标签页", trimmedTitle != "无痕新标签" else {
+            return nil
+        }
+        if let matchedHistory = history.first(where: {
+            !URLPolicy.isBlankURL($0.url)
+                && !URLPolicy.isHomeURL($0.url)
+                && $0.title.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(trimmedTitle) == .orderedSame
+        }) {
+            return matchedHistory.url
+        }
+        if let matchedBookmark = bookmarks.first(where: {
+            !URLPolicy.isBlankURL($0.url)
+                && !URLPolicy.isHomeURL($0.url)
+                && $0.title.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(trimmedTitle) == .orderedSame
+        }) {
+            return matchedBookmark.url
+        }
+        return nil
+    }
+
     /// Validates that a persisted snapshot still matches the tab's current URL and was
     /// not superseded by a later navigation or login after the snapshot was captured.
     public static func isSnapshotUsable(_ snapshot: TabStateSnapshot, for tab: BrowserTab) -> Bool {
+        if URLPolicy.isBlankURL(snapshot.url) {
+            return false
+        }
         let snapshotURL = LibraryPolicy.normalizeComparableURL(snapshot.url)
         let tabURL = LibraryPolicy.normalizeComparableURL(tab.url)
         if !snapshotURL.isEmpty && !tabURL.isEmpty && snapshotURL != tabURL {
@@ -1167,7 +1216,10 @@ public final class BrowserSession: ObservableObject {
            let index = tabs.firstIndex(where: { $0.id == activeID }),
            !tabs[index].isPrivate,
            !tabs[index].isHome {
-            if let liveURL = controller.webView?.url?.absoluteString, !liveURL.isEmpty, tabs[index].url != liveURL {
+            if let liveURL = controller.webView?.url?.absoluteString,
+               !liveURL.isEmpty,
+               !URLPolicy.isBlankURL(liveURL),
+               tabs[index].url != liveURL {
                 tabs[index].url = liveURL
             }
             if let liveTitle = controller.webView?.title, !liveTitle.isEmpty, tabs[index].title != liveTitle {
@@ -1187,7 +1239,9 @@ public final class BrowserSession: ObservableObject {
             guard let index = tabs.firstIndex(where: { $0.id == id }),
                   !tabs[index].isPrivate,
                   !tabs[index].isHome else { continue }
-            if let liveURL = controller.webView?.url?.absoluteString, !liveURL.isEmpty {
+            if let liveURL = controller.webView?.url?.absoluteString,
+               !liveURL.isEmpty,
+               !URLPolicy.isBlankURL(liveURL) {
                 tabs[index].url = liveURL
             }
             if let liveTitle = controller.webView?.title, !liveTitle.isEmpty {

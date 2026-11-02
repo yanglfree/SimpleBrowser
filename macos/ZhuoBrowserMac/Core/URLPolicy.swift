@@ -65,7 +65,7 @@ public struct URLPolicy {
 
     /// Clean display string for Omnibox (e.g. show domain when not editing)
     public static func displayAddress(for urlString: String) -> String {
-        if urlString.isEmpty || urlString == "zhuo://home" {
+        if isHomeURL(urlString) || isBlankURL(urlString) {
             return ""
         }
         guard let url = URL(string: urlString) else {
@@ -112,6 +112,16 @@ public struct URLPolicy {
     /// Checks if the url is an empty/new tab or internal home url
     public static func isHomeURL(_ url: String) -> Bool {
         url.isEmpty || url == "zhuo://home"
+    }
+
+    /// Checks whether the URL string is WebKit's internal `about:blank` or `about:srcdoc` placeholder,
+    /// which must never overwrite a tab's intended address when a navigation fails or rolls back.
+    public static func isBlankURL(_ url: String) -> Bool {
+        let lower = url.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return lower == "about:blank"
+            || lower.hasPrefix("about:blank#")
+            || lower.hasPrefix("about:blank?")
+            || lower == "about:srcdoc"
     }
 
     /// Returns true when the host is loopback, localhost, mDNS `.local`, or a raw IPv4/IPv6 literal

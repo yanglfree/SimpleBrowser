@@ -376,4 +376,68 @@ final class TabStateRestorationTests: XCTestCase {
         )
         XCTAssertTrue(BrowserSession.isSnapshotUsable(freshMatchingSnapshot, for: channelsTab))
     }
+
+    func testNavigationFailurePreservesTargetURLAndNeverRevertsToAboutBlank() {
+        let store = TabStateStore(isPersistenceEnabled: false)
+        let monitor = MemoryPressureMonitor()
+        let session = BrowserSession(stateStore: store, pressureMonitor: monitor, restoresPreviousSession: false)
+
+        let targetURL = "https://jules.google.com/session"
+        session.navigate(to: targetURL)
+
+        guard let activeID = session.activeTabID,
+              let controller = session.controller(for: activeID) else {
+            XCTFail("Expected active controller")
+            return
+        }
+
+        // Simulate WebKit rolling back URL to about:blank before reporting provisional failure
+        session.updateTab(activeID) { $0.url = "about:blank" }
+
+        let failingError = NSError(
+            domain: NSURLErrorDomain,
+            code: NSURLErrorCannotConnectToHost,
+            userInfo: [
+                NSURLErrorFailingURLErrorKey: URL(string: targetURL)!,
+                NSURLErrorFailingURLStringErrorKey: targetURL
+            ]
+        )
+        controller.handleNavigationFailure(failingError, wasRestoring: false)
+
+        XCTAssertEqual(session.activeTab?.url, targetURL)
+        XCTAssertEqual(session.omniboxText, "jules.google.com/session")
+        XCTAssertTrue(controller.lastNavigationFailed)
+        XCTAssertEqual(controller.lastTargetURL?.absoluteString, targetURL)
+
+        // Snapshot of a failed tab should keep the target URL and drop blank interaction state
+        let snap = controller.makeSnapshot()
+        XCTAssertEqual(snap?.url, targetURL)
+        XCTAssertNil(snap?.interactionState)
+    }
+
+    func testBlankSnapshotIsRejectedAndBlankTabRecoversURLFromHistory() {
+        let now = Date()
+        let blankSnapshot = TabStateSnapshot(
+            url: "about:blank",
+            title: "Jules",
+            scrollPositionY: 0,
+            canGoBack: false,
+            canGoForward: false,
+            capturedAt: now,
+            interactionState: Data([0x01])
+        )
+        let tab = BrowserTab(id: "tab-jules", url: "https://jules.google.com/session", title: "Jules", lastActiveTime: now)
+        XCTAssertFalse(BrowserSession.isSnapshotUsable(blankSnapshot, for: tab))
+
+        let history = [
+            HistoryEntry(title: "Jules", url: "https://jules.google.com/session", visitedAt: now.timeIntervalSince1970)
+        ]
+        let recovered = BrowserSession.recoverURLForBlankTab(title: "Jules", history: history, bookmarks: [])
+        XCTAssertEqual(recovered, "https://jules.google.com/session")
+
+        // Recording about:blank into history must be ignored
+        let afterBlankRecord = LibraryPolicy.recordHistory(history, url: "about:blank", title: "Jules")
+        XCTAssertEqual(afterBlankRecord.count, 1)
+        XCTAssertEqual(afterBlankRecord.first?.url, "https://jules.google.com/session")
+    }
 }

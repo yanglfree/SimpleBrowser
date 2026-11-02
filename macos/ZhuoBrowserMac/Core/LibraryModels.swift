@@ -249,7 +249,7 @@ public enum LibraryPolicy {
         title: String,
         now: TimeInterval = Date().timeIntervalSince1970
     ) -> [HistoryEntry] {
-        guard !url.isEmpty, url != "zhuo://home" else { return history }
+        guard !url.isEmpty, url != "zhuo://home", !URLPolicy.isBlankURL(url) else { return history }
 
         let target = normalizeComparableURL(url)
         let previous = history.first { normalizeComparableURL($0.url) == target }

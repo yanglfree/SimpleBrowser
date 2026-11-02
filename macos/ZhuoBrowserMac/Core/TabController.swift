@@ -18,6 +18,13 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// gracefully fall back to a normal navigation instead of leaving a blank page.
     public private(set) var isRestoringFromSnapshot: Bool = false
 
+    /// Most recent non-blank target URL requested or committed in this tab controller.
+    public private(set) var lastTargetURL: URL?
+
+    /// Indicates that the most recent navigation attempt failed, so `reload()` should
+    /// re-request `lastTargetURL` instead of calling `WKWebView.reload()` on `about:blank`.
+    public private(set) var lastNavigationFailed: Bool = false
+
     private var restoreWatchdog: DispatchWorkItem?
     private var restoreFallbackURL: URL?
     private var shouldAutoRefreshAfterRestore: Bool = false
@@ -58,6 +65,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         self.tabID = tabID
         self.session = session
         self.isPrivateTab = isPrivate
+        if let initialURL, !URLPolicy.isBlankURL(initialURL.absoluteString) {
+            self.lastTargetURL = initialURL
+        } else if let snapURL = snapshot?.url, !URLPolicy.isBlankURL(snapURL), let parsed = URL(string: snapURL) {
+            self.lastTargetURL = parsed
+        }
         super.init()
         setupWebView(isPrivate: isPrivate)
 
@@ -145,7 +157,12 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
 
         urlObservation = wv.observe(\.url, options: [.new]) { [weak self] _, change in
-            guard let self = self, let url = change.newValue, let urlString = url?.absoluteString else { return }
+            guard let self = self,
+                  let url = change.newValue,
+                  let resolvedURL = url,
+                  !URLPolicy.isBlankURL(resolvedURL.absoluteString) else { return }
+            let urlString = resolvedURL.absoluteString
+            self.lastTargetURL = resolvedURL
             self.session?.updateTab(self.tabID) { tab in
                 tab.url = urlString
             }
@@ -218,6 +235,10 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         cancelRestoration()
         // A typed/open navigation is an explicit intent: never restore an old offset.
         shouldRestoreScrollAfterLoad = false
+        if !URLPolicy.isBlankURL(url.absoluteString) {
+            lastTargetURL = url
+            lastNavigationFailed = false
+        }
         if url.isFileURL {
             webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
             return
@@ -231,11 +252,23 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         cancelRestoration()
         shouldRestoreScrollAfterLoad = lastKnownScrollPositionY > 0
         session?.updateTab(tabID) { $0.isSnapshotStale = false }
-        if let currentURLString = webView.url?.absoluteString ?? session?.tab(for: tabID)?.url {
-            let upgraded = URLPolicy.upgradeToHTTPSIfPublicHost(currentURLString)
-            if upgraded != currentURLString, let httpsURL = URL(string: upgraded) {
+
+        let liveURLString = webView.url?.absoluteString ?? ""
+        let fallbackTabURLString = session?.tab(for: tabID)?.url ?? lastTargetURL?.absoluteString ?? ""
+        let effectiveURLString = (!liveURLString.isEmpty && !URLPolicy.isBlankURL(liveURLString))
+            ? liveURLString
+            : fallbackTabURLString
+
+        if !effectiveURLString.isEmpty,
+           !URLPolicy.isHomeURL(effectiveURLString),
+           !URLPolicy.isBlankURL(effectiveURLString) {
+            let upgraded = URLPolicy.upgradeToHTTPSIfPublicHost(effectiveURLString)
+            if upgraded != effectiveURLString || URLPolicy.isBlankURL(session?.tab(for: tabID)?.url ?? "") {
                 session?.updateTab(tabID) { $0.url = upgraded }
-                webView.load(URLRequest(url: httpsURL))
+            }
+            if upgraded != liveURLString || lastNavigationFailed || URLPolicy.isBlankURL(liveURLString) || webView.url == nil,
+               let targetURL = URL(string: upgraded) {
+                load(url: targetURL)
                 return
             }
         }
@@ -250,24 +283,32 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         shouldRestoreScrollAfterLoad = lastKnownScrollPositionY > 0
         session?.updateTab(tabID) { $0.isSnapshotStale = false }
 
-        let currentURLString = webView.url?.absoluteString ?? session?.tab(for: tabID)?.url ?? ""
+        let liveURLString = webView.url?.absoluteString ?? ""
+        let fallbackTabURLString = session?.tab(for: tabID)?.url ?? lastTargetURL?.absoluteString ?? ""
+        let currentURLString = (!liveURLString.isEmpty && !URLPolicy.isBlankURL(liveURLString))
+            ? liveURLString
+            : fallbackTabURLString
         let upgradedString = URLPolicy.upgradeToHTTPSIfPublicHost(currentURLString)
         let didUpgradeScheme = upgradedString != currentURLString
-        if didUpgradeScheme {
+        if didUpgradeScheme || URLPolicy.isBlankURL(session?.tab(for: tabID)?.url ?? "") {
             session?.updateTab(tabID) { $0.url = upgradedString }
         }
         let host = URLPolicy.rawHost(upgradedString)
 
-        let performReload = { [weak webView] in
+        let performReload = { [weak self, weak webView] in
             guard let webView else { return }
-            if didUpgradeScheme, let httpsURL = URL(string: upgradedString) {
-                let request = URLRequest(url: httpsURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData)
+            let liveNow = webView.url?.absoluteString ?? ""
+            let needsExplicitLoad = didUpgradeScheme
+                || (self?.lastNavigationFailed ?? false)
+                || webView.url == nil
+                || URLPolicy.isBlankURL(liveNow)
+            if needsExplicitLoad, let targetURL = URL(string: upgradedString), !upgradedString.isEmpty {
+                self?.lastTargetURL = targetURL
+                self?.lastNavigationFailed = false
+                let request = URLRequest(url: targetURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData)
                 webView.load(request)
             } else if webView.url != nil {
                 webView.reloadFromOrigin()
-            } else if let targetURL = URL(string: upgradedString), !upgradedString.isEmpty {
-                let request = URLRequest(url: targetURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData)
-                webView.load(request)
             }
         }
 
@@ -330,9 +371,21 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     public func makeSnapshot(scrollPositionY: Double? = nil) -> TabStateSnapshot? {
         guard let webView else { return nil }
         let tab = session?.tab(for: tabID)
-        let rawState = webView.interactionState
+        let liveURL = webView.url?.absoluteString ?? ""
+        let fallbackURL = tab?.url ?? lastTargetURL?.absoluteString ?? ""
+        let resolvedURL: String
+        if !liveURL.isEmpty && !URLPolicy.isBlankURL(liveURL) {
+            resolvedURL = liveURL
+        } else if !URLPolicy.isBlankURL(fallbackURL) {
+            resolvedURL = fallbackURL
+        } else {
+            resolvedURL = ""
+        }
+        guard !resolvedURL.isEmpty else { return nil }
+        let hasValidLiveDocument = !liveURL.isEmpty && !URLPolicy.isBlankURL(liveURL) && !lastNavigationFailed
+        let rawState = hasValidLiveDocument ? webView.interactionState : nil
         return TabStateSnapshot(
-            url: webView.url?.absoluteString ?? tab?.url ?? "",
+            url: resolvedURL,
             title: webView.title ?? tab?.title ?? "",
             scrollPositionY: scrollPositionY ?? lastKnownScrollPositionY,
             canGoBack: webView.canGoBack,
@@ -426,9 +479,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.isRestoringFromSnapshot else { return }
             self.isRestoringFromSnapshot = false
-            // A restore that never produced a URL silently failed (corrupt/stale
-            // archive): fall back to a real navigation instead of showing a blank page.
-            if self.webView?.url == nil, let fallback = self.restoreFallbackURL {
+            // A restore that never produced a URL or ended on about:blank silently failed
+            // (corrupt/stale archive): fall back to a real navigation instead of showing a blank page.
+            let currentWebURL = self.webView?.url?.absoluteString ?? ""
+            if self.webView?.url == nil || URLPolicy.isBlankURL(currentWebURL),
+               let fallback = self.restoreFallbackURL ?? self.lastTargetURL {
                 self.restoreFallbackURL = nil
                 self.load(url: fallback)
             }
@@ -489,8 +544,36 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         restoreWatchdog = nil
         let wasRestoring = isRestoringFromSnapshot
         isRestoringFromSnapshot = false
+
+        let finishedURL = webView.url?.absoluteString ?? ""
+        if URLPolicy.isBlankURL(finishedURL) {
+            if wasRestoring, !didAttemptRestoreFallback,
+               let fallback = restoreFallbackURL ?? lastTargetURL ?? session?.tab(for: tabID).flatMap({ URL(string: $0.url) }),
+               !URLPolicy.isBlankURL(fallback.absoluteString),
+               !URLPolicy.isHomeURL(fallback.absoluteString) {
+                didAttemptRestoreFallback = true
+                restoreFallbackURL = nil
+                load(url: fallback)
+                return
+            }
+            session?.updateTab(tabID) { tab in
+                tab.isLoading = false
+                tab.loadingProgress = 1.0
+                if URLPolicy.isBlankURL(tab.url),
+                   let preserved = self.lastTargetURL?.absoluteString,
+                   !URLPolicy.isBlankURL(preserved) {
+                    tab.url = preserved
+                }
+            }
+            return
+        }
+
         restoreFallbackURL = nil
         didAttemptRestoreFallback = false
+        lastNavigationFailed = false
+        if let committedURL = webView.url {
+            lastTargetURL = committedURL
+        }
 
         let restoredScrollY = lastKnownScrollPositionY
         session?.updateTab(tabID) { tab in
@@ -499,8 +582,8 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             if let title = webView.title, !title.isEmpty {
                 tab.title = title
             }
-            if let url = webView.url?.absoluteString, !url.isEmpty {
-                tab.url = url
+            if !finishedURL.isEmpty {
+                tab.url = finishedURL
             }
             if wasRestoring {
                 tab.isHibernated = false
@@ -551,22 +634,42 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
     }
 
-    public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        restoreWatchdog?.cancel()
-        restoreWatchdog = nil
-        isRestoringFromSnapshot = false
-        session?.updateTab(tabID) { tab in
-            tab.isLoading = false
+    /// Extracts the failing navigation URL from a WebKit / NSURLError failure payload.
+    public static func extractFailingURL(from error: Error) -> URL? {
+        let nsError = error as NSError
+        if let failingURL = nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL,
+           !URLPolicy.isBlankURL(failingURL.absoluteString) {
+            return failingURL
         }
+        if let failingString = nsError.userInfo[NSURLErrorFailingURLStringErrorKey] as? String,
+           !URLPolicy.isBlankURL(failingString),
+           let parsed = URL(string: failingString) {
+            return parsed
+        }
+        return nil
     }
 
-    public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+    /// Handles a navigation failure while preserving the intended target URL on the tab
+    /// so the address bar never reverts to `about:blank` and `Cmd+R` can retry the URL.
+    public func handleNavigationFailure(_ error: Error, wasRestoring: Bool = false) {
         restoreWatchdog?.cancel()
         restoreWatchdog = nil
-        let wasRestoring = isRestoringFromSnapshot
         isRestoringFromSnapshot = false
+        lastNavigationFailed = true
+
+        if let failingURL = Self.extractFailingURL(from: error) {
+            lastTargetURL = failingURL
+        }
+
+        let preservedURLString = lastTargetURL?.absoluteString
         session?.updateTab(tabID) { tab in
             tab.isLoading = false
+            if let preserved = preservedURLString,
+               !preserved.isEmpty,
+               !URLPolicy.isBlankURL(preserved),
+               (tab.url.isEmpty || URLPolicy.isBlankURL(tab.url) || tab.url != preserved) {
+                tab.url = preserved
+            }
         }
 
         // A failed restore must degrade into a normal load, silently and exactly once.
@@ -575,6 +678,15 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             restoreFallbackURL = nil
             load(url: fallback)
         }
+    }
+
+    public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        handleNavigationFailure(error, wasRestoring: false)
+    }
+
+    public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        let wasRestoring = isRestoringFromSnapshot
+        handleNavigationFailure(error, wasRestoring: wasRestoring)
     }
 
     public func webView(
@@ -587,9 +699,18 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             return
         }
         if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
+            if !URLPolicy.isBlankURL(url.absoluteString) {
+                lastTargetURL = url
+                lastNavigationFailed = false
+            }
             webView.load(URLRequest(url: url))
             decisionHandler(.cancel)
             return
+        }
+        if navigationAction.targetFrame?.isMainFrame == true,
+           let url = navigationAction.request.url,
+           !URLPolicy.isBlankURL(url.absoluteString) {
+            lastTargetURL = url
         }
         decisionHandler(.allow)
     }
