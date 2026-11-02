@@ -60,17 +60,8 @@ public enum ExtensionRuntimeBridge {
             const pendingCallbacks = new Map();
             let nextRequestId = 1;
 
-            const listeners = {
-                runtimeOnMessage: new Set(),
-                runtimeOnInstalled: new Set(),
-                storageOnChanged: new Set(),
-                actionOnClicked: new Set(),
-                contextMenusOnClicked: new Set(),
-                tabsOnUpdated: new Set(),
-                tabsOnActivated: new Set()
-            };
-
-            function makeEventTarget(listenerSet) {
+            function createEventTarget() {
+                const listenerSet = new Set();
                 return {
                     addListener: function(fn) {
                         if (typeof fn === "function") listenerSet.add(fn);
@@ -99,6 +90,16 @@ public enum ExtensionRuntimeBridge {
                     }
                 };
             }
+
+            const listeners = {
+                runtimeOnMessage: createEventTarget(),
+                runtimeOnInstalled: createEventTarget(),
+                storageOnChanged: createEventTarget(),
+                actionOnClicked: createEventTarget(),
+                contextMenusOnClicked: createEventTarget(),
+                tabsOnUpdated: createEventTarget(),
+                tabsOnActivated: createEventTarget()
+            };
 
             function postNative(action, payload, callback) {
                 const reqId = EXT_ID + "_" + (nextRequestId++) + "_" + Date.now();
@@ -291,7 +292,7 @@ public enum ExtensionRuntimeBridge {
                     const cb = typeof tabId === "function" ? tabId : callback;
                     return postNative("action.setEnabled", { enabled: false }, cb);
                 },
-                onClicked: makeEventTarget(listeners.actionOnClicked)
+                onClicked: listeners.actionOnClicked
             };
 
             const chromeObj = {
@@ -329,14 +330,14 @@ public enum ExtensionRuntimeBridge {
                         if (typeof callback === "function") callback(info);
                         return Promise.resolve(info);
                     },
-                    onMessage: makeEventTarget(listeners.runtimeOnMessage),
-                    onInstalled: makeEventTarget(listeners.runtimeOnInstalled)
+                    onMessage: listeners.runtimeOnMessage,
+                    onInstalled: listeners.runtimeOnInstalled
                 },
                 storage: {
                     local: createStorageArea("local", localStoreCache),
                     sync: createStorageArea("sync", syncStoreCache),
                     session: createStorageArea("session", sessionStoreCache),
-                    onChanged: makeEventTarget(listeners.storageOnChanged)
+                    onChanged: listeners.storageOnChanged
                 },
                 action: actionAPI,
                 browserAction: actionAPI,
@@ -404,8 +405,8 @@ public enum ExtensionRuntimeBridge {
                             files: details.file ? [details.file] : (details.files || [])
                         }, cb);
                     },
-                    onUpdated: makeEventTarget(listeners.tabsOnUpdated),
-                    onActivated: makeEventTarget(listeners.tabsOnActivated)
+                    onUpdated: listeners.tabsOnUpdated,
+                    onActivated: listeners.tabsOnActivated
                 },
                 scripting: {
                     executeScript: function(injection, callback) {
@@ -476,7 +477,7 @@ public enum ExtensionRuntimeBridge {
                     removeAll: function(callback) {
                         return postNative("contextMenus.removeAll", {}, callback);
                     },
-                    onClicked: makeEventTarget(listeners.contextMenusOnClicked)
+                    onClicked: listeners.contextMenusOnClicked
                 },
                 notifications: {
                     create: function(idOrOptions, maybeOptionsOrCb, maybeCb) {

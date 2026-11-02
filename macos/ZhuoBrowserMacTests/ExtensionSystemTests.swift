@@ -369,4 +369,92 @@ final class ExtensionSystemTests: XCTestCase {
         reloadedManager.uninstallExtension(id: custom.id)
         XCTAssertNil(reloadedManager.extensionItem(forID: custom.id))
     }
+
+    func testMediaSnifferEndToEnd() throws {
+        let manager = ExtensionManager(rootDirectory: tempDir, persistsToDisk: false)
+        let stateStore = TabStateStore(isPersistenceEnabled: false)
+        let session = BrowserSession(
+            stateStore: stateStore,
+            extensionManager: manager,
+            restoresPreviousSession: false
+        )
+        let tab = session.createTab(url: "https://example.com/test", select: true)
+        let controller = try XCTUnwrap(session.controller(for: tab.id))
+        let webView = try XCTUnwrap(controller.webView)
+
+        let sniffer = try XCTUnwrap(manager.extensionItem(forID: BuiltInExtensions.mediaSnifferID))
+        XCTAssertTrue(sniffer.isEnabled)
+
+        // 1. Load an HTML page with images into the webView
+        let htmlLoadedExp = expectation(description: "html loaded")
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head><title>Test Media Page</title></head>
+        <body>
+            <img src="https://example.com/pic1.jpg" width="100" height="100" alt="Picture 1">
+            <img src="https://example.com/pic2.png" width="200" height="200" alt="Picture 2">
+            <svg width="32" height="32"><circle cx="16" cy="16" r="10"/></svg>
+        </body>
+        </html>
+        """
+        webView.loadHTMLString(html, baseURL: URL(string: "https://example.com/test")!)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            htmlLoadedExp.fulfill()
+        }
+        wait(for: [htmlLoadedExp], timeout: 2.0)
+
+        // 2. Inject Media Sniffer scripts
+        manager.evaluateExtensionScripts(sniffer, on: webView, tabID: tab.id, urlString: "https://example.com/test")
+
+        let scanDoneExp = expectation(description: "scan done")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            scanDoneExp.fulfill()
+        }
+        wait(for: [scanDoneExp], timeout: 2.0)
+
+        // 3. Test tabs.query from popup context
+        let queryExp = expectation(description: "tabs.query")
+        var queriedTabs: [[String: Any]]?
+        manager.processBridgeCall(
+            extensionID: sniffer.id,
+            action: "tabs.query",
+            payload: ["active": true, "currentWindow": true],
+            sourceTabID: nil
+        ) { result, err in
+            XCTAssertNil(err)
+            queriedTabs = result as? [[String: Any]]
+            queryExp.fulfill()
+        }
+        wait(for: [queryExp], timeout: 1.0)
+        XCTAssertEqual(queriedTabs?.count, 1)
+        let targetTabID = queriedTabs?.first?["id"] as? Int
+        XCTAssertNotNil(targetTabID)
+
+        // 4. Test tabs.sendMessage from popup context
+        let sendMsgExp = expectation(description: "tabs.sendMessage")
+        var receivedResp: [String: Any]?
+        var receivedErr: String?
+        manager.processBridgeCall(
+            extensionID: sniffer.id,
+            action: "tabs.sendMessage",
+            payload: [
+                "tabId": targetTabID!,
+                "message": ["type": "SNIFFER_SCAN"]
+            ],
+            sourceTabID: nil
+        ) { result, err in
+            receivedResp = result as? [String: Any]
+            receivedErr = err
+            sendMsgExp.fulfill()
+        }
+        wait(for: [sendMsgExp], timeout: 2.0)
+
+        XCTAssertNil(receivedErr)
+        let items = receivedResp?["items"] as? [[String: Any]]
+        XCTAssertNotNil(items)
+        XCTAssertEqual(items?.count, 3)
+        XCTAssertEqual(receivedResp?["pageTitle"] as? String, "Test Media Page")
+    }
 }

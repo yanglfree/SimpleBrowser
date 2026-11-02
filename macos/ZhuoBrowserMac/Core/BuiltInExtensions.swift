@@ -858,7 +858,10 @@ public enum BuiltInExtensions {
             body { width: 340px; max-height: 440px; padding: 12px; background: #18181B; color: #F4F4F5; display: flex; flex-direction: column; }
             .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
             .title { font-size: 13px; font-weight: 700; }
+            .header-right { display: flex; align-items: center; gap: 6px; }
             .count { font-size: 11px; color: #F59E0B; font-weight: 600; }
+            .refresh-btn { background: #27272A; border: 1px solid #3F3F46; color: #D4D4D8; border-radius: 4px; padding: 2px 6px; font-size: 11px; cursor: pointer; }
+            .refresh-btn:hover { background: #3F3F46; color: #FFF; }
             .filters { display: flex; gap: 6px; margin-bottom: 10px; }
             .filter-btn { flex: 1; padding: 4px 6px; font-size: 11px; border-radius: 6px; border: 1px solid #3F3F46; background: #27272A; color: #D4D4D8; cursor: pointer; }
             .filter-btn.active { background: #F59E0B; color: #18181B; border-color: #F59E0B; font-weight: 700; }
@@ -877,7 +880,10 @@ public enum BuiltInExtensions {
         <body>
             <div class="header">
                 <span class="title">🖼️ 页面媒体与资源嗅探</span>
-                <span id="countLabel" class="count">扫描中...</span>
+                <div class="header-right">
+                    <span id="countLabel" class="count">扫描中...</span>
+                    <button id="refreshBtn" class="refresh-btn" type="button" title="重新嗅探">刷新</button>
+                </div>
             </div>
             <div class="filters">
                 <button class="filter-btn active" data-kind="ALL">全部</button>
@@ -969,19 +975,29 @@ public enum BuiltInExtensions {
                 });
             });
 
-            chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-                const tab = tabs && tabs[0];
-                if (!tab) {
-                    renderList();
-                    return;
-                }
-                chrome.tabs.sendMessage(tab.id, { type: "SNIFFER_SCAN" }, function(resp) {
-                    if (resp && Array.isArray(resp.items)) {
-                        allItems = resp.items;
+            function performScan() {
+                countLabel.textContent = "扫描中...";
+                chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+                    const tab = tabs && tabs[0];
+                    if (!tab) {
+                        renderList();
+                        return;
                     }
-                    renderList();
+                    chrome.tabs.sendMessage(tab.id, { type: "SNIFFER_SCAN" }, function(resp) {
+                        if (resp && Array.isArray(resp.items)) {
+                            allItems = resp.items;
+                        }
+                        renderList();
+                    });
                 });
-            });
+            }
+
+            const refreshBtn = document.getElementById("refreshBtn");
+            if (refreshBtn) {
+                refreshBtn.addEventListener("click", performScan);
+            }
+
+            performScan();
         })();
         """
 
