@@ -476,6 +476,26 @@ final class OmniboxSuggestionTests: XCTestCase {
             accuracy: 1.0,
             "Top edge of suggestion panel must sit directly below the bottom edge of the omnibox"
         )
+        XCTAssertEqual(
+            controller.currentContentViewFrame,
+            NSRect(x: 0, y: 0, width: panelFrame.width, height: panelFrame.height),
+            "Hosting view frame must fill 100% of the panel content rect without leaving a top gap"
+        )
+
+        // Subsequent keystroke with identical suggestion count must preserve full hostingView height
+        controller.update(
+            anchorView: anchorView,
+            session: session,
+            suggestions: suggestions,
+            selectedIndex: 0,
+            isPresented: true,
+            onSelect: { _ in }
+        )
+        XCTAssertEqual(
+            controller.currentContentViewFrame,
+            NSRect(x: 0, y: 0, width: panelFrame.width, height: panelFrame.height),
+            "Subsequent updates must never shrink hostingView height"
+        )
 
         controller.hide()
         XCTAssertFalse(controller.isPanelVisible)

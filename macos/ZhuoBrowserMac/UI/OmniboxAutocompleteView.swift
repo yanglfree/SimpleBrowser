@@ -370,6 +370,10 @@ public final class OmniboxSuggestionPanelController {
         panel?.frame
     }
 
+    public var currentContentViewFrame: NSRect? {
+        hostingView?.frame
+    }
+
     /// Computes the screen frame for the dropdown panel so its top edge (`maxY`) sits `verticalGap` points
     /// directly below `anchorView`'s bottom edge (`minY`), matching `anchorView`'s left edge and width.
     public static func panelScreenFrame(
@@ -431,6 +435,7 @@ public final class OmniboxSuggestionPanelController {
             hostingView.rootView = dropdownRoot
         } else {
             let newHost = FirstMouseHostingView(rootView: dropdownRoot)
+            newHost.autoresizingMask = [.width, .height]
             newHost.wantsLayer = true
             newHost.layer?.backgroundColor = NSColor.clear.cgColor
 
@@ -456,16 +461,19 @@ public final class OmniboxSuggestionPanelController {
             hostingView = newHost
         }
 
-        hostingView.frame = NSRect(x: 0, y: 0, width: targetWidth, height: 10)
-        hostingView.layoutSubtreeIfNeeded()
-        let fittingHeight = max(hostingView.fittingSize.height, 36)
+        let fittingHeight = max(ceil(hostingView.fittingSize.height), 36)
 
         let panelFrame = Self.panelScreenFrame(
             for: anchorView,
             in: parentWindow,
             contentHeight: fittingHeight
         )
+        let contentBounds = NSRect(x: 0, y: 0, width: panelFrame.width, height: panelFrame.height)
         panel.setFrame(panelFrame, display: true)
+        if hostingView.frame != contentBounds {
+            hostingView.frame = contentBounds
+        }
+        hostingView.layoutSubtreeIfNeeded()
         panel.invalidateShadow()
 
         if panel.parent !== parentWindow {
@@ -489,22 +497,22 @@ public final class OmniboxSuggestionPanelController {
               let hostingView else {
             return
         }
-        let rectInWindow = anchorView.convert(anchorView.bounds, to: nil)
-        let anchorScreenRect = parentWindow.convertToScreen(rectInWindow)
-        let targetWidth = max(round(anchorScreenRect.width), 320)
-        hostingView.frame = NSRect(x: 0, y: 0, width: targetWidth, height: hostingView.frame.height)
-        hostingView.layoutSubtreeIfNeeded()
-        let fittingHeight = max(hostingView.fittingSize.height, 36)
+        let fittingHeight = max(ceil(hostingView.fittingSize.height), 36)
 
         let panelFrame = Self.panelScreenFrame(
             for: anchorView,
             in: parentWindow,
             contentHeight: fittingHeight
         )
+        let contentBounds = NSRect(x: 0, y: 0, width: panelFrame.width, height: panelFrame.height)
         if panel.frame != panelFrame {
             panel.setFrame(panelFrame, display: true)
-            panel.invalidateShadow()
         }
+        if hostingView.frame != contentBounds {
+            hostingView.frame = contentBounds
+        }
+        hostingView.layoutSubtreeIfNeeded()
+        panel.invalidateShadow()
     }
 
     public func hide() {
