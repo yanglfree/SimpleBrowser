@@ -6,6 +6,7 @@ public struct SettingsView: View {
     @Binding var isPresented: Bool
 
     @ObservedObject private var settings = BrowserSettings.shared
+    @ObservedObject private var defaultBrowserManager = DefaultBrowserManager.shared
     @ObservedObject private var accountManager = AccountManager.shared
     @ObservedObject private var bgManager = HomeBackgroundManager.shared
     @ObservedObject private var extensionManager = ExtensionManager.shared
@@ -136,6 +137,8 @@ public struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader(title: "常规与搜索", icon: "magnifyingglass")
 
+            defaultBrowserRow
+
             HStack {
                 Text("默认搜索引擎")
                     .font(.system(size: 13))
@@ -152,6 +155,85 @@ public struct SettingsView: View {
             Toggle("在主页显示快捷访问站点卡片", isOn: $settings.quickSitesEnabled)
                 .toggleStyle(.checkbox)
                 .font(.system(size: 13))
+        }
+        .onAppear {
+            defaultBrowserManager.refreshStatus()
+        }
+    }
+
+    private var defaultBrowserRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text("默认网页浏览器")
+                            .font(.system(size: 13, weight: .medium))
+                        if defaultBrowserManager.isDefaultBrowser {
+                            HStack(spacing: 3) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 10))
+                                Text("已设为默认")
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .foregroundColor(.green)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.12))
+                            .cornerRadius(4)
+                        }
+                    }
+
+                    Text(defaultBrowserManager.isDefaultBrowser
+                         ? "Zhuo浏览器 当前是您的系统默认网页浏览器"
+                         : "当前系统默认：\(defaultBrowserManager.currentDefaultBrowserName) · 设为默认后可直接打开所有网页链接与 HTML 文件")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    if !defaultBrowserManager.isDefaultBrowser {
+                        Button(action: {
+                            defaultBrowserManager.setAsDefaultBrowser()
+                        }) {
+                            Text(defaultBrowserManager.isRequestingDefault ? "正在请求..." : "设为默认浏览器")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(defaultBrowserManager.isRequestingDefault)
+                    }
+
+                    Button("系统设置...") {
+                        defaultBrowserManager.openSystemDefaultBrowserSettings()
+                    }
+                    .font(.system(size: 12))
+                    .controlSize(.small)
+                    .help("打开 macOS「系统设置 → 桌面与程序坞 → 默认网页浏览器」")
+                }
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(defaultBrowserManager.isDefaultBrowser
+                          ? Color.green.opacity(0.06)
+                          : Color.secondary.opacity(0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(defaultBrowserManager.isDefaultBrowser
+                            ? Color.green.opacity(0.2)
+                            : Color.secondary.opacity(0.15), lineWidth: 1)
+            )
+
+            if let statusMessage = defaultBrowserManager.statusMessage, !statusMessage.isEmpty {
+                Text(statusMessage)
+                    .font(.system(size: 11))
+                    .foregroundColor(defaultBrowserManager.isDefaultBrowser ? .green : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

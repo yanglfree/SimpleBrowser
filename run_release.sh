@@ -658,6 +658,30 @@ run_macos() {
   local app_bundle="$derived/Build/Products/${configuration}/ZhuoBrowserMac.app"
   [[ -d "$app_bundle" ]] || fail "macOS app bundle not found: $app_bundle"
 
+  local lsregister_bin="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+  if [[ -w "/Applications" ]]; then
+    if [[ -d "/Applications/卓阅.app" ]]; then
+      local legacy_id
+      legacy_id="$(defaults read "/Applications/卓阅.app/Contents/Info.plist" CFBundleIdentifier 2>/dev/null || true)"
+      if [[ "$legacy_id" == "com.youdroid.zhuobrowser.mac" ]]; then
+        [[ -x "$lsregister_bin" ]] && "$lsregister_bin" -u "/Applications/卓阅.app" >/dev/null 2>&1 || true
+        rm -rf "/Applications/卓阅.app"
+      fi
+    fi
+    rm -rf "/Applications/ZhuoBrowserMac.app"
+    ditto "$app_bundle" "/Applications/ZhuoBrowserMac.app"
+    if [[ -x "$lsregister_bin" ]]; then
+      "$lsregister_bin" -u "$app_bundle" >/dev/null 2>&1 || true
+      for extra_dd in "$HOME"/Library/Developer/Xcode/DerivedData/ZhuoBrowserMac-*/Build/Products/*/ZhuoBrowserMac.app; do
+        [[ -d "$extra_dd" ]] && "$lsregister_bin" -u "$extra_dd" >/dev/null 2>&1 || true
+      done
+    fi
+    app_bundle="/Applications/ZhuoBrowserMac.app"
+  fi
+  if [[ -x "$lsregister_bin" ]]; then
+    "$lsregister_bin" -f "$app_bundle" >/dev/null 2>&1 || true
+  fi
+
   if [[ "$LAUNCH_APP" == true ]]; then
     print -- "Launching $app_bundle ..."
     if pgrep -x ZhuoBrowserMac >/dev/null 2>&1; then

@@ -7,6 +7,7 @@ public struct URLPolicy {
         if trimmed.isEmpty { return false }
         if trimmed.hasPrefix("http://")
             || trimmed.hasPrefix("https://")
+            || trimmed.hasPrefix("file://")
             || trimmed.hasPrefix("zhuo://")
             || trimmed.hasPrefix("zhuo-extension://")
             || trimmed.hasPrefix("chrome://") {
@@ -46,7 +47,7 @@ public struct URLPolicy {
         if trimmed.lowercased() == "zhuo://extensions" || trimmed.lowercased() == "chrome://extensions" {
             return "zhuo://extensions"
         }
-        if trimmed.hasPrefix("zhuo-extension://") {
+        if trimmed.hasPrefix("zhuo-extension://") || trimmed.hasPrefix("file://") {
             return trimmed
         }
         if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {
@@ -70,7 +71,10 @@ public struct URLPolicy {
         guard let url = URL(string: urlString) else {
             return urlString
         }
-        if let host = url.host {
+        if url.isFileURL {
+            return urlString
+        }
+        if let host = url.host, !host.isEmpty {
             return host + (url.path == "/" ? "" : url.path)
         }
         return urlString

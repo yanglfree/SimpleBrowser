@@ -218,6 +218,10 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         cancelRestoration()
         // A typed/open navigation is an explicit intent: never restore an old offset.
         shouldRestoreScrollAfterLoad = false
+        if url.isFileURL {
+            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            return
+        }
         let request = URLRequest(url: url)
         webView.load(request)
     }

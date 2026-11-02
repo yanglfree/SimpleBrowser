@@ -12,6 +12,8 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !RuntimeEnvironment.isRunningUnitTests else { return }
+        DefaultBrowserManager.shared.ensureRegisteredWithLaunchServices()
+        DefaultBrowserManager.shared.refreshStatus()
         installTerminationSignalHandlers()
         handleInitialLaunchArguments()
         Task { @MainActor in
