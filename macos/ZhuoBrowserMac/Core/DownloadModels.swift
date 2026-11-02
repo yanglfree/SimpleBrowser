@@ -60,7 +60,7 @@ public struct DownloadItem: Identifiable, Equatable, Codable, Sendable {
             if totalBytes > 0 {
                 return "\(DownloadPolicy.formatByteCount(receivedBytes)) / \(DownloadPolicy.formatByteCount(totalBytes))"
             } else if receivedBytes > 0 {
-                return DownloadPolicy.formatByteCount(receivedBytes)
+                return "已下载 \(DownloadPolicy.formatByteCount(receivedBytes))"
             } else {
                 return "正在下载…"
             }

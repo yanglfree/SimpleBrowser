@@ -121,4 +121,95 @@ final class DownloadTests: XCTestCase {
         hosting.layoutSubtreeIfNeeded()
         XCTAssertNotNil(hosting)
     }
+
+    func testDownloadStatusTextWithUnknownTotalSize() {
+        let item = DownloadItem(
+            id: "dl-unknown",
+            sourceURL: "https://example.com/stream",
+            filename: "stream.bin",
+            destinationPath: "/tmp/stream.bin",
+            receivedBytes: 2048,
+            totalBytes: -1,
+            state: .downloading
+        )
+        XCTAssertEqual(item.statusText, "已下载 2 KB")
+        XCTAssertNil(item.progress)
+    }
+
+    func testDirectDownloadStreamsProgressAndCompletes() {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ZhuoDirectDownloadTests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let sourceFile = tempDir.appendingPathComponent("source.data")
+        let testData = Data(repeating: 0xAB, count: 64 * 1024)
+        try? testData.write(to: sourceFile)
+
+        let targetDir = tempDir.appendingPathComponent("target", isDirectory: true)
+
+        let manager = DownloadManager(
+            storageFileURL: tempDir.appendingPathComponent("downloads.json"),
+            downloadsDirectoryProvider: { targetDir },
+            autoOpenPopoverOnNewDownload: false
+        )
+
+        manager.startDirectDownload(from: sourceFile, suggestedFilename: "output.data")
+
+        let exp = expectation(description: "Direct download finishes")
+        let startTime = Date()
+
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
+            Task { @MainActor in
+                if let item = manager.items.first(where: { $0.filename == "output.data" }) {
+                    if item.state == .completed {
+                        timer.invalidate()
+                        XCTAssertEqual(item.receivedBytes, 64 * 1024)
+                        XCTAssertEqual(item.totalBytes, 64 * 1024)
+                        XCTAssertTrue(FileManager.default.fileExists(atPath: item.destinationPath))
+                        exp.fulfill()
+                    } else if item.state == .failed || item.state == .cancelled {
+                        timer.invalidate()
+                        XCTFail("Download failed with: \(item.errorMessage ?? "unknown")")
+                        exp.fulfill()
+                    }
+                }
+                if Date().timeIntervalSince(startTime) > 5.0 {
+                    timer.invalidate()
+                    XCTFail("Download timed out")
+                    exp.fulfill()
+                }
+            }
+        }
+
+        wait(for: [exp], timeout: 6.0)
+    }
+
+    func testDirectDownloadCancellation() {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ZhuoDirectCancelTests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let targetDir = tempDir.appendingPathComponent("target", isDirectory: true)
+
+        let manager = DownloadManager(
+            storageFileURL: tempDir.appendingPathComponent("downloads.json"),
+            downloadsDirectoryProvider: { targetDir },
+            autoOpenPopoverOnNewDownload: false
+        )
+
+        let fakeURL = URL(string: "https://example.invalid/largefile.iso")!
+        manager.startDirectDownload(from: fakeURL, suggestedFilename: "largefile.iso")
+
+        guard let item = manager.items.first else {
+            XCTFail("Item should exist")
+            return
+        }
+
+        XCTAssertEqual(item.state, .downloading)
+        manager.cancelDownload(id: item.id)
+
+        XCTAssertEqual(manager.items.first?.state, .cancelled)
+    }
 }

@@ -25,6 +25,14 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
     private var resumeDataByID: [String: Data] = [:]
     private var directTasks: [String: URLSessionDownloadTask] = [:]
 
+    private lazy var directCoordinator = DirectDownloadCoordinator(owner: self)
+    private lazy var directSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 60
+        config.timeoutIntervalForResource = 3600
+        return URLSession(configuration: config, delegate: directCoordinator, delegateQueue: nil)
+    }()
+
     public init(
         storageFileURL: URL? = DownloadManager.defaultStorageFileURL(),
         downloadsDirectoryProvider: @escaping () -> URL = DownloadManager.defaultDownloadsDirectory,
@@ -151,7 +159,11 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
         suggestedFilename: String,
         completionHandler: @escaping (URL?) -> Void
     ) {
-        Task { @MainActor in
+        let runBlock = { @MainActor [weak self] in
+            guard let self else {
+                completionHandler(nil)
+                return
+            }
             let key = ObjectIdentifier(download)
             let targetDir = self.downloadsDirectoryProvider()
             try? FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
@@ -160,6 +172,11 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
                 in: targetDir,
                 suggestedFilename: suggestedFilename
             )
+
+            // Remove any stale or zero-byte placeholder at destination to prevent WebKit write collisions
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try? FileManager.default.removeItem(at: destinationURL)
+            }
 
             if let id = self.wkDownloadIDByObject[key],
                let idx = self.items.firstIndex(where: { $0.id == id }) {
@@ -177,10 +194,21 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
 
             completionHandler(destinationURL)
         }
+
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                runBlock()
+            }
+        } else {
+            Task { @MainActor in
+                runBlock()
+            }
+        }
     }
 
     nonisolated public func downloadDidFinish(_ download: WKDownload) {
-        Task { @MainActor in
+        let runBlock = { @MainActor [weak self] in
+            guard let self else { return }
             let key = ObjectIdentifier(download)
             guard let id = self.wkDownloadIDByObject.removeValue(forKey: key) else { return }
             self.cleanupTracking(for: id)
@@ -202,6 +230,16 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
                 self.saveItems()
             }
         }
+
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                runBlock()
+            }
+        } else {
+            Task { @MainActor in
+                runBlock()
+            }
+        }
     }
 
     nonisolated public func download(
@@ -209,7 +247,8 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
         didFailWithError error: Error,
         resumeData: Data?
     ) {
-        Task { @MainActor in
+        let runBlock = { @MainActor [weak self] in
+            guard let self else { return }
             let key = ObjectIdentifier(download)
             guard let id = self.wkDownloadIDByObject.removeValue(forKey: key) else { return }
             self.cleanupTracking(for: id)
@@ -230,6 +269,49 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
                 self.saveItems()
             }
         }
+
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                runBlock()
+            }
+        } else {
+            Task { @MainActor in
+                runBlock()
+            }
+        }
+    }
+
+    nonisolated public func download(
+        _ download: WKDownload,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        let runBlock = { @MainActor in
+            if let credential = URLCredentialStorage.shared.defaultCredential(for: challenge.protectionSpace) {
+                completionHandler(.useCredential, credential)
+                return
+            }
+            completionHandler(.performDefaultHandling, nil)
+        }
+
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                runBlock()
+            }
+        } else {
+            Task { @MainActor in
+                runBlock()
+            }
+        }
+    }
+
+    nonisolated public func download(
+        _ download: WKDownload,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        decisionHandler: @escaping (WKDownload.RedirectPolicy) -> Void
+    ) {
+        decisionHandler(.allow)
     }
 
     // MARK: - User Actions & Testable Entry Points
@@ -252,12 +334,13 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
             wkDownloadIDByObject.removeValue(forKey: ObjectIdentifier(wkDownload))
             wkDownload.cancel { [weak self] resumeData in
                 guard let resumeData else { return }
-                Task { @MainActor [weak self] in
+                MainActor.assumeIsolated {
                     self?.resumeDataByID[id] = resumeData
                 }
             }
         }
         if let task = directTasks.removeValue(forKey: id) {
+            directCoordinator.unregister(taskID: task.taskIdentifier)
             task.cancel()
         }
         cleanupTracking(for: id)
@@ -271,7 +354,7 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
         if let resumeData = resumeDataByID.removeValue(forKey: id), let webView {
             items.remove(at: idx)
             webView.resumeDownload(fromResumeData: resumeData) { [weak self] wkDownload in
-                Task { @MainActor [weak self] in
+                MainActor.assumeIsolated {
                     self?.handleWebKitDownload(wkDownload, fallbackURL: URL(string: item.sourceURL))
                 }
             }
@@ -282,7 +365,7 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
         if let webView {
             items.remove(at: idx)
             webView.startDownload(using: URLRequest(url: url)) { [weak self] wkDownload in
-                Task { @MainActor [weak self] in
+                MainActor.assumeIsolated {
                     self?.handleWebKitDownload(wkDownload, fallbackURL: url)
                 }
             }
@@ -313,56 +396,63 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
             isShowingPopover = true
         }
 
-        let task = URLSession.shared.downloadTask(with: url) { [weak self] tempURL, response, error in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.directTasks.removeValue(forKey: id)
-                guard let idx = self.items.firstIndex(where: { $0.id == id }) else { return }
-
-                if let error {
-                    let nsError = error as NSError
-                    if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
-                        self.items[idx].state = .cancelled
-                    } else {
-                        self.items[idx].state = .failed
-                        self.items[idx].errorMessage = error.localizedDescription
-                    }
-                    self.saveItems()
-                    return
-                }
-
-                guard let tempURL else {
-                    self.items[idx].state = .failed
-                    self.saveItems()
-                    return
-                }
-
-                let finalDestination: URL
-                if let suggested = response?.suggestedFilename, !suggested.isEmpty, suggestedFilename == nil {
-                    finalDestination = DownloadPolicy.uniqueDestinationURL(in: targetDir, suggestedFilename: suggested)
-                } else {
-                    finalDestination = destinationURL
-                }
-
-                do {
-                    try? FileManager.default.removeItem(at: finalDestination)
-                    try FileManager.default.moveItem(at: tempURL, to: finalDestination)
-                    let size = ((try? FileManager.default.attributesOfItem(atPath: finalDestination.path)[.size]) as? NSNumber)?.int64Value ?? 0
-                    self.items[idx].filename = finalDestination.lastPathComponent
-                    self.items[idx].destinationPath = finalDestination.path
-                    self.items[idx].receivedBytes = size
-                    self.items[idx].totalBytes = size
-                    self.items[idx].state = .completed
-                    self.items[idx].completedAt = Date().timeIntervalSince1970
-                } catch {
-                    self.items[idx].state = .failed
-                    self.items[idx].errorMessage = error.localizedDescription
-                }
-                self.saveItems()
-            }
-        }
+        let task = directSession.downloadTask(with: url)
+        directCoordinator.register(
+            taskID: task.taskIdentifier,
+            id: id,
+            destinationURL: destinationURL
+        )
         directTasks[id] = task
         task.resume()
+    }
+
+    // MARK: - Direct URLSession Handling
+
+    fileprivate func handleDirectDownloadProgress(
+        id: String,
+        receivedBytes: Int64,
+        totalBytes: Int64
+    ) {
+        updateProgress(id: id, receivedBytes: receivedBytes, totalBytes: totalBytes)
+    }
+
+    fileprivate func handleDirectDownloadFinished(
+        id: String,
+        destinationURL: URL,
+        fileSize: Int64,
+        error: Error?
+    ) {
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        if let error {
+            items[idx].state = .failed
+            items[idx].errorMessage = error.localizedDescription
+        } else {
+            items[idx].filename = destinationURL.lastPathComponent
+            items[idx].destinationPath = destinationURL.path
+            items[idx].receivedBytes = fileSize
+            items[idx].totalBytes = fileSize
+            items[idx].state = .completed
+            items[idx].completedAt = Date().timeIntervalSince1970
+            items[idx].errorMessage = nil
+        }
+        saveItems()
+    }
+
+    fileprivate func handleDirectDownloadCompleted(id: String, error: Error?) {
+        directTasks.removeValue(forKey: id)
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        if let error {
+            if items[idx].state != .completed {
+                let nsError = error as NSError
+                if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+                    items[idx].state = .cancelled
+                } else {
+                    items[idx].state = .failed
+                    items[idx].errorMessage = error.localizedDescription
+                }
+                saveItems()
+            }
+        }
     }
 
     public func removeDownload(id: String) {
@@ -468,5 +558,111 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
             guard let data = try? JSONEncoder().encode(snapshot) else { return }
             try? data.write(to: storageFileURL, options: .atomic)
         }
+    }
+}
+
+// MARK: - DirectDownloadCoordinator
+
+private final class DirectDownloadCoordinator: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    struct Context {
+        let id: String
+        let destinationURL: URL
+    }
+
+    private let lock = NSLock()
+    private var contexts: [Int: Context] = [:]
+    private weak var owner: DownloadManager?
+
+    init(owner: DownloadManager) {
+        self.owner = owner
+        super.init()
+    }
+
+    func register(taskID: Int, id: String, destinationURL: URL) {
+        lock.withLock {
+            contexts[taskID] = Context(id: id, destinationURL: destinationURL)
+        }
+    }
+
+    func unregister(taskID: Int) {
+        _ = lock.withLock {
+            contexts.removeValue(forKey: taskID)
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        let taskID = downloadTask.taskIdentifier
+        guard let ctx = lock.withLock({ contexts[taskID] }) else { return }
+        Task { @MainActor [weak owner] in
+            owner?.handleDirectDownloadProgress(
+                id: ctx.id,
+                receivedBytes: totalBytesWritten,
+                totalBytes: totalBytesExpectedToWrite
+            )
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        let taskID = downloadTask.taskIdentifier
+        guard let ctx = lock.withLock({ contexts[taskID] }) else { return }
+
+        // Must move the file immediately before didFinishDownloadingTo returns
+        var moveError: Error?
+        do {
+            try? FileManager.default.removeItem(at: ctx.destinationURL)
+            try FileManager.default.moveItem(at: location, to: ctx.destinationURL)
+        } catch {
+            moveError = error
+        }
+
+        let fileSize = ((try? FileManager.default.attributesOfItem(atPath: ctx.destinationURL.path)[.size]) as? NSNumber)?.int64Value ?? 0
+
+        Task { @MainActor [weak owner] in
+            owner?.handleDirectDownloadFinished(
+                id: ctx.id,
+                destinationURL: ctx.destinationURL,
+                fileSize: fileSize,
+                error: moveError
+            )
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        let taskID = task.taskIdentifier
+        guard let ctx = lock.withLock({ contexts.removeValue(forKey: taskID) }) else { return }
+
+        Task { @MainActor [weak owner] in
+            owner?.handleDirectDownloadCompleted(
+                id: ctx.id,
+                error: error
+            )
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        if let credential = URLCredentialStorage.shared.defaultCredential(for: challenge.protectionSpace) {
+            completionHandler(.useCredential, credential)
+            return
+        }
+        completionHandler(.performDefaultHandling, nil)
     }
 }

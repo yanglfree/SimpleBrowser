@@ -113,10 +113,17 @@ private struct DownloadItemRowView: View {
                     .truncationMode(.middle)
 
                 if item.state == .downloading {
-                    ProgressView(value: item.progress ?? 0.08, total: 1.0)
-                        .progressViewStyle(.linear)
-                        .controlSize(.small)
-                        .tint(.accentColor)
+                    if let progress = item.progress {
+                        ProgressView(value: progress, total: 1.0)
+                            .progressViewStyle(.linear)
+                            .controlSize(.small)
+                            .tint(.accentColor)
+                    } else {
+                        ProgressView()
+                            .progressViewStyle(.linear)
+                            .controlSize(.small)
+                            .tint(.accentColor)
+                    }
                 }
 
                 Text(subtitleText)

@@ -735,8 +735,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         navigationAction: WKNavigationAction,
         didBecome download: WKDownload
     ) {
+        session?.updateTab(tabID) { tab in
+            tab.isLoading = false
+        }
         let fallbackURL = navigationAction.request.url
-        Task { @MainActor in
+        MainActor.assumeIsolated {
             DownloadManager.shared.handleWebKitDownload(download, fallbackURL: fallbackURL)
         }
     }
@@ -746,8 +749,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         navigationResponse: WKNavigationResponse,
         didBecome download: WKDownload
     ) {
+        session?.updateTab(tabID) { tab in
+            tab.isLoading = false
+        }
         let fallbackURL = navigationResponse.response.url
-        Task { @MainActor in
+        MainActor.assumeIsolated {
             DownloadManager.shared.handleWebKitDownload(download, fallbackURL: fallbackURL)
         }
     }
