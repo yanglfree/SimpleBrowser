@@ -7,6 +7,7 @@ import SwiftUI
 /// It also flushes WebKit's *session* cookies (the ones that only live in the network
 /// process memory). Without this, quitting or updating the app signs the user out of
 /// every website.
+@MainActor
 final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
     private var signalSources: [DispatchSourceSignal] = []
 
@@ -57,6 +58,7 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func flushAllStateForTermination() {
+        WebPopupWindowManager.shared.closeAllPopups()
         BrowserSettings.shared.flushSynchronously()
         CookieSessionStore.shared.persistSessionCookiesSynchronously()
         WebSessionStorageStore.shared.flushSynchronously()
@@ -93,11 +95,13 @@ public struct ZhuoBrowserMacApp: App {
     public var body: some Scene {
         WindowGroup {
             MainWindowView(session: session)
+                .handlesExternalEvents(preferring: Set(["*"]), allowing: Set(["*"]))
                 .onOpenURL { url in
                     session.openExternalURL(url.absoluteString)
                 }
         }
         .windowStyle(.hiddenTitleBar)
+        .handlesExternalEvents(matching: Set(["*"]))
         .commands {
             CommandGroup(replacing: .appSettings) {
                 Button("偏好设置...") {

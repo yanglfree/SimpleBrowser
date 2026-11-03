@@ -452,9 +452,15 @@ public final class BrowserSession: ObservableObject {
 
     // MARK: - Navigation
 
+    @MainActor
     public func openExternalURL(_ rawText: String) {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+
+        if let url = URL(string: trimmed), OAuthPolicy.isOAuthOrLoginURL(url) {
+            WebPopupWindowManager.shared.openPopup(url: url)
+            return
+        }
 
         if let active = activeTab, active.isHome {
             navigate(to: trimmed)

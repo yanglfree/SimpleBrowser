@@ -709,8 +709,14 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             if !URLPolicy.isBlankURL(url.absoluteString) {
                 lastTargetURL = url
                 lastNavigationFailed = false
+                MainActor.assumeIsolated {
+                    if OAuthPolicy.isOAuthOrLoginURL(url) {
+                        WebPopupWindowManager.shared.openPopup(url: url, parentWindow: webView.window)
+                    } else {
+                        session?.createTab(url: url.absoluteString, select: true)
+                    }
+                }
             }
-            webView.load(URLRequest(url: url))
             decisionHandler(.cancel)
             return
         }
@@ -848,10 +854,27 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         for navigationAction: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
-            webView.load(URLRequest(url: url))
+        if OAuthPolicy.shouldOpenAsPopup(features: windowFeatures, url: navigationAction.request.url) {
+            return WebPopupWindowManager.shared.presentPopup(
+                configuration: configuration,
+                features: windowFeatures,
+                initialURL: navigationAction.request.url,
+                parentWindow: webView.window
+            )
+        }
+
+        if let url = navigationAction.request.url, !URLPolicy.isBlankURL(url.absoluteString) {
+            MainActor.assumeIsolated {
+                session?.createTab(url: url.absoluteString, select: true)
+            }
         }
         return nil
+    }
+
+    public func webViewDidClose(_ webView: WKWebView) {
+        MainActor.assumeIsolated {
+            session?.closeTab(id: tabID)
+        }
     }
 
     public func webView(

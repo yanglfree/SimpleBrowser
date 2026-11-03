@@ -60,6 +60,7 @@ final class SingleInstanceGuardTests: XCTestCase {
         guard2.releaseLock()
     }
 
+    @MainActor
     func testOpenExternalURLNavigatesOrOpensTab() {
         let session = BrowserSession.shared
         session.tabs.removeAll()
