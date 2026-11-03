@@ -723,6 +723,16 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         if navigationAction.targetFrame?.isMainFrame == true,
            let url = navigationAction.request.url,
            !URLPolicy.isBlankURL(url.absoluteString) {
+            // Divert explicit OAuth popup requests (e.g. `ux_mode=popup`) to standalone popup window
+            // so they don't hijack the main tab and render blank due to missing window.opener.
+            if let query = url.query?.lowercased(), query.contains("ux_mode=popup") || query.contains("display=popup") {
+                decisionHandler(.cancel)
+                MainActor.assumeIsolated {
+                    WebPopupWindowManager.shared.openPopup(url: url, parentWindow: webView.window)
+                }
+                return
+            }
+
             let effectiveSettings = session?.settings ?? BrowserSettings.shared
             if effectiveSettings.alwaysUseSecureConnections,
                url.scheme?.lowercased() == "http",

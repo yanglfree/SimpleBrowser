@@ -121,6 +121,10 @@ public final class WebPopupWindowController: NSWindowController, NSWindowDelegat
         guard !isTornDown else { return }
         isTornDown = true
 
+        if let window = self.window, let parent = window.parent {
+            parent.removeChildWindow(window)
+        }
+
         titleObservation?.invalidate()
         titleObservation = nil
         progressObservation?.invalidate()
@@ -146,6 +150,26 @@ public final class WebPopupWindowController: NSWindowController, NSWindowDelegat
     public func webViewDidClose(_ webView: WKWebView) {
         window?.close()
         teardown()
+    }
+
+    public func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        if OAuthPolicy.shouldOpenAsPopup(features: windowFeatures, url: navigationAction.request.url) {
+            return WebPopupWindowManager.shared.presentPopup(
+                configuration: configuration,
+                features: windowFeatures,
+                initialURL: navigationAction.request.url,
+                parentWindow: self.window
+            )
+        }
+        if let url = navigationAction.request.url, !URLPolicy.isBlankURL(url.absoluteString) {
+            webView.load(URLRequest(url: url))
+        }
+        return nil
     }
 
     public func webView(
@@ -198,6 +222,18 @@ public final class WebPopupWindowController: NSWindowController, NSWindowDelegat
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         updateTitle()
     }
+
+    public func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        if navigationAction.shouldPerformDownload {
+            decisionHandler(.download)
+            return
+        }
+        decisionHandler(.allow)
+    }
 }
 
 /// Central manager tracking and displaying popup windows and third-party login flows.
@@ -245,6 +281,8 @@ public final class WebPopupWindowManager: NSObject {
             backing: .buffered,
             defer: false
         )
+        window.collectionBehavior = [.fullScreenAuxiliary, .participatesInCycle]
+        window.isReleasedWhenClosed = false
 
         if let origin = frameOrigin {
             window.setFrameOrigin(origin)
@@ -253,6 +291,7 @@ public final class WebPopupWindowManager: NSObject {
             let x = parentFrame.midX - clampedWidth / 2
             let y = parentFrame.midY - clampedHeight / 2
             window.setFrameOrigin(NSPoint(x: max(0, x), y: max(0, y)))
+            parent.addChildWindow(window, ordered: .above)
         } else {
             window.center()
         }
@@ -261,9 +300,8 @@ public final class WebPopupWindowManager: NSObject {
         let controller = WebPopupWindowController(window: window, webView: webView)
         activeControllers.append(controller)
 
-        if let url = initialURL, !URLPolicy.isBlankURL(url.absoluteString) {
-            webView.load(URLRequest(url: url))
-        }
+        // WebKit loads the navigationAction into the returned WKWebView automatically
+        // and wires up window.opener. Do NOT call webView.load(...) here.
 
         controller.showWindow(self)
         window.makeKeyAndOrderFront(self)
@@ -276,7 +314,7 @@ public final class WebPopupWindowManager: NSObject {
     public func openPopup(url: URL, parentWindow: NSWindow? = nil) -> WebPopupWindowController {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
-        config.applicationNameForUserAgent = "Version/17.0 Safari/605.1.15 ZhuoBrowser/1.0"
+        config.applicationNameForUserAgent = TabController.safariApplicationNameForUserAgent
 
         let contentRect = NSRect(x: 0, y: 0, width: Self.defaultPopupWidth, height: Self.defaultPopupHeight)
         let window = NSWindow(
@@ -285,12 +323,15 @@ public final class WebPopupWindowManager: NSObject {
             backing: .buffered,
             defer: false
         )
+        window.collectionBehavior = [.fullScreenAuxiliary, .participatesInCycle]
+        window.isReleasedWhenClosed = false
 
         if let parent = parentWindow {
             let parentFrame = parent.frame
             let x = parentFrame.midX - Self.defaultPopupWidth / 2
             let y = parentFrame.midY - Self.defaultPopupHeight / 2
             window.setFrameOrigin(NSPoint(x: max(0, x), y: max(0, y)))
+            parent.addChildWindow(window, ordered: .above)
         } else {
             window.center()
         }

@@ -43,20 +43,33 @@ public enum OAuthPolicy {
 
         let path = url.path.lowercased()
 
-        // 4. Known OAuth hosts with auth-related paths
+        // 4. Google Identity Services / One Tap endpoints
+        if path.contains("/gsi/") {
+            return true
+        }
+
+        // 5. Known OAuth hosts with auth-related paths
         if knownOAuthHosts.contains(host) {
-            if path.contains("oauth") || path.contains("signin") || path.contains("login") || path.contains("authorize") {
+            if path.contains("oauth")
+                || path.contains("signin")
+                || path.contains("login")
+                || path.contains("authorize")
+                || path.contains("single_sign_on")
+                || path.contains("sso") {
                 return true
             }
         }
 
-        // 5. Generic OAuth/OIDC authorization endpoints (Auth0, Supabase, Clerk, Cognito, etc.)
+        // 6. Generic OAuth/OIDC authorization endpoints (Auth0, Supabase, Clerk, Cognito, etc.)
         if path.hasSuffix("/authorize") || path.contains("/oauth2/") || path.contains("/oauth/") || path.contains("/auth/v1/authorize") {
             return true
         }
 
-        // 6. Standard OAuth/OIDC query parameters
+        // 7. Standard OAuth/OIDC or popup query parameters
         if let query = url.query?.lowercased() {
+            if query.contains("ux_mode=popup") || query.contains("display=popup") {
+                return true
+            }
             let hasResponseType = query.contains("response_type=")
             let hasClientID = query.contains("client_id=")
             let hasRedirectURI = query.contains("redirect_uri=")
@@ -79,6 +92,11 @@ public enum OAuthPolicy {
         if features.menuBarVisibility?.boolValue == false
             || features.toolbarsVisibility?.boolValue == false
             || features.statusBarVisibility?.boolValue == false {
+            return true
+        }
+
+        // Explicit popup query parameter in requested URL
+        if let query = url?.query?.lowercased(), query.contains("ux_mode=popup") || query.contains("display=popup") {
             return true
         }
 

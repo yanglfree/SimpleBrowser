@@ -185,6 +185,85 @@ final class PopupAndOAuthTests: XCTestCase {
 
     // MARK: - 4. BrowserSession External URL Routing
 
+    func testLiveJavaScriptWindowOpenPreservesOpener() {
+        let session = BrowserSession()
+        session.createTab(url: "https://x.com", select: true)
+
+        guard let controller = session.activeController, let webView = controller.webView else {
+            XCTFail("Active controller and webView must exist")
+            return
+        }
+
+        let expectation = expectation(description: "Live window.open preserves opener")
+
+        let html = """
+        <html><body>
+        <script>
+        function triggerLogin() {
+            var w = window.open(
+                "https://accounts.google.com/gsi/select?client_id=49625052041-kgt0hghf445lmcmhijv46b715m2mpbct.apps.googleusercontent.com&ux_mode=popup&ui_mode=card&as=u4Yh5mz6Dr8N2wKJZ5-8KtNaxp3vjjQzyRo5si3rn3s&bs=iysd5TRkvOz0a19hDLMXkvyDu%2Be4Z8Ef4%2BSnwg%2FJI%2FI&channel_id=1f51fd879688de9abf27e8cb8dd50400873f077f77919404ba3c1171da0a3f1a&origin=https%3A%2F%2Fx.com",
+                "g_credential_picker",
+                "toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=no,resizable=no,copyhistory=no,width=500,height=550"
+            );
+            return w != null;
+        }
+        </script>
+        </body></html>
+        """
+
+        webView.loadHTMLString(html, baseURL: URL(string: "https://x.com"))
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            webView.evaluateJavaScript("triggerLogin()") { result, error in
+                XCTAssertNil(error)
+                XCTAssertEqual(result as? Bool, true)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    let popups = WebPopupWindowManager.shared.activeControllers
+                    XCTAssertEqual(popups.count, 1)
+                    if let popup = popups.first {
+                        popup.webView.evaluateJavaScript("!!window.opener") { hasOpener, err in
+                            XCTAssertNil(err)
+                            XCTAssertEqual(hasOpener as? Bool, true, "window.opener must be preserved in popup")
+                            expectation.fulfill()
+                        }
+                    } else {
+                        XCTFail("Popup must be open")
+                        expectation.fulfill()
+                    }
+                }
+            }
+        }
+
+        wait(for: [expectation], timeout: 5.0)
+    }
+
+    func testDecidePolicyDivertsMainFramePopupModeToPopupWindow() {
+        let session = BrowserSession()
+        session.createTab(url: "https://x.com", select: true)
+
+        guard let controller = session.activeController, let webView = controller.webView else {
+            XCTFail("Active controller and webView must exist")
+            return
+        }
+
+        let expectation = expectation(description: "Diverts ux_mode=popup to popup window")
+
+        let gsiURL = URL(string: "https://accounts.google.com/gsi/select?client_id=123&ux_mode=popup&origin=https%3A%2F%2Fx.com")!
+
+        // Load the URL directly into the tab: TabController's decidePolicyFor must intercept
+        // and divert to a popup window instead of loading into the main frame tab.
+        controller.load(url: gsiURL)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            XCTAssertEqual(WebPopupWindowManager.shared.openPopupCount, 1)
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 3.0)
+    }
+
+    // MARK: - 5. BrowserSession External URL Routing
+
     func testBrowserSessionOpenExternalURLRoutesOAuthToPopup() {
         let session = BrowserSession.shared
         session.tabs.removeAll()
