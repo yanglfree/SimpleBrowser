@@ -509,6 +509,29 @@ public final class AccountManager: ObservableObject {
                let engine = SearchEngine.from(engineRaw) {
                 target.searchEngine = engine
             }
+            if let safeRaw = dict["safeBrowsingLevel"] as? String,
+               let safeLevel = SafeBrowsingLevel(rawValue: safeRaw) {
+                target.safeBrowsingLevel = safeLevel
+            }
+            if let alwaysHTTPS = dict["alwaysUseSecureConnections"] as? Bool {
+                target.alwaysUseSecureConnections = alwaysHTTPS
+            }
+            if let leakedPw = dict["leakedPasswordDetectionEnabled"] as? Bool {
+                target.leakedPasswordDetectionEnabled = leakedPw
+            }
+            if let secDNS = dict["secureDNSEnabled"] as? Bool {
+                target.secureDNSEnabled = secDNS
+            }
+            if let dnsProvRaw = dict["secureDNSProvider"] as? String,
+               let dnsProv = SecureDNSProvider(rawValue: dnsProvRaw) {
+                target.secureDNSProvider = dnsProv
+            }
+            if let customDNS = dict["customSecureDNSURL"] as? String {
+                target.customSecureDNSURL = customDNS
+            }
+            if let jsJIT = dict["javascriptJITOptimizationEnabled"] as? Bool {
+                target.javascriptJITOptimizationEnabled = jsJIT
+            }
         }
     }
 
@@ -522,6 +545,13 @@ public final class AccountManager: ObservableObject {
             "quickSitesEnabled": settings.quickSitesEnabled,
             "restoreSessionOnLaunch": settings.restoreSessionOnLaunch,
             "searchEngine": settings.searchEngine.rawValue,
+            "safeBrowsingLevel": settings.safeBrowsingLevel.rawValue,
+            "alwaysUseSecureConnections": settings.alwaysUseSecureConnections,
+            "leakedPasswordDetectionEnabled": settings.leakedPasswordDetectionEnabled,
+            "secureDNSEnabled": settings.secureDNSEnabled,
+            "secureDNSProvider": settings.secureDNSProvider.rawValue,
+            "customSecureDNSURL": settings.customSecureDNSURL,
+            "javascriptJITOptimizationEnabled": settings.javascriptJITOptimizationEnabled,
             "updatedAt": timestamp
         ]
     }

@@ -235,15 +235,22 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         cancelRestoration()
         // A typed/open navigation is an explicit intent: never restore an old offset.
         shouldRestoreScrollAfterLoad = false
-        if !URLPolicy.isBlankURL(url.absoluteString) {
-            lastTargetURL = url
+        var targetURL = url
+        let effectiveSettings = session?.settings ?? BrowserSettings.shared
+        if effectiveSettings.alwaysUseSecureConnections,
+           targetURL.scheme?.lowercased() == "http",
+           let upgraded = URL(string: URLPolicy.upgradeToHTTPSIfPublicHost(targetURL.absoluteString)) {
+            targetURL = upgraded
+        }
+        if !URLPolicy.isBlankURL(targetURL.absoluteString) {
+            lastTargetURL = targetURL
             lastNavigationFailed = false
         }
-        if url.isFileURL {
-            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        if targetURL.isFileURL {
+            webView.loadFileURL(targetURL, allowingReadAccessTo: targetURL.deletingLastPathComponent())
             return
         }
-        let request = URLRequest(url: url)
+        let request = URLRequest(url: targetURL)
         webView.load(request)
     }
 
@@ -710,6 +717,17 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         if navigationAction.targetFrame?.isMainFrame == true,
            let url = navigationAction.request.url,
            !URLPolicy.isBlankURL(url.absoluteString) {
+            let effectiveSettings = session?.settings ?? BrowserSettings.shared
+            if effectiveSettings.alwaysUseSecureConnections,
+               url.scheme?.lowercased() == "http",
+               let host = url.host,
+               !URLPolicy.isLocalOrIPHost(host),
+               let upgraded = URL(string: URLPolicy.upgradeToHTTPSIfPublicHost(url.absoluteString)),
+               upgraded != url {
+                decisionHandler(.cancel)
+                load(url: upgraded)
+                return
+            }
             lastTargetURL = url
         }
         decisionHandler(.allow)

@@ -2,6 +2,11 @@ import SwiftUI
 
 /// Preferences sheet for ZhuoBrowser Mac, prioritized to align with HarmonyOS settings categories.
 public struct SettingsView: View {
+    public enum SettingsSubpage {
+        case main
+        case security
+    }
+
     @ObservedObject var session: BrowserSession
     @Binding var isPresented: Bool
 
@@ -11,12 +16,66 @@ public struct SettingsView: View {
     @ObservedObject private var bgManager = HomeBackgroundManager.shared
     @ObservedObject private var extensionManager = ExtensionManager.shared
 
+    @State private var currentSubpage: SettingsSubpage
     @State private var isShowingAccountSheet: Bool = false
     @State private var isShowingClearHistoryAlert: Bool = false
     @State private var isShowingClearDataAlert: Bool = false
     @State private var didClearDataNotice: Bool = false
 
+    public init(session: BrowserSession, isPresented: Binding<Bool>, initialSubpage: SettingsSubpage = .main) {
+        self.session = session
+        self._isPresented = isPresented
+        self._currentSubpage = State(initialValue: initialSubpage)
+    }
+
     public var body: some View {
+        Group {
+            if currentSubpage == .security {
+                SecuritySettingsView(
+                    session: session,
+                    onBack: {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            currentSubpage = .main
+                        }
+                    },
+                    onDismiss: {
+                        isPresented = false
+                    }
+                )
+            } else {
+                mainSettingsContent
+            }
+        }
+        .onDisappear {
+            settings.flushSynchronously()
+        }
+        .sheet(isPresented: $isShowingAccountSheet) {
+            AccountView(session: session, isPresented: $isShowingAccountSheet)
+        }
+        .alert("确定清空所有历史记录？", isPresented: $isShowingClearHistoryAlert) {
+            Button("清空", role: .destructive) {
+                session.clearHistory()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("此操作将永久清空本机所有访问记录，无法撤销。")
+        }
+        .alert("确定清理网页缓存与 Cookie？", isPresented: $isShowingClearDataAlert) {
+            Button("清理", role: .destructive) {
+                session.clearWebsiteData {
+                    didClearDataNotice = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        didClearDataNotice = false
+                    }
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("将清除所有网站的本地缓存、Cookie 及离线存储。已登录的网页状态可能需要重新登录。")
+        }
+    }
+
+    private var mainSettingsContent: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
@@ -78,7 +137,7 @@ public struct SettingsView: View {
 
                     Divider()
 
-                    // 7. 关于卓阅 (About)
+                    // 7. 关于 Zhuo浏览器 (About)
                     aboutSection
                 }
                 .padding(20)
@@ -101,33 +160,6 @@ public struct SettingsView: View {
         }
         .frame(width: 560)
         .background(Color(nsColor: .controlBackgroundColor))
-        .onDisappear {
-            settings.flushSynchronously()
-        }
-        .sheet(isPresented: $isShowingAccountSheet) {
-            AccountView(session: session, isPresented: $isShowingAccountSheet)
-        }
-        .alert("确定清空所有历史记录？", isPresented: $isShowingClearHistoryAlert) {
-            Button("清空", role: .destructive) {
-                session.clearHistory()
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("此操作将永久清空本机所有访问记录，无法撤销。")
-        }
-        .alert("确定清理网页缓存与 Cookie？", isPresented: $isShowingClearDataAlert) {
-            Button("清理", role: .destructive) {
-                session.clearWebsiteData {
-                    didClearDataNotice = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        didClearDataNotice = false
-                    }
-                }
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("将清除所有网站的本地缓存、Cookie 及离线存储。已登录的网页状态可能需要重新登录。")
-        }
     }
 
     // MARK: - Sections
@@ -502,10 +534,67 @@ public struct SettingsView: View {
         .help("\(item.formattedFullDate) · \(item.title)\n\(item.copyright)")
     }
 
-    // 3. 内容安全与拦截 (参考 HarmonyOS 端)
+    // 3. 安全防护与去噪拦截
     private var protectionSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader(title: "安全防护与去噪拦截", icon: "shield.lefthalf.filled")
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader(title: "安全设置与去噪拦截", icon: "shield.lefthalf.filled")
+
+            // Security Hub Card
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    currentSubpage = .security
+                }
+            }) {
+                HStack(alignment: .center, spacing: 12) {
+                    Image(systemName: "lock.shield.fill")
+                        .foregroundColor(.accentColor)
+                        .font(.system(size: 20))
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Text("安全设置中心")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.primary)
+
+                            Text(settings.safeBrowsingLevel.title)
+                                .font(.system(size: 10, weight: .medium))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.accentColor.opacity(0.12))
+                                .foregroundColor(.accentColor)
+                                .cornerRadius(4)
+
+                            if settings.alwaysUseSecureConnections {
+                                Text("HTTPS 优先")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.green.opacity(0.12))
+                                    .foregroundColor(.green)
+                                    .cornerRadius(4)
+                            }
+                        }
+
+                        Text("安全浏览、安全连接、安全 DNS、密码泄露预警及密钥证书管理")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                }
+                .padding(10)
+                .background(Color.secondary.opacity(0.06))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.secondary.opacity(0.12), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
 
             Toggle("启用原生广告与跟踪拦截 (基于 WebKit 原生字节码规则评估)", isOn: $settings.adBlockEnabled)
                 .toggleStyle(.checkbox)
@@ -562,31 +651,73 @@ public struct SettingsView: View {
         }
     }
 
-    // 4. 内存卫士与标签配额
+    // 4. 标签切换体验与内存
     private var memorySection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(title: "内存卫士与活跃标签配额", icon: "leaf.fill")
+            sectionHeader(title: "标签切换与内存", icon: "leaf.fill")
+
+            // Baseline behaviour: always resident.
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 11))
+                    .foregroundColor(.green)
+                Text("当前模式：全部标签常驻 — 切换标签不重新加载，页面状态、滚动位置与表单内容完整保留。")
+                    .font(.system(size: 12))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.green.opacity(0.08))
+            .cornerRadius(6)
+
+            Toggle("自动冻结后台标签以节省内存（会牺牲切换体验）", isOn: $settings.tabHibernationEnabled)
+                .toggleStyle(.checkbox)
+                .font(.system(size: 13))
+                .onChange(of: settings.tabHibernationEnabled) { _ in
+                    session.enforceMemoryBudget()
+                }
 
             HStack {
-                Text("活跃 WebKit 渲染进程配额")
+                Text("常驻 WebKit 渲染进程上限")
                     .font(.system(size: 13))
+                    .foregroundColor(settings.tabHibernationEnabled ? .primary : .secondary)
                 Spacer()
                 Picker("", selection: $settings.liveWebViewBudget) {
-                    Text("1 个 (极致省内存，后台立即休眠)").tag(1)
-                    Text("2 个 (默认推荐，平衡切换速度与内存)").tag(2)
-                    Text("3 个 (常驻 3 个活跃页面)").tag(3)
-                    Text("4 个 (宽松配额)").tag(4)
+                    ForEach(MemoryBudgetPolicy.minLiveBudget...MemoryBudgetPolicy.maxLiveBudget, id: \.self) { value in
+                        Text(budgetLabel(for: value)).tag(value)
+                    }
                 }
                 .labelsHidden()
-                .frame(width: 270)
-                .onChange(of: settings.liveWebViewBudget) { _ in
+                .disabled(!settings.tabHibernationEnabled)
+                .frame(width: 260)
+                .onChange(of: settings.liveWebViewBudget) { newValue in
+                    let clamped = max(MemoryBudgetPolicy.minLiveBudget, min(newValue, MemoryBudgetPolicy.maxLiveBudget))
+                    if clamped != newValue {
+                        settings.liveWebViewBudget = clamped
+                    }
                     session.enforceMemoryBudget()
                 }
             }
 
-            Text("超出配额的后台标签将自动销毁 WebKit 渲染进程以释放内存，点击标签时自动无损恢复。")
+            Text("关闭时（默认）：每个标签始终持有自己的 WebView 与渲染进程，切换即时、页面不重载；代价是每标签约 80–250MB 内存，标签越多占用越高。\n开启后：超出上限的后台标签会被冻结以释放内存，切回时需要重建页面（滚动位置尽量还原，但表单输入与页面内临时状态可能丢失）。")
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Toggle("启动时恢复上次的标签页", isOn: $settings.restoreSessionOnLaunch)
+                .toggleStyle(.checkbox)
+                .font(.system(size: 13))
+        }
+    }
+
+    private func budgetLabel(for value: Int) -> String {
+        switch value {
+        case MemoryBudgetPolicy.minLiveBudget:
+            return "\(value) 个 (最省内存，切换需重建)"
+        case MemoryBudgetPolicy.defaultLiveBudget:
+            return "\(value) 个 (平衡)"
+        default:
+            return "\(value) 个 (更少重建)"
         }
     }
 
@@ -686,13 +817,13 @@ public struct SettingsView: View {
         }
     }
 
-    // 7. 关于卓阅
+    // 7. 关于 Zhuo浏览器
     private var aboutSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sectionHeader(title: "关于卓阅 (ZhuoBrowser)", icon: "info.circle.fill")
+            sectionHeader(title: "关于 Zhuo浏览器", icon: "info.circle.fill")
 
             HStack {
-                Text("卓阅 Mac 原生轻量浏览器")
+                Text("Zhuo浏览器 · Mac 原生轻量浏览器")
                     .font(.system(size: 12, weight: .medium))
                 Spacer()
                 Text("v1.0.0 (Build 2026.11)")
