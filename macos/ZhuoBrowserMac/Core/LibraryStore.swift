@@ -21,6 +21,10 @@ public final class LibraryStore: @unchecked Sendable {
         directoryURL.appendingPathComponent("history.json")
     }
 
+    private var tombstonesFileURL: URL {
+        directoryURL.appendingPathComponent("bookmark_tombstones.json")
+    }
+
     public init(isPersistenceEnabled: Bool = !RuntimeEnvironment.isRunningUnitTests) {
         self.isPersistenceEnabled = isPersistenceEnabled
         let fileManager = FileManager.default
@@ -113,6 +117,27 @@ public final class LibraryStore: @unchecked Sendable {
             guard let self = self else { return }
             guard let data = try? JSONEncoder().encode(snapshot) else { return }
             try? data.write(to: self.bookmarksFileURL, options: .atomic)
+        }
+    }
+
+    // MARK: - Tombstones
+
+    public func loadTombstones() -> [BookmarkTombstone] {
+        guard isPersistenceEnabled,
+              let data = try? Data(contentsOf: tombstonesFileURL),
+              let list = try? JSONDecoder().decode([BookmarkTombstone].self, from: data) else {
+            return []
+        }
+        return list
+    }
+
+    public func saveTombstones(_ tombstones: [BookmarkTombstone]) {
+        guard isPersistenceEnabled else { return }
+        let snapshot = tombstones
+        ioQueue.async { [weak self] in
+            guard let self = self else { return }
+            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            try? data.write(to: self.tombstonesFileURL, options: .atomic)
         }
     }
 

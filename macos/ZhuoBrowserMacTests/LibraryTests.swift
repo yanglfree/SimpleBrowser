@@ -292,4 +292,206 @@ final class LibraryTests: XCTestCase {
         popoverHost.frame = NSRect(x: 0, y: 0, width: 430, height: 520)
         XCTAssertNotNil(popoverHost)
     }
+
+    // MARK: - Tombstone & Cloud Sync Merging Tests
+
+    @MainActor
+    func testBookmarkTombstonesRecordAndClearOnReAdd() {
+        let session = BrowserSession()
+        defer { FavoritesManager.shared.resetToDefaults() }
+
+        let sampleURL = "https://example.com/item"
+        _ = session.addBookmark(url: sampleURL, title: "Example Item")
+        let added = session.bookmark(forURL: sampleURL)
+        XCTAssertNotNil(added)
+        XCTAssertFalse(session.tombstones.contains(where: { $0.url == LibraryPolicy.normalizeComparableURL(sampleURL) }))
+
+        // Delete bookmark -> records tombstone
+        session.removeBookmark(id: added!.id)
+        XCTAssertFalse(session.isBookmarked(url: sampleURL))
+        let normURL = LibraryPolicy.normalizeComparableURL(sampleURL)
+        XCTAssertTrue(session.tombstones.contains(where: { $0.url == normURL }))
+
+        // Re-adding the bookmark clears tombstone
+        _ = session.addBookmark(url: sampleURL, title: "Example Item Revived")
+        XCTAssertTrue(session.isBookmarked(url: sampleURL))
+        XCTAssertFalse(session.tombstones.contains(where: { $0.url == normURL }))
+    }
+
+    func testMergeSyncPreventsDeletedBookmarkResurrection() {
+        let baseTime: TimeInterval = 1_000
+        let b1 = BookmarkEntry(
+            id: "b1",
+            title: "Bookmark 1",
+            url: "https://site1.com",
+            createdAt: baseTime,
+            updatedAt: baseTime
+        )
+        let b2 = BookmarkEntry(
+            id: "b2",
+            title: "Bookmark 2",
+            url: "https://site2.com",
+            createdAt: baseTime,
+            updatedAt: baseTime
+        )
+
+        // Local state: user deleted b2 at baseTime + 100
+        let localBookmarks = [b1]
+        let localTombstones = [
+            BookmarkTombstone(id: "b2", url: "https://site2.com", isFolder: false, deletedAt: baseTime + 100)
+        ]
+
+        // Remote state: cloud still has legacy or stale b1 and b2 from before deletion
+        let remoteBookmarks = [b1, b2]
+        let remoteTombstones: [BookmarkTombstone] = []
+
+        let result = LibraryPolicy.mergeSync(
+            localFolders: [],
+            localBookmarks: localBookmarks,
+            localTombstones: localTombstones,
+            remoteFolders: [],
+            remoteBookmarks: remoteBookmarks,
+            remoteTombstones: remoteTombstones,
+            now: baseTime + 200
+        )
+
+        // b2 must NOT be resurrected
+        XCTAssertEqual(result.mergedBookmarks.count, 1)
+        XCTAssertEqual(result.mergedBookmarks.first?.id, "b1")
+        // tombstone for b2 must remain active
+        XCTAssertTrue(result.mergedTombstones.contains(where: { $0.url == "https://site2.com" }))
+    }
+
+    func testMergeSyncPreventsDeletedFolderResurrection() {
+        let baseTime: TimeInterval = 1_000
+        let folder1 = BookmarkFolder(
+            id: "f1",
+            name: "Cloud Native",
+            createdAt: baseTime,
+            updatedAt: baseTime
+        )
+
+        // Local state: user deleted folder f1 at baseTime + 50
+        let localFolders: [BookmarkFolder] = []
+        let localTombstones = [
+            BookmarkTombstone(id: "f1", url: nil, isFolder: true, deletedAt: baseTime + 50)
+        ]
+
+        // Remote state: cloud still contains f1
+        let remoteFolders = [folder1]
+
+        let result = LibraryPolicy.mergeSync(
+            localFolders: localFolders,
+            localBookmarks: [],
+            localTombstones: localTombstones,
+            remoteFolders: remoteFolders,
+            remoteBookmarks: [],
+            remoteTombstones: [],
+            now: baseTime + 100
+        )
+
+        // Folder f1 must NOT be resurrected
+        XCTAssertTrue(result.mergedFolders.isEmpty)
+        XCTAssertTrue(result.mergedTombstones.contains(where: { $0.isFolder && $0.id == "f1" }))
+    }
+
+    func testMergeSyncAcceptsNewRemoteBookmarkAndPropagatesRemoteDeletions() {
+        let baseTime: TimeInterval = 1_000
+        let localB1 = BookmarkEntry(
+            id: "b1",
+            title: "Local Item",
+            url: "https://local.com",
+            createdAt: baseTime,
+            updatedAt: baseTime
+        )
+        let remoteB2 = BookmarkEntry(
+            id: "b2",
+            title: "Remote Item",
+            url: "https://remote.com",
+            createdAt: baseTime + 50,
+            updatedAt: baseTime + 50
+        )
+
+        // Remote has deleted b1 on another device
+        let remoteTombstones = [
+            BookmarkTombstone(id: "b1", url: "https://local.com", isFolder: false, deletedAt: baseTime + 60)
+        ]
+
+        let result = LibraryPolicy.mergeSync(
+            localFolders: [],
+            localBookmarks: [localB1],
+            localTombstones: [],
+            remoteFolders: [],
+            remoteBookmarks: [remoteB2],
+            remoteTombstones: remoteTombstones,
+            now: baseTime + 100
+        )
+
+        // localB1 was deleted remotely -> removed locally; remoteB2 was added remotely -> added locally
+        XCTAssertEqual(result.mergedBookmarks.count, 1)
+        XCTAssertEqual(result.mergedBookmarks.first?.id, "b2")
+        XCTAssertTrue(result.mergedTombstones.contains(where: { $0.url == "https://local.com" }))
+    }
+
+    func testParseRemoteBookmarksPayloadLegacyAndV2() {
+        // 1. Legacy flat array
+        let legacyPayload: [[String: Any]] = [
+            ["title": "Legacy Site", "url": "https://legacy.org"]
+        ]
+        let parsedLegacy = LibraryPolicy.parseRemoteBookmarksPayload(legacyPayload)
+        XCTAssertEqual(parsedLegacy.bookmarks.count, 1)
+        XCTAssertEqual(parsedLegacy.bookmarks.first?.title, "Legacy Site")
+        XCTAssertEqual(parsedLegacy.bookmarks.first?.url, "https://legacy.org")
+        XCTAssertTrue(parsedLegacy.folders.isEmpty)
+        XCTAssertTrue(parsedLegacy.tombstones.isEmpty)
+
+        // 2. Structured V2 dictionary
+        let v2Payload: [String: Any] = [
+            "version": 2,
+            "folders": [
+                [
+                    "id": "f_tools",
+                    "name": "Dev Tools",
+                    "iconName": "hammer.fill",
+                    "createdAt": 1700000000.0,
+                    "updatedAt": 1700000010.0,
+                    "sortOrder": 0,
+                    "isPinnedToStartPage": true
+                ]
+            ],
+            "entries": [
+                [
+                    "id": "b_gh",
+                    "title": "GitHub",
+                    "shortTitle": "GH",
+                    "url": "https://github.com",
+                    "folderID": "f_tools",
+                    "createdAt": 1700000000.0,
+                    "updatedAt": 1700000020.0,
+                    "isPinnedToStartPage": false,
+                    "iconName": "github",
+                    "iconLetter": "G",
+                    "colorHex": "#000000",
+                    "sortOrder": 0
+                ]
+            ],
+            "tombstones": [
+                [
+                    "id": "b_del",
+                    "url": "https://old.com",
+                    "isFolder": false,
+                    "deletedAt": 1700000030.0
+                ]
+            ]
+        ]
+
+        let parsedV2 = LibraryPolicy.parseRemoteBookmarksPayload(v2Payload)
+        XCTAssertEqual(parsedV2.folders.count, 1)
+        XCTAssertEqual(parsedV2.folders.first?.name, "Dev Tools")
+        XCTAssertEqual(parsedV2.bookmarks.count, 1)
+        XCTAssertEqual(parsedV2.bookmarks.first?.shortTitle, "GH")
+        XCTAssertEqual(parsedV2.bookmarks.first?.folderID, "f_tools")
+        XCTAssertEqual(parsedV2.tombstones.count, 1)
+        XCTAssertEqual(parsedV2.tombstones.first?.url, "https://old.com")
+    }
 }

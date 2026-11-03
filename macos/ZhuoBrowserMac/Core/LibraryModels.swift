@@ -38,6 +38,7 @@ public struct BookmarkFolder: Identifiable, Equatable, Hashable, Codable {
     public var name: String
     public var iconName: String
     public var createdAt: TimeInterval
+    public var updatedAt: TimeInterval
     public var sortOrder: Int
     public var isPinnedToStartPage: Bool
 
@@ -46,6 +47,7 @@ public struct BookmarkFolder: Identifiable, Equatable, Hashable, Codable {
         name: String,
         iconName: String = "folder.fill",
         createdAt: TimeInterval = Date().timeIntervalSince1970,
+        updatedAt: TimeInterval? = nil,
         sortOrder: Int = 0,
         isPinnedToStartPage: Bool = true
     ) {
@@ -53,6 +55,7 @@ public struct BookmarkFolder: Identifiable, Equatable, Hashable, Codable {
         self.name = name
         self.iconName = iconName
         self.createdAt = createdAt
+        self.updatedAt = updatedAt ?? createdAt
         self.sortOrder = sortOrder
         self.isPinnedToStartPage = isPinnedToStartPage
     }
@@ -62,6 +65,7 @@ public struct BookmarkFolder: Identifiable, Equatable, Hashable, Codable {
         case name
         case iconName
         case createdAt
+        case updatedAt
         case sortOrder
         case isPinnedToStartPage
     }
@@ -71,9 +75,49 @@ public struct BookmarkFolder: Identifiable, Equatable, Hashable, Codable {
         self.id = try container.decode(String.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.iconName = try container.decodeIfPresent(String.self, forKey: .iconName) ?? "folder.fill"
-        self.createdAt = try container.decodeIfPresent(TimeInterval.self, forKey: .createdAt) ?? Date().timeIntervalSince1970
+        let created = try container.decodeIfPresent(TimeInterval.self, forKey: .createdAt) ?? Date().timeIntervalSince1970
+        self.createdAt = created
+        self.updatedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .updatedAt) ?? created
         self.sortOrder = try container.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0
         self.isPinnedToStartPage = try container.decodeIfPresent(Bool.self, forKey: .isPinnedToStartPage) ?? true
+    }
+}
+
+/// Represents a deletion record (tombstone) for a bookmark or a bookmark folder,
+/// ensuring deletions are reliably propagated across cloud sync without resurrection.
+public struct BookmarkTombstone: Identifiable, Equatable, Hashable, Codable {
+    public let id: String
+    public let url: String?
+    public let isFolder: Bool
+    public let deletedAt: TimeInterval
+
+    public init(
+        id: String,
+        url: String? = nil,
+        isFolder: Bool = false,
+        deletedAt: TimeInterval = Date().timeIntervalSince1970
+    ) {
+        self.id = id
+        self.url = url
+        self.isFolder = isFolder
+        self.deletedAt = deletedAt
+    }
+}
+
+/// Result of a bidirectional cloud sync merge for bookmarks, folders, and tombstones.
+public struct BookmarkSyncMergeResult: Equatable {
+    public let mergedFolders: [BookmarkFolder]
+    public let mergedBookmarks: [BookmarkEntry]
+    public let mergedTombstones: [BookmarkTombstone]
+
+    public init(
+        mergedFolders: [BookmarkFolder],
+        mergedBookmarks: [BookmarkEntry],
+        mergedTombstones: [BookmarkTombstone]
+    ) {
+        self.mergedFolders = mergedFolders
+        self.mergedBookmarks = mergedBookmarks
+        self.mergedTombstones = mergedTombstones
     }
 }
 
@@ -481,6 +525,7 @@ public enum LibraryPolicy {
             name: trimmed,
             iconName: iconName,
             createdAt: now,
+            updatedAt: now,
             sortOrder: nextOrder,
             isPinnedToStartPage: isPinnedToStartPage
         )
@@ -491,7 +536,8 @@ public enum LibraryPolicy {
     public static func renameFolder(
         _ folders: [BookmarkFolder],
         id: String,
-        newName: String
+        newName: String,
+        now: TimeInterval = Date().timeIntervalSince1970
     ) -> [BookmarkFolder] {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return folders }
@@ -499,6 +545,7 @@ public enum LibraryPolicy {
             guard folder.id == id else { return folder }
             var updated = folder
             updated.name = trimmed
+            updated.updatedAt = now
             return updated
         }
     }
@@ -530,7 +577,8 @@ public enum LibraryPolicy {
     public static func moveFolder(
         _ folders: [BookmarkFolder],
         id: String,
-        direction: Int
+        direction: Int,
+        now: TimeInterval = Date().timeIntervalSince1970
     ) -> [BookmarkFolder] {
         guard direction != 0,
               let index = folders.firstIndex(where: { $0.id == id }) else {
@@ -543,6 +591,7 @@ public enum LibraryPolicy {
         reordered.swapAt(index, targetIndex)
         for idx in reordered.indices {
             reordered[idx].sortOrder = idx
+            reordered[idx].updatedAt = now
         }
         return reordered
     }
@@ -575,6 +624,365 @@ public enum LibraryPolicy {
     /// Removes a single history item by ID.
     public static func removeHistoryItem(_ history: [HistoryEntry], id: String) -> [HistoryEntry] {
         history.filter { $0.id != id }
+    }
+
+    // MARK: - Tombstones & Cloud Sync Merging
+
+    public static let tombstoneRetentionSeconds: TimeInterval = 60 * 24 * 3600 // 60 days
+
+    /// Appends a new tombstone, updating any existing tombstone for the same target and cleaning expired ones.
+    public static func appendTombstone(
+        _ tombstones: [BookmarkTombstone],
+        tombstone: BookmarkTombstone,
+        now: TimeInterval = Date().timeIntervalSince1970
+    ) -> [BookmarkTombstone] {
+        let active = cleanStaleTombstones(tombstones, now: now)
+        let filtered = active.filter { existing in
+            if tombstone.isFolder {
+                return existing.id != tombstone.id
+            } else {
+                if existing.id == tombstone.id { return false }
+                if let u1 = existing.url, let u2 = tombstone.url, !u1.isEmpty, !u2.isEmpty {
+                    return normalizeComparableURL(u1) != normalizeComparableURL(u2)
+                }
+                return true
+            }
+        }
+        return filtered + [tombstone]
+    }
+
+    /// Removes tombstones older than the retention threshold.
+    public static func cleanStaleTombstones(
+        _ tombstones: [BookmarkTombstone],
+        now: TimeInterval = Date().timeIntervalSince1970
+    ) -> [BookmarkTombstone] {
+        let cutoff = now - tombstoneRetentionSeconds
+        return tombstones.filter { $0.deletedAt >= cutoff }
+    }
+
+    /// Merges local and remote bookmark collections, folders, and tombstones deterministically.
+    /// Ensures deleted bookmarks and folders are NOT resurrected, while new remote additions and updates are preserved.
+    public static func mergeSync(
+        localFolders: [BookmarkFolder],
+        localBookmarks: [BookmarkEntry],
+        localTombstones: [BookmarkTombstone],
+        remoteFolders: [BookmarkFolder],
+        remoteBookmarks: [BookmarkEntry],
+        remoteTombstones: [BookmarkTombstone],
+        now: TimeInterval = Date().timeIntervalSince1970
+    ) -> BookmarkSyncMergeResult {
+        // 1. Merge and clean tombstones from local and remote
+        var combinedTombstonesMap: [String: BookmarkTombstone] = [:]
+        let allTombstones = cleanStaleTombstones(localTombstones + remoteTombstones, now: now)
+
+        for tb in allTombstones {
+            let key: String
+            if tb.isFolder {
+                key = "f:\(tb.id)"
+            } else if let url = tb.url, !url.isEmpty {
+                key = "u:\(normalizeComparableURL(url))"
+            } else {
+                key = "b:\(tb.id)"
+            }
+
+            if let existing = combinedTombstonesMap[key] {
+                if tb.deletedAt > existing.deletedAt {
+                    combinedTombstonesMap[key] = tb
+                }
+            } else {
+                combinedTombstonesMap[key] = tb
+            }
+        }
+
+        var activeTombstones = Array(combinedTombstonesMap.values)
+
+        var deletedFolderIDs: [String: TimeInterval] = [:]
+        var deletedBookmarkURLs: [String: TimeInterval] = [:]
+        var deletedBookmarkIDs: [String: TimeInterval] = [:]
+
+        for tb in activeTombstones {
+            if tb.isFolder {
+                deletedFolderIDs[tb.id] = max(deletedFolderIDs[tb.id] ?? 0, tb.deletedAt)
+            } else {
+                deletedBookmarkIDs[tb.id] = max(deletedBookmarkIDs[tb.id] ?? 0, tb.deletedAt)
+                if let url = tb.url, !url.isEmpty {
+                    let norm = normalizeComparableURL(url)
+                    deletedBookmarkURLs[norm] = max(deletedBookmarkURLs[norm] ?? 0, tb.deletedAt)
+                }
+            }
+        }
+
+        // 2. Merge Folders
+        var mergedFoldersMap: [String: BookmarkFolder] = [:]
+
+        for folder in localFolders {
+            if let delTime = deletedFolderIDs[folder.id], delTime >= folder.updatedAt {
+                continue
+            }
+            mergedFoldersMap[folder.id] = folder
+        }
+
+        for folder in remoteFolders {
+            if let delTime = deletedFolderIDs[folder.id], delTime >= folder.updatedAt {
+                continue
+            }
+            if let existing = mergedFoldersMap[folder.id] {
+                if folder.updatedAt > existing.updatedAt {
+                    mergedFoldersMap[folder.id] = folder
+                }
+            } else {
+                mergedFoldersMap[folder.id] = folder
+            }
+        }
+
+        let sortedFolders = mergedFoldersMap.values.sorted {
+            if $0.sortOrder != $1.sortOrder {
+                return $0.sortOrder < $1.sortOrder
+            }
+            return $0.createdAt < $1.createdAt
+        }
+
+        let validFolderIDs = Set(sortedFolders.map(\.id))
+
+        // 3. Merge Bookmarks
+        var mergedBookmarksMap: [String: BookmarkEntry] = [:]
+
+        func isDeleted(url: String, id: String, updatedAt: TimeInterval) -> Bool {
+            let norm = normalizeComparableURL(url)
+            if let delTime = deletedBookmarkURLs[norm], delTime >= updatedAt {
+                return true
+            }
+            if let delTime = deletedBookmarkIDs[id], delTime >= updatedAt {
+                return true
+            }
+            return false
+        }
+
+        for bm in localBookmarks {
+            let norm = normalizeComparableURL(bm.url)
+            guard !norm.isEmpty else { continue }
+            if isDeleted(url: bm.url, id: bm.id, updatedAt: bm.updatedAt) {
+                continue
+            }
+            var item = bm
+            if let fid = item.folderID, !validFolderIDs.contains(fid) {
+                item.folderID = nil
+                item.isPinnedToStartPage = true
+            }
+            mergedBookmarksMap[norm] = item
+        }
+
+        for bm in remoteBookmarks {
+            let norm = normalizeComparableURL(bm.url)
+            guard !norm.isEmpty else { continue }
+            if isDeleted(url: bm.url, id: bm.id, updatedAt: bm.updatedAt) {
+                continue
+            }
+            var candidate = bm
+            if let fid = candidate.folderID, !validFolderIDs.contains(fid) {
+                candidate.folderID = nil
+                candidate.isPinnedToStartPage = true
+            }
+
+            if let existing = mergedBookmarksMap[norm] {
+                if candidate.updatedAt > existing.updatedAt {
+                    mergedBookmarksMap[norm] = candidate
+                }
+            } else {
+                mergedBookmarksMap[norm] = candidate
+            }
+        }
+
+        let finalBookmarks = Array(mergedBookmarksMap.values)
+
+        // 4. Prune tombstones for items that are currently alive with updatedAt > deletedAt
+        activeTombstones.removeAll { tb in
+            if tb.isFolder {
+                if let folder = sortedFolders.first(where: { $0.id == tb.id }), folder.updatedAt > tb.deletedAt {
+                    return true
+                }
+            } else {
+                if let url = tb.url {
+                    let norm = normalizeComparableURL(url)
+                    if let bm = finalBookmarks.first(where: { normalizeComparableURL($0.url) == norm }), bm.updatedAt > tb.deletedAt {
+                        return true
+                    }
+                }
+                if let bm = finalBookmarks.first(where: { $0.id == tb.id }), bm.updatedAt > tb.deletedAt {
+                    return true
+                }
+            }
+            return false
+        }
+
+        return BookmarkSyncMergeResult(
+            mergedFolders: sortedFolders,
+            mergedBookmarks: finalBookmarks,
+            mergedTombstones: activeTombstones
+        )
+    }
+
+    /// Encodes folders, bookmarks, and tombstones into a structured cloud sync payload dictionary.
+    public static func encodeBookmarksPayload(
+        folders: [BookmarkFolder],
+        bookmarks: [BookmarkEntry],
+        tombstones: [BookmarkTombstone],
+        now: TimeInterval = Date().timeIntervalSince1970
+    ) -> [String: Any] {
+        [
+            "version": 2,
+            "folders": folders.map { f in
+                [
+                    "id": f.id,
+                    "name": f.name,
+                    "iconName": f.iconName,
+                    "createdAt": f.createdAt,
+                    "updatedAt": f.updatedAt,
+                    "sortOrder": f.sortOrder,
+                    "isPinnedToStartPage": f.isPinnedToStartPage
+                ]
+            },
+            "entries": bookmarks.map { b in
+                var dict: [String: Any] = [
+                    "id": b.id,
+                    "title": b.title,
+                    "url": b.url,
+                    "createdAt": b.createdAt,
+                    "updatedAt": b.updatedAt,
+                    "isPinnedToStartPage": b.isPinnedToStartPage,
+                    "iconName": b.iconName,
+                    "iconLetter": b.iconLetter,
+                    "colorHex": b.colorHex,
+                    "sortOrder": b.sortOrder
+                ]
+                if let shortTitle = b.shortTitle {
+                    dict["shortTitle"] = shortTitle
+                }
+                if let folderID = b.folderID {
+                    dict["folderID"] = folderID
+                }
+                return dict
+            },
+            "tombstones": tombstones.map { t in
+                var dict: [String: Any] = [
+                    "id": t.id,
+                    "isFolder": t.isFolder,
+                    "deletedAt": t.deletedAt
+                ]
+                if let url = t.url {
+                    dict["url"] = url
+                }
+                return dict
+            },
+            "updatedAt": Int64(now * 1000)
+        ]
+    }
+
+    /// Parses raw remote bookmarks payload from Cloudflare Workers pull API,
+    /// supporting both v2 structured dictionaries and v1 legacy `[[String: Any]]` arrays.
+    public static func parseRemoteBookmarksPayload(
+        _ raw: Any?
+    ) -> (folders: [BookmarkFolder], bookmarks: [BookmarkEntry], tombstones: [BookmarkTombstone]) {
+        guard let raw else {
+            return ([], [], [])
+        }
+
+        // Case 1: Structured Dictionary payload (Version 2)
+        if let dict = raw as? [String: Any] {
+            var folders: [BookmarkFolder] = []
+            if let folderDicts = dict["folders"] as? [[String: Any]] {
+                for fd in folderDicts {
+                    if let id = fd["id"] as? String,
+                       let name = fd["name"] as? String {
+                        let iconName = fd["iconName"] as? String ?? "folder.fill"
+                        let createdAt = (fd["createdAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
+                        let updatedAt = (fd["updatedAt"] as? NSNumber)?.doubleValue ?? createdAt
+                        let sortOrder = (fd["sortOrder"] as? NSNumber)?.intValue ?? 0
+                        let isPinned = fd["isPinnedToStartPage"] as? Bool ?? true
+                        folders.append(BookmarkFolder(
+                            id: id,
+                            name: name,
+                            iconName: iconName,
+                            createdAt: createdAt,
+                            updatedAt: updatedAt,
+                            sortOrder: sortOrder,
+                            isPinnedToStartPage: isPinned
+                        ))
+                    }
+                }
+            }
+
+            var bookmarks: [BookmarkEntry] = []
+            let entryDicts = (dict["entries"] as? [[String: Any]]) ?? (dict["bookmarks"] as? [[String: Any]]) ?? []
+            for bd in entryDicts {
+                if let url = bd["url"] as? String, !url.isEmpty {
+                    let id = bd["id"] as? String ?? UUID().uuidString
+                    let title = bd["title"] as? String ?? url
+                    let shortTitle = bd["shortTitle"] as? String
+                    let folderID = bd["folderID"] as? String
+                    let createdAt = (bd["createdAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
+                    let updatedAt = (bd["updatedAt"] as? NSNumber)?.doubleValue ?? createdAt
+                    let isPinned = bd["isPinnedToStartPage"] as? Bool ?? false
+                    let iconName = bd["iconName"] as? String ?? ""
+                    let iconLetter = bd["iconLetter"] as? String ?? ""
+                    let colorHex = bd["colorHex"] as? String ?? ""
+                    let sortOrder = (bd["sortOrder"] as? NSNumber)?.intValue ?? 0
+
+                    bookmarks.append(BookmarkEntry(
+                        id: id,
+                        title: title,
+                        shortTitle: shortTitle,
+                        url: url,
+                        folderID: folderID,
+                        createdAt: createdAt,
+                        updatedAt: updatedAt,
+                        isPinnedToStartPage: isPinned,
+                        iconName: iconName,
+                        iconLetter: iconLetter,
+                        colorHex: colorHex,
+                        sortOrder: sortOrder
+                    ))
+                }
+            }
+
+            var tombstones: [BookmarkTombstone] = []
+            if let tbDicts = dict["tombstones"] as? [[String: Any]] {
+                for td in tbDicts {
+                    if let id = td["id"] as? String {
+                        let url = td["url"] as? String
+                        let isFolder = td["isFolder"] as? Bool ?? false
+                        let deletedAt = (td["deletedAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
+                        tombstones.append(BookmarkTombstone(
+                            id: id,
+                            url: url,
+                            isFolder: isFolder,
+                            deletedAt: deletedAt
+                        ))
+                    }
+                }
+            }
+
+            return (folders, bookmarks, tombstones)
+        }
+
+        // Case 2: Legacy Array payload (Version 1: [[String: Any]])
+        if let array = raw as? [[String: Any]] {
+            var bookmarks: [BookmarkEntry] = []
+            for item in array {
+                if let url = item["url"] as? String, !url.isEmpty {
+                    let title = item["title"] as? String ?? url
+                    bookmarks.append(BookmarkEntry(
+                        title: title,
+                        url: url,
+                        createdAt: 0,
+                        updatedAt: 0
+                    ))
+                }
+            }
+            return ([], bookmarks, [])
+        }
+
+        return ([], [], [])
     }
 }
 

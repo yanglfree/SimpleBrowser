@@ -46,6 +46,7 @@ public final class BrowserSession: ObservableObject {
 
     @Published public var bookmarks: [BookmarkEntry] = []
     @Published public var bookmarkFolders: [BookmarkFolder] = []
+    @Published public private(set) var tombstones: [BookmarkTombstone] = []
     @Published public var history: [HistoryEntry] = []
     @Published public private(set) var siteIcons: [String: NSImage] = [:]
     @Published public var isShowingLibraryManager: Bool = false
@@ -111,6 +112,7 @@ public final class BrowserSession: ObservableObject {
         let initialLibrary = libraryStore.loadInitialBookmarksAndFolders()
         bookmarkFolders = initialLibrary.folders
         bookmarks = initialLibrary.bookmarks
+        tombstones = libraryStore.loadTombstones()
         let loadedHistory = libraryStore.loadHistory()
         let cleanedHistory = loadedHistory.filter { !URLPolicy.isBlankURL($0.url) }
         history = cleanedHistory
@@ -785,8 +787,10 @@ public final class BrowserSession: ObservableObject {
     public func toggleBookmarkForActiveTab() {
         guard let tab = activeTab, !tab.isHome, !tab.url.isEmpty else { return }
         if isBookmarked(url: tab.url) {
+            recordBookmarkTombstone(url: tab.url)
             bookmarks = LibraryPolicy.removeBookmarkByUrl(bookmarks, url: tab.url)
         } else {
+            clearBookmarkTombstone(url: tab.url)
             bookmarks = LibraryPolicy.addBookmark(bookmarks, url: tab.url, title: tab.title)
         }
         persistAndSyncBookmarks()
@@ -821,6 +825,7 @@ public final class BrowserSession: ObservableObject {
         iconLetter: String? = nil,
         colorHex: String? = nil
     ) -> BookmarkEntry? {
+        clearBookmarkTombstone(url: url)
         bookmarks = LibraryPolicy.addBookmark(
             bookmarks,
             url: url,
@@ -839,21 +844,35 @@ public final class BrowserSession: ObservableObject {
     }
 
     public func removeBookmark(id: String) {
+        if let entry = bookmark(forID: id) {
+            recordBookmarkTombstone(id: id, url: entry.url)
+        }
         bookmarks = LibraryPolicy.removeBookmark(bookmarks, id: id)
         persistAndSyncBookmarks()
     }
 
     public func removeBookmarks(ids: Set<String>) {
+        for id in ids {
+            if let entry = bookmark(forID: id) {
+                recordBookmarkTombstone(id: id, url: entry.url)
+            }
+        }
         bookmarks = LibraryPolicy.removeBookmarks(bookmarks, ids: ids)
         persistAndSyncBookmarks()
     }
 
     public func removeBookmarkByUrl(_ url: String) {
+        if let entry = bookmark(forURL: url) {
+            recordBookmarkTombstone(id: entry.id, url: entry.url)
+        } else {
+            recordBookmarkTombstone(url: url)
+        }
         bookmarks = LibraryPolicy.removeBookmarkByUrl(bookmarks, url: url)
         persistAndSyncBookmarks()
     }
 
     public func updateBookmark(id: String, title: String, url: String) {
+        clearBookmarkTombstone(url: url)
         bookmarks = LibraryPolicy.updateBookmark(bookmarks, id: id, title: title, url: url)
         persistAndSyncBookmarks()
     }
@@ -865,6 +884,7 @@ public final class BrowserSession: ObservableObject {
         folderID: String?,
         isPinnedToStartPage: Bool? = nil
     ) {
+        clearBookmarkTombstone(url: url)
         bookmarks = LibraryPolicy.updateBookmark(
             bookmarks,
             id: id,
@@ -898,16 +918,27 @@ public final class BrowserSession: ObservableObject {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         bookmarkFolders = LibraryPolicy.createFolder(bookmarkFolders, name: trimmed, iconName: iconName)
+        if let created = bookmarkFolders.first(where: { $0.name.lowercased() == trimmed.lowercased() }) {
+            clearFolderTombstone(id: created.id)
+        }
         persistAndSyncBookmarks()
         return bookmarkFolders.first { $0.name.lowercased() == trimmed.lowercased() }
     }
 
     public func renameBookmarkFolder(id: String, newName: String) {
+        clearFolderTombstone(id: id)
         bookmarkFolders = LibraryPolicy.renameFolder(bookmarkFolders, id: id, newName: newName)
         persistAndSyncBookmarks()
     }
 
     public func removeBookmarkFolder(id: String, deleteContainedBookmarks: Bool = false) {
+        recordFolderTombstone(id: id)
+        if deleteContainedBookmarks {
+            let contained = bookmarks.filter { $0.folderID == id }
+            for item in contained {
+                recordBookmarkTombstone(id: item.id, url: item.url)
+            }
+        }
         let result = LibraryPolicy.removeFolder(
             bookmarkFolders,
             bookmarks: bookmarks,
@@ -952,6 +983,12 @@ public final class BrowserSession: ObservableObject {
             existingFolders: bookmarkFolders,
             existingBookmarks: bookmarks
         )
+        for bm in result.bookmarks {
+            clearBookmarkTombstone(url: bm.url)
+        }
+        for f in result.folders {
+            clearFolderTombstone(id: f.id)
+        }
         bookmarkFolders = result.folders
         bookmarks = result.bookmarks
         persistAndSyncBookmarks()
@@ -995,9 +1032,43 @@ public final class BrowserSession: ObservableObject {
         }
     }
 
+    // MARK: - Tombstone Recording & Cloud Sync Application
+
+    public func recordBookmarkTombstone(id: String? = nil, url: String? = nil) {
+        let cleanURL = url.flatMap { LibraryPolicy.normalizeBookmarkURLInput($0) }
+        let normURL = cleanURL.flatMap { LibraryPolicy.normalizeComparableURL($0) }
+        let targetID = id ?? (normURL ?? UUID().uuidString)
+        let tombstone = BookmarkTombstone(id: targetID, url: normURL, isFolder: false)
+        tombstones = LibraryPolicy.appendTombstone(tombstones, tombstone: tombstone)
+    }
+
+    public func recordFolderTombstone(id: String) {
+        let tombstone = BookmarkTombstone(id: id, url: nil, isFolder: true)
+        tombstones = LibraryPolicy.appendTombstone(tombstones, tombstone: tombstone)
+    }
+
+    public func clearBookmarkTombstone(url: String) {
+        let clean = LibraryPolicy.normalizeBookmarkURLInput(url)
+        let norm = LibraryPolicy.normalizeComparableURL(clean)
+        guard !norm.isEmpty else { return }
+        tombstones.removeAll { !$0.isFolder && $0.url.map(LibraryPolicy.normalizeComparableURL) == norm }
+    }
+
+    public func clearFolderTombstone(id: String) {
+        tombstones.removeAll { $0.isFolder && $0.id == id }
+    }
+
+    public func applySyncResult(folders: [BookmarkFolder], bookmarks: [BookmarkEntry], tombstones: [BookmarkTombstone]) {
+        self.bookmarkFolders = folders
+        self.bookmarks = bookmarks
+        self.tombstones = tombstones
+        persistAndSyncBookmarks()
+    }
+
     private func persistAndSyncBookmarks() {
         libraryStore.saveBookmarkFolders(bookmarkFolders)
         libraryStore.saveBookmarks(bookmarks)
+        libraryStore.saveTombstones(tombstones)
         syncFavoritesManager()
     }
 

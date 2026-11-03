@@ -588,7 +588,9 @@ public final class AccountManager: ObservableObject {
         var pullReq = URLRequest(url: pullURL)
         pullReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-        let remoteBookmarks: [[String: Any]]
+        let remoteFolders: [BookmarkFolder]
+        let remoteBookmarks: [BookmarkEntry]
+        let remoteTombstones: [BookmarkTombstone]
         let remoteSettings: [String: Any]?
 
         do {
@@ -614,7 +616,10 @@ public final class AccountManager: ObservableObject {
                 return
             }
 
-            remoteBookmarks = (json["bookmarks"] as? [[String: Any]]) ?? []
+            let parsed = LibraryPolicy.parseRemoteBookmarksPayload(json["bookmarks"])
+            remoteFolders = parsed.folders
+            remoteBookmarks = parsed.bookmarks
+            remoteTombstones = parsed.tombstones
             remoteSettings = json["settings"] as? [String: Any]
         } catch {
             // CRITICAL DEFENSIVE GUARD: Abort immediately when pull fails to avoid overwriting remote data.
@@ -622,19 +627,20 @@ public final class AccountManager: ObservableObject {
             return
         }
 
-        // Merge cloud bookmarks into local
-        for item in remoteBookmarks {
-            if let title = item["title"] as? String, let url = item["url"] as? String {
-                let normURL = LibraryPolicy.normalizeComparableURL(url)
-                if !session.isBookmarked(url: url) {
-                    session.addBookmark(url: url, title: title)
-                } else if let existing = session.bookmarks.first(where: { LibraryPolicy.normalizeComparableURL($0.url) == normURL }),
-                          existing.title != title && !title.isEmpty {
-                    // Update title if edited on another device
-                    session.updateBookmark(id: existing.id, title: title, url: url)
-                }
-            }
-        }
+        // Two-way merge with tombstone preservation and deletion propagation
+        let mergeResult = LibraryPolicy.mergeSync(
+            localFolders: session.bookmarkFolders,
+            localBookmarks: session.bookmarks,
+            localTombstones: session.tombstones,
+            remoteFolders: remoteFolders,
+            remoteBookmarks: remoteBookmarks,
+            remoteTombstones: remoteTombstones
+        )
+        session.applySyncResult(
+            folders: mergeResult.mergedFolders,
+            bookmarks: mergeResult.mergedBookmarks,
+            tombstones: mergeResult.mergedTombstones
+        )
 
         // Apply remote settings only when remote is newer than local settings and local has no pending edits.
         if let remoteSettings = remoteSettings,
@@ -655,12 +661,16 @@ public final class AccountManager: ObservableObject {
         pushReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         pushReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let localBookmarks = session.bookmarks.map { ["title": $0.title, "url": $0.url] }
+        let structuredBookmarksPayload = LibraryPolicy.encodeBookmarksPayload(
+            folders: session.bookmarkFolders,
+            bookmarks: session.bookmarks,
+            tombstones: session.tombstones
+        )
         let localSettings = settingsPayload(from: session.settings)
         let pushedSettingsTimestamp = Self.extractUpdatedAt(from: localSettings)
 
         let payload: [String: Any] = [
-            "bookmarks": localBookmarks,
+            "bookmarks": structuredBookmarksPayload,
             "settings": localSettings
         ]
 
