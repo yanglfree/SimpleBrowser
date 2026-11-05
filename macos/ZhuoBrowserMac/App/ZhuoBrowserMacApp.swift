@@ -16,6 +16,7 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
         DefaultBrowserManager.shared.ensureRegisteredWithLaunchServices()
         DefaultBrowserManager.shared.refreshStatus()
         installTerminationSignalHandlers()
+        installContextMenuLocalization()
         handleInitialLaunchArguments()
         Task { @MainActor in
             _ = HomeBackgroundManager.shared
@@ -75,6 +76,58 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
             }
             source.resume()
             signalSources.append(source)
+        }
+    }
+
+    private func installContextMenuLocalization() {
+        NotificationCenter.default.addObserver(
+            forName: NSMenu.didBeginTrackingNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let menu = notification.object as? NSMenu else { return }
+            Self.localizeWebKitContextMenu(menu)
+        }
+    }
+
+    static func localizeWebKitContextMenu(_ menu: NSMenu) {
+        for item in menu.items {
+            guard let rawId = item.identifier?.rawValue else { continue }
+            switch rawId {
+            case "WKMenuItemIdentifierOpenLink":
+                item.title = "打开链接"
+            case "WKMenuItemIdentifierOpenLinkInNewWindow":
+                item.title = "在新标签页中打开链接"
+            case "WKMenuItemIdentifierDownloadLinkedFile":
+                item.title = "下载链接文件"
+            case "WKMenuItemIdentifierCopyLink":
+                item.title = "拷贝链接"
+            case "WKMenuItemIdentifierOpenImageInNewWindow":
+                item.title = "在新标签页中打开图像"
+            case "WKMenuItemIdentifierDownloadImage":
+                item.title = "下载图像"
+            case "WKMenuItemIdentifierCopyImage":
+                item.title = "拷贝图像"
+            case "WKMenuItemIdentifierOpenMediaInNewWindow":
+                item.title = "在新标签页中打开视频"
+            case "WKMenuItemIdentifierDownloadMedia":
+                item.title = "下载视频"
+            case "WKMenuItemIdentifierCopyMediaLink":
+                item.title = "拷贝视频地址"
+            case "WKMenuItemIdentifierReload":
+                item.title = "重新加载"
+            case "WKMenuItemIdentifierGoBack":
+                item.title = "返回"
+            case "WKMenuItemIdentifierGoForward":
+                item.title = "前进"
+            case "WKMenuItemIdentifierInspectElement":
+                item.title = "检查元素"
+            default:
+                break
+            }
+            if let submenu = item.submenu {
+                localizeWebKitContextMenu(submenu)
+            }
         }
     }
 }

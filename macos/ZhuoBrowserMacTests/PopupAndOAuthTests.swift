@@ -279,4 +279,70 @@ final class PopupAndOAuthTests: XCTestCase {
         XCTAssertEqual(session.tabs.count, 2)
         XCTAssertTrue(session.activeTab?.url.hasPrefix("https://news.ycombinator.com") == true)
     }
+
+    // MARK: - 6. Context Menu & Link Navigation Tests
+
+    func testTabControllerCreateWebViewWithResolvesRelativeURL() {
+        let session = BrowserSession()
+        session.createTab(url: "https://example.com/base/index.html", select: true)
+        let countBefore = session.tabs.count
+
+        guard let controller = session.activeController, let webView = controller.webView else {
+            XCTFail("Active controller and webView must exist")
+            return
+        }
+
+        let relativeURL = URL(string: "detail.html")!
+        let request = URLRequest(url: relativeURL)
+
+        class MockNavigationAction: WKNavigationAction {
+            let req: URLRequest
+            init(req: URLRequest) {
+                self.req = req
+                super.init()
+            }
+            override var request: URLRequest { req }
+            override var targetFrame: WKFrameInfo? { nil }
+        }
+
+        let mockAction = MockNavigationAction(req: request)
+        let features = WKWindowFeatures()
+
+        let returnedWebView = controller.webView(
+            webView,
+            createWebViewWith: webView.configuration,
+            for: mockAction,
+            windowFeatures: features
+        )
+
+        XCTAssertNil(returnedWebView)
+        XCTAssertEqual(session.tabs.count, countBefore + 1)
+        XCTAssertEqual(session.activeTab?.url, "https://example.com/base/detail.html")
+    }
+
+    func testLocalizeWebKitContextMenuTranslatesOpenLinkInNewWindow() {
+        let menu = NSMenu()
+        let item1 = NSMenuItem(title: "Open Link", action: nil, keyEquivalent: "")
+        item1.identifier = NSUserInterfaceItemIdentifier("WKMenuItemIdentifierOpenLink")
+        menu.addItem(item1)
+
+        let item2 = NSMenuItem(title: "Open Link in New Window", action: nil, keyEquivalent: "")
+        item2.identifier = NSUserInterfaceItemIdentifier("WKMenuItemIdentifierOpenLinkInNewWindow")
+        menu.addItem(item2)
+
+        let item3 = NSMenuItem(title: "Download Linked File", action: nil, keyEquivalent: "")
+        item3.identifier = NSUserInterfaceItemIdentifier("WKMenuItemIdentifierDownloadLinkedFile")
+        menu.addItem(item3)
+
+        let item4 = NSMenuItem(title: "Copy Link", action: nil, keyEquivalent: "")
+        item4.identifier = NSUserInterfaceItemIdentifier("WKMenuItemIdentifierCopyLink")
+        menu.addItem(item4)
+
+        ZhuoBrowserMacAppDelegate.localizeWebKitContextMenu(menu)
+
+        XCTAssertEqual(item1.title, "打开链接")
+        XCTAssertEqual(item2.title, "在新标签页中打开链接")
+        XCTAssertEqual(item3.title, "下载链接文件")
+        XCTAssertEqual(item4.title, "拷贝链接")
+    }
 }

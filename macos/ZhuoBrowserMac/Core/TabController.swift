@@ -864,16 +864,21 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         for navigationAction: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        if OAuthPolicy.shouldOpenAsPopup(features: windowFeatures, url: navigationAction.request.url) {
+        var targetURL = navigationAction.request.url
+        if let currentURL = webView.url, let rawURL = targetURL, rawURL.scheme == nil {
+            targetURL = URL(string: rawURL.absoluteString, relativeTo: currentURL)?.absoluteURL
+        }
+
+        if OAuthPolicy.shouldOpenAsPopup(features: windowFeatures, url: targetURL) {
             return WebPopupWindowManager.shared.presentPopup(
                 configuration: configuration,
                 features: windowFeatures,
-                initialURL: navigationAction.request.url,
+                initialURL: targetURL,
                 parentWindow: webView.window
             )
         }
 
-        if let url = navigationAction.request.url, !URLPolicy.isBlankURL(url.absoluteString) {
+        if let url = targetURL, !URLPolicy.isBlankURL(url.absoluteString) {
             MainActor.assumeIsolated {
                 session?.createTab(url: url.absoluteString, select: true)
             }
