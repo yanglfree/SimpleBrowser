@@ -117,6 +117,10 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             WeakExtensionBridgeMessageHandler(target: self),
             name: ExtensionRuntimeBridge.messageHandlerName
         )
+        userContentController.add(
+            WeakAutoFillMessageHandler(target: self),
+            name: "zhuoAutoFill"
+        )
         applyContentProtection(to: userContentController)
 
         // Initialize passkey manager authorization check
@@ -216,6 +220,9 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
         if let passkeyScript = InjectedScripts.shared.makePasskeyAdapterScript() {
             userContentController.addUserScript(passkeyScript)
+        }
+        if let autoFillScript = InjectedScripts.shared.makeAutoFillScript() {
+            userContentController.addUserScript(autoFillScript)
         }
 
         // Install user scripts from enabled Chrome / UserScript extensions
@@ -521,6 +528,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         canGoBackObservation = nil
         canGoForwardObservation = nil
 
+        AutoFillPopoverController.shared.dismiss()
         webView?.stopLoading()
         webView?.navigationDelegate = nil
         webView?.uiDelegate = nil
@@ -532,6 +540,9 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         webView?.configuration.userContentController.removeScriptMessageHandler(
             forName: ExtensionRuntimeBridge.messageHandlerName
         )
+        webView?.configuration.userContentController.removeScriptMessageHandler(
+            forName: "zhuoAutoFill"
+        )
         webView?.configuration.userContentController.removeAllUserScripts()
         webView?.removeFromSuperview()
         webView = nil
@@ -540,6 +551,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     // MARK: - WKNavigationDelegate
 
     public func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        AutoFillPopoverController.shared.dismiss()
         session?.updateTab(tabID) { tab in
             tab.isLoading = true
             tab.loadingProgress = 0.1
@@ -1039,6 +1051,120 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     fileprivate func handleExtensionBridgeMessage(_ message: WKScriptMessage) {
         let extManager = session?.extensionManager ?? ExtensionManager.shared
         extManager.handleScriptMessage(message, sourceWebView: webView, tabID: tabID)
+    }
+
+    fileprivate func handleAutoFillMessage(action: String, payload: [String: Any]) {
+        guard let webView = webView else { return }
+
+        switch action {
+        case "focus":
+            guard let rectDict = payload["rect"] as? [String: Any],
+                  let x = (rectDict["x"] as? NSNumber)?.doubleValue,
+                  let y = (rectDict["y"] as? NSNumber)?.doubleValue,
+                  let width = (rectDict["width"] as? NSNumber)?.doubleValue,
+                  let height = (rectDict["height"] as? NSNumber)?.doubleValue else {
+                return
+            }
+
+            let fieldRect = CGRect(x: x, y: y, width: width, height: height)
+            let hostname = (payload["hostname"] as? String) ?? webView.url?.host ?? ""
+            let fieldType = (payload["fieldType"] as? String) ?? "username"
+            let isPassword = fieldType == "password"
+            let forceOpen = (payload["forceOpen"] as? Bool) ?? false
+
+            var matched = CredentialStore.shared.credentials(for: hostname)
+            if matched.isEmpty && (forceOpen || !hostname.isEmpty) {
+                let root = SavedCredential.extractRootDomain(from: hostname)
+                matched = CredentialStore.shared.credentials(for: root)
+            }
+
+            AutoFillPopoverController.shared.show(
+                in: webView,
+                fieldRect: fieldRect,
+                hostname: hostname,
+                isPasswordContext: isPassword,
+                credentials: matched,
+                onFill: { [weak self] credential in
+                    self?.fillCredentialIntoWebPage(credential)
+                },
+                onPasskey: { [weak self] in
+                    self?.triggerPasskeyQuickLogin()
+                }
+            )
+
+        case "blur":
+            AutoFillPopoverController.shared.dismiss()
+
+        case "update-rect":
+            break
+
+        case "submitted":
+            if let user = payload["username"] as? String,
+               let pass = payload["password"] as? String,
+               !pass.isEmpty {
+                let host = (payload["hostname"] as? String) ?? webView.url?.host ?? ""
+                promptSavePassword(hostname: host, username: user, password: pass)
+            }
+
+        default:
+            break
+        }
+    }
+
+    private func fillCredentialIntoWebPage(_ credential: SavedCredential) {
+        guard let webView = webView else { return }
+        if credential.isPasskey {
+            triggerPasskeyQuickLogin()
+            return
+        }
+
+        let escapedUser = credential.username
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let escapedPass = credential.password
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+
+        let js = "if (window.__zhuoAutoFill) { window.__zhuoAutoFill.fill(\"\(escapedUser)\", \"\(escapedPass)\"); }"
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    private func triggerPasskeyQuickLogin() {
+        guard let webView = webView else { return }
+        let js = "if (window.__zhuoAutoFill) { window.__zhuoAutoFill.triggerPasskey(); }"
+        webView.evaluateJavaScript(js, completionHandler: nil)
+
+        Task { @MainActor in
+            _ = await PasskeyManager.shared.requestAuthorizationIfNeeded()
+        }
+    }
+
+    private func promptSavePassword(hostname: String, username: String, password: String) {
+        guard !hostname.isEmpty, !password.isEmpty else { return }
+        let cred = SavedCredential(
+            domain: hostname,
+            username: username.isEmpty ? "未命名账户" : username,
+            password: password,
+            isPasskey: false
+        )
+        CredentialStore.shared.save(credential: cred)
+    }
+}
+
+private final class WeakAutoFillMessageHandler: NSObject, WKScriptMessageHandler {
+    private weak var target: TabController?
+
+    init(target: TabController) {
+        self.target = target
+    }
+
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        guard let body = message.body as? [String: Any],
+              let action = body["action"] as? String else { return }
+        target?.handleAutoFillMessage(action: action, payload: body)
     }
 }
 

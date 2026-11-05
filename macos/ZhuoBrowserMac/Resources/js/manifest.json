@@ -16,6 +16,7 @@
     "content-cleanup-standard.js",
     "content-cleanup-strict.js",
     "article-capture.js",
-    "passkey-adapter.js"
+    "passkey-adapter.js",
+    "autofill-agent.js"
   ]
 }
