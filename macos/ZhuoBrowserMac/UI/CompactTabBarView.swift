@@ -32,15 +32,13 @@ public struct CompactTabBarView: View {
                         ))
                     }
 
-                    // Interactive empty space after tabs: double clicking creates a new tab
-                    Spacer(minLength: 40)
-                        .frame(height: 28)
-                        .contentShape(Rectangle())
-                        .onTapGesture(count: 2) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                                _ = session.createTab()
-                            }
-                        }
+                    // Interactive empty space after tabs: native double clicking creates a new tab
+                    // without bubble-up to NSWindow's titlebar actions or forcing heavy spring animations.
+                    TabBarDoubleClickBackground {
+                        _ = session.createTab()
+                    }
+                    .frame(minWidth: 40, maxWidth: .infinity)
+                    .frame(height: 28)
                 }
                 .frame(minWidth: max(0, proxy.size.width - 20), alignment: .leading)
                 .padding(.horizontal, 10)
@@ -160,5 +158,50 @@ private struct TabItemView: View {
         .onTapGesture {
             onSelect()
         }
+    }
+}
+
+/// Transparent AppKit view providing instant double-click new tab creation while consuming
+/// mouse events to prevent bubble-up to NSWindow's titlebar zoom/drag behavior.
+public struct TabBarDoubleClickBackground: NSViewRepresentable {
+    public let onDoubleClick: () -> Void
+
+    public init(onDoubleClick: @escaping () -> Void) {
+        self.onDoubleClick = onDoubleClick
+    }
+
+    public func makeNSView(context: Context) -> TabBarDoubleClickNSView {
+        let view = TabBarDoubleClickNSView()
+        view.onDoubleClick = onDoubleClick
+        return view
+    }
+
+    public func updateNSView(_ nsView: TabBarDoubleClickNSView, context: Context) {
+        nsView.onDoubleClick = onDoubleClick
+    }
+}
+
+public final class TabBarDoubleClickNSView: NSView {
+    public var onDoubleClick: (() -> Void)?
+    private var lastTriggerTime: TimeInterval = 0
+
+    public override var mouseDownCanMoveWindow: Bool {
+        false
+    }
+
+    public override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+
+    public override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 {
+            let now = ProcessInfo.processInfo.systemUptime
+            if now - lastTriggerTime > 0.25 {
+                lastTriggerTime = now
+                onDoubleClick?()
+            }
+        }
+        // Deliberately consume the event without calling super, preventing NSWindow
+        // from interpreting double-clicks as system titlebar zoom or background drag.
     }
 }

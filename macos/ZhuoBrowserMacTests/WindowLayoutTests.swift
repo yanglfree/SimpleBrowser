@@ -114,4 +114,49 @@ final class WindowLayoutTests: XCTestCase {
         XCTAssertNotNil(manager)
         XCTAssertLessThan(elapsedMs, 50, "HomeBackgroundManager init should not decode 4K/6K presets synchronously on the main thread")
     }
+
+    func testTabBarDoubleClickNSViewBehaviors() {
+        let view = TabBarDoubleClickNSView(frame: NSRect(x: 0, y: 0, width: 200, height: 28))
+        XCTAssertFalse(view.mouseDownCanMoveWindow, "TabBar double-click background must not trigger window drag")
+        XCTAssertTrue(view.acceptsFirstMouse(for: nil), "TabBar double-click background should accept first mouse")
+
+        var doubleClickCount = 0
+        view.onDoubleClick = {
+            doubleClickCount += 1
+        }
+
+        // Single click (clickCount == 1) should not trigger creation
+        let singleClickEvent = NSEvent.mouseEvent(
+            with: .leftMouseDown,
+            location: NSPoint(x: 10, y: 10),
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: 0,
+            context: nil,
+            eventNumber: 1,
+            clickCount: 1,
+            pressure: 1.0
+        )!
+        view.mouseDown(with: singleClickEvent)
+        XCTAssertEqual(doubleClickCount, 0, "Single click must not trigger new tab creation")
+
+        // Double click (clickCount == 2) should trigger creation
+        let doubleClickEvent = NSEvent.mouseEvent(
+            with: .leftMouseDown,
+            location: NSPoint(x: 10, y: 10),
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: 0,
+            context: nil,
+            eventNumber: 2,
+            clickCount: 2,
+            pressure: 1.0
+        )!
+        view.mouseDown(with: doubleClickEvent)
+        XCTAssertEqual(doubleClickCount, 1, "Double click must trigger new tab creation once")
+
+        // Immediate rapid follow-up clickCount == 2 within 250ms debounce should be filtered
+        view.mouseDown(with: doubleClickEvent)
+        XCTAssertEqual(doubleClickCount, 1, "Immediate consecutive double click within debounce window should be ignored")
+    }
 }
