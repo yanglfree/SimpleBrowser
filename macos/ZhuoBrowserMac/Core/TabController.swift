@@ -124,11 +124,6 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         )
         applyContentProtection(to: userContentController)
 
-        // Initialize passkey manager authorization check
-        Task { @MainActor in
-            _ = await PasskeyManager.shared.requestAuthorizationIfNeeded()
-        }
-
         // Preferences for performance
         let prefs = WKWebpagePreferences()
         prefs.allowsContentJavaScript = true
@@ -218,9 +213,6 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
         if activeSettings.cosmeticCleanupEnabled, let cosmeticScript = InjectedScripts.shared.makeCosmeticCleanupScript() {
             userContentController.addUserScript(cosmeticScript)
-        }
-        if let passkeyScript = InjectedScripts.shared.makePasskeyAdapterScript() {
-            userContentController.addUserScript(passkeyScript)
         }
         if let autoFillScript = InjectedScripts.shared.makeAutoFillScript() {
             userContentController.addUserScript(autoFillScript)
@@ -1076,11 +1068,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             }
 
             let hostname = (payload["hostname"] as? String) ?? webView.url?.host ?? ""
-            let matched = CredentialStore.shared.credentials(for: hostname).filter(\.isFillable)
+            let matched = CredentialStore.shared.credentials(for: hostname)
 
             // With no saved secret for this site, stay out of the way instead of showing a menu
             // whose only entries would have to be fabricated.
-            guard CredentialStore.canOfferAutoFill(matched) else {
+            guard !matched.isEmpty else {
                 AutoFillPopoverController.shared.dismiss()
                 return
             }
@@ -1099,11 +1091,13 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             AutoFillPopoverController.shared.dismiss()
 
         case "submitted":
+            // Private browsing must not leave a password behind.
+            guard !isPrivateTab else { return }
             if let user = payload["username"] as? String,
                let pass = payload["password"] as? String,
                !pass.isEmpty {
                 let host = (payload["hostname"] as? String) ?? webView.url?.host ?? ""
-                promptSavePassword(hostname: host, username: user, password: pass)
+                promptToSavePassword(hostname: host, username: user, password: pass)
             }
 
         default:
@@ -1115,8 +1109,6 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// at the keyboard. Safari asks for the same proof before AutoFill inserts a password; without
     /// it, a click alone would expose the secret to anyone using an unlocked Mac.
     private func authorizeAndFill(_ credential: SavedCredential) {
-        guard credential.isFillable else { return }
-
         let context = LAContext()
         context.localizedFallbackTitle = "使用登录密码"
         var policyError: NSError?
@@ -1133,17 +1125,23 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             _ = context
             guard success else { return }
             DispatchQueue.main.async {
-                self?.fillCredentialIntoWebPage(credential)
+                guard let self else { return }
+                // Read the secret only after the user passed verification.
+                guard let password = CredentialStore.shared.password(for: credential) else {
+                    NSSound.beep()
+                    return
+                }
+                self.fillCredentialIntoWebPage(credential, password: password)
             }
         }
     }
 
-    private func fillCredentialIntoWebPage(_ credential: SavedCredential) {
-        guard let webView = webView, credential.isFillable else { return }
+    private func fillCredentialIntoWebPage(_ credential: SavedCredential, password: String) {
+        guard let webView = webView, SavedCredential.isFillablePassword(password) else { return }
         let js = """
         (() => {
             if (window.__zhuoAutoFill) {
-                window.__zhuoAutoFill.fill(\(Self.javaScriptString(credential.username)), \(Self.javaScriptString(credential.password)));
+                window.__zhuoAutoFill.fill(\(Self.javaScriptString(credential.username)), \(Self.javaScriptString(password)));
             }
         })();
         """
@@ -1160,14 +1158,33 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         return encoded
     }
 
-    private func promptSavePassword(hostname: String, username: String, password: String) {
-        guard !hostname.isEmpty, !password.isEmpty else { return }
-        let cred = SavedCredential(
-            domain: hostname,
-            username: username.isEmpty ? "未命名账户" : username,
-            password: password
-        )
-        CredentialStore.shared.save(credential: cred)
+    /// Asks before writing a password into the system keychain. The old build stored every submitted
+    /// password silently, including failed logins; a browser must never do that.
+    private func promptToSavePassword(hostname: String, username: String, password: String) {
+        guard !hostname.isEmpty, SavedCredential.isFillablePassword(password) else { return }
+
+        let account = username.isEmpty ? "未命名账户" : username
+        let isUpdate = CredentialStore.shared.hasCredential(domain: hostname, username: account)
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = isUpdate
+            ? "要更新“\(hostname)”的密码吗？"
+            : "要存储“\(hostname)”的密码吗？"
+        alert.informativeText = "账户：\(account)\n密码将保存到 macOS 登录钥匙串（钥匙串访问 → 密码），只有本应用可以读取。"
+        alert.addButton(withTitle: isUpdate ? "更新密码" : "存储密码")
+        alert.addButton(withTitle: "稍后")
+
+        let save = {
+            CredentialStore.shared.save(domain: hostname, username: account, password: password)
+        }
+
+        if let window = webView?.window {
+            alert.beginSheetModal(for: window) { response in
+                if response == .alertFirstButtonReturn { _ = save() }
+            }
+        } else if alert.runModal() == .alertFirstButtonReturn {
+            _ = save()
+        }
     }
 }
 

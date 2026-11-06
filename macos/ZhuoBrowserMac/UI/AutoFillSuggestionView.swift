@@ -65,17 +65,20 @@ public struct AutoFillSuggestionView: View {
     public let credentials: [SavedCredential]
     public let currentHost: String
     public let onSelectCredential: (SavedCredential) -> Void
+    public let onManagePasswords: () -> Void
 
     @State private var hoveredIndex: Int = 0
 
     public init(
         credentials: [SavedCredential],
         currentHost: String,
-        onSelectCredential: @escaping (SavedCredential) -> Void
+        onSelectCredential: @escaping (SavedCredential) -> Void,
+        onManagePasswords: @escaping () -> Void
     ) {
         self.credentials = credentials
         self.currentHost = currentHost
         self.onSelectCredential = onSelectCredential
+        self.onManagePasswords = onManagePasswords
     }
 
     public var body: some View {
@@ -95,6 +98,34 @@ public struct AutoFillSuggestionView: View {
                 if index < credentials.count - 1 {
                     Divider().opacity(0.35)
                 }
+            }
+
+            Divider()
+                .padding(.vertical, 2)
+                .opacity(0.5)
+
+            Button {
+                onManagePasswords()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "lock.shield")
+                        .font(.system(size: 12))
+                    Text("在「钥匙串访问」中管理密码…")
+                        .font(.system(size: 12.5))
+                    Spacer(minLength: 4)
+                }
+                .foregroundColor(hoveredIndex == credentials.count ? .accentColor : .primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(hoveredIndex == credentials.count ? Color.accentColor.opacity(0.12) : Color.clear)
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { inside in
+                if inside { hoveredIndex = credentials.count }
             }
         }
         .padding(5)

@@ -46,6 +46,10 @@ public final class AutoFillPopoverController: NSObject {
             onSelectCredential: { [weak self] selected in
                 self?.dismiss()
                 onSelect(selected)
+            },
+            onManagePasswords: { [weak self] in
+                self?.dismiss()
+                self?.openKeychainAccess()
             }
         )
 
@@ -123,6 +127,25 @@ public final class AutoFillPopoverController: NSObject {
             self.panel = nil
         }
         currentWebView = nil
+    }
+
+    /// Opens the system Keychain Access app, where the saved internet-password items live.
+    private func openKeychainAccess() {
+        let paths = [
+            "/System/Library/CoreServices/Applications/Keychain Access.app",
+            "/System/Applications/Utilities/Keychain Access.app"
+        ]
+        for path in paths where FileManager.default.fileExists(atPath: path) {
+            NSWorkspace.shared.openApplication(
+                at: URL(fileURLWithPath: path),
+                configuration: NSWorkspace.OpenConfiguration(),
+                completionHandler: nil
+            )
+            return
+        }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.keychainaccess") {
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+        }
     }
 
     public var isVisible: Bool {

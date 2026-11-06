@@ -43,93 +43,99 @@ final class AutoFillTests: XCTestCase {
         XCTAssertEqual(SavedCredential.extractRootDomain(from: "localhost"), "localhost")
     }
 
-    /// The old seeder persisted an "apple.com passkey" whose password was the bullet mask. Filling
-    /// it submits eight bullets and every login fails with "无法验证你的身份". It must never be
-    /// treated as a secret again.
-    func testPlaceholderAndEmptyPasswordsAreNotFillable() {
-        let masked = SavedCredential(
-            domain: "apple.com",
-            username: "yangliangsky@gmail.com",
-            password: SavedCredential.legacyPlaceholderPassword
+    func testCandidateHostsWalkUpToTheRegistrableDomain() {
+        XCTAssertEqual(
+            SavedCredential.candidateHosts(for: "idmsa.apple.com"),
+            ["idmsa.apple.com", "apple.com"]
         )
-        XCTAssertFalse(masked.isFillable)
-
-        let empty = SavedCredential(domain: "example.com", username: "user", password: "")
-        XCTAssertFalse(empty.isFillable)
-
-        let real = SavedCredential(domain: "example.com", username: "user", password: "s3cret")
-        XCTAssertTrue(real.isFillable)
+        XCTAssertEqual(
+            SavedCredential.candidateHosts(for: "a.b.example.co.uk"),
+            ["a.b.example.co.uk", "b.example.co.uk", "example.co.uk"]
+        )
+        XCTAssertEqual(SavedCredential.candidateHosts(for: "localhost"), ["localhost"])
+        XCTAssertEqual(SavedCredential.candidateHosts(for: ""), [])
     }
 
-    func testLegacyDemoRecordsAreOnlyTheFabricatedSeeds() {
-        let appleSeed = SavedCredential(
-            domain: "apple.com",
-            username: "yangliangsky@gmail.com",
-            password: SavedCredential.legacyPlaceholderPassword
-        )
-        let huaweiSeed = SavedCredential(
-            domain: "id1.cloud.huawei.com",
-            username: "18627178676",
-            password: SavedCredential.legacyPlaceholderPassword
-        )
-        XCTAssertTrue(appleSeed.isLegacyDemoRecord)
-        XCTAssertTrue(huaweiSeed.isLegacyDemoRecord)
-
-        // A genuine record for the same account has a real password and must be preserved.
-        let genuine = SavedCredential(
-            domain: "apple.com",
-            username: "yangliangsky@gmail.com",
-            password: "real-password"
-        )
-        XCTAssertFalse(genuine.isLegacyDemoRecord)
-
-        let remaining = CredentialStore.removingLegacyDemoRecords(from: [appleSeed, huaweiSeed, genuine])
-        XCTAssertEqual(remaining.map(\.username), ["yangliangsky@gmail.com"])
-        XCTAssertEqual(remaining.first?.password, "real-password")
+    func testPlaceholderAndEmptyPasswordsAreNeverStored() {
+        XCTAssertFalse(SavedCredential.isFillablePassword(""))
+        XCTAssertFalse(SavedCredential.isFillablePassword(SavedCredential.legacyPlaceholderPassword))
+        XCTAssertTrue(SavedCredential.isFillablePassword("s3cret"))
     }
 
-    func testAutoFillOnlyOfferedWhenASecretExists() {
-        XCTAssertFalse(CredentialStore.canOfferAutoFill([]))
-        XCTAssertFalse(CredentialStore.canOfferAutoFill([
-            SavedCredential(domain: "apple.com", username: "a@b.c", password: "")
-        ]))
-        XCTAssertTrue(CredentialStore.canOfferAutoFill([
-            SavedCredential(domain: "example.com", username: "user", password: "s3cret")
-        ]))
+    /// The retired store held a fake apple.com "passkey" whose password was the bullet mask; the
+    /// migration must drop it instead of copying it into the system keychain.
+    func testLegacyMigrationSkipsFabricatedAndEmptyPasswords() {
+        let entries = [
+            LegacyStoredCredential(
+                domain: "apple.com",
+                username: "yangliangsky@gmail.com",
+                password: SavedCredential.legacyPlaceholderPassword
+            ),
+            LegacyStoredCredential(domain: "example.com", username: "empty", password: ""),
+            LegacyStoredCredential(domain: "example.com", username: "real", password: "real-password")
+        ]
+
+        let migrated = CredentialStore.migratableLegacyEntries(from: entries)
+        XCTAssertEqual(migrated.map(\.username), ["real"])
+        XCTAssertEqual(migrated.first?.password, "real-password")
     }
 
     @MainActor
-    func testCredentialStoreSaveQueryDelete() {
+    func testSystemKeychainSaveListReadDelete() {
         let store = CredentialStore.shared
-        let testDomain = "test-\(UUID().uuidString).example.com"
+        let domain = "test-\(UUID().uuidString).example.com"
+        let username = "tester@example.com"
+        let password = "p@ss\"word\\with\nnewline"
 
-        let cred1 = SavedCredential(
-            domain: testDomain,
-            username: "tester1@example.com",
-            password: "password123"
+        defer {
+            store.delete(SavedCredential(domain: domain, username: username))
+        }
+
+        XCTAssertTrue(store.save(domain: domain, username: username, password: password))
+
+        let matches = store.credentials(for: domain)
+        XCTAssertEqual(matches.count, 1)
+        XCTAssertEqual(matches.first?.username, username)
+        XCTAssertEqual(matches.first?.domain, domain.lowercased())
+
+        // A parent-domain lookup finds it too.
+        XCTAssertEqual(store.credentials(for: "login." + domain).count, 1)
+
+        XCTAssertEqual(store.password(forDomain: domain, username: username), password)
+        XCTAssertEqual(store.password(for: matches[0]), password)
+
+        store.delete(SavedCredential(domain: domain, username: username))
+        XCTAssertTrue(store.credentials(for: domain).isEmpty)
+        XCTAssertNil(store.password(forDomain: domain, username: username))
+    }
+
+    @MainActor
+    func testKeychainRejectsTheLegacyPlaceholderPassword() {
+        let store = CredentialStore.shared
+        let domain = "test-\(UUID().uuidString).example.com"
+        defer { store.delete(SavedCredential(domain: domain, username: "masked")) }
+
+        XCTAssertFalse(store.save(
+            domain: domain,
+            username: "masked",
+            password: SavedCredential.legacyPlaceholderPassword
+        ))
+        XCTAssertTrue(store.credentials(for: domain).isEmpty)
+    }
+
+    /// Passwords used to be persisted as plaintext JSON in UserDefaults alongside the private
+    /// keychain items. The new store must never write them there.
+    @MainActor
+    func testPasswordIsNotPersistedInUserDefaults() {
+        let store = CredentialStore.shared
+        let domain = "test-\(UUID().uuidString).example.com"
+        defer { store.delete(SavedCredential(domain: domain, username: "plain")) }
+
+        XCTAssertTrue(store.save(domain: domain, username: "plain", password: "plain-secret"))
+        XCTAssertNil(
+            UserDefaults.standard.data(forKey: CredentialStore.legacyMetadataKey),
+            "Passwords must never be written to UserDefaults again"
         )
-        let cred2 = SavedCredential(
-            domain: testDomain,
-            username: "tester2@example.com",
-            password: "password456"
-        )
-
-        store.save(credential: cred1)
-        store.save(credential: cred2)
-
-        let queryExact = store.credentials(for: testDomain)
-        XCTAssertGreaterThanOrEqual(queryExact.count, 2)
-
-        // Query by subdomain
-        let querySub = store.credentials(for: "sub." + testDomain)
-        XCTAssertGreaterThanOrEqual(querySub.count, 2)
-
-        // Clean up
-        store.delete(id: cred1.id)
-        store.delete(id: cred2.id)
-
-        let afterDelete = store.credentials(for: testDomain)
-        XCTAssertFalse(afterDelete.contains(where: { $0.id == cred1.id || $0.id == cred2.id }))
     }
 
     @MainActor
@@ -143,19 +149,17 @@ final class AutoFillTests: XCTestCase {
     @MainActor
     func testAutoFillSuggestionViewHierarchy() {
         let creds: [SavedCredential] = [
-            SavedCredential(
-                domain: "id1.cloud.huawei.com",
-                username: "18627178676",
-                password: "secretPassword"
-            )
+            SavedCredential(domain: "id1.cloud.huawei.com", username: "18627178676")
         ]
 
         var selectedCred: SavedCredential?
+        var didManagePasswords = false
 
         let view = AutoFillSuggestionView(
             credentials: creds,
             currentHost: "id1.cloud.huawei.com",
-            onSelectCredential: { selectedCred = $0 }
+            onSelectCredential: { selectedCred = $0 },
+            onManagePasswords: { didManagePasswords = true }
         )
 
         XCTAssertEqual(view.credentials.count, 1)
@@ -163,6 +167,9 @@ final class AutoFillTests: XCTestCase {
 
         view.onSelectCredential(creds[0])
         XCTAssertEqual(selectedCred?.username, "18627178676")
+
+        view.onManagePasswords()
+        XCTAssertTrue(didManagePasswords)
     }
 
     /// Loads a real login form in a WKWebView and drives the injected agent exactly like the app

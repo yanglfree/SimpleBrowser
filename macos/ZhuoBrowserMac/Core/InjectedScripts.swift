@@ -51,17 +51,6 @@ public final class InjectedScripts: @unchecked Sendable {
         )
     }
 
-    /// User script for passkey & WebAuthn platform adaptation and graceful fallback
-    public func makePasskeyAdapterScript(hasBrowserEntitlement: Bool = PasskeyManager.shared.hasBrowserPasskeyEntitlement) -> WKUserScript? {
-        guard let source = scriptContent(named: "passkey-adapter") else { return nil }
-        let bootstrap = "window.__ZHUO_BROWSER_HAS_PASSKEY_ENTITLEMENT__ = \(hasBrowserEntitlement ? "true" : "false");\n"
-        return WKUserScript(
-            source: bootstrap + source,
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: false
-        )
-    }
-
     /// User script for AutoFill & quick login detection, field overlay positioning, and credential submission
     public func makeAutoFillScript() -> WKUserScript? {
         guard let source = scriptContent(named: "autofill-agent") else { return nil }

@@ -362,8 +362,8 @@ public struct SecuritySettingsView: View {
 
             // 3.4 管理安全密钥
             navigationRow(
-                title: "管理安全密钥",
-                subtitle: "重置安全密钥并创建 PIN 码 · 支持 FIDO2 硬件密钥与 Passkey",
+                title: "密码存储与通行密钥",
+                subtitle: "查看已保存密码的存放位置，以及通行密钥是否获得 Apple 授权",
                 trailingIcon: "chevron.right"
             ) {
                 isShowingPasskeySheet = true
@@ -425,6 +425,7 @@ public struct SecuritySettingsView: View {
 
     private func openKeychainAccess() {
         let candidatePaths = [
+            "/System/Library/CoreServices/Applications/Keychain Access.app",
             "/System/Applications/Utilities/Keychain Access.app",
             "/Applications/Utilities/Keychain Access.app"
         ]
@@ -469,7 +470,7 @@ public struct SecuritySettingsView: View {
                 Text("• 安全 DNS：通过加密通道查找域名，保护您的浏览目的地不被本地路由器或网络运营商窥探。")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
-                Text("• 硬件安全密钥与通行密钥：采用抗钓鱼的 WebAuthn / FIDO2 标准，直接结合 Mac 触控 ID 与实体安全密钥。")
+                Text("• 通行密钥与安全密钥：采用抗钓鱼的 WebAuthn / FIDO2 标准，实际可用范围取决于系统授权，详见“密码存储与通行密钥”。")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
@@ -515,9 +516,9 @@ public struct SecuritySettingsView: View {
     }
 
     private var passkeyManagementSheet: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("管理安全密钥与通行密钥")
+                Text("密码存储与通行密钥")
                     .font(.system(size: 14, weight: .bold))
                 Spacer()
                 Button("完成") {
@@ -530,46 +531,89 @@ public struct SecuritySettingsView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "key.fill")
                         .foregroundColor(.accentColor)
-                    Text("通行密钥 (Passkey) & FIDO2 硬件密钥")
+                    Text("已保存的网站密码")
                         .font(.system(size: 13, weight: .semibold))
                 }
 
-                Text("通行密钥基于 FIDO 联盟和 W3C WebAuthn 开放标准。在支持的网站上，您可以使用 Mac 触控 ID 或插入外部硬件密钥（如 YubiKey）直接登录，免去密码输入且天然抵御钓鱼攻击。")
+                Text("网站密码保存在 macOS 登录钥匙串的“密码”类别中，可在“钥匙串访问”里查看和删除。只有本应用能读取；每次自动填充前都需要 Touch ID 或 Mac 登录密码验证。")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack {
-                    Text("macOS 钥匙串集成状态")
+                    Text("存储位置")
                         .font(.system(size: 12))
                     Spacer()
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                             .font(.system(size: 11))
-                        Text("系统已就绪")
+                        Text("登录钥匙串 · 仅本应用可读")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.green)
                     }
                 }
-                .padding(.top, 4)
+                .padding(.top, 2)
             }
             .padding(12)
             .background(Color.secondary.opacity(0.06))
             .cornerRadius(8)
 
-            HStack {
-                Spacer()
-                Button("打开系统「密码与安全密钥」设置...") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "person.badge.key.fill")
+                        .foregroundColor(.accentColor)
+                    Text("通行密钥 (Passkey)")
+                        .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Image(systemName: hasPasskeyEntitlement ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                            .foregroundColor(hasPasskeyEntitlement ? .green : .orange)
+                            .font(.system(size: 11))
+                        Text(hasPasskeyEntitlement ? "已授权" : "未授权")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(hasPasskeyEntitlement ? .green : .orange)
+                    }
+                }
+
+                Text(passkeyStatusText)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .background(Color.secondary.opacity(0.06))
+            .cornerRadius(8)
+
+            HStack(spacing: 8) {
+                Button("打开钥匙串访问…") {
+                    openKeychainAccess()
+                }
+                .controlSize(.small)
+
+                Button("打开系统「密码」设置…") {
                     openSystemPasskeysSettings()
                 }
-                .buttonStyle(.borderedProminent)
                 .controlSize(.small)
+
+                Spacer()
             }
 
             Spacer()
         }
         .padding(20)
-        .frame(width: 460, height: 260)
+        .frame(width: 480, height: 360)
+    }
+
+    @MainActor
+    private var hasPasskeyEntitlement: Bool {
+        PasskeyManager.shared.hasBrowserPasskeyEntitlement
+    }
+
+    private var passkeyStatusText: String {
+        if hasPasskeyEntitlement {
+            return "本版本已获得 Apple 的浏览器通行密钥权限，支持的网站可以使用 Touch ID 通行密钥登录。"
+        }
+        return "本版本未获得 Apple 的浏览器通行密钥权限（com.apple.developer.web-browser.public-key-credential），网页无法使用 Touch ID 通行密钥。这是 Apple 的受限能力，需要向 Apple 申请授权，不是设置项能解决的。密码自动填充不受影响。"
     }
 }
