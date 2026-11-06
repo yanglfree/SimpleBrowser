@@ -264,20 +264,36 @@ final class PopupAndOAuthTests: XCTestCase {
 
     // MARK: - 5. BrowserSession External URL Routing
 
-    func testBrowserSessionOpenExternalURLRoutesOAuthToPopup() {
+    func testBrowserSessionOpenExternalURLAlwaysNavigatesOrCreatesTabEvenForOAuth() {
         let session = BrowserSession.shared
         session.tabs.removeAll()
         session.createTab(url: "https://example.com", select: true)
 
-        // 1. Google OAuth URL must open as a popup window, NOT duplicate tabs
-        session.openExternalURL("https://accounts.google.com/o/oauth2/v2/auth?client_id=abc&response_type=code")
-        XCTAssertEqual(WebPopupWindowManager.shared.openPopupCount, 1)
-        XCTAssertEqual(session.tabs.count, 1) // Session tabs stay unchanged!
-
-        // 2. Regular external URL must open as a tab
-        session.openExternalURL("https://news.ycombinator.com")
+        // 1. External URLs (including OAuth / third-party login URLs from external client apps)
+        // must always open as a standard browser tab, NOT a detached popup window.
+        let oauthURL = "https://accounts.google.com/o/oauth2/v2/auth?client_id=abc&response_type=code"
+        session.openExternalURL(oauthURL)
+        XCTAssertEqual(WebPopupWindowManager.shared.openPopupCount, 0)
         XCTAssertEqual(session.tabs.count, 2)
+        XCTAssertEqual(session.activeTab?.url, oauthURL)
+
+        // 2. Regular external URL must also open as a tab
+        session.openExternalURL("https://news.ycombinator.com")
+        XCTAssertEqual(session.tabs.count, 3)
         XCTAssertTrue(session.activeTab?.url.hasPrefix("https://news.ycombinator.com") == true)
+    }
+
+    func testBrowserSessionOpenExternalURLDebouncesRapidDuplicates() {
+        let session = BrowserSession.shared
+        session.tabs.removeAll()
+        session.createTab(url: "https://example.com", select: true)
+
+        let testURL = "https://example.com/unique-link"
+        session.openExternalURL(testURL)
+        session.openExternalURL(testURL) // Duplicate rapid call
+
+        XCTAssertEqual(session.tabs.count, 2)
+        XCTAssertEqual(session.activeTab?.url, testURL)
     }
 
     // MARK: - 6. Context Menu & Link Navigation Tests

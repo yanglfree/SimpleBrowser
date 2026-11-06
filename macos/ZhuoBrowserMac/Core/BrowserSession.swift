@@ -454,14 +454,32 @@ public final class BrowserSession: ObservableObject {
 
     // MARK: - Navigation
 
+    private var lastExternalURL: (url: String, timestamp: Date)?
+
     @MainActor
     public func openExternalURL(_ rawText: String) {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        if let url = URL(string: trimmed), OAuthPolicy.isOAuthOrLoginURL(url) {
-            WebPopupWindowManager.shared.openPopup(url: url)
+        // Deduplicate identical external URL requests fired within 0.5s
+        // (e.g. duplicate delivery between AppKit delegate and SwiftUI onOpenURL)
+        let now = Date()
+        if let last = lastExternalURL,
+           last.url == trimmed,
+           now.timeIntervalSince(last.timestamp) < 0.5 {
             return
+        }
+        lastExternalURL = (trimmed, now)
+
+        if !RuntimeEnvironment.isRunningUnitTests {
+            NSApp.activate(ignoringOtherApps: true)
+            for window in NSApp.windows where window.canBecomeKey {
+                if window.isMiniaturized {
+                    window.deminiaturize(nil)
+                }
+                window.makeKeyAndOrderFront(nil)
+                break
+            }
         }
 
         if let active = activeTab, active.isHome {
