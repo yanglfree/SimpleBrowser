@@ -18,6 +18,8 @@ final class AutoFillTests: XCTestCase {
         XCTAssertTrue(source.contains("window.__zhuoAutoFill"))
         XCTAssertTrue(source.contains("fill:"))
         XCTAssertTrue(source.contains("triggerPasskey:"))
+        XCTAssertTrue(source.contains("zhuo-autofill-broadcast-fill"))
+        XCTAssertTrue(source.contains("shouldContinue"))
     }
 
     func testInjectedScriptsMakeAutoFillScript() {

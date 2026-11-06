@@ -49,16 +49,48 @@
     return isPasswordInput(el) || isUsernameInput(el);
   }
 
+  // Calculate field bounds relative to top window viewport where possible
   function getFieldRect(el) {
     if (!el) return null;
     const rect = el.getBoundingClientRect();
+    let totalX = rect.left;
+    let totalY = rect.top;
+
+    // If inside an accessible iframe, accumulate parent offsets
+    let curWin = window;
+    while (curWin !== curWin.top) {
+      try {
+        const parentWin = curWin.parent;
+        const frames = parentWin.document.querySelectorAll('iframe, frame');
+        let matchedFrame = null;
+        for (const f of frames) {
+          if (f.contentWindow === curWin) {
+            matchedFrame = f;
+            break;
+          }
+        }
+        if (matchedFrame) {
+          const fRect = matchedFrame.getBoundingClientRect();
+          totalX += fRect.left;
+          totalY += fRect.top;
+          curWin = parentWin;
+        } else {
+          break;
+        }
+      } catch (_) {
+        // Cross-origin iframe boundaries: stop traversal and let native bridge assist offset
+        break;
+      }
+    }
+
     return {
-      x: rect.left,
-      y: rect.top,
+      x: totalX,
+      y: totalY,
       width: rect.width,
       height: rect.height,
-      bottom: rect.bottom,
-      right: rect.right
+      bottom: totalY + rect.height,
+      right: totalX + rect.width,
+      isTopFrame: window === window.top
     };
   }
 
@@ -97,7 +129,6 @@
     iconWrapper.style.opacity = '0.75';
     iconWrapper.style.transition = 'opacity 0.15s ease';
     
-    // Position at inside right of input
     const iconSize = Math.min(20, Math.max(14, rect.height * 0.6));
     const rightMargin = 8;
     iconWrapper.style.width = (iconSize + 8) + 'px';
@@ -105,7 +136,6 @@
     iconWrapper.style.left = (rect.right + window.scrollX - (iconSize + 8) - rightMargin) + 'px';
     iconWrapper.style.top = (rect.top + window.scrollY + (rect.height - iconSize) / 2) + 'px';
 
-    // SVG Key with chevron (matches Safari key icon)
     iconWrapper.innerHTML = `
       <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 16 16" fill="currentColor" style="color: #4A4A4A;">
         <path fill-rule="evenodd" d="M11.5 1a3.5 3.5 0 0 0-3.46 4.02l-6.89 6.89a1 1 0 0 0-.29.71V14a1 1 0 0 0 1 1h1.5a1 1 0 0 0 1-1v-.5h1.5a1 1 0 0 0 1-1v-.5H9a1 1 0 0 0 .71-.29l.77-.77A3.5 3.5 0 1 0 11.5 1zm1.5 3.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
@@ -157,7 +187,7 @@
         removeInlineKeyIcon();
         postToNative('blur', {});
       }
-    }, 180);
+    }, 200);
   }
 
   function handleScrollOrResize() {
@@ -175,6 +205,7 @@
   // Set input value cleanly and dispatch events to trigger web framework listeners (React, Vue, etc.)
   function setNativeValue(element, value) {
     if (!element) return;
+    element.focus();
     const valueSetter = Object.getOwnPropertyDescriptor(element.__proto__, 'value') ||
                         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
     if (valueSetter && valueSetter.set) {
@@ -186,13 +217,42 @@
     element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
   }
 
+  // Helper to trigger next step (like clicking continue or submitting form)
+  function attemptContinue() {
+    if (!currentActiveInput) return;
+    const form = currentActiveInput.closest('form') || document;
+    
+    // Look for submit or continue buttons
+    const candidates = Array.from(form.querySelectorAll('button, input[type="submit"], [role="button"], a.button'));
+    const continueBtn = candidates.find(btn => {
+      const text = (btn.textContent || btn.value || btn.id || btn.className || '').toLowerCase();
+      const aria = (btn.getAttribute('aria-label') || '').toLowerCase();
+      return text.includes('continue') || text.includes('sign in') || text.includes('下一步') || text.includes('登录') || text.includes('arrow') || aria.includes('continue') || btn.type === 'submit';
+    });
+
+    if (continueBtn && typeof continueBtn.click === 'function') {
+      setTimeout(() => continueBtn.click(), 100);
+      return;
+    }
+
+    // Fallback: Dispatch Enter key on the input
+    const enterEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      which: 13,
+      bubbles: true,
+      cancelable: true
+    });
+    currentActiveInput.dispatchEvent(enterEvent);
+  }
+
   // Exposed API for native controller
   window.__zhuoAutoFill = {
-    fill: function(username, password) {
+    fill: function(username, password, shouldContinue) {
       let usernameField = null;
       let passwordField = null;
 
-      // 1. Check if current active input is in a form
       const currentForm = currentActiveInput ? currentActiveInput.closest('form') : null;
       const root = currentForm || document;
 
@@ -205,8 +265,6 @@
         }
       }
 
-      // If active input is a password field and no separate username field was identified yet,
-      // search for the previous visible input in document order
       if (currentActiveInput && isPasswordInput(currentActiveInput)) {
         passwordField = currentActiveInput;
         if (!usernameField) {
@@ -223,15 +281,28 @@
         usernameField = currentActiveInput;
       }
 
+      // If active input is neither explicitly identified but active, use active input as target
+      if (!usernameField && currentActiveInput && isEditableInput(currentActiveInput)) {
+        usernameField = currentActiveInput;
+      }
+
+      let filledAny = false;
       if (username && usernameField) {
         setNativeValue(usernameField, username);
+        filledAny = true;
       }
       if (password && passwordField) {
         setNativeValue(passwordField, password);
+        filledAny = true;
       }
 
       removeInlineKeyIcon();
-      return true;
+
+      if (shouldContinue) {
+        attemptContinue();
+      }
+
+      return filledAny;
     },
 
     triggerPasskey: function() {
@@ -244,6 +315,16 @@
       return false;
     }
   };
+
+  // Cross-frame messaging listener (allows filling inside any iframe)
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'zhuo-autofill-broadcast-fill') {
+      const u = event.data.username || '';
+      const p = event.data.password || '';
+      const cont = Boolean(event.data.shouldContinue);
+      window.__zhuoAutoFill.fill(u, p, cont);
+    }
+  });
 
   // Form submit interception for saving passwords
   function handleFormSubmit(event) {

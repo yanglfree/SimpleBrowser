@@ -2,6 +2,19 @@ import AppKit
 import SwiftUI
 import WebKit
 
+/// Custom NSHostingView that guarantees immediate first-click event delivery even in non-activating panels.
+final class AutoFillHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        return true
+    }
+}
+
+/// Lightweight floating panel that never steals keyboard focus from the active web input.
+final class AutoFillPanel: NSPanel {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
+}
+
 /// Manages the floating AutoFill suggestion panel positioned directly beneath the focused input field.
 @MainActor
 public final class AutoFillPopoverController: NSObject {
@@ -50,36 +63,31 @@ public final class AutoFillPopoverController: NSObject {
             }
         )
 
-        let hostingView = NSHostingView(rootView: rootView)
+        let hostingView = AutoFillHostingView(rootView: rootView)
         hostingView.layoutSubtreeIfNeeded()
         let fittingSize = hostingView.fittingSize
 
-        // Convert fieldRect (in WebView flipped coordinates) to screen coordinates
-        let webViewBounds = webView.bounds
-        let clampedY = max(0, min(fieldRect.origin.y, webViewBounds.height))
-        let clampedBottom = max(0, min(fieldRect.maxY, webViewBounds.height))
-        let fieldRectInWebView = CGRect(
-            x: fieldRect.origin.x,
-            y: clampedY,
-            width: max(20, fieldRect.width),
-            height: max(10, fieldRect.height)
-        )
+        // Convert field coordinates (in webView flipped space) to screen coordinates
+        let bottomPointInWebView = CGPoint(x: fieldRect.origin.x, y: fieldRect.maxY)
+        let bottomPointInWindow = webView.convert(bottomPointInWebView, to: nil)
+        let bottomPointOnScreen = window.convertToScreen(NSRect(origin: bottomPointInWindow, size: .zero)).origin
 
-        let rectInWindow = webView.convert(fieldRectInWebView, to: nil)
-        let rectOnScreen = window.convertToScreen(rectInWindow)
+        var popoverOriginX = bottomPointOnScreen.x
+        var popoverOriginY = bottomPointOnScreen.y - fittingSize.height - 4
 
-        // Calculate popover origin (anchor right below the field's bottom edge)
-        var popoverOriginX = rectOnScreen.origin.x
-        var popoverOriginY = rectOnScreen.origin.y - fittingSize.height - 4
-
-        // Prevent falling off screen bottom
+        // Prevent falling off screen bottom; flip above input if needed
         if let screen = window.screen {
             if popoverOriginY < screen.visibleFrame.minY {
-                // Flip to top of field if space below is too small
-                popoverOriginY = rectOnScreen.origin.y + fieldRect.height + 4
+                let topPointInWebView = CGPoint(x: fieldRect.origin.x, y: fieldRect.origin.y)
+                let topPointInWindow = webView.convert(topPointInWebView, to: nil)
+                let topPointOnScreen = window.convertToScreen(NSRect(origin: topPointInWindow, size: .zero)).origin
+                popoverOriginY = topPointOnScreen.y + 4
             }
             if popoverOriginX + fittingSize.width > screen.visibleFrame.maxX {
                 popoverOriginX = screen.visibleFrame.maxX - fittingSize.width - 10
+            }
+            if popoverOriginX < screen.visibleFrame.minX {
+                popoverOriginX = screen.visibleFrame.minX + 10
             }
         }
 
@@ -88,7 +96,7 @@ public final class AutoFillPopoverController: NSObject {
             size: fittingSize
         )
 
-        let newPanel = NSPanel(
+        let newPanel = AutoFillPanel(
             contentRect: panelRect,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -100,6 +108,7 @@ public final class AutoFillPopoverController: NSObject {
         newPanel.level = .floating
         newPanel.contentView = hostingView
         newPanel.isReleasedWhenClosed = false
+        newPanel.acceptsMouseMovedEvents = true
 
         window.addChildWindow(newPanel, ordered: .above)
         newPanel.orderFront(nil)

@@ -93,13 +93,15 @@ public struct AutoFillSuggestionView: View {
             // 1. Matched Credentials List
             ForEach(Array(credentials.enumerated()), id: \.element.id) { index, item in
                 let isSelected = hoveredIndex == index
-                credentialRow(item: item, isSelected: isSelected)
-                    .onHover { inside in
-                        if inside { hoveredIndex = index }
-                    }
-                    .onTapGesture {
-                        onSelectCredential(item)
-                    }
+                Button {
+                    onSelectCredential(item)
+                } label: {
+                    credentialRow(item: item, isSelected: isSelected)
+                }
+                .buttonStyle(.plain)
+                .onHover { inside in
+                    if inside { hoveredIndex = index }
+                }
 
                 if index < credentials.count - 1 {
                     Divider().opacity(0.35)
@@ -118,23 +120,27 @@ public struct AutoFillSuggestionView: View {
                 ? "“\(rootDomain)” 的密码..."
                 : (hasPasskeys ? "\(rootDomain) 的其他账户..." : "“\(rootDomain)” 的其他密码...")
 
-            actionRow(title: otherText, isSelected: hoveredIndex == credentials.count)
-                .onHover { inside in
-                    if inside { hoveredIndex = credentials.count }
-                }
-                .onTapGesture {
-                    onSelectOtherPasswords()
-                }
+            Button {
+                onSelectOtherPasswords()
+            } label: {
+                actionRow(title: otherText, isSelected: hoveredIndex == credentials.count)
+            }
+            .buttonStyle(.plain)
+            .onHover { inside in
+                if inside { hoveredIndex = credentials.count }
+            }
 
             // 3. Action: Nearby Passkeys (if passkey supported or present)
             if hasPasskeys || !isPasswordContext {
-                actionRow(title: "附近设备的通行密钥...", isSelected: hoveredIndex == credentials.count + 1)
-                    .onHover { inside in
-                        if inside { hoveredIndex = credentials.count + 1 }
-                    }
-                    .onTapGesture {
-                        onSelectNearbyPasskeys()
-                    }
+                Button {
+                    onSelectNearbyPasskeys()
+                } label: {
+                    actionRow(title: "附近设备的通行密钥...", isSelected: hoveredIndex == credentials.count + 1)
+                }
+                .buttonStyle(.plain)
+                .onHover { inside in
+                    if inside { hoveredIndex = credentials.count + 1 }
+                }
             }
         }
         .padding(5)

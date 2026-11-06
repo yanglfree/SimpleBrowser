@@ -1066,11 +1066,12 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 return
             }
 
-            let fieldRect = CGRect(x: x, y: y, width: width, height: height)
+            var fieldRect = CGRect(x: x, y: y, width: width, height: height)
             let hostname = (payload["hostname"] as? String) ?? webView.url?.host ?? ""
             let fieldType = (payload["fieldType"] as? String) ?? "username"
             let isPassword = fieldType == "password"
             let forceOpen = (payload["forceOpen"] as? Bool) ?? false
+            let isTopFrame = (rectDict["isTopFrame"] as? Bool) ?? true
 
             var matched = CredentialStore.shared.credentials(for: hostname)
             if matched.isEmpty && (forceOpen || !hostname.isEmpty) {
@@ -1078,19 +1079,39 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 matched = CredentialStore.shared.credentials(for: root)
             }
 
-            AutoFillPopoverController.shared.show(
-                in: webView,
-                fieldRect: fieldRect,
-                hostname: hostname,
-                isPasswordContext: isPassword,
-                credentials: matched,
-                onFill: { [weak self] credential in
-                    self?.fillCredentialIntoWebPage(credential)
-                },
-                onPasskey: { [weak self] in
-                    self?.triggerPasskeyQuickLogin()
+            let displayPopover = { [weak self] (finalRect: CGRect) in
+                guard let self = self, let wv = self.webView else { return }
+                AutoFillPopoverController.shared.show(
+                    in: wv,
+                    fieldRect: finalRect,
+                    hostname: hostname,
+                    isPasswordContext: isPassword,
+                    credentials: matched,
+                    onFill: { [weak self] credential in
+                        self?.fillCredentialIntoWebPage(credential)
+                    },
+                    onPasskey: { [weak self] in
+                        self?.triggerPasskeyQuickLogin()
+                    }
+                )
+            }
+
+            // If reported from inside an iframe, probe top frame for active iframe bounds to adjust offset
+            if !isTopFrame {
+                let probeScript = "(() => { const el = document.activeElement; if (el && (el.tagName === 'IFRAME' || el.tagName === 'FRAME')) { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top }; } return { x: 0, y: 0 }; })()"
+                webView.evaluateJavaScript(probeScript) { result, _ in
+                    if let dict = result as? [String: Any],
+                       let ox = (dict["x"] as? NSNumber)?.doubleValue,
+                       let oy = (dict["y"] as? NSNumber)?.doubleValue,
+                       (ox > 0 || oy > 0) {
+                        fieldRect.origin.x += ox
+                        fieldRect.origin.y += oy
+                    }
+                    displayPopover(fieldRect)
                 }
-            )
+            } else {
+                displayPopover(fieldRect)
+            }
 
         case "blur":
             AutoFillPopoverController.shared.dismiss()
@@ -1113,10 +1134,6 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     private func fillCredentialIntoWebPage(_ credential: SavedCredential) {
         guard let webView = webView else { return }
-        if credential.isPasskey {
-            triggerPasskeyQuickLogin()
-            return
-        }
 
         let escapedUser = credential.username
             .replacingOccurrences(of: "\\", with: "\\\\")
@@ -1124,9 +1141,34 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         let escapedPass = credential.password
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
+        let shouldContinue = credential.isPasskey
 
-        let js = "if (window.__zhuoAutoFill) { window.__zhuoAutoFill.fill(\"\(escapedUser)\", \"\(escapedPass)\"); }"
+        let js = """
+        (() => {
+            const u = "\(escapedUser)";
+            const p = "\(escapedPass)";
+            const cont = \(shouldContinue ? "true" : "false");
+
+            if (window.__zhuoAutoFill) {
+                window.__zhuoAutoFill.fill(u, p, cont);
+            }
+
+            const payload = { type: 'zhuo-autofill-broadcast-fill', username: u, password: p, shouldContinue: cont };
+            window.postMessage(payload, '*');
+
+            const frames = document.querySelectorAll('iframe, frame');
+            for (const f of frames) {
+                try {
+                    f.contentWindow.postMessage(payload, '*');
+                } catch(_) {}
+            }
+        })();
+        """
         webView.evaluateJavaScript(js, completionHandler: nil)
+
+        if credential.isPasskey {
+            triggerPasskeyQuickLogin()
+        }
     }
 
     private func triggerPasskeyQuickLogin() {
