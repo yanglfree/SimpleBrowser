@@ -159,4 +159,72 @@ final class WindowLayoutTests: XCTestCase {
         view.mouseDown(with: doubleClickEvent)
         XCTAssertEqual(doubleClickCount, 1, "Immediate consecutive double click within debounce window should be ignored")
     }
+
+    func testCompactTabWidthClampsToMaxWidthWhenFewTabs() {
+        let availableWidth: CGFloat = 1200
+        // 1 tab: ample space, should be clamped to maxWidth (240)
+        let width1 = compactTabWidth(availableWidth: availableWidth, tabCount: 1)
+        XCTAssertEqual(width1, 240)
+
+        // 2 tabs: 1200 - 36 - 4 = 1160 / 2 = 580 -> clamped to 240
+        let width2 = compactTabWidth(availableWidth: availableWidth, tabCount: 2)
+        XCTAssertEqual(width2, 240)
+    }
+
+    func testCompactTabWidthCompressesDynamicallyWithIncreasingTabs() {
+        let availableWidth: CGFloat = 1180 // standard 1200px window minus 20px padding
+
+        let width5 = compactTabWidth(availableWidth: availableWidth, tabCount: 5)
+        let width8 = compactTabWidth(availableWidth: availableWidth, tabCount: 8)
+        let width12 = compactTabWidth(availableWidth: availableWidth, tabCount: 12)
+        let width16 = compactTabWidth(availableWidth: availableWidth, tabCount: 16)
+
+        // Verify strictly monotonic decrease as tabs increase
+        XCTAssertGreaterThan(width5, width8)
+        XCTAssertGreaterThan(width8, width12)
+        XCTAssertGreaterThan(width12, width16)
+
+        // Verify that in all cases, the tabs + gaps + trailing space fit within available width
+        for (count, width) in [(5, width5), (8, width8), (12, width12), (16, width16)] {
+            let totalFootprint = CGFloat(count) * width + CGFloat(count - 1) * 4 + 36
+            XCTAssertLessThanOrEqual(totalFootprint, availableWidth + 0.001, "Tabs must dynamically fit within availableWidth for tabCount \(count)")
+        }
+    }
+
+    func testCompactTabWidthEnforcesMinimumWidthProtection() {
+        let availableWidth: CGFloat = 800
+
+        // 30 tabs on 800px width: raw calculation would be ~22px, clamped to minWidth (52)
+        let width30 = compactTabWidth(availableWidth: availableWidth, tabCount: 30)
+        XCTAssertEqual(width30, 52, "Tabs must never shrink below minWidth protection")
+
+        // 60 tabs on small window
+        let width60 = compactTabWidth(availableWidth: 400, tabCount: 60)
+        XCTAssertEqual(width60, 52)
+    }
+
+    func testCompactTabWidthHandlesZeroOrNegativeAvailableWidth() {
+        XCTAssertEqual(compactTabWidth(availableWidth: 1000, tabCount: 0), 240)
+        XCTAssertEqual(compactTabWidth(availableWidth: -50, tabCount: 5), 52)
+        XCTAssertEqual(compactTabWidth(availableWidth: 0, tabCount: 5), 52)
+    }
+
+    func testCompactTabBarViewHostingAndDynamicLayout() {
+        let session = BrowserSession()
+        _ = session.createTab(url: "https://example.com/1", select: false)
+        _ = session.createTab(url: "https://example.com/2", select: false)
+        _ = session.createTab(url: "https://example.com/3", select: false)
+        _ = session.createTab(url: "https://example.com/4", select: false)
+        _ = session.createTab(url: "https://example.com/5", select: false)
+        _ = session.createTab(url: "https://example.com/6", select: true)
+
+        let tabBar = CompactTabBarView(session: session)
+        let hostingView = NSHostingView(rootView: tabBar)
+        hostingView.frame = NSRect(x: 0, y: 0, width: 1200, height: 36)
+        hostingView.layoutSubtreeIfNeeded()
+
+        XCTAssertEqual(hostingView.frame.width, 1200)
+        XCTAssertEqual(hostingView.frame.height, 36)
+        XCTAssertEqual(session.tabs.count, 7) // 1 initial home tab + 6 created tabs
+    }
 }

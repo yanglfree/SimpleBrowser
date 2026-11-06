@@ -1,48 +1,99 @@
 import AppKit
 import SwiftUI
 
+/// Calculates dynamic tab width in desktop browser style (Chrome / Edge / Safari).
+/// - Parameters:
+///   - availableWidth: Width available inside the tab bar container (excluding outer padding).
+///   - tabCount: Number of open tabs.
+///   - minWidth: Minimum allowed tab width to prevent unclickable slivers (default: 52px).
+///   - maxWidth: Maximum allowed tab width when there are few tabs (default: 240px).
+///   - gap: Spacing between adjacent tabs (default: 4px).
+///   - trailingReserved: Minimum width reserved at the end for double-clicking / new tab creation (default: 36px).
+/// - Returns: Clamped target tab width.
+public func compactTabWidth(
+    availableWidth: CGFloat,
+    tabCount: Int,
+    minWidth: CGFloat = 52,
+    maxWidth: CGFloat = 240,
+    gap: CGFloat = 4,
+    trailingReserved: CGFloat = 36
+) -> CGFloat {
+    guard tabCount > 0 else { return maxWidth }
+    let safeAvailable = max(0, availableWidth)
+    let totalGaps = CGFloat(max(0, tabCount - 1)) * gap
+    let usableWidth = safeAvailable - trailingReserved - totalGaps
+    guard usableWidth > 0 else { return minWidth }
+    let calculated = usableWidth / CGFloat(tabCount)
+    return min(maxWidth, max(minWidth, calculated))
+}
+
 /// Compact horizontal tab bar with hibernation badges, close buttons, and responsive double-click new tab creation.
 public struct CompactTabBarView: View {
     @ObservedObject var session: BrowserSession
 
+    public static let defaultMaxTabWidth: CGFloat = 240
+    public static let defaultMinTabWidth: CGFloat = 52
+    public static let defaultTabGap: CGFloat = 4
+    public static let horizontalPadding: CGFloat = 20
+    public static let trailingReservedWidth: CGFloat = 36
+
     public var body: some View {
         GeometryReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
-                    ForEach(session.tabs) { tab in
-                        TabItemView(
-                            tab: tab,
-                            siteIcon: session.siteIcon(for: tab),
-                            isActive: tab.id == session.activeTabID,
-                            onSelect: {
-                                NSApp.keyWindow?.makeFirstResponder(nil)
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    session.selectTab(id: tab.id)
-                                }
-                            },
-                            onClose: {
-                                withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
-                                    session.closeTab(id: tab.id)
-                                }
-                            }
-                        )
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.9).combined(with: .opacity),
-                            removal: .scale(scale: 0.8).combined(with: .opacity)
-                        ))
-                    }
+            let tabWidth = compactTabWidth(
+                availableWidth: proxy.size.width - Self.horizontalPadding,
+                tabCount: session.tabs.count,
+                minWidth: Self.defaultMinTabWidth,
+                maxWidth: Self.defaultMaxTabWidth,
+                gap: Self.defaultTabGap,
+                trailingReserved: Self.trailingReservedWidth
+            )
 
-                    // Interactive empty space after tabs: native double clicking creates a new tab
-                    // without bubble-up to NSWindow's titlebar actions or forcing heavy spring animations.
-                    TabBarDoubleClickBackground {
-                        _ = session.createTab()
+            ScrollViewReader { scrollProxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Self.defaultTabGap) {
+                        ForEach(session.tabs) { tab in
+                            TabItemView(
+                                tab: tab,
+                                siteIcon: session.siteIcon(for: tab),
+                                isActive: tab.id == session.activeTabID,
+                                tabWidth: tabWidth,
+                                onSelect: {
+                                    NSApp.keyWindow?.makeFirstResponder(nil)
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        session.selectTab(id: tab.id)
+                                    }
+                                },
+                                onClose: {
+                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+                                        session.closeTab(id: tab.id)
+                                    }
+                                }
+                            )
+                            .id(tab.id)
+                            .transition(.asymmetric(
+                                insertion: .scale(scale: 0.9).combined(with: .opacity),
+                                removal: .scale(scale: 0.8).combined(with: .opacity)
+                            ))
+                        }
+
+                        // Interactive empty space after tabs: native double clicking creates a new tab
+                        // without bubble-up to NSWindow's titlebar actions or forcing heavy spring animations.
+                        TabBarDoubleClickBackground {
+                            _ = session.createTab()
+                        }
+                        .frame(minWidth: Self.trailingReservedWidth, maxWidth: .infinity)
+                        .frame(height: 28)
                     }
-                    .frame(minWidth: 40, maxWidth: .infinity)
-                    .frame(height: 28)
+                    .frame(minWidth: max(0, proxy.size.width - Self.horizontalPadding), alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
                 }
-                .frame(minWidth: max(0, proxy.size.width - 20), alignment: .leading)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
+                .onChange(of: session.activeTabID) { activeID in
+                    guard let activeID else { return }
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        scrollProxy.scrollTo(activeID, anchor: .center)
+                    }
+                }
             }
         }
         .frame(height: 36)
@@ -59,13 +110,25 @@ private struct TabItemView: View {
     let tab: BrowserTab
     let siteIcon: NSImage?
     let isActive: Bool
+    let tabWidth: CGFloat
     let onSelect: () -> Void
     let onClose: () -> Void
 
     @State private var isHovered: Bool = false
 
+    /// When tab is narrow (< 80px), only show close button if active or hovered,
+    /// so inactive tabs don't waste precious space on close buttons.
+    private var showsCloseButton: Bool {
+        tabWidth >= 80 || isActive || isHovered
+    }
+
+    /// When tab is extremely narrow (< 56px) and showing close button, omit title to prevent overlapping.
+    private var showsTitle: Bool {
+        tabWidth >= 56 || !showsCloseButton
+    }
+
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             // Status indicator: Loading, Frozen, Possibly-stale, or Normal
             if tab.isLoading {
                 ProgressView()
@@ -121,26 +184,33 @@ private struct TabItemView: View {
             }
 
             // Tab title
-            Text(tab.displayTitle)
-                .font(.system(size: 12, weight: isActive ? .medium : .regular))
-                .foregroundColor(isActive ? .primary : .secondary)
-                .lineLimit(1)
-                .frame(maxWidth: 160, alignment: .leading)
+            if showsTitle {
+                Text(tab.displayTitle)
+                    .font(.system(size: 12, weight: isActive ? .medium : .regular))
+                    .foregroundColor(isActive ? .primary : .secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             // Close tab button with hover state
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundColor(isHovered || isActive ? .primary.opacity(0.8) : .secondary.opacity(0.5))
-                    .frame(width: 16, height: 16)
-                    .background(isHovered ? Color.secondary.opacity(0.15) : Color(nsColor: .clear))
-                    .clipShape(Circle())
+            if showsCloseButton {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(isHovered || isActive ? .primary.opacity(0.8) : .secondary.opacity(0.5))
+                        .frame(width: 16, height: 16)
+                        .background(isHovered ? Color.secondary.opacity(0.15) : Color(nsColor: .clear))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("关闭标签页 (Cmd+W)")
+                .transition(.opacity)
             }
-            .buttonStyle(.plain)
-            .help("关闭标签页 (Cmd+W)")
         }
-        .padding(.horizontal, 9)
+        .padding(.horizontal, tabWidth < 70 ? 6 : 8)
         .padding(.vertical, 5)
+        .frame(width: tabWidth, height: 28)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(isActive ? Color(nsColor: .controlBackgroundColor) : (isHovered ? Color.secondary.opacity(0.08) : Color(nsColor: .clear)))
