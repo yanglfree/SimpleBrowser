@@ -54,43 +54,32 @@ public struct KeychainIconView: View {
     }
 }
 
-/// SwiftUI View presenting the exact Safari-style AutoFill & Passkey Quick-Login suggestion popup.
+/// Lists the saved passwords that match the focused login field.
+///
+/// The menu intentionally contains no passkey rows: WebKit in a non-browser app reports
+/// `isUserVerifyingPlatformAuthenticatorAvailable() == false`, so a "通行密钥" entry here could
+/// never complete a WebAuthn assertion with Touch ID — it could only fabricate one. Passkey login
+/// is whatever the site itself starts, and it is unavailable until the app holds Apple's
+/// `com.apple.developer.web-browser.public-key-credential` entitlement.
 public struct AutoFillSuggestionView: View {
     public let credentials: [SavedCredential]
     public let currentHost: String
-    public let rootDomain: String
-    public let isPasswordContext: Bool
     public let onSelectCredential: (SavedCredential) -> Void
-    public let onSelectOtherPasswords: () -> Void
-    public let onSelectNearbyPasskeys: () -> Void
 
     @State private var hoveredIndex: Int = 0
 
     public init(
         credentials: [SavedCredential],
         currentHost: String,
-        rootDomain: String? = nil,
-        isPasswordContext: Bool = false,
-        onSelectCredential: @escaping (SavedCredential) -> Void,
-        onSelectOtherPasswords: @escaping () -> Void,
-        onSelectNearbyPasskeys: @escaping () -> Void
+        onSelectCredential: @escaping (SavedCredential) -> Void
     ) {
         self.credentials = credentials
         self.currentHost = currentHost
-        self.rootDomain = rootDomain ?? SavedCredential.extractRootDomain(from: currentHost)
-        self.isPasswordContext = isPasswordContext
         self.onSelectCredential = onSelectCredential
-        self.onSelectOtherPasswords = onSelectOtherPasswords
-        self.onSelectNearbyPasskeys = onSelectNearbyPasskeys
-    }
-
-    private var hasPasskeys: Bool {
-        credentials.contains { $0.isPasskey }
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 1. Matched Credentials List
             ForEach(Array(credentials.enumerated()), id: \.element.id) { index, item in
                 let isSelected = hoveredIndex == index
                 Button {
@@ -105,41 +94,6 @@ public struct AutoFillSuggestionView: View {
 
                 if index < credentials.count - 1 {
                     Divider().opacity(0.35)
-                }
-            }
-
-            // Divider separating credentials from secondary actions
-            if !credentials.isEmpty {
-                Divider()
-                    .padding(.vertical, 2)
-                    .opacity(0.5)
-            }
-
-            // 2. Action: Other Passwords / Accounts on this domain
-            let otherText = credentials.isEmpty
-                ? "“\(rootDomain)” 的密码..."
-                : (hasPasskeys ? "\(rootDomain) 的其他账户..." : "“\(rootDomain)” 的其他密码...")
-
-            Button {
-                onSelectOtherPasswords()
-            } label: {
-                actionRow(title: otherText, isSelected: hoveredIndex == credentials.count)
-            }
-            .buttonStyle(.plain)
-            .onHover { inside in
-                if inside { hoveredIndex = credentials.count }
-            }
-
-            // 3. Action: Nearby Passkeys (if passkey supported or present)
-            if hasPasskeys || !isPasswordContext {
-                Button {
-                    onSelectNearbyPasskeys()
-                } label: {
-                    actionRow(title: "附近设备的通行密钥...", isSelected: hoveredIndex == credentials.count + 1)
-                }
-                .buttonStyle(.plain)
-                .onHover { inside in
-                    if inside { hoveredIndex = credentials.count + 1 }
                 }
             }
         }
@@ -166,7 +120,7 @@ public struct AutoFillSuggestionView: View {
                     .foregroundColor(isSelected ? .white : .primary)
                     .lineLimit(1)
 
-                Text(item.isPasskey ? "此网站的通行密钥" : (item.domain.isEmpty ? currentHost : item.domain))
+                Text(item.domain.isEmpty ? currentHost : item.domain)
                     .font(.system(size: 11))
                     .foregroundColor(isSelected ? Color.white.opacity(0.88) : .secondary)
                     .lineLimit(1)
@@ -179,23 +133,6 @@ public struct AutoFillSuggestionView: View {
         .background(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(isSelected ? Color.accentColor : Color.clear)
-        )
-        .contentShape(Rectangle())
-    }
-
-    private func actionRow(title: String, isSelected: Bool) -> some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 12.5))
-                .foregroundColor(isSelected ? Color.accentColor : .primary)
-                .lineLimit(1)
-            Spacer()
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
         )
         .contentShape(Rectangle())
     }

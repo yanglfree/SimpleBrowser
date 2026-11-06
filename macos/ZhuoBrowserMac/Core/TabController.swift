@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import LocalAuthentication
 import WebKit
 
 /// Manages the live WKWebView for a BrowserTab.
@@ -1066,58 +1067,36 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 return
             }
 
-            var fieldRect = CGRect(x: x, y: y, width: width, height: height)
-            let hostname = (payload["hostname"] as? String) ?? webView.url?.host ?? ""
-            let fieldType = (payload["fieldType"] as? String) ?? "username"
-            let isPassword = fieldType == "password"
-            let forceOpen = (payload["forceOpen"] as? Bool) ?? false
+            // Only top-level login forms get suggestions. Filling a cross-origin iframe would mean
+            // broadcasting the password into frames chosen by the page, not by the user.
             let isTopFrame = (rectDict["isTopFrame"] as? Bool) ?? true
-
-            var matched = CredentialStore.shared.credentials(for: hostname)
-            if matched.isEmpty && (forceOpen || !hostname.isEmpty) {
-                let root = SavedCredential.extractRootDomain(from: hostname)
-                matched = CredentialStore.shared.credentials(for: root)
+            guard isTopFrame else {
+                AutoFillPopoverController.shared.dismiss()
+                return
             }
 
-            let displayPopover = { [weak self] (finalRect: CGRect) in
-                guard let self = self, let wv = self.webView else { return }
-                AutoFillPopoverController.shared.show(
-                    in: wv,
-                    fieldRect: finalRect,
-                    hostname: hostname,
-                    isPasswordContext: isPassword,
-                    credentials: matched,
-                    onFill: { [weak self] credential in
-                        self?.fillCredentialIntoWebPage(credential)
-                    },
-                    onPasskey: { [weak self] in
-                        self?.triggerPasskeyQuickLogin()
-                    }
-                )
+            let hostname = (payload["hostname"] as? String) ?? webView.url?.host ?? ""
+            let matched = CredentialStore.shared.credentials(for: hostname).filter(\.isFillable)
+
+            // With no saved secret for this site, stay out of the way instead of showing a menu
+            // whose only entries would have to be fabricated.
+            guard CredentialStore.canOfferAutoFill(matched) else {
+                AutoFillPopoverController.shared.dismiss()
+                return
             }
 
-            // If reported from inside an iframe, probe top frame for active iframe bounds to adjust offset
-            if !isTopFrame {
-                let probeScript = "(() => { const el = document.activeElement; if (el && (el.tagName === 'IFRAME' || el.tagName === 'FRAME')) { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top }; } return { x: 0, y: 0 }; })()"
-                webView.evaluateJavaScript(probeScript) { result, _ in
-                    if let dict = result as? [String: Any],
-                       let ox = (dict["x"] as? NSNumber)?.doubleValue,
-                       let oy = (dict["y"] as? NSNumber)?.doubleValue,
-                       (ox > 0 || oy > 0) {
-                        fieldRect.origin.x += ox
-                        fieldRect.origin.y += oy
-                    }
-                    displayPopover(fieldRect)
+            AutoFillPopoverController.shared.show(
+                in: webView,
+                fieldRect: CGRect(x: x, y: y, width: width, height: height),
+                hostname: hostname,
+                credentials: matched,
+                onSelect: { [weak self] credential in
+                    self?.authorizeAndFill(credential)
                 }
-            } else {
-                displayPopover(fieldRect)
-            }
+            )
 
         case "blur":
             AutoFillPopoverController.shared.dismiss()
-
-        case "update-rect":
-            break
 
         case "submitted":
             if let user = payload["username"] as? String,
@@ -1132,53 +1111,53 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
     }
 
+    /// Releases a saved password only after Touch ID or the Mac login password confirms the person
+    /// at the keyboard. Safari asks for the same proof before AutoFill inserts a password; without
+    /// it, a click alone would expose the secret to anyone using an unlocked Mac.
+    private func authorizeAndFill(_ credential: SavedCredential) {
+        guard credential.isFillable else { return }
+
+        let context = LAContext()
+        context.localizedFallbackTitle = "使用登录密码"
+        var policyError: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &policyError) else {
+            NSSound.beep()
+            return
+        }
+
+        context.evaluatePolicy(
+            .deviceOwnerAuthentication,
+            localizedReason: "自动填充 \(credential.domain) 的已保存密码"
+        ) { [weak self, context] success, _ in
+            // Keep the context alive until the evaluation finishes.
+            _ = context
+            guard success else { return }
+            DispatchQueue.main.async {
+                self?.fillCredentialIntoWebPage(credential)
+            }
+        }
+    }
+
     private func fillCredentialIntoWebPage(_ credential: SavedCredential) {
-        guard let webView = webView else { return }
-
-        let escapedUser = credential.username
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        let escapedPass = credential.password
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        let shouldContinue = credential.isPasskey
-
+        guard let webView = webView, credential.isFillable else { return }
         let js = """
         (() => {
-            const u = "\(escapedUser)";
-            const p = "\(escapedPass)";
-            const cont = \(shouldContinue ? "true" : "false");
-
             if (window.__zhuoAutoFill) {
-                window.__zhuoAutoFill.fill(u, p, cont);
-            }
-
-            const payload = { type: 'zhuo-autofill-broadcast-fill', username: u, password: p, shouldContinue: cont };
-            window.postMessage(payload, '*');
-
-            const frames = document.querySelectorAll('iframe, frame');
-            for (const f of frames) {
-                try {
-                    f.contentWindow.postMessage(payload, '*');
-                } catch(_) {}
+                window.__zhuoAutoFill.fill(\(Self.javaScriptString(credential.username)), \(Self.javaScriptString(credential.password)));
             }
         })();
         """
         webView.evaluateJavaScript(js, completionHandler: nil)
-
-        if credential.isPasskey {
-            triggerPasskeyQuickLogin()
-        }
     }
 
-    private func triggerPasskeyQuickLogin() {
-        guard let webView = webView else { return }
-        let js = "if (window.__zhuoAutoFill) { window.__zhuoAutoFill.triggerPasskey(); }"
-        webView.evaluateJavaScript(js, completionHandler: nil)
-
-        Task { @MainActor in
-            _ = await PasskeyManager.shared.requestAuthorizationIfNeeded()
+    /// JSON-encodes a Swift string so quotes, backslashes, newlines and U+2028/U+2029 cannot break
+    /// out of an injected script — passwords may legitimately contain any of them.
+    private static func javaScriptString(_ value: String) -> String {
+        guard let data = try? JSONEncoder().encode(value),
+              let encoded = String(data: data, encoding: .utf8) else {
+            return "\"\""
         }
+        return encoded
     }
 
     private func promptSavePassword(hostname: String, username: String, password: String) {
@@ -1186,8 +1165,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         let cred = SavedCredential(
             domain: hostname,
             username: username.isEmpty ? "未命名账户" : username,
-            password: password,
-            isPasskey: false
+            password: password
         )
         CredentialStore.shared.save(credential: cred)
     }

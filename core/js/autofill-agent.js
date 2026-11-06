@@ -1,6 +1,11 @@
-// ZhuoBrowser AutoFill & Quick Login Web Agent
-// Detects login/password input fields, anchors the Safari-style autofill popover,
-// renders inline keychain key icons, handles credential injection, and listens for form submission.
+// ZhuoBrowser AutoFill agent
+// Reports login-field focus / form submission to the native side and fills the fields on request.
+//
+// Deliberately minimal:
+// * no passkey UI or trigger — WebKit in a non-browser app reports no platform authenticator,
+//   so a "通行密钥" entry could only be faked;
+// * no automatic submit after filling — the user decides when to sign in;
+// * no iframe broadcasting — a page must never be able to receive a saved secret.
 
 (() => {
   'use strict';
@@ -11,7 +16,6 @@
   window.__zhuoAutoFillInjected = true;
 
   let currentActiveInput = null;
-  let activeKeyIcon = null;
 
   const USERNAME_KEYWORDS_REGEX = /(user|username|account|login|email|mail|phone|mobile|tel|identifier|账号|用户名|邮箱|手机)/i;
 
@@ -49,47 +53,17 @@
     return isPasswordInput(el) || isUsernameInput(el);
   }
 
-  // Calculate field bounds relative to top window viewport where possible
+  // Field bounds in the viewport coordinate space the native panel expects.
   function getFieldRect(el) {
     if (!el) return null;
     const rect = el.getBoundingClientRect();
-    let totalX = rect.left;
-    let totalY = rect.top;
-
-    // If inside an accessible iframe, accumulate parent offsets
-    let curWin = window;
-    while (curWin !== curWin.top) {
-      try {
-        const parentWin = curWin.parent;
-        const frames = parentWin.document.querySelectorAll('iframe, frame');
-        let matchedFrame = null;
-        for (const f of frames) {
-          if (f.contentWindow === curWin) {
-            matchedFrame = f;
-            break;
-          }
-        }
-        if (matchedFrame) {
-          const fRect = matchedFrame.getBoundingClientRect();
-          totalX += fRect.left;
-          totalY += fRect.top;
-          curWin = parentWin;
-        } else {
-          break;
-        }
-      } catch (_) {
-        // Cross-origin iframe boundaries: stop traversal and let native bridge assist offset
-        break;
-      }
-    }
-
     return {
-      x: totalX,
-      y: totalY,
+      x: rect.left,
+      y: rect.top,
       width: rect.width,
       height: rect.height,
-      bottom: totalY + rect.height,
-      right: totalX + rect.width,
+      bottom: rect.bottom,
+      right: rect.right,
       isTopFrame: window === window.top
     };
   }
@@ -102,107 +76,31 @@
     } catch (_) {}
   }
 
-  // Render or remove inline key icon inside input field (similar to Safari screenshot 2)
-  function removeInlineKeyIcon() {
-    if (activeKeyIcon && activeKeyIcon.parentNode) {
-      activeKeyIcon.parentNode.removeChild(activeKeyIcon);
-    }
-    activeKeyIcon = null;
-  }
-
-  function attachInlineKeyIcon(input) {
-    removeInlineKeyIcon();
-    if (!input || !input.getBoundingClientRect) return;
-    const rect = input.getBoundingClientRect();
-    if (rect.width < 100 || rect.height < 20) return;
-
-    const iconWrapper = document.createElement('div');
-    iconWrapper.className = 'zhuo-autofill-key-icon';
-    iconWrapper.title = '使用已保存的密码或通行密钥快速登录';
-    iconWrapper.style.position = 'absolute';
-    iconWrapper.style.cursor = 'pointer';
-    iconWrapper.style.zIndex = '2147483640';
-    iconWrapper.style.display = 'flex';
-    iconWrapper.style.alignItems = 'center';
-    iconWrapper.style.justifyContent = 'center';
-    iconWrapper.style.userSelect = 'none';
-    iconWrapper.style.opacity = '0.75';
-    iconWrapper.style.transition = 'opacity 0.15s ease';
-    
-    const iconSize = Math.min(20, Math.max(14, rect.height * 0.6));
-    const rightMargin = 8;
-    iconWrapper.style.width = (iconSize + 8) + 'px';
-    iconWrapper.style.height = iconSize + 'px';
-    iconWrapper.style.left = (rect.right + window.scrollX - (iconSize + 8) - rightMargin) + 'px';
-    iconWrapper.style.top = (rect.top + window.scrollY + (rect.height - iconSize) / 2) + 'px';
-
-    iconWrapper.innerHTML = `
-      <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 16 16" fill="currentColor" style="color: #4A4A4A;">
-        <path fill-rule="evenodd" d="M11.5 1a3.5 3.5 0 0 0-3.46 4.02l-6.89 6.89a1 1 0 0 0-.29.71V14a1 1 0 0 0 1 1h1.5a1 1 0 0 0 1-1v-.5h1.5a1 1 0 0 0 1-1v-.5H9a1 1 0 0 0 .71-.29l.77-.77A3.5 3.5 0 1 0 11.5 1zm1.5 3.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
-      </svg>
-    `;
-
-    iconWrapper.onmouseenter = () => { iconWrapper.style.opacity = '1.0'; };
-    iconWrapper.onmouseleave = () => { iconWrapper.style.opacity = '0.75'; };
-    iconWrapper.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      input.focus();
-      const freshRect = getFieldRect(input);
-      postToNative('focus', {
-        fieldType: isPasswordInput(input) ? 'password' : 'username',
-        url: window.location.href,
-        hostname: window.location.hostname,
-        rect: freshRect,
-        forceOpen: true
-      });
-    };
-
-    document.body.appendChild(iconWrapper);
-    activeKeyIcon = iconWrapper;
-  }
-
   function handleFocus(event) {
     const target = event.target;
     if (!isLoginCandidate(target)) return;
 
     currentActiveInput = target;
-    const rect = getFieldRect(target);
-    const isPw = isPasswordInput(target);
-
-    attachInlineKeyIcon(target);
 
     postToNative('focus', {
-      fieldType: isPw ? 'password' : 'username',
+      fieldType: isPasswordInput(target) ? 'password' : 'username',
       url: window.location.href,
       hostname: window.location.hostname,
-      rect: rect
+      rect: getFieldRect(target)
     });
   }
 
-  function handleBlur(event) {
+  function handleBlur() {
     setTimeout(() => {
       const active = document.activeElement;
       if (!isLoginCandidate(active)) {
-        removeInlineKeyIcon();
+        currentActiveInput = null;
         postToNative('blur', {});
       }
     }, 200);
   }
 
-  function handleScrollOrResize() {
-    if (!currentActiveInput) return;
-    const rect = getFieldRect(currentActiveInput);
-    if (!rect || rect.bottom < 0 || rect.top > window.innerHeight) {
-      removeInlineKeyIcon();
-      postToNative('blur', {});
-      return;
-    }
-    attachInlineKeyIcon(currentActiveInput);
-    postToNative('update-rect', { rect: rect });
-  }
-
-  // Set input value cleanly and dispatch events to trigger web framework listeners (React, Vue, etc.)
+  // Set the value through the native setter so React / Vue controlled inputs see the change.
   function setNativeValue(element, value) {
     if (!element) return;
     element.focus();
@@ -217,39 +115,10 @@
     element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
   }
 
-  // Helper to trigger next step (like clicking continue or submitting form)
-  function attemptContinue() {
-    if (!currentActiveInput) return;
-    const form = currentActiveInput.closest('form') || document;
-    
-    // Look for submit or continue buttons
-    const candidates = Array.from(form.querySelectorAll('button, input[type="submit"], [role="button"], a.button'));
-    const continueBtn = candidates.find(btn => {
-      const text = (btn.textContent || btn.value || btn.id || btn.className || '').toLowerCase();
-      const aria = (btn.getAttribute('aria-label') || '').toLowerCase();
-      return text.includes('continue') || text.includes('sign in') || text.includes('下一步') || text.includes('登录') || text.includes('arrow') || aria.includes('continue') || btn.type === 'submit';
-    });
-
-    if (continueBtn && typeof continueBtn.click === 'function') {
-      setTimeout(() => continueBtn.click(), 100);
-      return;
-    }
-
-    // Fallback: Dispatch Enter key on the input
-    const enterEvent = new KeyboardEvent('keydown', {
-      key: 'Enter',
-      code: 'Enter',
-      keyCode: 13,
-      which: 13,
-      bubbles: true,
-      cancelable: true
-    });
-    currentActiveInput.dispatchEvent(enterEvent);
-  }
-
-  // Exposed API for native controller
+  // Exposed API for the native controller. Only called after the user selected a saved password
+  // and passed the Touch ID / login-password check on the native side.
   window.__zhuoAutoFill = {
-    fill: function(username, password, shouldContinue) {
+    fill: function(username, password) {
       let usernameField = null;
       let passwordField = null;
 
@@ -281,7 +150,6 @@
         usernameField = currentActiveInput;
       }
 
-      // If active input is neither explicitly identified but active, use active input as target
       if (!usernameField && currentActiveInput && isEditableInput(currentActiveInput)) {
         usernameField = currentActiveInput;
       }
@@ -296,37 +164,11 @@
         filledAny = true;
       }
 
-      removeInlineKeyIcon();
-
-      if (shouldContinue) {
-        attemptContinue();
-      }
-
       return filledAny;
-    },
-
-    triggerPasskey: function() {
-      // Find possible passkey triggers or conditional WebAuthn inputs
-      const passkeyBtn = document.querySelector('[data-test*="passkey"], [data-provider*="passkey"], button[id*="passkey"], button[name*="passkey"]');
-      if (passkeyBtn && typeof passkeyBtn.click === 'function') {
-        passkeyBtn.click();
-        return true;
-      }
-      return false;
     }
   };
 
-  // Cross-frame messaging listener (allows filling inside any iframe)
-  window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'zhuo-autofill-broadcast-fill') {
-      const u = event.data.username || '';
-      const p = event.data.password || '';
-      const cont = Boolean(event.data.shouldContinue);
-      window.__zhuoAutoFill.fill(u, p, cont);
-    }
-  });
-
-  // Form submit interception for saving passwords
+  // Report successful-looking submissions so the native side can persist the password.
   function handleFormSubmit(event) {
     const form = event.target;
     if (!form || !form.querySelectorAll) return;
@@ -353,10 +195,7 @@
     }
   }
 
-  // Global listeners
   document.addEventListener('focusin', handleFocus, true);
   document.addEventListener('focusout', handleBlur, true);
-  window.addEventListener('scroll', handleScrollOrResize, { passive: true });
-  window.addEventListener('resize', handleScrollOrResize, { passive: true });
   document.addEventListener('submit', handleFormSubmit, true);
 })();

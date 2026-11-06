@@ -28,38 +28,24 @@ public final class AutoFillPopoverController: NSObject {
         super.init()
     }
 
-    /// Presents the AutoFill suggestions below the input field in the target WKWebView.
+    /// Presents the saved-password suggestions below the input field in the target WKWebView.
     public func show(
         in webView: WKWebView,
         fieldRect: CGRect,
         hostname: String,
-        isPasswordContext: Bool,
         credentials: [SavedCredential],
-        onFill: @escaping (SavedCredential) -> Void,
-        onPasskey: @escaping () -> Void
+        onSelect: @escaping (SavedCredential) -> Void
     ) {
         dismiss()
         guard let window = webView.window else { return }
         self.currentWebView = webView
 
-        let rootDomain = SavedCredential.extractRootDomain(from: hostname)
-
         let rootView = AutoFillSuggestionView(
             credentials: credentials,
             currentHost: hostname,
-            rootDomain: rootDomain,
-            isPasswordContext: isPasswordContext,
             onSelectCredential: { [weak self] selected in
                 self?.dismiss()
-                onFill(selected)
-            },
-            onSelectOtherPasswords: { [weak self] in
-                self?.dismiss()
-                CredentialStore.shared.openSystemPasswordsSettings()
-            },
-            onSelectNearbyPasskeys: { [weak self] in
-                self?.dismiss()
-                onPasskey()
+                onSelect(selected)
             }
         )
 

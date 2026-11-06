@@ -1,17 +1,24 @@
 import Foundation
 import Security
-import AppKit
 
 /// Represents a login credential stored securely for a domain.
+///
+/// This store holds passwords only. Passkeys never live here: a passkey is an asymmetric key held
+/// by the platform authenticator (iCloud Keychain), and the app can only obtain an assertion for it
+/// from WebKit. Persisting a "passkey" row with a placeholder password is what produced the
+/// "此网站的通行密钥" entry that silently submitted eight bullet characters to apple.com.
 public struct SavedCredential: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public var domain: String
     public var rootDomain: String
     public var username: String
     public var password: String
-    public var isPasskey: Bool
     public var lastUsed: Date
     public var createdAt: Date
+
+    /// The placeholder the old demo seeder wrote instead of a secret. It must never be injected
+    /// into a page: submitting it is guaranteed to fail server-side and looks like a broken login.
+    public static let legacyPlaceholderPassword = "••••••••"
 
     public init(
         id: UUID = UUID(),
@@ -19,7 +26,6 @@ public struct SavedCredential: Identifiable, Codable, Equatable, Sendable {
         rootDomain: String? = nil,
         username: String,
         password: String = "",
-        isPasskey: Bool = false,
         lastUsed: Date = Date(),
         createdAt: Date = Date()
     ) {
@@ -28,9 +34,28 @@ public struct SavedCredential: Identifiable, Codable, Equatable, Sendable {
         self.rootDomain = rootDomain?.lowercased() ?? Self.extractRootDomain(from: domain)
         self.username = username
         self.password = password
-        self.isPasskey = isPasskey
         self.lastUsed = lastUsed
         self.createdAt = createdAt
+    }
+
+    /// A credential without a real secret cannot be filled. An empty string leaves the page blank;
+    /// the legacy placeholder submits the mask itself, which no server accepts.
+    public var isFillable: Bool {
+        !password.isEmpty && password != Self.legacyPlaceholderPassword
+    }
+
+    /// Detects the two demo records `ac05863` injected into every install ("apple.com" passkey and
+    /// the Huawei account). Both are matched together with the placeholder password so a genuine
+    /// record for the same account (real password) is never removed.
+    public var isLegacyDemoRecord: Bool {
+        guard password == Self.legacyPlaceholderPassword else { return false }
+        switch (domain, username) {
+        case ("apple.com", "yangliangsky@gmail.com"),
+             ("id1.cloud.huawei.com", "18627178676"):
+            return true
+        default:
+            return false
+        }
     }
 
     /// Derives the effective root domain (e.g. "id1.cloud.huawei.com" -> "huawei.com", "appleid.apple.com" -> "apple.com")
@@ -58,34 +83,30 @@ public final class CredentialStore: ObservableObject {
 
     private init() {
         loadCredentials()
-        seedDefaultCredentialsIfNeeded()
+        purgeLegacyDemoRecords()
     }
 
-    /// Seeds standard credentials for demonstrated websites (e.g., Apple ID passkey, Huawei Cloud account)
-    /// if the user has not created any entries yet, ensuring immediate high fidelity with Safari screenshot benchmarks.
-    private func seedDefaultCredentialsIfNeeded() {
-        guard credentials.isEmpty else { return }
-
-        let defaultSeeds: [SavedCredential] = [
-            SavedCredential(
-                domain: "apple.com",
-                rootDomain: "apple.com",
-                username: "yangliangsky@gmail.com",
-                password: "••••••••",
-                isPasskey: true
-            ),
-            SavedCredential(
-                domain: "id1.cloud.huawei.com",
-                rootDomain: "huawei.com",
-                username: "18627178676",
-                password: "••••••••",
-                isPasskey: false
-            )
-        ]
-
-        for seed in defaultSeeds {
-            save(credential: seed)
+    /// Removes the fabricated demo records older builds wrote into UserDefaults + Keychain.
+    /// They survive upgrades, so merely deleting the seeder would leave the fake apple.com
+    /// "passkey" (and its bullet-mask password) offered to every user forever.
+    private func purgeLegacyDemoRecords() {
+        let stale = credentials.filter(\.isLegacyDemoRecord)
+        guard !stale.isEmpty else { return }
+        credentials = Self.removingLegacyDemoRecords(from: credentials)
+        for item in stale {
+            deleteFromKeychain(account: item.username, domain: item.domain)
         }
+        persistMetadata()
+    }
+
+    /// Pure filter used by the migration above and by unit tests.
+    nonisolated public static func removingLegacyDemoRecords(from list: [SavedCredential]) -> [SavedCredential] {
+        list.filter { !$0.isLegacyDemoRecord }
+    }
+
+    /// True when at least one stored credential actually has a secret to fill.
+    nonisolated public static func canOfferAutoFill(_ candidates: [SavedCredential]) -> Bool {
+        candidates.contains(where: \.isFillable)
     }
 
     /// Queries credentials matching a specific hostname or its root domain.
@@ -98,11 +119,10 @@ public final class CredentialStore: ObservableObject {
             let itemRoot = item.rootDomain.lowercased()
             return itemHost == targetHost || itemRoot == targetRoot || targetHost.hasSuffix("." + itemHost) || itemHost.hasSuffix("." + targetHost)
         }.sorted { (a, b) -> Bool in
-            // Exact host match comes first, then passkeys, then last used
+            // Exact host match comes first, then the most recently used password.
             let aExact = a.domain == targetHost
             let bExact = b.domain == targetHost
             if aExact != bExact { return aExact }
-            if a.isPasskey != b.isPasskey { return a.isPasskey }
             return a.lastUsed > b.lastUsed
         }
     }
@@ -128,13 +148,6 @@ public final class CredentialStore: ObservableObject {
         credentials.removeAll(where: { $0.id == id })
         deleteFromKeychain(account: item.username, domain: item.domain)
         persistMetadata()
-    }
-
-    /// Opens the native macOS Passwords settings panel.
-    public func openSystemPasswordsSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.Passwords-Settings.extension") {
-            NSWorkspace.shared.open(url)
-        }
     }
 
     // MARK: - Keychain Implementation
