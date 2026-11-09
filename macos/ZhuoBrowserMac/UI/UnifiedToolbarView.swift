@@ -478,9 +478,14 @@ private struct ToolbarHoverButtonStyle: ButtonStyle {
 }
 
 /// Popover anchored to the Omnibox star button for editing the active page's bookmark name, URL, and target folder.
-private struct OmniboxBookmarkPopoverView: View {
+struct OmniboxBookmarkPopoverView: View {
     @ObservedObject var session: BrowserSession
     @Binding var isPresented: Bool
+
+    /// How long the popover has to be on screen before its text fields become editable.
+    /// One popover presentation is enough to finish the window setup that would
+    /// otherwise pick a key view.
+    static let focusEnableDelay: TimeInterval = 0.15
 
     @State private var bookmarkID: String = ""
     @State private var title: String = ""
@@ -489,6 +494,13 @@ private struct OmniboxBookmarkPopoverView: View {
     @State private var pinToStartPage: Bool = true
     @State private var isCreatingFolder: Bool = false
     @State private var newFolderName: String = ""
+    /// While a popover window is being presented, AppKit asks its content for the first
+    /// key view; `NSTextField` answers that by selecting all of its text, and TextKit
+    /// follows with a synchronous input-method (IME) activation. Waiting for the IMK XPC
+    /// reply inside that nested run loop has been measured at ~1.7s of main-thread freeze
+    /// with third-party IMEs (Sogou on a Touch Bar Mac). Keep the fields non-focusable
+    /// until the popover is on screen so the window setup never lands on them.
+    @State private var fieldsReady: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -518,6 +530,7 @@ private struct OmniboxBookmarkPopoverView: View {
                     TextField("书签名称", text: $title)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 12))
+                        .disabled(!fieldsReady)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -527,6 +540,7 @@ private struct OmniboxBookmarkPopoverView: View {
                     TextField("网址 URL", text: $url)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 12))
+                        .disabled(!fieldsReady)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -617,7 +631,23 @@ private struct OmniboxBookmarkPopoverView: View {
         .padding(14)
         .frame(width: 310)
         .onAppear {
+            fieldsReady = false
             loadActiveBookmarkState()
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.focusEnableDelay) {
+                // Only enable while the popover is still up: a quick dismiss/re-open
+                // must not carry the enabled state into the next window setup.
+                if isPresented {
+                    fieldsReady = true
+                }
+            }
+        }
+        .onDisappear {
+            fieldsReady = false
+        }
+        .onChange(of: isPresented) { presented in
+            if !presented {
+                fieldsReady = false
+            }
         }
     }
 
