@@ -4,29 +4,35 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#FAF9F7">
-  <meta name="description" content="卓阅浏览器是一款为 HarmonyOS NEXT 打造的安静、快速、注重隐私的移动浏览器。">
-  <link rel="canonical" href="https://browser.youdroid.top/">
-  <link rel="icon" href="/assets/icon.svg?v=20260818-square" type="image/svg+xml">
+  <meta name="description" content="Zhuo浏览器（Zhuo Browser）是一款为 macOS 与 HarmonyOS NEXT 原生打造的极简、极速、极致省内存网页浏览器。基于系统 WebKit，零 Chromium 膨胀，毫秒级标签复用，硬件级内容拦截，完整支持 Chrome MV3 扩展与系统钥匙串。">
+  <link rel="canonical" href="https://zhuobrowser.youdroid.top/">
+  <link rel="icon" href="/assets/mac-icon.svg?v=20261110" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260922">
+  <link rel="stylesheet" href="/styles.css?v=20261110">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="zh_CN">
-  <meta property="og:title" content="卓阅浏览器｜少一点干扰，多一点阅读">
-  <meta property="og:description" content="为 HarmonyOS NEXT 打造的安静、快速、注重隐私的移动浏览器。">
-  <meta property="og:url" content="https://browser.youdroid.top/">
-  <meta property="og:image" content="https://browser.youdroid.top/assets/og-card.png?v=20260818-square">
+  <meta property="og:title" content="Zhuo浏览器 for Mac｜原生 WebKit · 极简极速 · 极致省内存">
+  <meta property="og:description" content="基于原生 macOS SwiftUI + WebKit 构建，零 Chromium 运行时负担。常驻瞬时标签切换、C++ 网络层零 JS 广告拦截、Chrome MV3 扩展中心与 Apple 钥匙串自动填充。">
+  <meta property="og:url" content="https://zhuobrowser.youdroid.top/">
+  <meta property="og:image" content="https://zhuobrowser.youdroid.top/assets/og-card.png?v=20260818-square">
   <meta name="twitter:card" content="summary_large_image">
-  <title>卓阅浏览器｜少一点干扰，多一点阅读</title>
+  <title>Zhuo浏览器 for Mac (Zhuo Browser)｜原生 WebKit · 极简 · 极致省内存</title>
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      "name": "卓阅浏览器",
+      "name": "Zhuo浏览器 (Zhuo Browser)",
       "applicationCategory": "BrowserApplication",
-      "operatingSystem": "HarmonyOS NEXT",
-      "description": "一款做减法的 HarmonyOS 浏览器",
-      "url": "https://browser.youdroid.top/",
-      "downloadUrl": "https://appgallery.huawei.com/app/detail?id=com.youdroid.browser&channelId=SHARE&source=appshare"
+      "operatingSystem": "macOS 14.0+, HarmonyOS NEXT",
+      "softwareVersion": "1.0.0",
+      "description": "Native macOS SwiftUI + WebKit web browser engineered for extreme memory frugality, instant tab switching, zero-JS content blocking, Chrome MV3 extensions, and system keychain & passkey integration.",
+      "url": "https://zhuobrowser.youdroid.top/",
+      "downloadUrl": "https://zhuobrowser.youdroid.top/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg",
+      "fileSize": "24MB",
+      "author": {
+        "@type": "Organization",
+        "name": "youdroid"
+      }
     }
   </script>
 </head>
@@ -34,130 +40,325 @@
   <a class="skip-link" href="#main">跳到主要内容</a>
   <header class="site-header">
     <nav class="shell nav" aria-label="主导航">
-      <a class="brand" href="#top" aria-label="卓阅浏览器首页">
-        <img src="/assets/icon.svg?v=20260818-square" width="40" height="40" alt="">
-        <span>卓阅浏览器</span>
+      <a class="brand" href="#top" aria-label="Zhuo浏览器首页">
+        <img src="/assets/mac-icon.svg?v=20261110" width="40" height="40" alt="Zhuo浏览器图标">
+        <span>Zhuo浏览器 <small class="brand-sub">Zhuo Browser</small></span>
       </a>
       <div class="nav-links">
-        <a href="#features">特点</a>
-        <a href="#privacy">隐私</a>
-        <span class="availability">HarmonyOS NEXT</span>
+        <a href="#mac-features">核心优势</a>
+        <a href="#extensions">扩展生态</a>
+        <a href="#security">安全与钥匙串</a>
+        <a href="#specs">技术规格</a>
+        <a href="#harmony">HarmonyOS 版</a>
+        <a class="nav-cta" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>下载 Mac 版</a>
       </div>
     </nav>
   </header>
 
   <main id="main">
+    <!-- Hero Section -->
     <section class="hero shell" id="top" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <p class="eyebrow">卓阅浏览器 · HARMONYOS NEXT</p>
+        <p class="eyebrow">ZHUO BROWSER FOR MACOS · NATIVE WEBKIT</p>
         <h1 id="hero-title">
-          <span class="headline-line">少一点干扰，</span>
-          <span class="headline-line">多一点阅读。</span>
+          <span class="headline-line">极简，极速，</span>
+          <span class="headline-line">极致省内存。</span>
         </h1>
-        <p class="hero-intro">卓阅浏览器把网页还给内容。快速启动、原生多窗口、私密浏览与广告拦截，都藏在一套<span class="keep-together">安静、克制的界面</span>里。</p>
+        <p class="hero-intro">
+          专为 macOS 原生构建的 <strong>SwiftUI + WebKit (<code>WKWebView</code>)</strong> 桌面浏览器。告别数百 MB 的 Chromium 与 Electron 运行时冗余，具备<strong>毫秒级零重载标签页切换</strong>、<strong>网络进程 C++ 原生广告拦截</strong>、<strong>Chrome Manifest V3 扩展中心</strong>及<strong>系统钥匙串与通行密钥 (Passkey / WebAuthn)</strong> 深度集成。
+        </p>
+
         <div class="hero-actions">
-          <a class="primary-link store-link" href="https://appgallery.huawei.com/app/detail?id=com.youdroid.browser&channelId=SHARE&source=appshare" target="_blank" rel="noopener noreferrer">
+          <a class="primary-link" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            <span>在 AppGallery 下载</span>
+            <span>下载 macOS 版 (.dmg)</span>
           </a>
-          <a class="secondary-link" href="#features">了解卓阅</a>
+          <a class="secondary-link store-link" href="https://appgallery.huawei.com/app/detail?id=com.youdroid.browser&channelId=SHARE&source=appshare" target="_blank" rel="noopener noreferrer">
+            <span>HarmonyOS NEXT 版</span>
+          </a>
+        </div>
+
+        <div class="download-meta" aria-label="安装包签名与版本信息">
+          <div class="meta-badges">
+            <span class="meta-badge meta-badge-verified">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+              Apple Developer ID 已签名 &amp; 公证 (Notarized)
+            </span>
+            <span class="meta-badge">Universal (Apple Silicon + Intel)</span>
+            <span class="meta-badge">v1.0.0 · macOS 14.0+ · 23.7 MB</span>
+          </div>
+          <p class="sha-line">
+            <span>SHA-256:</span>
+            <code>cc9f79546bb454bf246060522de6102ade5e5bc3deee55b9f10fa6e1e2d3db82</code>
+          </p>
+          <p class="en-note">
+            <strong>For Apple Review &amp; Evaluators:</strong> Direct download of the Developer ID signed &amp; notarized universal DMG above. No account or sign-in is required to download or use any core browsing feature.
+          </p>
         </div>
       </div>
 
-      <div class="product-stage" aria-label="卓阅浏览器移动端首页预览">
+      <!-- Interactive Mockup of ZhuoBrowser Mac Window -->
+      <div class="mac-stage" aria-label="Zhuo浏览器 macOS 桌面窗口预览">
         <div class="stage-caption" aria-hidden="true">
-          <span>ZHUO / 01</span>
-          <span>HARMONYOS NEXT</span>
+          <span>ZHUO / MACOS 14+</span>
+          <span>SWIFTUI + WKWEBVIEW</span>
         </div>
-        <div class="phone-frame">
-          <img src="/assets/app-home.webp" width="542" height="1206" fetchpriority="high" alt="卓阅浏览器首页，展示快捷网站与底部地址栏">
+
+        <div class="mac-window" role="img" aria-label="Zhuo浏览器 Mac 界面展示，包含一体化极简工具栏、常驻标签栏、内存复用指示器与内置扩展">
+          <!-- Unified Toolbar -->
+          <div class="mac-toolbar">
+            <div class="mac-traffic">
+              <span class="dot dot-red"></span>
+              <span class="dot dot-yellow"></span>
+              <span class="dot dot-green"></span>
+            </div>
+            <div class="mac-nav-btns">
+              <span>‹</span>
+              <span>›</span>
+              <span>↻</span>
+            </div>
+            <div class="mac-omnibox">
+              <span class="omnibox-lock">🔒</span>
+              <span class="omnibox-url">zhuobrowser.youdroid.top</span>
+              <span class="omnibox-star">★</span>
+            </div>
+            <div class="mac-toolbar-right">
+              <span class="toolbar-pill pill-shield" title="WKContentRuleList 原生拦截开启">🛡️ 24</span>
+              <span class="toolbar-pill pill-memory" title="全部标签常驻：切换复用 18 次 · 重建 0 次">⚡ 常驻 4 · 0 重建</span>
+              <span class="toolbar-pill">🧩</span>
+            </div>
+          </div>
+
+          <!-- Compact Tab Strip -->
+          <div class="mac-tabstrip">
+            <div class="mac-tab mac-tab-active">
+              <span class="tab-fav">Z</span>
+              <span class="tab-title">Zhuo浏览器 — 极简 · 极速 · 省内存</span>
+            </div>
+            <div class="mac-tab">
+              <span class="tab-fav">G</span>
+              <span class="tab-title">GitHub · Passkey &amp; WebAuthn</span>
+            </div>
+            <div class="mac-tab">
+              <span class="tab-fav">A</span>
+              <span class="tab-title">Apple Developer Documentation</span>
+            </div>
+            <div class="mac-tab mac-tab-frozen" title="省内存冻结快照标签">
+              <span class="tab-fav">💤</span>
+              <span class="tab-title">WebKit Content Blocking Rules</span>
+            </div>
+          </div>
+
+          <!-- Viewport Content -->
+          <div class="mac-viewport">
+            <div class="mac-start-card">
+              <div class="mac-start-brand">
+                <img src="/assets/mac-icon.svg?v=20261110" width="52" height="52" alt="">
+                <div>
+                  <div class="mac-start-title">Zhuo浏览器</div>
+                  <div class="mac-start-sub">极简 · 极速 · 极致节省内存</div>
+                </div>
+              </div>
+              <div class="mac-search-bar">
+                <span>🔍 搜索或输入网址 (支持 Bing / Google / Baidu / DuckDuckGo)...</span>
+                <kbd>⌘L</kbd>
+              </div>
+              <div class="mac-metrics-grid">
+                <div class="mac-metric">
+                  <span class="metric-val">0 ms</span>
+                  <span class="metric-lbl">JS 拦截运行时开销</span>
+                </div>
+                <div class="mac-metric">
+                  <span class="metric-val">0 次</span>
+                  <span class="metric-lbl">标签切换页面重载</span>
+                </div>
+                <div class="mac-metric">
+                  <span class="metric-val">23.7 MB</span>
+                  <span class="metric-lbl">双架构安装包体积</span>
+                </div>
+                <div class="mac-metric">
+                  <span class="metric-val">MV3</span>
+                  <span class="metric-lbl">Chrome 扩展与脚本兼容</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="principles shell" aria-label="产品原则">
-      <p>原生 ArkWeb</p>
-      <p>数据留在本机</p>
-      <p>手机 · 平板 · 二合一</p>
-      <p>广告与元素隐藏</p>
+    <!-- Core Principles Bar -->
+    <section class="principles shell" aria-label="产品核心架构原则">
+      <p>原生 macOS WebKit (<code>dyld</code> 共享)</p>
+      <p>常驻标签瞬时切换 (0 重载)</p>
+      <p>C++ 网络层字节码广告拦截</p>
+      <p>系统钥匙串 · Touch ID · Passkey</p>
     </section>
 
-    <section class="feature-section shell" id="features" aria-labelledby="features-title">
+    <!-- 6 Core Mac Selling Points -->
+    <section class="feature-section shell" id="mac-features" aria-labelledby="features-title">
       <div class="section-heading">
-        <p class="eyebrow">BUILT TO GET OUT OF YOUR WAY</p>
+        <p class="eyebrow">ENGINEERED FOR MACOS FRUGALITY &amp; SPEED</p>
         <h2 id="features-title">
-          <span class="headline-line">浏览器应该</span>
-          <span class="headline-line">退后一步。</span>
+          <span class="headline-line">为什么 Mac 需要一款</span>
+          <span class="headline-line">真正克制的原生浏览器？</span>
         </h2>
-        <p>必要时能力触手可及，其余时间只留下网页。</p>
+        <p>不捆绑百兆级 Chromium 内核，不用高耗电的 JS 轮询拦截广告，也不在切换标签时偷偷重载你的表单与阅读进度。</p>
       </div>
 
-      <div class="feature-grid">
+      <div class="feature-grid feature-grid-6">
         <article class="feature-card feature-card-primary">
           <div class="feature-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M4 12h16M7 8h10M9 16h6"/></svg>
+            <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           </div>
-          <p class="feature-number">01</p>
-          <h3>专注于内容</h3>
-          <p>底部地址栏、阅读模式、页面查找和标签切换保持拇指可达。界面不和网页争夺注意力。</p>
+          <p class="feature-number">01 · NATIVE WEBKIT SHELL</p>
+          <h3>零 Chromium 膨胀，极致省内存</h3>
+          <p>直接构建于 macOS 原生 <code>WebKit.framework</code> 与 SwiftUI 之上，底层库通过系统 <code>dyld</code> 共享缓存加载。无独立渲染引擎冗余，双架构 Universal 安装包仅 23.7 MB，冷启动与能效表现媲美系统原生组件。</p>
         </article>
+
         <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          </div>
+          <p class="feature-number">02 · INSTANT TAB SWITCHING</p>
+          <h3>常驻标签瞬时切换，可观测零重建</h3>
+          <p>每个打开的标签页在整个会话期内保活独立 <code>WKWebView</code>。切换标签仅在视图树中重挂载（re-parent），零网络请求、零重新排版，滚动位置、DOM 状态与未提交表单完整保留。工具栏内置实时复用/重建计数器，也可按需开启 1–8 配额的省内存冻结模式（<code>WKWebView.interactionState</code> 快照）。</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <p class="feature-number">03 · ZERO-JS CONTENT BLOCKING</p>
+          <h3>C++ 网络层字节码拦截，零 JS 开销</h3>
+          <p>将 EasyList、EasyList China 与精选补充规则直接编译为 WebKit 原生 <code>WKContentRuleList</code> 二进制字节码，在 WebKit 网络进程内由 C++ 直接评估拦截，无需注入沉重的 JS 过滤脚本，支持标准/严格两档清理与单站点白名单。</p>
+        </article>
+
+        <article class="feature-card" id="security">
           <div class="feature-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v9H5z"/></svg>
           </div>
-          <p class="feature-number">02</p>
-          <h3>隐私默认在本机</h3>
-          <p>浏览记录、收藏与会话留在设备上；无痕标签页不进入持久化数据，也不混入普通浏览会话。</p>
+          <p class="feature-number">04 · KEYCHAIN, TOUCH ID &amp; PASSKEYS</p>
+          <h3>系统钥匙串自动填充与 WebAuthn 通行密钥</h3>
+          <p>密码直存 macOS 系统登录钥匙串（Login Keychain），聚焦登录框弹出 Safari 风格凭据建议气泡，通过 <code>LAContext</code> 调用 Touch ID 或系统密码完成生物识别校验后注入。完整支持 WebAuthn 标准与 iCloud 钥匙串通行密钥（Passkey）集成，并提供 HTTPS 优先自动升级与安全浏览分级防护。</p>
         </article>
+
+        <article class="feature-card" id="extensions">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          </div>
+          <p class="feature-number">05 · CHROME MV3 &amp; USERSCRIPTS</p>
+          <h3>内置 5 大精选扩展，兼容 Chrome 扩展与脚本</h3>
+          <p>开箱内置「智能暗黑护眼」「沉浸式网页双语对照翻译」「音视频流媒体嗅探下载」「超级复制与解除右键限制」「UserScript 脚本工坊」五大工具。支持开发者模式加载已解压目录、导入 <code>.crx</code> / <code>.zip</code> / <code>.user.js</code> 及站点级权限管控。</p>
+        </article>
+
         <article class="feature-card">
           <div class="feature-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M4 5h16v10H4zM8 19h8M12 15v4"/></svg>
           </div>
-          <p class="feature-number">03</p>
-          <h3>适配每一种屏幕</h3>
-          <p>从手机、平板到二合一设备，工具栏、标签页与侧栏随窗口变化，而不是简单拉伸手机界面。</p>
+          <p class="feature-number">06 · PURE MACOS EXPERIENCE</p>
+          <h3>纯粹 Mac 桌面体验与云端壁纸归档</h3>
+          <p>零网络、零 DOM 的原生极简起始页，接入 Cloudflare D1 + R2 必应每日高清壁纸历史归档与精选预设；自适应多标签栏宽度压缩、OAuth 独立登录弹窗（保留 <code>window.opener</code>）、书签与历史记录资料库、完整键盘快捷键（<code>⌘T</code> / <code>⌘L</code> / <code>⌘D</code> / <code>⌘Y</code> / <code>⌘1~9</code>）及一键设为默认浏览器。</p>
         </article>
       </div>
     </section>
 
-    <section class="quiet-section" id="privacy" aria-labelledby="privacy-title">
+    <!-- Technical Specifications & Architecture Comparison -->
+    <section class="quiet-section" id="specs" aria-labelledby="specs-title">
       <div class="shell quiet-layout">
         <div>
-          <p class="eyebrow eyebrow-light">PRIVATE BY CONSTRUCTION</p>
-          <h2 id="privacy-title">你的浏览，<br>不需要成为谁的数据。</h2>
-        </div>
-        <div class="privacy-copy">
-          <p>卓阅不要求账号，不把浏览历史上传到云端，也不会把无痕会话写入本地存储。隐私不是一个后来补上的开关，而是数据流从一开始就遵守的边界。</p>
+          <p class="eyebrow eyebrow-light">TECHNICAL SPECIFICATIONS &amp; ARCHITECTURE</p>
+          <h2 id="specs-title">架构级减法，<br>透明可验证。</h2>
+          <p class="quiet-sub">
+            Zhuo浏览器不做套壳包装。每一项性能承诺与隐私边界，都由 macOS 系统原生框架与沙盒权限（App Sandbox）直接保障。
+          </p>
           <dl class="privacy-facts">
-            <div><dt>0</dt><dd>必需账号</dd></div>
-            <div><dt>本机</dt><dd>浏览数据默认位置</dd></div>
-            <div><dt>独立</dt><dd>无痕会话边界</dd></div>
+            <div><dt>WebKit</dt><dd>系统级共享渲染引擎</dd></div>
+            <div><dt>Sandbox</dt><dd>macOS 严格应用沙盒与 Hardened Runtime</dd></div>
+            <div><dt>0 账号</dt><dd>无需登录即可使用全部浏览功能</dd></div>
+          </dl>
+        </div>
+
+        <div class="spec-table-card">
+          <h3>macOS 客户端技术信息 (v1.0.0)</h3>
+          <dl class="spec-list">
+            <div class="spec-row">
+              <dt>应用名称</dt>
+              <dd>Zhuo浏览器 (Zhuo Browser for Mac)</dd>
+            </div>
+            <div class="spec-row">
+              <dt>Bundle Identifier</dt>
+              <dd><code>com.youdroid.zhuobrowser.mac</code></dd>
+            </div>
+            <div class="spec-row">
+              <dt>Apple Developer Team</dt>
+              <dd><code>Y4MB2B6UD3</code> (Developer ID Application Signed &amp; Notarized)</dd>
+            </div>
+            <div class="spec-row">
+              <dt>系统与芯片架构</dt>
+              <dd>macOS 14.0 (Sonoma) 及以上 · Universal (<code>arm64</code> + <code>x86_64</code>)</dd>
+            </div>
+            <div class="spec-row">
+              <dt>默认浏览器支持</dt>
+              <dd>完整注册 <code>http</code> / <code>https</code> URL Schemes 及 HTML / XHTML / WebArchive / PDF 文档类型</dd>
+            </div>
+            <div class="spec-row">
+              <dt>WebAuthn &amp; Passkey</dt>
+              <dd>集成 <code>AuthenticationServices</code> (<code>ASAuthorizationWebBrowserPublicKeyCredentialManager</code>) 与 iCloud 钥匙串通行密钥</dd>
+            </div>
+            <div class="spec-row">
+              <dt>隐私与数据存储</dt>
+              <dd>书签、历史、会话快照默认存储于本机沙盒；无痕标签页采用 <code>WKWebsiteDataStore.nonPersistent()</code> 内存隔离；可选云端书签同步</dd>
+            </div>
           </dl>
         </div>
       </div>
     </section>
 
+    <!-- Cross-Platform HarmonyOS Section -->
+    <section class="harmony-section shell" id="harmony" aria-labelledby="harmony-title">
+      <div class="harmony-banner">
+        <div class="harmony-copy">
+          <p class="eyebrow">CROSS-PLATFORM · HARMONYOS NEXT &amp; IOS</p>
+          <h2 id="harmony-title">同一套克制哲学，跨越桌面与移动。</h2>
+          <p>除了 macOS 桌面端，卓阅浏览器（Zhuo Browser）同样为 HarmonyOS NEXT 与 iOS 原生打造，支持手机、平板与二合一设备自适应布局、阅读模式与离线文章库。</p>
+          <div class="hero-actions">
+            <a class="secondary-link store-link" href="https://appgallery.huawei.com/app/detail?id=com.youdroid.browser&channelId=SHARE&source=appshare" target="_blank" rel="noopener noreferrer">
+              <span>在华为 AppGallery 获取鸿蒙版</span>
+            </a>
+            <a class="secondary-link" href="https://browser.youdroid.top/" target="_blank" rel="noopener noreferrer">
+              <span>查看移动版介绍</span>
+            </a>
+          </div>
+        </div>
+        <div class="harmony-preview">
+          <img src="/assets/app-home.webp" width="271" height="603" loading="lazy" alt="卓阅浏览器移动端预览">
+        </div>
+      </div>
+    </section>
+
+    <!-- Closing CTA -->
     <section class="closing shell" aria-labelledby="closing-title">
-      <img src="/assets/icon.svg?v=20260818-square" width="112" height="112" alt="卓阅浏览器图标">
+      <img src="/assets/mac-icon.svg?v=20261110" width="112" height="112" alt="Zhuo浏览器图标">
       <div>
-        <p class="eyebrow">ZHUO BROWSER</p>
+        <p class="eyebrow">DOWNLOAD ZHUO BROWSER FOR MAC</p>
         <h2 id="closing-title">
-          <span class="headline-line">安静浏览，</span>
-          <span class="headline-line">认真阅读。</span>
+          <span class="headline-line">轻装上阵，</span>
+          <span class="headline-line">回归纯粹浏览。</span>
         </h2>
-        <p>为 HarmonyOS NEXT 而生。</p>
+        <p>macOS 14.0+ 通用安装包 · Developer ID 签名与 Apple 公证通过 · 拖入 Applications 即可使用。</p>
         <div class="closing-actions">
-          <a class="primary-link store-link" href="https://appgallery.huawei.com/app/detail?id=com.youdroid.browser&channelId=SHARE&source=appshare" target="_blank" rel="noopener noreferrer">
+          <a class="primary-link" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            <span>在 AppGallery 下载</span>
+            <span>下载 ZhuoBrowser-1.0.0-mac-universal.dmg (23.7 MB)</span>
           </a>
         </div>
       </div>
@@ -166,8 +367,12 @@
 
   <footer class="site-footer">
     <div class="shell footer-layout">
-      <p>© 2026 youdroid. 卓阅浏览器。</p>
-      <p class="footer-links"><a href="/terms.html">用户协议</a><a href="/privacy.html">隐私政策</a></p>
+      <p>© 2026 youdroid. Zhuo浏览器 (Zhuo Browser) · macOS &amp; HarmonyOS NEXT.</p>
+      <p class="footer-links">
+        <a href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>下载 Mac 版 (.dmg)</a>
+        <a href="/terms.html">用户协议</a>
+        <a href="/privacy.html">隐私政策</a>
+      </p>
     </div>
   </footer>
 
@@ -178,7 +383,7 @@
 
       var ua = navigator.userAgent || '';
       var isMobile = /Android|iPhone|iPad|iPod|OpenHarmony|HarmonyOS|Mobile|ArkWeb/i.test(ua) ||
-        (navigator.maxTouchPoints > 1 && !/Windows NT/i.test(ua));
+        (navigator.maxTouchPoints > 1 && !/Windows NT|Macintosh/i.test(ua));
       var isIOS = /iPhone|iPad|iPod/i.test(ua);
 
       function handleStoreClick(event) {
