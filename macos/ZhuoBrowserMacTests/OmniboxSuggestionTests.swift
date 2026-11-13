@@ -521,6 +521,16 @@ final class OmniboxSuggestionTests: XCTestCase {
         XCTAssertFalse(textView.isAutomaticQuoteSubstitutionEnabled)
         XCTAssertFalse(textView.isAutomaticDashSubstitutionEnabled)
         XCTAssertFalse(textView.isAutomaticTextCompletionEnabled)
+        XCTAssertEqual(textView.enabledTextCheckingTypes, 0)
+
+        let omniboxField = OmniboxNSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 28))
+        let cell = omniboxField.cell as? OmniboxNSTextFieldCell
+        XCTAssertNotNil(cell)
+        let customEditor = cell?.fieldEditor(for: omniboxField) as? OmniboxFieldEditor
+        XCTAssertNotNil(customEditor)
+        XCTAssertTrue(customEditor?.isFieldEditor == true)
+        XCTAssertEqual(customEditor?.enabledTextCheckingTypes, 0)
+        XCTAssertFalse(customEditor?.isAutomaticSpellingCorrectionEnabled ?? true)
 
         let session = BrowserSession()
         _ = session.createTab(url: "https://example.com/previous-page", select: true)

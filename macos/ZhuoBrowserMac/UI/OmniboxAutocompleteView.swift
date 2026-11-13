@@ -1,9 +1,66 @@
 import AppKit
 import SwiftUI
 
+/// Dedicated field editor for `OmniboxNSTextField` that permanently disables macOS
+/// auto-capitalization, autocorrection, text replacement, and inline predictions.
+public final class OmniboxFieldEditor: NSTextView {
+    public override var enabledTextCheckingTypes: NSTextCheckingTypes {
+        get { 0 }
+        set { }
+    }
+
+    public override func checkText(
+        in range: NSRange,
+        types checkingTypes: NSTextCheckingTypes,
+        options: [NSSpellChecker.OptionKey: Any] = [:]
+    ) {
+        // Intentionally suppressed for URL/search omnibox input.
+    }
+
+    public override func handleTextCheckingResults(
+        _ results: [NSTextCheckingResult],
+        forRange range: NSRange,
+        types checkingTypes: NSTextCheckingTypes,
+        options: [NSSpellChecker.OptionKey: Any],
+        orthography: NSOrthography,
+        wordCount: Int
+    ) {
+        // Intentionally suppressed for URL/search omnibox input.
+    }
+}
+
+/// Custom `NSTextFieldCell` that supplies `OmniboxFieldEditor` as the field editor
+/// so macOS never falls back to the window's shared field editor with system autocorrection.
+public final class OmniboxNSTextFieldCell: NSTextFieldCell {
+    private lazy var customFieldEditor: OmniboxFieldEditor = {
+        let editor = OmniboxFieldEditor(frame: .zero)
+        editor.isFieldEditor = true
+        OmniboxNSTextField.disableAutomaticTextCorrections(on: editor)
+        return editor
+    }()
+
+    public override func fieldEditor(for controlView: NSView) -> NSTextView? {
+        OmniboxNSTextField.disableAutomaticTextCorrections(on: customFieldEditor)
+        return customFieldEditor
+    }
+
+    public override func setUpFieldEditorAttributes(_ textObj: NSText) -> NSText {
+        let configured = super.setUpFieldEditorAttributes(textObj)
+        if let textView = configured as? NSTextView {
+            OmniboxNSTextField.disableAutomaticTextCorrections(on: textView)
+        }
+        return configured
+    }
+}
+
 /// AppKit-backed NSTextField subclass that selects all text when initially clicked from an unfocused state,
 /// matching native macOS Safari / Chrome address bar behavior.
 public final class OmniboxNSTextField: NSTextField {
+    public override class var cellClass: AnyClass? {
+        get { OmniboxNSTextFieldCell.self }
+        set { }
+    }
+
     var shouldSelectAllOnMouseUp: Bool = false
     var onFocusBegan: (() -> Void)?
 
@@ -28,6 +85,13 @@ public final class OmniboxNSTextField: NSTextField {
         textView.isAutomaticLinkDetectionEnabled = false
         textView.isAutomaticDataDetectionEnabled = false
         textView.isAutomaticTextCompletionEnabled = false
+        textView.enabledTextCheckingTypes = 0
+        if #available(macOS 14.0, *) {
+            textView.inlinePredictionType = .no
+        }
+        if #available(macOS 15.0, *) {
+            textView.mathExpressionCompletionType = .no
+        }
     }
 
     public override func mouseDown(with event: NSEvent) {
