@@ -10,9 +10,24 @@ public final class OmniboxNSTextField: NSTextField {
     public override func becomeFirstResponder() -> Bool {
         let became = super.becomeFirstResponder()
         if became {
+            if let editor = currentEditor() as? NSTextView {
+                Self.disableAutomaticTextCorrections(on: editor)
+            }
             onFocusBegan?()
         }
         return became
+    }
+
+    public static func disableAutomaticTextCorrections(on textView: NSTextView) {
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.isContinuousSpellCheckingEnabled = false
+        textView.isGrammarCheckingEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticLinkDetectionEnabled = false
+        textView.isAutomaticDataDetectionEnabled = false
+        textView.isAutomaticTextCompletionEnabled = false
     }
 
     public override func mouseDown(with event: NSEvent) {
@@ -88,6 +103,8 @@ public struct MacOmniboxTextField: NSViewRepresentable {
         field.placeholderString = placeholder
         field.lineBreakMode = .byTruncatingTail
         field.usesSingleLineMode = true
+        field.allowsEditingTextAttributes = false
+        field.isAutomaticTextCompletionEnabled = false
         field.cell?.isScrollable = true
         field.cell?.wraps = false
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -168,6 +185,10 @@ public struct MacOmniboxTextField: NSViewRepresentable {
         }
 
         public func controlTextDidBeginEditing(_ obj: Notification) {
+            if let field = obj.object as? NSTextField,
+               let editor = field.currentEditor() as? NSTextView {
+                OmniboxNSTextField.disableAutomaticTextCorrections(on: editor)
+            }
             handleFocusBegan()
         }
 

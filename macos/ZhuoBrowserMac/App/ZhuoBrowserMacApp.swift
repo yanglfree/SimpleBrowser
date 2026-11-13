@@ -199,6 +199,14 @@ public struct ZhuoBrowserMacApp: App {
                 .disabled(session.tabs.count <= 1)
             }
 
+            CommandGroup(replacing: .saveItem) {
+                Button("存储为...") {
+                    session.saveActiveTabAs()
+                }
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(session.activeTab?.isHome ?? true)
+            }
+
             CommandMenu("浏览") {
                 Button("后退") {
                     session.goBackActiveTab()

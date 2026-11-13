@@ -212,4 +212,77 @@ final class DownloadTests: XCTestCase {
 
         XCTAssertEqual(manager.items.first?.state, .cancelled)
     }
+
+    func testTransientDownloadTabDetectionAndSilentClose() {
+        XCTAssertTrue(
+            TabController.shouldCloseTransientDownloadTab(
+                hasCommittedNavigation: false,
+                canGoBack: false,
+                backListEmpty: true,
+                hasCurrentBackForwardItem: false
+            )
+        )
+        XCTAssertFalse(
+            TabController.shouldCloseTransientDownloadTab(
+                hasCommittedNavigation: true,
+                canGoBack: false,
+                backListEmpty: true,
+                hasCurrentBackForwardItem: true
+            )
+        )
+        XCTAssertFalse(
+            TabController.shouldCloseTransientDownloadTab(
+                hasCommittedNavigation: false,
+                canGoBack: true,
+                backListEmpty: false,
+                hasCurrentBackForwardItem: true
+            )
+        )
+
+        let session = BrowserSession()
+        let originalTab = session.createTab(url: "https://developer.huawei.com", select: true)
+        let downloadTab = session.createTab(url: "https://nsp-appgallery.example.com/app.p7b", select: true)
+        XCTAssertEqual(session.activeTabID, downloadTab.id)
+
+        session.closeTab(id: downloadTab.id, recordHistory: false)
+        XCTAssertEqual(session.activeTabID, originalTab.id)
+        XCTAssertFalse(session.canReopenClosedTab)
+    }
+
+    func testPDFDocumentDetectionAndContextMenuItems() {
+        XCTAssertTrue(TabController.isPDFDocument(mimeType: "application/pdf", url: URL(string: "https://example.com/file")))
+        XCTAssertTrue(TabController.isPDFDocument(mimeType: nil, url: URL(string: "https://example.com/spec.PDF")))
+        XCTAssertFalse(TabController.isPDFDocument(mimeType: "text/html", url: URL(string: "https://example.com/index.html")))
+
+        let session = BrowserSession()
+        _ = session.createTab(url: "https://example.com/manual.pdf", select: true)
+        guard let controller = session.activeController else {
+            XCTFail("Active controller should exist")
+            return
+        }
+        let webView = controller.webView as? BrowserWKWebView
+        XCTAssertNotNil(webView)
+        XCTAssertTrue(controller.isCurrentDocumentPDF)
+
+        let menu = NSMenu()
+        let dummyEvent = NSEvent.mouseEvent(
+            with: .rightMouseDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            eventNumber: 0,
+            clickCount: 1,
+            pressure: 1.0
+        )!
+        webView?.willOpenMenu(menu, with: dummyEvent)
+        XCTAssertTrue(menu.items.contains { $0.title == "下载 PDF" })
+        XCTAssertTrue(menu.items.contains { $0.title == "存储 PDF 为..." })
+
+        // Calling willOpenMenu again should not duplicate items
+        let countBefore = menu.items.count
+        webView?.willOpenMenu(menu, with: dummyEvent)
+        XCTAssertEqual(menu.items.count, countBefore)
+    }
 }

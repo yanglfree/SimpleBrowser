@@ -500,4 +500,35 @@ final class OmniboxSuggestionTests: XCTestCase {
         controller.hide()
         XCTAssertFalse(controller.isPanelVisible)
     }
+
+    @MainActor
+    func testOmniboxDisablesAutomaticTextCorrectionsAndResetsOnNewTab() {
+        let textView = NSTextView()
+        textView.isAutomaticSpellingCorrectionEnabled = true
+        textView.isContinuousSpellCheckingEnabled = true
+        textView.isGrammarCheckingEnabled = true
+        textView.isAutomaticTextReplacementEnabled = true
+        textView.isAutomaticQuoteSubstitutionEnabled = true
+        textView.isAutomaticDashSubstitutionEnabled = true
+        textView.isAutomaticTextCompletionEnabled = true
+
+        OmniboxNSTextField.disableAutomaticTextCorrections(on: textView)
+
+        XCTAssertFalse(textView.isAutomaticSpellingCorrectionEnabled)
+        XCTAssertFalse(textView.isContinuousSpellCheckingEnabled)
+        XCTAssertFalse(textView.isGrammarCheckingEnabled)
+        XCTAssertFalse(textView.isAutomaticTextReplacementEnabled)
+        XCTAssertFalse(textView.isAutomaticQuoteSubstitutionEnabled)
+        XCTAssertFalse(textView.isAutomaticDashSubstitutionEnabled)
+        XCTAssertFalse(textView.isAutomaticTextCompletionEnabled)
+
+        let session = BrowserSession()
+        _ = session.createTab(url: "https://example.com/previous-page", select: true)
+        XCTAssertEqual(session.omniboxText, "example.com/previous-page")
+
+        let newHomeTab = session.createTab()
+        XCTAssertEqual(session.activeTabID, newHomeTab.id)
+        XCTAssertTrue(newHomeTab.isHome)
+        XCTAssertEqual(session.omniboxText, "")
+    }
 }

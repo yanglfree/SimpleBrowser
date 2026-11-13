@@ -223,9 +223,10 @@ public struct UnifiedToolbarView: View {
         }
         .onChange(of: activeTab?.id) { _ in
             session.dismissOmniboxSuggestions()
-            if !isOmniboxFocused {
-                syncDisplayAddress()
+            if isOmniboxFocused {
+                isOmniboxFocused = false
             }
+            syncDisplayAddress()
         }
         .onChange(of: activeTab?.url) { _ in
             if !isOmniboxFocused {

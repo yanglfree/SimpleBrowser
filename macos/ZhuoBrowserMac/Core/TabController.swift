@@ -1,7 +1,52 @@
 import AppKit
 import Foundation
 import LocalAuthentication
+import UniformTypeIdentifiers
 import WebKit
+
+/// `WKWebView` subclass that augments the native context menu for inline PDF previews
+/// with explicit download and save-as actions.
+public final class BrowserWKWebView: WKWebView {
+    public weak var tabController: TabController?
+
+    public override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
+        super.willOpenMenu(menu, with: event)
+        guard tabController?.isCurrentDocumentPDF == true else { return }
+
+        let downloadTitle = "下载 PDF"
+        let saveAsTitle = "存储 PDF 为..."
+        let alreadyHasDownload = menu.items.contains { $0.title == downloadTitle || $0.title == saveAsTitle }
+        guard !alreadyHasDownload else { return }
+
+        if let lastItem = menu.items.last, !lastItem.isSeparatorItem {
+            menu.addItem(.separator())
+        }
+
+        let downloadItem = NSMenuItem(
+            title: downloadTitle,
+            action: #selector(handleDownloadPDF(_:)),
+            keyEquivalent: ""
+        )
+        downloadItem.target = self
+        menu.addItem(downloadItem)
+
+        let saveAsItem = NSMenuItem(
+            title: saveAsTitle,
+            action: #selector(handleSavePDFAs(_:)),
+            keyEquivalent: ""
+        )
+        saveAsItem.target = self
+        menu.addItem(saveAsItem)
+    }
+
+    @objc private func handleDownloadPDF(_ sender: Any?) {
+        tabController?.downloadCurrentDocument()
+    }
+
+    @objc private func handleSavePDFAs(_ sender: Any?) {
+        tabController?.saveCurrentDocumentAs()
+    }
+}
 
 /// Manages the live WKWebView for a BrowserTab.
 ///
@@ -25,6 +70,12 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// Indicates that the most recent navigation attempt failed, so `reload()` should
     /// re-request `lastTargetURL` instead of calling `WKWebView.reload()` on `about:blank`.
     public private(set) var lastNavigationFailed: Bool = false
+
+    /// Tracks whether at least one main-frame navigation has committed in this controller.
+    public private(set) var hasCommittedNavigation: Bool = false
+
+    /// MIME type of the latest main-frame navigation response (e.g. `application/pdf`).
+    public private(set) var lastMainFrameMIMEType: String?
 
     private var restoreWatchdog: DispatchWorkItem?
     private var restoreFallbackURL: URL?
@@ -129,7 +180,8 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         prefs.allowsContentJavaScript = true
         config.defaultWebpagePreferences = prefs
 
-        let wv = WKWebView(frame: .zero, configuration: config)
+        let wv = BrowserWKWebView(frame: .zero, configuration: config)
+        wv.tabController = self
         wv.navigationDelegate = self
         wv.uiDelegate = self
         if #available(macOS 13.3, *) {
@@ -539,16 +591,123 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         webView?.configuration.userContentController.removeAllUserScripts()
         webView?.removeFromSuperview()
         webView = nil
+        hasCommittedNavigation = false
+        lastMainFrameMIMEType = nil
+    }
+
+    // MARK: - Document Save & Download
+
+    public var isCurrentDocumentPDF: Bool {
+        Self.isPDFDocument(mimeType: lastMainFrameMIMEType, url: webView?.url ?? lastTargetURL)
+    }
+
+    public static func isPDFDocument(mimeType: String?, url: URL?) -> Bool {
+        if let mime = mimeType?.lowercased(), mime == "application/pdf" {
+            return true
+        }
+        return url?.pathExtension.lowercased() == "pdf"
+    }
+
+    public static func shouldCloseTransientDownloadTab(
+        hasCommittedNavigation: Bool,
+        canGoBack: Bool,
+        backListEmpty: Bool,
+        hasCurrentBackForwardItem: Bool
+    ) -> Bool {
+        !hasCommittedNavigation && !canGoBack && backListEmpty && !hasCurrentBackForwardItem
+    }
+
+    public func downloadCurrentDocument() {
+        guard let webView,
+              let url = webView.url ?? lastTargetURL,
+              !URLPolicy.isBlankURL(url.absoluteString),
+              !URLPolicy.isHomeURL(url.absoluteString) else {
+            return
+        }
+        webView.startDownload(using: URLRequest(url: url)) { wkDownload in
+            MainActor.assumeIsolated {
+                DownloadManager.shared.handleWebKitDownload(wkDownload, fallbackURL: url)
+            }
+        }
+    }
+
+    public func saveCurrentDocumentAs() {
+        guard let webView,
+              let url = webView.url ?? lastTargetURL,
+              !URLPolicy.isBlankURL(url.absoluteString),
+              !URLPolicy.isHomeURL(url.absoluteString) else {
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.pdf]
+
+        let rawTitle = (webView.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let urlFilename = url.lastPathComponent
+        let baseName: String
+        if isCurrentDocumentPDF {
+            if !urlFilename.isEmpty, urlFilename != "/" {
+                baseName = urlFilename.lowercased().hasSuffix(".pdf") ? urlFilename : "\(urlFilename).pdf"
+            } else if !rawTitle.isEmpty {
+                baseName = rawTitle.lowercased().hasSuffix(".pdf") ? rawTitle : "\(rawTitle).pdf"
+            } else {
+                baseName = "document.pdf"
+            }
+        } else {
+            let stem = !rawTitle.isEmpty ? rawTitle : (url.host ?? "page")
+            baseName = stem.lowercased().hasSuffix(".pdf") ? stem : "\(stem).pdf"
+        }
+        panel.nameFieldStringValue = DownloadPolicy.sanitizeFilename(baseName, fallback: "document.pdf")
+
+        let presentPanel: () -> Void = {
+            if let window = webView.window {
+                panel.beginSheetModal(for: window) { [weak self, weak webView] response in
+                    guard response == .OK, let destinationURL = panel.url, let self, let webView else { return }
+                    self.performSave(of: webView, sourceURL: url, to: destinationURL)
+                }
+            } else if panel.runModal() == .OK, let destinationURL = panel.url {
+                self.performSave(of: webView, sourceURL: url, to: destinationURL)
+            }
+        }
+        presentPanel()
+    }
+
+    private func performSave(of webView: WKWebView, sourceURL: URL, to destinationURL: URL) {
+        if isCurrentDocumentPDF {
+            webView.startDownload(using: URLRequest(url: sourceURL)) { wkDownload in
+                MainActor.assumeIsolated {
+                    DownloadManager.shared.handleWebKitDownload(
+                        wkDownload,
+                        fallbackURL: sourceURL,
+                        customDestinationURL: destinationURL
+                    )
+                }
+            }
+            return
+        }
+
+        let pdfConfig = WKPDFConfiguration()
+        webView.createPDF(configuration: pdfConfig) { result in
+            if case .success(let data) = result {
+                try? data.write(to: destinationURL, options: .atomic)
+            }
+        }
     }
 
     // MARK: - WKNavigationDelegate
 
     public func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         AutoFillPopoverController.shared.dismiss()
+        lastMainFrameMIMEType = nil
         session?.updateTab(tabID) { tab in
             tab.isLoading = true
             tab.loadingProgress = 0.1
         }
+    }
+
+    public func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        hasCommittedNavigation = true
     }
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -759,6 +918,9 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         decidePolicyFor navigationResponse: WKNavigationResponse,
         decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
     ) {
+        if navigationResponse.isForMainFrame {
+            lastMainFrameMIMEType = navigationResponse.response.mimeType?.lowercased()
+        }
         if DownloadPolicy.shouldDownloadResponse(
             navigationResponse.response,
             canShowMIMEType: navigationResponse.canShowMIMEType
@@ -780,6 +942,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         let fallbackURL = navigationAction.request.url
         MainActor.assumeIsolated {
             DownloadManager.shared.handleWebKitDownload(download, fallbackURL: fallbackURL)
+            closeIfTransientDownloadTab()
         }
     }
 
@@ -794,6 +957,24 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         let fallbackURL = navigationResponse.response.url
         MainActor.assumeIsolated {
             DownloadManager.shared.handleWebKitDownload(download, fallbackURL: fallbackURL)
+            closeIfTransientDownloadTab()
+        }
+    }
+
+    private func closeIfTransientDownloadTab() {
+        guard let webView,
+              Self.shouldCloseTransientDownloadTab(
+                  hasCommittedNavigation: hasCommittedNavigation,
+                  canGoBack: webView.canGoBack,
+                  backListEmpty: webView.backForwardList.backList.isEmpty,
+                  hasCurrentBackForwardItem: webView.backForwardList.currentItem != nil
+              ) else {
+            return
+        }
+        let targetSession = session
+        let targetTabID = tabID
+        Task { @MainActor in
+            targetSession?.closeTab(id: targetTabID, recordHistory: false)
         }
     }
 

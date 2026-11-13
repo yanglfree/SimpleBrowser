@@ -221,11 +221,11 @@ public final class BrowserSession: ObservableObject {
         return newTab
     }
 
-    public func closeTab(id: String) {
+    public func closeTab(id: String, recordHistory: Bool = true) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
 
         let closingTab = tabs[index]
-        if !closingTab.isPrivate && !closingTab.isHome && !closingTab.url.isEmpty {
+        if recordHistory && !closingTab.isPrivate && !closingTab.isHome && !closingTab.url.isEmpty {
             recentlyClosedTabs.append((url: closingTab.url, title: closingTab.title))
             if recentlyClosedTabs.count > Self.maxRecentlyClosedTabs {
                 recentlyClosedTabs.removeFirst(recentlyClosedTabs.count - Self.maxRecentlyClosedTabs)
@@ -577,6 +577,14 @@ public final class BrowserSession: ObservableObject {
 
     public func zoomOutActiveTab() {
         activeController?.zoomOut()
+    }
+
+    public func saveActiveTabAs() {
+        activeController?.saveCurrentDocumentAs()
+    }
+
+    public func downloadActiveTabDocument() {
+        activeController?.downloadCurrentDocument()
     }
 
     public func resetZoomActiveTab() {

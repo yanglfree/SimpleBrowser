@@ -23,6 +23,7 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
     private var wkDownloadIDByObject: [ObjectIdentifier: String] = [:]
     private var progressObservations: [String: [NSKeyValueObservation]] = [:]
     private var resumeDataByID: [String: Data] = [:]
+    private var customDestinationsByID: [String: URL] = [:]
     private var directTasks: [String: URLSessionDownloadTask] = [:]
 
     private lazy var directCoordinator = DirectDownloadCoordinator(owner: self)
@@ -92,24 +93,32 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
 
     // MARK: - WKDownload Registration
 
-    public func handleWebKitDownload(_ download: WKDownload, fallbackURL: URL? = nil) {
+    public func handleWebKitDownload(
+        _ download: WKDownload,
+        fallbackURL: URL? = nil,
+        customDestinationURL: URL? = nil
+    ) {
         let id = UUID().uuidString
         let requestURL = download.originalRequest?.url ?? fallbackURL
-        let rawFilename = requestURL?.lastPathComponent.isEmpty == false
-            ? (requestURL?.lastPathComponent ?? "正在准备下载…")
-            : "正在准备下载…"
+        let rawFilename = customDestinationURL?.lastPathComponent
+            ?? (requestURL?.lastPathComponent.isEmpty == false
+                ? (requestURL?.lastPathComponent ?? "正在准备下载…")
+                : "正在准备下载…")
         let initialName = DownloadPolicy.sanitizeFilename(rawFilename, fallback: "正在准备下载…")
 
         let newItem = DownloadItem(
             id: id,
             sourceURL: requestURL?.absoluteString ?? "",
             filename: initialName,
-            destinationPath: "",
+            destinationPath: customDestinationURL?.path ?? "",
             receivedBytes: 0,
             totalBytes: -1,
             state: .downloading
         )
 
+        if let customDestinationURL {
+            customDestinationsByID[id] = customDestinationURL
+        }
         insertOrUpdate(newItem)
         activeWKDownloads[id] = download
         wkDownloadIDByObject[ObjectIdentifier(download)] = id
@@ -165,20 +174,29 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
                 return
             }
             let key = ObjectIdentifier(download)
-            let targetDir = self.downloadsDirectoryProvider()
-            try? FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
-
-            let destinationURL = DownloadPolicy.uniqueDestinationURL(
-                in: targetDir,
-                suggestedFilename: suggestedFilename
-            )
+            let downloadID = self.wkDownloadIDByObject[key]
+            let destinationURL: URL
+            if let downloadID, let customURL = self.customDestinationsByID.removeValue(forKey: downloadID) {
+                try? FileManager.default.createDirectory(
+                    at: customURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                destinationURL = customURL
+            } else {
+                let targetDir = self.downloadsDirectoryProvider()
+                try? FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
+                destinationURL = DownloadPolicy.uniqueDestinationURL(
+                    in: targetDir,
+                    suggestedFilename: suggestedFilename
+                )
+            }
 
             // Remove any stale or zero-byte placeholder at destination to prevent WebKit write collisions
             if FileManager.default.fileExists(atPath: destinationURL.path) {
                 try? FileManager.default.removeItem(at: destinationURL)
             }
 
-            if let id = self.wkDownloadIDByObject[key],
+            if let id = downloadID,
                let idx = self.items.firstIndex(where: { $0.id == id }) {
                 self.items[idx].filename = destinationURL.lastPathComponent
                 self.items[idx].destinationPath = destinationURL.path
@@ -531,6 +549,7 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
 
     private func cleanupTracking(for id: String) {
         activeWKDownloads.removeValue(forKey: id)
+        customDestinationsByID.removeValue(forKey: id)
         if let obsList = progressObservations.removeValue(forKey: id) {
             obsList.forEach { $0.invalidate() }
         }
