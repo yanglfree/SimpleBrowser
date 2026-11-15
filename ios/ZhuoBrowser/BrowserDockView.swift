@@ -1,8 +1,27 @@
 import SwiftUI
 
+struct DockSwipeTapGuard: Equatable {
+    private(set) var isDragging = false
+    private(set) var suppressTapUntil: Date = .distantPast
+
+    mutating func beginDrag() {
+        isDragging = true
+    }
+
+    mutating func endDrag(at now: Date = Date(), cooldown: TimeInterval = 0.35) {
+        isDragging = false
+        suppressTapUntil = now.addingTimeInterval(cooldown)
+    }
+
+    func canTriggerTap(at now: Date = Date()) -> Bool {
+        !isDragging && now >= suppressTapUntil
+    }
+}
+
 struct BrowserDockView: View {
     @EnvironmentObject private var session: BrowserSession
     @Binding var toolbarDragOffset: CGFloat
+    @State private var tapGuard = DockSwipeTapGuard()
     let onBeginEditAddress: () -> Void
     let onOpenActions: () -> Void
     let onSwipeGestureEnded: (DragGesture.Value) -> Void
@@ -68,15 +87,17 @@ struct BrowserDockView: View {
                 .fill(DesignTokens.border)
                 .frame(height: 0.75)
         }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 12)
+        .highPriorityGesture(
+            DragGesture(minimumDistance: session.settings.gesturesEnabled ? 12 : 100_000)
                 .onChanged { value in
                     guard session.settings.gesturesEnabled else { return }
+                    tapGuard.beginDrag()
                     if abs(value.translation.width) > abs(value.translation.height) {
                         toolbarDragOffset = value.translation.width * 0.15
                     }
                 }
                 .onEnded { value in
+                    tapGuard.endDrag()
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         toolbarDragOffset = 0
                     }
@@ -84,6 +105,12 @@ struct BrowserDockView: View {
                 }
         )
         .accessibilityIdentifier("browser-bottom-dock")
+    }
+
+    private func performDockTap(_ action: () -> Void) {
+        // Ignore residual button tap events emitted when finishing a dock swipe gesture.
+        guard tapGuard.canTriggerTap() else { return }
+        action()
     }
 
     @ViewBuilder
@@ -115,7 +142,7 @@ struct BrowserDockView: View {
 
     private var backButton: some View {
         Button {
-            session.goBack()
+            performDockTap { session.goBack() }
         } label: {
             Image(systemName: "chevron.left")
                 .font(.system(size: 16, weight: .semibold))
@@ -133,7 +160,7 @@ struct BrowserDockView: View {
 
     private var forwardButton: some View {
         Button {
-            session.goForward()
+            performDockTap { session.goForward() }
         } label: {
             Image(systemName: "chevron.right")
                 .font(.system(size: 16, weight: .semibold))
@@ -162,7 +189,7 @@ struct BrowserDockView: View {
 
             if isBrowsing {
                 Button {
-                    session.openSecurityPanel()
+                    performDockTap { session.openSecurityPanel() }
                 } label: {
                     Image(systemName: securitySymbolName)
                         .font(.system(size: 12, weight: .semibold))
@@ -176,8 +203,10 @@ struct BrowserDockView: View {
 
             if isBrowsing && blockedCount > 0 {
                 Button {
-                    session.recordActionUsage("blocking")
-                    session.showsBlockPanel = true
+                    performDockTap {
+                        session.recordActionUsage("blocking")
+                        session.showsBlockPanel = true
+                    }
                 } label: {
                     HStack(spacing: 2) {
                         Image(systemName: "shield.lefthook.filled")
@@ -196,7 +225,7 @@ struct BrowserDockView: View {
             }
 
             Button {
-                onBeginEditAddress()
+                performDockTap(onBeginEditAddress)
             } label: {
                 Text(addressLabel)
                     .font(.system(size: 14, weight: isBrowsing ? .medium : .regular))
@@ -212,7 +241,7 @@ struct BrowserDockView: View {
 
             if isBrowsing {
                 Button {
-                    session.reloadOrStop()
+                    performDockTap { session.reloadOrStop() }
                 } label: {
                     Image(systemName: activeTab?.isLoading == true ? "xmark" : "arrow.clockwise")
                         .font(.system(size: 13, weight: .semibold))
@@ -255,7 +284,7 @@ struct BrowserDockView: View {
 
     private var tabBadgeButton: some View {
         Button {
-            session.toggleTabOverview()
+            performDockTap { session.toggleTabOverview() }
         } label: {
             Text("\(session.tabs.count)")
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -279,7 +308,7 @@ struct BrowserDockView: View {
 
     private var menuButton: some View {
         Button {
-            onOpenActions()
+            performDockTap(onOpenActions)
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 16, weight: .semibold))

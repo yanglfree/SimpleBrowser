@@ -838,7 +838,7 @@ struct RootView: View {
                 .fill(DesignTokens.border)
                 .frame(height: 1)
         }
-        .simultaneousGesture(toolbarSwipeGesture)
+        .highPriorityGesture(toolbarSwipeGesture)
     }
 
     private var pageActions: some View {
@@ -865,7 +865,7 @@ struct RootView: View {
     }
 
     private var toolbarSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 12)
+        DragGesture(minimumDistance: (!addressFocused && session.settings.gesturesEnabled) ? 12 : 100_000)
             .onChanged { value in
                 guard !addressFocused, session.settings.gesturesEnabled else { return }
                 if abs(value.translation.width) > abs(value.translation.height) {

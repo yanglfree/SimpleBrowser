@@ -91,7 +91,7 @@ struct TabOverview: View {
 
     private func columns(for width: CGFloat) -> [GridItem] {
         Array(
-            repeating: GridItem(.flexible(), spacing: 12),
+            repeating: GridItem(.flexible(minimum: 0), spacing: 12),
             count: AdaptiveWorkspacePolicy.tabColumnCount(width: Double(width))
         )
     }
@@ -132,23 +132,23 @@ struct TabOverview: View {
                             .foregroundStyle(DesignTokens.textPrimary)
                             .lineLimit(1)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.trailing, 28)
                     .padding(.horizontal, 12)
                     .frame(height: 46)
 
                     tabThumbnail(tab)
                 }
-                .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
-                .background(
-                    DesignTokens.surfacePanel,
-                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                )
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
+                .background(DesignTokens.surfacePanel)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(selected ? DesignTokens.accent : DesignTokens.border, lineWidth: selected ? 2 : 1)
                 )
             }
             .buttonStyle(.plain)
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .accessibilityIdentifier("tab-card-\(tab.id)")
             .contextMenu {
                 Button("关闭标签页", systemImage: "xmark", role: .destructive) {
@@ -255,26 +255,7 @@ struct TabOverview: View {
 
     @ViewBuilder
     private func tabThumbnail(_ tab: BrowserTab) -> some View {
-        ZStack {
-            if let image = session.tabThumbnail(for: tab) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-            } else {
-                TabThumbnailPlaceholder(isPrivate: tab.isPrivate)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 144)
-        .background(DesignTokens.pageBackground)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(DesignTokens.border)
-                .frame(height: 1)
-        }
-        .accessibilityHidden(true)
+        TabOverviewThumbnail(image: session.tabThumbnail(for: tab), isPrivate: tab.isPrivate)
     }
 
     private func cardTitle(_ tab: BrowserTab) -> String {
@@ -305,6 +286,35 @@ struct TabOverview: View {
         .foregroundStyle(DesignTokens.textPrimary)
         .frame(maxWidth: .infinity, minHeight: 44)
         .background(DesignTokens.surfaceSubtle, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+struct TabOverviewThumbnail: View {
+    let image: UIImage?
+    let isPrivate: Bool
+
+    var body: some View {
+        GeometryReader { proxy in
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+                    .clipped()
+            } else {
+                TabThumbnailPlaceholder(isPrivate: isPrivate)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 144)
+        .clipped()
+        .background(DesignTokens.pageBackground)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(DesignTokens.border)
+                .frame(height: 1)
+        }
+        .accessibilityHidden(true)
     }
 }
 
