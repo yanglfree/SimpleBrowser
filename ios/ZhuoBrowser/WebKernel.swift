@@ -23,10 +23,28 @@ enum WebKernel {
         minimumFontSize: Int
     ) -> WKWebViewConfiguration {
         let configuration = WKWebViewConfiguration()
-        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.websiteDataStore = isPrivate ? dataStore : .default()
+        configure(
+            configuration,
+            blockAds: blockAds,
+            minimumFontSize: minimumFontSize
+        )
+        return configuration
+    }
+
+    /// Configures either a newly created or WebKit-provided popup `WKWebViewConfiguration`
+    /// without replacing the configuration object itself (which preserves `window.opener`).
+    static func configure(
+        _ configuration: WKWebViewConfiguration,
+        blockAds: Bool,
+        minimumFontSize: Int
+    ) {
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        configuration.allowsInlineMediaPlayback = true
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.preferences.isFraudulentWebsiteWarningEnabled = true
         configuration.preferences.minimumFontSize = CGFloat(minimumFontSize)
+
         let controller = configuration.userContentController
         for name in documentStartFiles {
             if let script = loadScript(named: name) {
@@ -42,17 +60,11 @@ enum WebKernel {
                 )
             }
         }
-        var installed = Set<String>()
+        var installed = installedRuleLists(from: configuration)
         if blockAds {
             ContentBlocker.shared.install(on: controller, installed: &installed)
         }
-        objc_setAssociatedObject(
-            configuration,
-            &AssociatedKeys.installedRuleLists,
-            installed,
-            .OBJC_ASSOCIATION_RETAIN_NONATOMIC
-        )
-        return configuration
+        storeInstalledRuleLists(installed, on: configuration)
     }
 
     static func installedRuleLists(from configuration: WKWebViewConfiguration) -> Set<String> {

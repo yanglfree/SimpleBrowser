@@ -34,18 +34,22 @@ struct NativeHomeView: View {
             }
             .ignoresSafeArea()
             if settings.homeBackgroundEnabled {
-                Color.black.opacity(0.16)
+                DesignTokens.homeScrim
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
             }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    header
-                    if settings.quickSitesEnabled {
-                        siteGrid
+            GeometryReader { layoutProxy in
+                ScrollView {
+                    VStack(spacing: 24) {
+                        header
+                        if settings.quickSitesEnabled {
+                            siteGrid(columnsCount: layoutProxy.size.width >= 600 ? 5 : 4)
+                        }
                     }
+                    .frame(maxWidth: 680)
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 32)
                 }
-                .padding(.bottom, 32)
             }
         }
         .onLongPressGesture(minimumDuration: 0.5) {
@@ -61,28 +65,37 @@ struct NativeHomeView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("卓阅")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(primaryText)
-                Text("干净、克制的阅读浏览器")
-                    .font(.system(size: 15))
-                    .foregroundStyle(secondaryText)
-            }
+        HStack {
             Spacer()
-            HStack(spacing: 4) {
-                headerButton("bookmark", identifier: "home-bookmarks", action: onBookmarks)
-                headerButton("clock", identifier: "home-history", action: onHistory)
-                headerButton("gearshape", identifier: "home-settings", action: onSettings)
+            Button(action: onSettings) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(settings.homeBackgroundEnabled ? .white : DesignTokens.textPrimary)
+                    .frame(width: 38, height: 38)
+                    .background(
+                        settings.homeBackgroundEnabled
+                            ? AnyShapeStyle(DesignTokens.homeChromeBackground)
+                            : AnyShapeStyle(DesignTokens.surfacePanel),
+                        in: Circle()
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                settings.homeBackgroundEnabled ? Color.white.opacity(0.22) : DesignTokens.border,
+                                lineWidth: 1
+                            )
+                    )
             }
+            .accessibilityIdentifier("home-settings")
+            .accessibilityLabel("主页设置")
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 32)
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
     }
 
-    private var siteGrid: some View {
-        VStack(alignment: .trailing, spacing: 8) {
+    private func siteGrid(columnsCount: Int) -> some View {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: columnsCount)
+        return VStack(alignment: .trailing, spacing: 10) {
             if isEditingQuickSites {
                 Button("完成") {
                     withAnimation(.easeInOut(duration: 0.18)) {
@@ -91,13 +104,18 @@ struct NativeHomeView: View {
                 }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(primaryText)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    settings.homeBackgroundEnabled
+                        ? AnyShapeStyle(DesignTokens.homeChromeBackground)
+                        : AnyShapeStyle(DesignTokens.surfaceSubtle),
+                    in: Capsule()
+                )
                 .accessibilityIdentifier("quick-site-edit-done")
             }
 
-            LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
-                spacing: 16
-            ) {
+            LazyVGrid(columns: columns, spacing: 18) {
                 ForEach(visibleSites) { site in
                     quickSiteTile(site)
                 }
@@ -110,11 +128,13 @@ struct NativeHomeView: View {
                                 .foregroundStyle(primaryText)
                                 .frame(width: 48, height: 48)
                                 .background(
-                                    .ultraThinMaterial,
+                                    settings.homeBackgroundEnabled
+                                        ? AnyShapeStyle(DesignTokens.homeChromeBackground)
+                                        : AnyShapeStyle(DesignTokens.surfaceSubtle),
                                     in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                                 )
                             Text("添加")
-                                .font(.system(size: 13))
+                                .font(.system(size: 12))
                                 .foregroundStyle(primaryText)
                         }
                     }
@@ -125,7 +145,7 @@ struct NativeHomeView: View {
                 }
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 20)
     }
 
     private var visibleSites: [QuickSite] {
@@ -220,16 +240,6 @@ struct NativeHomeView: View {
         }
     }
 
-    private func headerButton(_ image: String, identifier: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: image)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(primaryText)
-                .frame(width: 44, height: 44)
-        }
-        .accessibilityIdentifier(identifier)
-    }
-
     @ViewBuilder
     private func background(isLandscape: Bool) -> some View {
         if !settings.homeBackgroundEnabled {
@@ -274,9 +284,5 @@ struct NativeHomeView: View {
 
     private var primaryText: Color {
         settings.homeBackgroundEnabled ? .white : DesignTokens.textPrimary
-    }
-
-    private var secondaryText: Color {
-        settings.homeBackgroundEnabled ? .white.opacity(0.78) : DesignTokens.textSecondary
     }
 }

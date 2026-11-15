@@ -205,7 +205,7 @@ struct RootView: View {
             )
         }
         .onAppear {
-            addressText = displayAddress(session.activeTab?.url ?? "")
+            addressText = displayAddress(session.activeTab?.displayAddressURL ?? "")
             session.consumeInboundShares()
             if let windowRequest, session.acceptedWindowRequestID == windowRequest.id {
                 BrowserWindowTransfer.acknowledge(windowRequest)
@@ -215,15 +215,31 @@ struct RootView: View {
             await session.pro.activate()
         }
         .onChange(of: session.activeTabID) { _, _ in
-            addressText = displayAddress(session.activeTab?.url ?? "")
+            addressText = displayAddress(session.activeTab?.displayAddressURL ?? "")
             toolbarHidden = false
         }
         .onChange(of: session.settings.autoHideToolbarEnabled) { _, enabled in
             if !enabled { toolbarHidden = false }
         }
-        .onChange(of: session.activeTab?.url) { _, newValue in
+        .onChange(of: session.activeTab?.url) { _, _ in
             if !addressFocused {
-                addressText = displayAddress(newValue ?? "")
+                addressText = displayAddress(session.activeTab?.displayAddressURL ?? "")
+            }
+        }
+        .onChange(of: session.activeTab?.failedURL) { _, _ in
+            if !addressFocused {
+                addressText = displayAddress(session.activeTab?.displayAddressURL ?? "")
+            }
+        }
+        .overlay {
+            if let jsDialog = session.activeJsDialog {
+                JsDialogSheet(dialog: jsDialog) {
+                    session.activeJsDialog = nil
+                }
+            } else if let httpAuth = session.activeHttpAuth {
+                HttpAuthSheet(challenge: httpAuth) {
+                    session.activeHttpAuth = nil
+                }
             }
         }
         .onChange(of: scenePhase) { _, newValue in
@@ -272,7 +288,9 @@ struct RootView: View {
     }
 
     private func browserSurface(workspaceWidth: CGFloat) -> some View {
-        GeometryReader { proxy in
+        let isCompact = AdaptiveWorkspacePolicy.sidebarPresentation(width: Double(workspaceWidth)) == .unavailable
+        let isCollapsedDock = isCompact && toolbarHidden && session.settings.autoHideToolbarEnabled && isBrowsing
+        return GeometryReader { proxy in
             VStack(spacing: 0) {
                 if AdaptiveWorkspacePolicy.showsDesktopTabStrip(width: Double(workspaceWidth)) {
                     DesktopTabStrip(
@@ -288,8 +306,13 @@ struct RootView: View {
                         }
                     )
                 }
-                if !toolbarHidden || !session.settings.autoHideToolbarEnabled {
-                    addressBar(width: proxy.size.width)
+                if !isCompact {
+                    if !toolbarHidden || !session.settings.autoHideToolbarEnabled {
+                        addressBar(width: proxy.size.width)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                } else if addressFocused && !session.showsOverview {
+                    compactAddressEditorBar
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 if session.showsFind {
@@ -340,8 +363,29 @@ struct RootView: View {
                         )
                     }
                     pageOverlays
+                    if isCollapsedDock && !addressFocused && !session.showsOverview {
+                        VStack {
+                            Spacer()
+                            CollapsedDockPill(tab: session.activeTab) {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    toolbarHidden = false
+                                }
+                            }
+                            .padding(.bottom, 12)
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if isCompact && !addressFocused && !session.showsOverview && !isCollapsedDock {
+                    BrowserDockView(
+                        toolbarDragOffset: $toolbarDragOffset,
+                        onBeginEditAddress: beginAddressEditing,
+                        onOpenActions: { showsPageActions = true },
+                        onSwipeGestureEnded: handleToolbarSwipe
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -414,7 +458,7 @@ struct RootView: View {
 
     private func updateLayout(width: CGFloat) {
         let next = AdaptiveWorkspacePolicy.sidebarPresentation(width: Double(width))
-        if next == .unavailable {
+        if next == .unavailable && sidebarPresentation != .unavailable {
             sidebarVisible = false
             session.showsOverview = false
         } else if next == .inline && sidebarPresentation != .inline {
@@ -602,6 +646,42 @@ struct RootView: View {
         .accessibilityIdentifier("browser-split-divider")
     }
 
+    private var compactAddressEditorBar: some View {
+        HStack(spacing: 8) {
+            OmniboxTextField(
+                text: $addressText,
+                isFocused: $addressFocused,
+                selection: $addressSelection,
+                placeholder: session.activeTab?.isPrivate == true ? "无痕搜索或输入网址" : "搜索或输入网址",
+                onVisitClipboard: { session.visitClipboardLink() },
+                onCopyLink: { session.copyCurrentLink() },
+                onCloseTab: { session.closeTab(session.activeTabID) },
+                onSubmit: {
+                    addressFocused = false
+                    session.openInActiveTab(addressText)
+                }
+            )
+            .padding(.horizontal, 12)
+            .frame(height: 38)
+            .background(DesignTokens.surfaceSubtle, in: Capsule())
+
+            Button("取消") {
+                cancelAddressEditing()
+            }
+            .font(.system(size: 15))
+            .foregroundStyle(DesignTokens.textSecondary)
+            .accessibilityIdentifier("omni-cancel")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(session.activeTab?.isPrivate == true ? DesignTokens.surfaceSubtle : DesignTokens.surfacePanel)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(DesignTokens.border)
+                .frame(height: 1)
+        }
+    }
+
     private func addressBar(width: CGFloat) -> some View {
         HStack(spacing: 6) {
             if !addressFocused {
@@ -634,19 +714,53 @@ struct RootView: View {
                 }
             }
 
-            OmniboxTextField(
-                text: $addressText,
-                isFocused: $addressFocused,
-                selection: $addressSelection,
-                placeholder: session.activeTab?.isPrivate == true ? "无痕搜索或输入网址" : "搜索或输入网址",
-                onVisitClipboard: { session.visitClipboardLink() },
-                onCopyLink: { session.copyCurrentLink() },
-                onCloseTab: { session.closeTab(session.activeTabID) },
-                onSubmit: {
-                    addressFocused = false
-                    session.openInActiveTab(addressText)
+            HStack(spacing: 6) {
+                if !addressFocused && isBrowsing {
+                    Button {
+                        session.openSecurityPanel()
+                    } label: {
+                        Image(systemName: wideSecuritySymbol)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(wideSecurityTint)
+                    }
+                    .accessibilityIdentifier("wide-security-badge")
+
+                    let blocked = session.tabBlockStats[session.activeTabID]?.total ?? 0
+                    if blocked > 0 {
+                        Button {
+                            session.recordActionUsage("blocking")
+                            session.showsBlockPanel = true
+                        } label: {
+                            HStack(spacing: 2) {
+                                Image(systemName: "shield.lefthook.filled")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Text("\(blocked)")
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .monospacedDigit()
+                            }
+                            .foregroundStyle(DesignTokens.accentStrong)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(DesignTokens.accentStrong.opacity(0.12), in: Capsule())
+                        }
+                        .accessibilityIdentifier("wide-block-badge")
+                    }
                 }
-            )
+
+                OmniboxTextField(
+                    text: $addressText,
+                    isFocused: $addressFocused,
+                    selection: $addressSelection,
+                    placeholder: session.activeTab?.isPrivate == true ? "无痕搜索或输入网址" : "搜索或输入网址",
+                    onVisitClipboard: { session.visitClipboardLink() },
+                    onCopyLink: { session.copyCurrentLink() },
+                    onCloseTab: { session.closeTab(session.activeTabID) },
+                    onSubmit: {
+                        addressFocused = false
+                        session.openInActiveTab(addressText)
+                    }
+                )
+            }
             .padding(.horizontal, 12)
             .frame(height: 36)
             .background(DesignTokens.surfaceSubtle, in: Capsule())
@@ -762,35 +876,57 @@ struct RootView: View {
                 withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                     toolbarDragOffset = 0
                 }
-                let activeIndex = session.tabs.firstIndex(where: { $0.id == session.activeTabID }) ?? 0
-                let action = BrowserGesturePolicy.toolbarAction(
-                    translationX: Double(value.translation.width),
-                    translationY: Double(value.translation.height),
-                    settings: session.settings,
-                    isBrowsing: isBrowsing,
-                    tabCount: session.tabs.count,
-                    activeTabIndex: activeIndex,
-                    isEditingAddress: addressFocused
-                )
-                switch action {
-                case .openActions:
-                    showsPageActions = true
-                case .hideToolbar:
-                    withAnimation(.easeOut(duration: 0.18)) { toolbarHidden = true }
-                case .previousTab:
-                    if let targetID = SessionPolicy.swipeTargetTabID(session.tabs, activeTabID: session.activeTabID, direction: -1) {
-                        session.selectTab(targetID)
-                    }
-                case .nextTab:
-                    if let targetID = SessionPolicy.swipeTargetTabID(session.tabs, activeTabID: session.activeTabID, direction: 1) {
-                        session.selectTab(targetID)
-                    }
-                case .createTab:
-                    session.createTab(isPrivate: session.activeTab?.isPrivate ?? false)
-                case .none:
-                    break
-                }
+                handleToolbarSwipe(value)
             }
+    }
+
+    private func handleToolbarSwipe(_ value: DragGesture.Value) {
+        let activeIndex = session.tabs.firstIndex(where: { $0.id == session.activeTabID }) ?? 0
+        let action = BrowserGesturePolicy.toolbarAction(
+            translationX: Double(value.translation.width),
+            translationY: Double(value.translation.height),
+            settings: session.settings,
+            isBrowsing: isBrowsing,
+            tabCount: session.tabs.count,
+            activeTabIndex: activeIndex,
+            isEditingAddress: addressFocused
+        )
+        switch action {
+        case .openActions:
+            showsPageActions = true
+        case .hideToolbar:
+            withAnimation(.easeOut(duration: 0.18)) { toolbarHidden = true }
+        case .previousTab:
+            if let targetID = SessionPolicy.swipeTargetTabID(session.tabs, activeTabID: session.activeTabID, direction: -1) {
+                session.selectTab(targetID)
+            }
+        case .nextTab:
+            if let targetID = SessionPolicy.swipeTargetTabID(session.tabs, activeTabID: session.activeTabID, direction: 1) {
+                session.selectTab(targetID)
+            }
+        case .createTab:
+            session.createTab(isPrivate: session.activeTab?.isPrivate ?? false)
+        case .none:
+            break
+        }
+    }
+
+    private var wideSecuritySymbol: String {
+        switch session.activeTab?.securityState ?? .unknown {
+        case .secure: return "lock.fill"
+        case .certificateError: return "exclamationmark.triangle.fill"
+        case .insecure: return "lock.open.fill"
+        case .unknown: return "globe"
+        }
+    }
+
+    private var wideSecurityTint: Color {
+        switch session.activeTab?.securityState ?? .unknown {
+        case .secure: return DesignTokens.accentStrong
+        case .certificateError: return DesignTokens.danger
+        case .insecure: return .orange
+        case .unknown: return DesignTokens.dockIcon
+        }
     }
 
     private var isBrowsing: Bool {
@@ -836,9 +972,7 @@ struct RootView: View {
             canReload: !(session.activeTab.map { URLPolicy.isHomeURL($0.url) } ?? true),
             canFind: !(session.activeTab.map { URLPolicy.isHomeURL($0.url) } ?? true),
             focusAddress: {
-                session.showsOverview = false
-                addressText = displayAddress(session.activeTab?.url ?? "")
-                addressFocused = true
+                beginAddressEditing()
             },
             newTab: {
                 session.createTab(isPrivate: session.activeTab?.isPrivate == true)
@@ -875,8 +1009,16 @@ struct RootView: View {
         addressFocused = true
     }
 
+    private func beginAddressEditing() {
+        session.showsOverview = false
+        addressText = displayAddress(session.activeTab?.displayAddressURL ?? "")
+        let end = (addressText as NSString).length
+        addressSelection = OmniboxSelection(start: 0, end: end)
+        addressFocused = true
+    }
+
     private func cancelAddressEditing() {
-        addressText = displayAddress(session.activeTab?.url ?? "")
+        addressText = displayAddress(session.activeTab?.displayAddressURL ?? "")
         let caret = (addressText as NSString).length
         addressSelection = OmniboxSelection(start: caret, end: caret)
         addressFocused = false

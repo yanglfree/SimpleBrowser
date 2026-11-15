@@ -91,11 +91,7 @@ struct BrowserWorkspaceSidebar: View {
         case .history:
             historyPanel
         case .downloads:
-            destinationPanel(
-                title: "下载",
-                detail: session.downloads.tasks.isEmpty ? "暂无下载" : "\(session.downloads.tasks.count) 个下载任务",
-                symbol: "arrow.down.circle"
-            ) { session.showsDownloads = true }
+            downloadsPanel
         case .articles:
             articlesPanel
         case .blocking:
@@ -310,16 +306,12 @@ struct BrowserWorkspaceSidebar: View {
         .contentShape(Rectangle())
     }
 
-    private func destinationPanel(title: String, detail: String, symbol: String, action: @escaping () -> Void) -> some View {
-        VStack(spacing: 14) {
-            Image(systemName: symbol).font(.system(size: 34)).foregroundStyle(DesignTokens.textSecondary)
-            Text(title).font(.headline)
-            Text(detail).font(.subheadline).foregroundStyle(DesignTokens.textSecondary)
-            Button("打开") { action() }
-                .buttonStyle(.borderedProminent)
-                .tint(DesignTokens.accent)
+    private var downloadsPanel: some View {
+        VStack(spacing: 0) {
+            sidebarHeader("下载", count: session.downloads.tasks.count)
+            DownloadListContent()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityIdentifier("sidebar-downloads-panel")
     }
 
     private func emptyState(_ title: String, symbol: String) -> some View {

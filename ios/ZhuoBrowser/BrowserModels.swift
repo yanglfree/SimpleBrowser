@@ -29,11 +29,26 @@ enum PageLoadErrorKind: String, Codable, Equatable {
             return .unknown
         }
     }
+
+    static func failingURLString(from error: Error, fallback: String) -> String {
+        if let url = (error as? URLError)?.failingURL?.absoluteString,
+           !url.isEmpty,
+           !url.hasPrefix("about:") {
+            return url
+        }
+        if let raw = (error as NSError).userInfo[NSURLErrorFailingURLStringErrorKey] as? String,
+           !raw.isEmpty,
+           !raw.hasPrefix("about:") {
+            return raw
+        }
+        return fallback
+    }
 }
 
 struct BrowserTab: Identifiable, Equatable, Codable {
     var id: String
     var url: String
+    var failedURL: String = ""
     var title: String
     var isPrivate: Bool
     var isLoading: Bool
@@ -56,6 +71,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         BrowserTab(
             id: UUID().uuidString,
             url: URLPolicy.homeURL,
+            failedURL: "",
             title: isPrivate ? "无痕" : "新标签页",
             isPrivate: isPrivate,
             isLoading: false,
@@ -76,17 +92,25 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         )
     }
 
+    var displayAddressURL: String {
+        if loadError != .none, !failedURL.isEmpty {
+            return failedURL
+        }
+        return url
+    }
+
     var displayTitle: String {
         if !title.isEmpty && title != url {
             return title
         }
-        let host = URLPolicy.displayHost(url)
+        let host = URLPolicy.displayHost(displayAddressURL)
         return host.isEmpty ? (isPrivate ? "无痕" : "新标签页") : host
     }
 
     init(
         id: String,
         url: String,
+        failedURL: String = "",
         title: String,
         isPrivate: Bool,
         isLoading: Bool,
@@ -107,6 +131,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
     ) {
         self.id = id
         self.url = url
+        self.failedURL = failedURL
         self.title = title
         self.isPrivate = isPrivate
         self.isLoading = isLoading
@@ -127,7 +152,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, url, title, isPrivate, isLoading, progress, canGoBack, canGoForward
+        case id, url, failedURL, title, isPrivate, isLoading, progress, canGoBack, canGoForward
         case lastVisitedAt, isReader, isDesktop, isPinned
         case scrollY, readerScrollY, scrollSavedAt, readerScrollSavedAt, formDraft, securityState, loadError
     }
@@ -136,6 +161,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         url = try container.decode(String.self, forKey: .url)
+        failedURL = try container.decodeIfPresent(String.self, forKey: .failedURL) ?? ""
         title = try container.decode(String.self, forKey: .title)
         isPrivate = try container.decode(Bool.self, forKey: .isPrivate)
         isLoading = try container.decodeIfPresent(Bool.self, forKey: .isLoading) ?? false
@@ -159,6 +185,7 @@ struct BrowserTab: Identifiable, Equatable, Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(url, forKey: .url)
+        try container.encode(failedURL, forKey: .failedURL)
         try container.encode(title, forKey: .title)
         try container.encode(isPrivate, forKey: .isPrivate)
         try container.encode(isLoading, forKey: .isLoading)

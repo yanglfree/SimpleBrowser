@@ -12,15 +12,31 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     private let pageStateMessageHandler: WeakScriptMessageHandler
     private let securityMessageHandler: WeakScriptMessageHandler
 
-    init(tab: BrowserTab, session: BrowserSession, dataStore: WKWebsiteDataStore) {
+    init(
+        tab: BrowserTab,
+        session: BrowserSession,
+        dataStore: WKWebsiteDataStore,
+        popupConfiguration: WKWebViewConfiguration? = nil
+    ) {
         self.id = tab.id
         self.isPrivate = tab.isPrivate
-        let configuration = WebKernel.makeConfiguration(
-            isPrivate: tab.isPrivate,
-            dataStore: dataStore,
-            blockAds: session.adsBlockEnabled(for: tab.url),
-            minimumFontSize: session.settings.minimumFontSize
-        )
+        let configuration: WKWebViewConfiguration
+        let isPopup = popupConfiguration != nil
+        if let popupConfiguration {
+            WebKernel.configure(
+                popupConfiguration,
+                blockAds: session.adsBlockEnabled(for: tab.url),
+                minimumFontSize: session.settings.minimumFontSize
+            )
+            configuration = popupConfiguration
+        } else {
+            configuration = WebKernel.makeConfiguration(
+                isPrivate: tab.isPrivate,
+                dataStore: dataStore,
+                blockAds: session.adsBlockEnabled(for: tab.url),
+                minimumFontSize: session.settings.minimumFontSize
+            )
+        }
         let pageStateMessageHandler = WeakScriptMessageHandler()
         let securityMessageHandler = WeakScriptMessageHandler()
         configuration.userContentController.add(
@@ -53,7 +69,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         securityMessageHandler.delegate = self
         applyUserAgent(isDesktop: tab.isDesktop)
         applyWebAppearance(for: tab.url)
-        if !URLPolicy.isHomeURL(tab.url) {
+        if !isPopup && !URLPolicy.isHomeURL(tab.url) {
             let target = tab.isDesktop ? URLPolicy.desktopURL(for: tab.url) : tab.url
             load(target, rewriteDesktop: false)
         }
@@ -81,6 +97,8 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         }
         session?.update(tabID: id) { tab in
             tab.url = address
+            tab.failedURL = ""
+            tab.loadError = .none
             tab.lastVisitedAt = Date().timeIntervalSince1970
             tab.isReader = false
         }
@@ -441,13 +459,110 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         for navigationAction: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        guard navigationAction.targetFrame == nil,
-              let rawURL = navigationAction.request.url?.absoluteString,
-              ExternalProtocolPolicy.decision(for: rawURL, sourceURL: webView.url?.absoluteString ?? "") == .allow else {
+        guard navigationAction.targetFrame == nil else {
             return nil
         }
-        load(rawURL)
-        return nil
+        let rawURL = navigationAction.request.url?.absoluteString ?? ""
+        let sourceURL = session?.tab(id)?.url ?? webView.url?.absoluteString ?? ""
+        if !rawURL.isEmpty && ExternalProtocolPolicy.decision(for: rawURL, sourceURL: sourceURL) != .allow {
+            _ = session?.handleExternalNavigation(rawURL, sourceURL: sourceURL)
+            return nil
+        }
+        return session?.openPopupTab(from: id, configuration: configuration, initialURL: rawURL)
+    }
+
+    func webViewDidClose(_ webView: WKWebView) {
+        session?.closePopupTab(id)
+    }
+
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        session?.handleWebProcessTerminated(tabID: id)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptAlertPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping () -> Void
+    ) {
+        guard let session else {
+            completionHandler()
+            return
+        }
+        let urlString = frame.request.url?.absoluteString ?? webView.url?.absoluteString ?? ""
+        let dialog = PendingJsDialog(
+            tabID: id,
+            titleHost: WebPromptPolicy.hostTitle(for: urlString),
+            message: message,
+            completion: completionHandler
+        )
+        session.presentJsDialog(dialog)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        guard let session else {
+            completionHandler(false)
+            return
+        }
+        let urlString = frame.request.url?.absoluteString ?? webView.url?.absoluteString ?? ""
+        let dialog = PendingJsDialog(
+            tabID: id,
+            titleHost: WebPromptPolicy.hostTitle(for: urlString),
+            message: message,
+            confirmCompletion: completionHandler
+        )
+        session.presentJsDialog(dialog)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptTextInputPanelWithPrompt prompt: String,
+        defaultText: String?,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (String?) -> Void
+    ) {
+        guard let session else {
+            completionHandler(nil)
+            return
+        }
+        let urlString = frame.request.url?.absoluteString ?? webView.url?.absoluteString ?? ""
+        let dialog = PendingJsDialog(
+            tabID: id,
+            titleHost: WebPromptPolicy.hostTitle(for: urlString),
+            message: prompt,
+            defaultText: defaultText ?? "",
+            promptCompletion: completionHandler
+        )
+        session.presentJsDialog(dialog)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        let method = challenge.protectionSpace.authenticationMethod
+        guard method == NSURLAuthenticationMethodHTTPBasic || method == NSURLAuthenticationMethodHTTPDigest else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        guard let session else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+        let auth = PendingHttpAuth(
+            tabID: id,
+            host: challenge.protectionSpace.host,
+            realm: challenge.protectionSpace.realm ?? "",
+            isRetry: challenge.previousFailureCount > 0,
+            completion: completionHandler
+        )
+        session.presentHttpAuth(auth)
     }
 
     func webView(
@@ -537,6 +652,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             if let url = webView.url?.absoluteString, !url.isEmpty {
                 tab.url = url
             }
+            tab.failedURL = ""
             tab.canGoBack = webView.canGoBack
             tab.canGoForward = webView.canGoForward
             tab.lastVisitedAt = Date().timeIntervalSince1970
@@ -560,6 +676,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             if let url = webView.url?.absoluteString, !url.isEmpty {
                 tab.url = url
             }
+            tab.failedURL = ""
             if let title = webView.title, !title.isEmpty {
                 tab.title = title
             }
@@ -600,30 +717,27 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        navigationStartedAt = nil
-        let loadError = PageLoadErrorKind.classify(error)
-        session?.update(tabID: id) { tab in
-            tab.isLoading = false
-            tab.canGoBack = webView.canGoBack
-            tab.canGoForward = webView.canGoForward
-            if loadError != .none {
-                tab.loadError = loadError
-            }
-            if loadError == .certificate || SiteSecurityPolicy.isCertificateError(error) {
-                tab.securityState = .certificateError
-            }
-        }
+        recordLoadFailure(webView, error: error)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        recordLoadFailure(webView, error: error)
+    }
+
+    private func recordLoadFailure(_ webView: WKWebView, error: Error) {
         navigationStartedAt = nil
         let loadError = PageLoadErrorKind.classify(error)
+        let currentURL = session?.tab(id)?.url ?? webView.url?.absoluteString ?? ""
+        let failingURL = PageLoadErrorKind.failingURLString(from: error, fallback: currentURL)
         session?.update(tabID: id) { tab in
             tab.isLoading = false
             tab.canGoBack = webView.canGoBack
             tab.canGoForward = webView.canGoForward
             if loadError != .none {
                 tab.loadError = loadError
+                if !failingURL.isEmpty {
+                    tab.failedURL = failingURL
+                }
             }
             if loadError == .certificate || SiteSecurityPolicy.isCertificateError(error) {
                 tab.securityState = .certificateError

@@ -2,7 +2,6 @@ import Combine
 import Foundation
 import SwiftUI
 import UIKit
-import UserNotifications
 import WebKit
 
 @MainActor
@@ -51,34 +50,36 @@ final class BrowserSession: ObservableObject {
     @Published var securityWarning: SiteSecurityWarning?
     @Published var externalProtocolRequest: ExternalProtocolRequest?
     @Published var pageIssueDiagnostic: PageIssueDiagnostic?
+    @Published var activeJsDialog: PendingJsDialog?
+    @Published var activeHttpAuth: PendingHttpAuth?
     @Published var paneState = BrowserPaneState(primaryTabID: "")
     @Published var homeBackgroundImage: UIImage?
     @Published var isHomeBackgroundLoading = false
     @Published private(set) var siteIcons: [String: UIImage] = [:]
     @Published private(set) var tabThumbnails: [String: UIImage] = [:]
+
     let downloads = DownloadStore()
     let articles = ArticleStore()
     let pro = ProBillingService()
+    let persistence: BrowserPersistenceStore
     let sessionID = UUID().uuidString
     let isPrimaryWindow: Bool
     let acceptedWindowRequestID: String?
-    private var permissionReply: ((Bool) -> Void)?
 
-    private var controllers: [String: TabController] = [:]
-    private var privateStore = WKWebsiteDataStore.nonPersistent()
-    private var recentlyClosedTabs: [BrowserTab] = []
-    private var disposableReaderTabIDs: Set<String> = []
-    private var pendingArticleCaptureTabIDs: Set<String> = []
-    private var pendingWindowTransferIDs: Set<String> = []
-    private var importWebViews: [String: WKWebView] = [:]
-    private var siteIconLoadingHosts: Set<String> = []
-    private var deferredSiteIconRequests: [String: (pageURL: String, declaredURL: String)] = [:]
-    private var tabThumbnailTokens: [String: UUID] = [:]
-    private var cancellables: Set<AnyCancellable> = []
-    private var resumePromptGeneration = 0
-    private let defaultsKey = "browser_session"
-    private let archivedTabsKey = "browser_archived_tabs"
-    private let siteBlockStatsKey = "browser_site_block_stats"
+    var permissionReply: ((Bool) -> Void)?
+    var controllers: [String: TabController] = [:]
+    var privateStore = WKWebsiteDataStore.nonPersistent()
+    var recentlyClosedTabs: [BrowserTab] = []
+    var disposableReaderTabIDs: Set<String> = []
+    var pendingArticleCaptureTabIDs: Set<String> = []
+    var pendingWindowTransferIDs: Set<String> = []
+    var importWebViews: [String: WKWebView] = [:]
+    var siteIconLoadingHosts: Set<String> = []
+    var deferredSiteIconRequests: [String: (pageURL: String, declaredURL: String)] = [:]
+    var tabThumbnailTokens: [String: UUID] = [:]
+    var lastWebProcessTerminationAt: [String: TimeInterval] = [:]
+    var cancellables: Set<AnyCancellable> = []
+    var resumePromptGeneration = 0
 
     var activeTab: BrowserTab? {
         tab(activeTabID)
@@ -96,28 +97,31 @@ final class BrowserSession: ObservableObject {
         SessionPolicy.recentTabs(tabs, activeTabID: activeTabID)
     }
 
-    func presentTabOverview() {
-        let tabID = activeTabID
-        captureTabThumbnail(tabID: tabID) { [weak self] in
-            guard let self, self.tab(tabID) != nil else { return }
-            self.showsOverview = true
-        }
+    var existingTabIDs: Set<String> {
+        Set(tabs.map(\.id))
     }
 
-    func toggleTabOverview() {
-        if showsOverview {
-            showsOverview = false
-        } else {
-            presentTabOverview()
-        }
+    var isSplitActive: Bool {
+        paneState.isSplit(existingTabIDs: existingTabIDs)
     }
 
-    init(windowRequest: BrowserWindowRequest? = nil, isPrimaryWindow: Bool = true) {
+    var splitTabIDs: (primary: String, secondary: String)? {
+        guard isSplitActive, let secondary = paneState.secondaryTabID else { return nil }
+        return (paneState.primaryTabID, secondary)
+    }
+
+    init(
+        windowRequest: BrowserWindowRequest? = nil,
+        isPrimaryWindow: Bool = true,
+        persistence: BrowserPersistenceStore = .shared
+    ) {
         let initializationStartedAt = ProcessInfo.processInfo.systemUptime
         self.isPrimaryWindow = isPrimaryWindow
+        self.persistence = persistence
         let decodedTransfer = windowRequest?.tab
         acceptedWindowRequestID = decodedTransfer == nil ? nil : windowRequest?.id
-        let loadedSettings = Self.loadSettings()
+        let loadedSettings = persistence.load(.settings, as: BrowserSettings.self) { BrowserSettings() }
+
         if var transferredTab = decodedTransfer {
             transferredTab.isLoading = false
             transferredTab.progress = 0
@@ -126,7 +130,7 @@ final class BrowserSession: ObservableObject {
             tabs = [transferredTab]
             activeTabID = transferredTab.id
             archivedTabs = []
-        } else if isPrimaryWindow, let restored = Self.restore(settings: loadedSettings) {
+        } else if isPrimaryWindow, let restored = Self.restore(settings: loadedSettings, persistence: persistence) {
             if restored.tabs.isEmpty {
                 let home = BrowserTab.home(isPrivate: false)
                 tabs = [home]
@@ -135,32 +139,20 @@ final class BrowserSession: ObservableObject {
                 tabs = restored.tabs
                 activeTabID = restored.activeTabID
             }
-            archivedTabs = Self.mergedArchivedTabs(Self.loadArchivedTabs(), restored.expiredTabs)
+            let existingArchived = Self.loadArchivedTabs(persistence: persistence)
+            archivedTabs = Self.mergedArchivedTabs(existingArchived, restored.expiredTabs)
         } else {
             let home = BrowserTab.home(isPrivate: false)
             tabs = [home]
             activeTabID = home.id
-            archivedTabs = isPrimaryWindow ? Self.loadArchivedTabs() : []
+            archivedTabs = isPrimaryWindow ? Self.loadArchivedTabs(persistence: persistence) : []
         }
+
         paneState = BrowserPaneState(primaryTabID: activeTabID)
-        NotificationCenter.default.publisher(for: ContentBlocker.listsDidChangeNotification)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.controllers.values.forEach { $0.replaceContentBlockerLists() }
-            }
-            .store(in: &cancellables)
-        NotificationCenter.default.publisher(for: .browserWindowDidOpen)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] notification in
-                self?.completeWindowTransfer(notification)
-            }
-            .store(in: &cancellables)
-        readerSettings = Self.loadReaderSettings()
+        bindNotifications()
+
+        readerSettings = persistence.load(.readerSettings, as: ReaderSettings.self) { ReaderSettings() }
         settings = loadedSettings
-        NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.recordMemoryPressure() }
-            .store(in: &cancellables)
         tabs = tabs.map { tab in
             var resolved = tab
             if !URLPolicy.isHomeURL(tab.url) {
@@ -171,46 +163,30 @@ final class BrowserSession: ObservableObject {
             }
             return resolved
         }
-        downloads.configure(settings: loadedSettings)
-        downloads.onCompletion = { [weak self] task in
-            self?.flash("\(task.fileName) 下载完成")
-        }
-        downloads.onFailure = { [weak self] task in
-            self?.flash("\(task.fileName) 下载失败")
-        }
+
+        configureSubStores(settings: loadedSettings)
         history = LibraryPolicy.applyingHistoryRetention(
-            Self.loadHistory(),
+            persistence.load(.history, as: [HistoryEntry].self) { [] },
             retentionDays: loadedSettings.historyRetention.rawValue
         )
-        savedItems = Self.loadSavedItems()
-        allowedHosts = Self.loadAllowedHosts()
-        sitePermissions = Self.loadSitePermissions()
-        quickSites = Self.loadQuickSites()
-        siteBlockStats = Self.loadSiteBlockStats()
+        savedItems = persistence.load(.savedItems, as: [SavedItem].self) { [] }
+        allowedHosts = persistence.load(.allowedHosts, as: [String].self) { [] }
+        sitePermissions = persistence.load(.sitePermissions, as: [SitePermission].self) { [] }
+        quickSites = Array(
+            persistence.load(.quickSites, as: [QuickSite].self) { QuickSite.defaults }
+                .prefix(QuickSitePolicy.maximumCount)
+        )
+        siteBlockStats = BlockingPolicy.normalizedSiteStats(
+            persistence.load(.siteBlockStats, as: [SiteBlockStats].self) { [] }
+        )
+
         persistArchivedTabs()
         showsExpiredTabsPrompt = isPrimaryWindow && !archivedTabs.isEmpty
-        downloads.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-        articles.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-        pro.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
         ensureLive(activeTabID)
         persist()
         refreshHomeBackground()
         refreshSiteIcons()
+
         if isPrimaryWindow {
             let milliseconds = (ProcessInfo.processInfo.systemUptime - initializationStartedAt) * 1_000
             TelemetryService.shared.recordStartup(
@@ -230,8 +206,57 @@ final class BrowserSession: ObservableObject {
         }
     }
 
+    private func bindNotifications() {
+        NotificationCenter.default.publisher(for: ContentBlocker.listsDidChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.controllers.values.forEach { $0.replaceContentBlockerLists() }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .browserWindowDidOpen)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] notification in
+                self?.completeWindowTransfer(notification)
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.recordMemoryPressure() }
+            .store(in: &cancellables)
+    }
+
+    private func configureSubStores(settings loadedSettings: BrowserSettings) {
+        downloads.configure(settings: loadedSettings)
+        downloads.onCompletion = { [weak self] task in
+            self?.flash("\(task.fileName) 下载完成")
+        }
+        downloads.onFailure = { [weak self] task in
+            self?.flash("\(task.fileName) 下载失败")
+        }
+        downloads.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        articles.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        pro.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Active Tab & Navigation
+
     func tab(_ id: String) -> BrowserTab? {
         tabs.first { $0.id == id }
+    }
+
+    func controller(for tabID: String) -> TabController? {
+        controllers[tabID]
     }
 
     func update(tabID: String, mutate: (inout BrowserTab) -> Void) {
@@ -251,6 +276,8 @@ final class BrowserSession: ObservableObject {
         prepareNavigation(tabID: activeTabID, to: address)
         update(tabID: activeTabID) { tab in
             tab.url = address
+            tab.failedURL = ""
+            tab.loadError = .none
             tab.lastVisitedAt = Date().timeIntervalSince1970
             tab.isDesktop = usesDesktop
         }
@@ -269,129 +296,6 @@ final class BrowserSession: ObservableObject {
             trimLive()
         }
         persist()
-    }
-
-    func recordVisit(of tab: BrowserTab) {
-        guard SessionPolicy.shouldRecordHistory(tab.isPrivate), !URLPolicy.isHomeURL(tab.url) else {
-            return
-        }
-        let title = tab.title.isEmpty ? URLPolicy.displayHost(tab.url) : tab.title
-        history = LibraryPolicy.recordHistory(
-            history,
-            entry: HistoryEntry(
-                id: "history-\(Int(Date().timeIntervalSince1970 * 1000))",
-                title: title,
-                url: tab.url,
-                visitedAt: Date().timeIntervalSince1970,
-                visitCount: 0
-            ),
-            retentionDays: settings.historyRetention.rawValue
-        )
-        savedItems = LibraryPolicy.markSavedItemRead(savedItems, url: tab.url)
-        persistLibrary()
-    }
-
-    func isCurrentPageSaved() -> Bool {
-        guard let tab = activeTab else {
-            return false
-        }
-        return LibraryPolicy.isSaved(savedItems, url: tab.url)
-    }
-
-    func toggleSaved() {
-        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url) else {
-            return
-        }
-        if let existing = savedItems.first(where: { $0.url == tab.url }) {
-            savedItems = LibraryPolicy.removeSavedItem(savedItems, id: existing.id)
-            flash("已取消书签")
-        } else {
-            let now = Date().timeIntervalSince1970
-            let title = tab.title.isEmpty ? URLPolicy.displayHost(tab.url) : tab.title
-            savedItems = LibraryPolicy.addSavedItem(
-                savedItems,
-                item: SavedItem(
-                    id: "saved-\(Int(now * 1000))",
-                    title: title,
-                    url: tab.url,
-                    createdAt: now,
-                    updatedAt: now
-                )
-            )
-            flash("已加入书签")
-        }
-        persistLibrary()
-    }
-
-    func removeSavedItem(_ id: String) {
-        savedItems = LibraryPolicy.removeSavedItem(savedItems, id: id)
-        persistLibrary()
-    }
-
-    func renameSavedItem(_ id: String, title: String) {
-        savedItems = LibraryPolicy.renameSavedItem(savedItems, id: id, title: title)
-        persistLibrary()
-    }
-
-    func saveCurrentPageForLater() {
-        guard let tab = activeTab, !tab.isPrivate, !URLPolicy.isHomeURL(tab.url) else {
-            return
-        }
-        savedItems = LibraryPolicy.saveForLater(
-            savedItems,
-            url: tab.url,
-            title: tab.displayTitle
-        )
-        persistLibrary()
-        flash("已加入稍后读")
-    }
-
-    func isCurrentPageSavedForLater() -> Bool {
-        guard let tab = activeTab else {
-            return false
-        }
-        return LibraryPolicy.isSavedForLater(savedItems, url: tab.url)
-    }
-
-    func removeHistoryEntry(_ id: String) {
-        history.removeAll { $0.id == id }
-        persistLibrary()
-    }
-
-    func removeHistory(forHost host: String) {
-        history = LibraryPolicy.removeHistoryForHost(history, host: host)
-        persistLibrary()
-    }
-
-    @discardableResult
-    func importBookmarks(_ data: Data) throws -> Int {
-        let imported = try BookmarkTransfer.parse(data)
-        let result = LibraryPolicy.mergeSavedItems(savedItems, imported: imported)
-        savedItems = result.items
-        persistLibrary()
-        return result.importedCount
-    }
-
-    func bookmarkExportHTML() -> String {
-        BookmarkTransfer.export(savedItems)
-    }
-
-    func suggestions(for query: String) -> [AddressSuggestion] {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let search = URLPolicy.looksLikeURL(trimmed)
-            ? ""
-            : URLPolicy.searchURL(
-                trimmed,
-                engine: settings.searchEngine,
-                customTemplate: settings.customSearchTemplate
-            )
-        return LibraryPolicy.suggestions(
-            query: query,
-            history: history,
-            savedItems: savedItems,
-            searchSuggestionsEnabled: settings.searchSuggestionsEnabled && !URLPolicy.looksLikeURL(trimmed),
-            searchURL: search
-        )
     }
 
     func goBack() {
@@ -424,6 +328,10 @@ final class BrowserSession: ObservableObject {
             activeController?.stop()
             return
         }
+        if current.loadError != .none {
+            retryPage(tabID: current.id)
+            return
+        }
         if URLPolicy.isHomeURL(current.url) {
             return
         }
@@ -431,15 +339,19 @@ final class BrowserSession: ObservableObject {
     }
 
     func retryPage(tabID: String) {
-        guard let current = tab(tabID), !URLPolicy.isHomeURL(current.url) else { return }
+        guard let current = tab(tabID) else { return }
+        let targetURL = current.displayAddressURL
+        guard !URLPolicy.isHomeURL(targetURL) else { return }
         let controller = controllers[tabID]
         update(tabID: tabID) { tab in
+            tab.url = targetURL
+            tab.failedURL = ""
             tab.loadError = .none
             tab.isLoading = true
             tab.progress = 0
         }
         if let controller {
-            controller.load(current.url)
+            controller.load(targetURL)
         } else {
             ensureLive(tabID)
         }
@@ -467,684 +379,7 @@ final class BrowserSession: ObservableObject {
         }
     }
 
-    @discardableResult
-    func createTab(isPrivate: Bool, select: Bool = true) -> String? {
-        guard tabs.count < SessionPolicy.maxTabCount else {
-            return nil
-        }
-        if tabs.count >= settings.tabSoftLimit {
-            showsTabSoftLimitPrompt = true
-        }
-        let tab = BrowserTab.home(isPrivate: isPrivate)
-        tabs.append(tab)
-        if select {
-            selectTab(tab.id)
-        }
-        persist()
-        return tab.id
-    }
-
-    var existingTabIDs: Set<String> {
-        Set(tabs.map(\.id))
-    }
-
-    var isSplitActive: Bool {
-        paneState.isSplit(existingTabIDs: existingTabIDs)
-    }
-
-    var splitTabIDs: (primary: String, secondary: String)? {
-        guard isSplitActive, let secondary = paneState.secondaryTabID else { return nil }
-        return (paneState.primaryTabID, secondary)
-    }
-
-    func controller(for tabID: String) -> TabController? {
-        controllers[tabID]
-    }
-
-    func canOpenTabBeside(_ id: String) -> Bool {
-        guard let activeTab, let target = tab(id) else { return false }
-        return target.id != activeTab.id && target.isPrivate == activeTab.isPrivate
-    }
-
-    @discardableResult
-    func openTabBeside(_ requestedID: String) -> Bool {
-        guard let primary = activeTab,
-              let target = tab(requestedID),
-              target.id != primary.id,
-              target.isPrivate == primary.isPrivate else { return false }
-        paneState.beginSplit(primaryTabID: primary.id, secondaryTabID: target.id)
-        ensureLive(primary.id)
-        ensureLive(target.id)
-        selectTab(target.id)
-        return true
-    }
-
-    func focusPane(_ tabID: String) {
-        guard paneState.contains(tabID) else { return }
-        selectTab(tabID)
-    }
-
-    func closeSplit() {
-        paneState.closeSplit(focusedTabID: activeTabID)
-        trimLive()
-    }
-
-    func setSplitRatio(_ ratio: Double) {
-        paneState.setPrimaryRatio(ratio)
-    }
-
-    func makeWindowRequest(for tabID: String) -> BrowserWindowRequest? {
-        guard let current = tab(tabID) else { return nil }
-        capturePageState(tabID)
-        var snapshot = tab(tabID) ?? current
-        snapshot.isLoading = false
-        snapshot.progress = 0
-        snapshot.canGoBack = false
-        snapshot.canGoForward = false
-        guard let request = BrowserWindowRequest(sourceSessionID: sessionID, tab: snapshot) else {
-            return nil
-        }
-        pendingWindowTransferIDs.insert(request.id)
-        return request
-    }
-
-    private func completeWindowTransfer(_ notification: Notification) {
-        guard let requestID = notification.userInfo?["requestID"] as? String,
-              let sourceSessionID = notification.userInfo?["sourceSessionID"] as? String,
-              let sourceTabID = notification.userInfo?["sourceTabID"] as? String,
-              sourceSessionID == sessionID,
-              pendingWindowTransferIDs.remove(requestID) != nil else { return }
-        detachTransferredTab(sourceTabID)
-    }
-
-    private func detachTransferredTab(_ id: String) {
-        guard tab(id) != nil else { return }
-        let wasPane = paneState.contains(id)
-        let nextActiveID = activeTabID == id
-            ? SessionPolicy.selectedTabAfterClosing(tabs, closing: id)
-            : activeTabID
-        controllers[id] = nil
-        removeTabThumbnail(tabID: id)
-        tabBlockStats[id] = nil
-        blockEvents.removeAll { $0.tabID == id }
-        disposableReaderTabIDs.remove(id)
-        pendingArticleCaptureTabIDs.remove(id)
-        tabs.removeAll { $0.id == id }
-        if tabs.isEmpty {
-            let home = BrowserTab.home(isPrivate: false)
-            tabs = [home]
-            activeTabID = home.id
-        } else if activeTabID == id {
-            activeTabID = nextActiveID ?? tabs[0].id
-        }
-        paneState.repair(existingTabIDs: existingTabIDs, fallbackTabID: activeTabID)
-        if wasPane {
-            activeTabID = paneState.focusedTabID
-        }
-        dismissPageResume()
-        recyclePrivateStoreIfNeeded()
-        ensureLive(activeTabID)
-        persist()
-    }
-
-    func selectTab(_ id: String) {
-        guard let selectedTab = tab(id) else {
-            return
-        }
-        if activeTabID != id {
-            captureTabThumbnail(tabID: activeTabID)
-            capturePageState(activeTabID)
-        }
-        dismissPageResume()
-        if isSplitActive,
-           let primaryTab = tab(paneState.primaryTabID),
-           selectedTab.isPrivate != primaryTab.isPrivate {
-            paneState.closeSplit(focusedTabID: id)
-        } else {
-            paneState.select(id, existingTabIDs: existingTabIDs)
-        }
-        activeTabID = id
-        update(tabID: id) { tab in
-            tab.lastVisitedAt = Date().timeIntervalSince1970
-        }
-        showsOverview = false
-        endFind()
-        ensureLive(id)
-        persist()
-    }
-
-    func closeTab(_ id: String) {
-        capturePageState(id)
-        finishClosingTab(id)
-    }
-
-    func canCloseOtherTabs(keeping id: String) -> Bool {
-        !SessionPolicy.otherTabIDs(in: tabs, keeping: id).isEmpty
-    }
-
-    func closeOtherTabs(keeping id: String) {
-        guard let target = tab(id) else { return }
-        let closeIDs = SessionPolicy.otherTabIDs(in: tabs, keeping: id)
-        guard !closeIDs.isEmpty else { return }
-        selectTab(id)
-        for closeID in closeIDs {
-            capturePageState(closeID)
-            finishClosingTab(closeID, clearCookiesIfNeeded: false)
-        }
-        if !target.isPrivate && settings.clearCookiesOnTabClose {
-            clearCookies()
-        }
-        flash("已关闭其他标签页")
-    }
-
-    func copyTabLink(_ id: String) {
-        guard let target = tab(id),
-              !URLPolicy.isHomeURL(target.url),
-              let url = URL(string: target.url) else {
-            return
-        }
-        UIPasteboard.general.url = url
-        flash("链接已复制")
-    }
-
-    func openLinkInBackground(_ url: URL, sourceTabID: String) {
-        guard let source = tab(sourceTabID),
-              let targetURL = WebLinkActionPolicy.webURL(url),
-              let newTabID = createTab(isPrivate: source.isPrivate, select: false) else {
-            return
-        }
-        prepareLinkedTab(newTabID, url: targetURL.absoluteString)
-        flash("已在后台标签页打开")
-    }
-
-    func openLinkBeside(_ url: URL, sourceTabID: String) {
-        guard let source = tab(sourceTabID),
-              let targetURL = WebLinkActionPolicy.webURL(url),
-              let newTabID = createTab(isPrivate: source.isPrivate, select: false) else {
-            return
-        }
-        prepareLinkedTab(newTabID, url: targetURL.absoluteString)
-        selectTab(sourceTabID)
-        if !openTabBeside(newTabID) {
-            flash("已在后台标签页打开")
-        }
-    }
-
-    func saveLinkForLater(_ url: URL, sourceTabID: String) {
-        guard let source = tab(sourceTabID),
-              WebLinkActionPolicy.canSaveForLater(isPrivate: source.isPrivate),
-              let targetURL = WebLinkActionPolicy.webURL(url) else {
-            return
-        }
-        let rawURL = targetURL.absoluteString
-        savedItems = LibraryPolicy.saveForLater(
-            savedItems,
-            url: rawURL,
-            title: URLPolicy.displayHost(rawURL)
-        )
-        persistLibrary()
-        flash("已加入稍后读")
-    }
-
-    private func prepareLinkedTab(_ tabID: String, url: String) {
-        let usesDesktop = effectiveSiteControl(for: url).desktopUserAgentEnabled
-        update(tabID: tabID) { tab in
-            tab.url = url
-            tab.title = URLPolicy.displayHost(url)
-            tab.isDesktop = usesDesktop
-            tab.lastVisitedAt = Date().timeIntervalSince1970
-        }
-        ensureLive(tabID)
-        persist()
-    }
-
-    private func finishClosingTab(_ id: String, clearCookiesIfNeeded: Bool = true) {
-        guard let closingTab = tab(id) else {
-            return
-        }
-        let wasPane = paneState.contains(id)
-        if !closingTab.isPrivate {
-            recentlyClosedTabs.insert(closingTab, at: 0)
-            recentlyClosedTabs = Array(recentlyClosedTabs.prefix(10))
-        }
-        let nextActiveID = activeTabID == id
-            ? SessionPolicy.selectedTabAfterClosing(tabs, closing: id)
-            : activeTabID
-        controllers[id] = nil
-        removeTabThumbnail(tabID: id)
-        tabBlockStats[id] = nil
-        blockEvents.removeAll { $0.tabID == id }
-        disposableReaderTabIDs.remove(id)
-        pendingArticleCaptureTabIDs.remove(id)
-        tabs.removeAll { $0.id == id }
-        if tabs.isEmpty {
-            let home = BrowserTab.home(isPrivate: false)
-            tabs = [home]
-            activeTabID = home.id
-        } else if activeTabID == id {
-            activeTabID = nextActiveID ?? tabs[0].id
-        }
-        paneState.repair(existingTabIDs: existingTabIDs, fallbackTabID: activeTabID)
-        if wasPane {
-            activeTabID = paneState.focusedTabID
-        }
-        dismissPageResume()
-        recyclePrivateStoreIfNeeded()
-        ensureLive(activeTabID)
-        persist()
-        if clearCookiesIfNeeded && !closingTab.isPrivate && settings.clearCookiesOnTabClose {
-            clearCookies()
-        }
-    }
-
-    @discardableResult
-    func reopenRecentlyClosedTab() -> Bool {
-        guard tabs.count < SessionPolicy.maxTabCount,
-              var restored = recentlyClosedTabs.first else {
-            return false
-        }
-        recentlyClosedTabs.removeFirst()
-        restored.id = UUID().uuidString
-        restored.isPrivate = false
-        restored.isLoading = false
-        restored.progress = 0
-        restored.canGoBack = false
-        restored.canGoForward = false
-        restored.lastVisitedAt = Date().timeIntervalSince1970
-        tabs.append(restored)
-        selectTab(restored.id)
-        flash("已恢复关闭的标签页")
-        return true
-    }
-
-    func switchAdjacentTab(_ direction: Int) {
-        guard let id = SessionPolicy.adjacentTabID(tabs, activeTabID: activeTabID, direction: direction) else {
-            return
-        }
-        selectTab(id)
-    }
-
-    func canReorderTab(_ id: String, direction: Int) -> Bool {
-        SessionPolicy.canReorderTab(tabs, id: id, direction: direction)
-    }
-
-    func reorderTab(_ id: String, direction: Int) {
-        guard let reordered = SessionPolicy.reorderedTabs(tabs, moving: id, direction: direction) else {
-            return
-        }
-        tabs = reordered
-        persist()
-    }
-
-    @discardableResult
-    func moveTab(_ id: String, to targetID: String) -> Bool {
-        guard let reordered = SessionPolicy.reorderedTabs(tabs, moving: id, targetID: targetID) else {
-            return false
-        }
-        tabs = reordered
-        persist()
-        return true
-    }
-
-    func toggleTabPinned(_ id: String) {
-        guard let current = tab(id), !current.isPrivate else {
-            return
-        }
-        update(tabID: id) { tab in
-            tab.isPinned.toggle()
-        }
-        let pinned = tabs.filter { !$0.isPrivate && $0.isPinned }
-        let normal = tabs.filter { !$0.isPrivate && !$0.isPinned }
-        let privateTabs = tabs.filter(\.isPrivate)
-        tabs = pinned + normal + privateTabs
-        persist()
-        flash(current.isPinned ? "已取消固定标签页" : "已固定标签页")
-    }
-
-    func cleanupSoftLimitTabs() {
-        let ids = SessionPolicy.softLimitCleanupCandidates(
-            tabs: tabs,
-            activeTabID: activeTabID,
-            limit: settings.tabSoftLimit
-        )
-        guard !ids.isEmpty else {
-            return
-        }
-        let idSet = Set(ids)
-        ids.forEach { controllers[$0] = nil }
-        ids.forEach { removeTabThumbnail(tabID: $0) }
-        tabs.removeAll { idSet.contains($0.id) }
-        recyclePrivateStoreIfNeeded()
-        persist()
-        flash("已清理 \(ids.count) 个旧标签页")
-    }
-
-    func restoreExpiredTabs() {
-        let availableCount = max(0, SessionPolicy.maxTabCount - tabs.count)
-        let archivedToRestore = Array(archivedTabs.prefix(availableCount))
-        guard !archivedToRestore.isEmpty else {
-            flash("标签页已达上限")
-            return
-        }
-        let now = Date().timeIntervalSince1970
-        let restored = archivedToRestore.map { archived -> BrowserTab in
-            var tab = archived
-            tab.id = UUID().uuidString
-            tab.isPrivate = false
-            tab.isLoading = false
-            tab.progress = 0
-            tab.canGoBack = false
-            tab.canGoForward = false
-            tab.lastVisitedAt = now
-            return tab
-        }
-        tabs.append(contentsOf: restored)
-        archivedTabs.removeFirst(archivedToRestore.count)
-        persistArchivedTabs()
-        persist()
-        flash("已恢复 \(restored.count) 个过期标签页")
-    }
-
-    func closeAll() {
-        let shouldClearCookies = settings.clearCookiesOnTabClose && tabs.contains { !$0.isPrivate }
-        dismissPageResume()
-        controllers.removeAll()
-        tabThumbnails.removeAll()
-        tabThumbnailTokens.removeAll()
-        disposableReaderTabIDs.removeAll()
-        pendingArticleCaptureTabIDs.removeAll()
-        pendingWindowTransferIDs.removeAll()
-        let home = BrowserTab.home(isPrivate: false)
-        tabs = [home]
-        activeTabID = home.id
-        paneState = BrowserPaneState(primaryTabID: home.id)
-        privateStore = WKWebsiteDataStore.nonPersistent()
-        persist()
-        if shouldClearCookies {
-            clearCookies()
-        }
-    }
-
-    func toggleReader() {
-        guard let current = activeTab, !URLPolicy.isHomeURL(current.url) else {
-            return
-        }
-        if current.isReader {
-            capturePageState(current.id)
-            guard let controller = controllers[current.id] else {
-                return
-            }
-            controller.exitReader { [weak self] in
-                guard let self else {
-                    return
-                }
-                self.update(tabID: current.id) { tab in
-                    tab.isReader = false
-                }
-                if self.disposableReaderTabIDs.contains(current.id) {
-                    self.closeTab(current.id)
-                    return
-                }
-                self.restoreStoredScroll(tabID: current.id, promptIfActive: false)
-                self.persist()
-            }
-            return
-        }
-        capturePageState(current.id)
-        ensureLive(current.id)
-        activeController?.applyReader(settings: readerSettings) { [weak self] ok in
-            DispatchQueue.main.async {
-                guard let self else {
-                    return
-                }
-                if !ok {
-                    self.flash("无法提取正文")
-                    return
-                }
-                self.update(tabID: current.id) { tab in
-                    tab.isReader = true
-                }
-                self.restoreStoredScroll(tabID: current.id, promptIfActive: true)
-                self.persist()
-            }
-        }
-    }
-
-    func refreshReader() {
-        guard activeTab?.isReader == true else {
-            return
-        }
-        persistReaderSettings()
-        activeController?.applyReader(settings: readerSettings) { _ in }
-    }
-
-    func applyUserAgentOnce(_ preference: UserAgentPreference) {
-        guard let current = activeTab, !URLPolicy.isHomeURL(current.url) else {
-            return
-        }
-        let next = preference == .desktop
-        update(tabID: current.id) { tab in
-            tab.isDesktop = next
-            tab.isReader = false
-        }
-        ensureLive(current.id)
-        activeController?.applyUserAgent(isDesktop: next)
-        let target = next ? URLPolicy.desktopURL(for: current.url) : current.url
-        activeController?.load(target, rewriteDesktop: next)
-        persist()
-    }
-
-    func setSiteUserAgentPreference(_ preference: UserAgentPreference) {
-        guard let current = activeTab else {
-            return
-        }
-        let host = WebAppearancePolicy.host(for: current.url)
-        guard !host.isEmpty else {
-            return
-        }
-        settings.siteUserAgentPreferences.removeAll { $0.host == host }
-        if preference != .default {
-            settings.siteUserAgentPreferences.append(
-                SiteUserAgentPreference(host: host, preference: preference)
-            )
-        }
-        settings.siteUserAgentPreferences = WebAppearancePolicy.normalizedUserAgentPreferences(
-            settings.siteUserAgentPreferences
-        )
-        persistSettings()
-        applyResolvedUserAgentToActive()
-    }
-
-    func setDefaultUserAgentPreference(_ preference: UserAgentPreference) {
-        settings.defaultUserAgentPreference = preference
-        persistSettings()
-        applyResolvedUserAgentToActive()
-    }
-
-    func resetUserAgentPreferences() {
-        settings.defaultUserAgentPreference = .default
-        settings.siteUserAgentPreferences = []
-        persistSettings()
-        applyResolvedUserAgentToActive()
-    }
-
-    func userAgentPreference(for rawURL: String) -> UserAgentPreference {
-        WebAppearancePolicy.userAgentPreference(for: rawURL, settings: settings)
-    }
-
-    func siteUserAgentPreference(for rawURL: String) -> UserAgentPreference {
-        let host = WebAppearancePolicy.host(for: rawURL)
-        return settings.siteUserAgentPreferences.first(where: { $0.host == host })?.preference ?? .default
-    }
-
-    func setMinimumFontSize(_ size: Int) {
-        settings.minimumFontSize = BrowserSettings.clampedMinimumFontSize(size)
-        persistSettings()
-        controllers.values.forEach { $0.applyWebAppearance() }
-        activeController?.reload()
-    }
-
-    func setWebDarkMode(_ preference: WebDarkModePreference) {
-        settings.webDarkMode = preference
-        persistSettings()
-        controllers.values.forEach { $0.applyWebAppearance() }
-    }
-
-    func isWebDarkModeExcluded(for rawURL: String) -> Bool {
-        WebAppearancePolicy.isDarkModeExcluded(for: rawURL, settings: settings)
-    }
-
-    func setCurrentSiteDarkModeExcluded(_ excluded: Bool) {
-        guard let current = activeTab else {
-            return
-        }
-        let host = WebAppearancePolicy.host(for: current.url)
-        guard !host.isEmpty else {
-            return
-        }
-        settings.webDarkModeExcludedHosts.removeAll { $0 == host }
-        if excluded {
-            settings.webDarkModeExcludedHosts.append(host)
-        }
-        settings.webDarkModeExcludedHosts = WebAppearancePolicy.normalizedHosts(
-            settings.webDarkModeExcludedHosts
-        )
-        persistSettings()
-        activeController?.applyWebAppearance()
-    }
-
-    func zoomPercent(for rawURL: String) -> Int {
-        WebAppearancePolicy.zoomPercent(for: rawURL, settings: settings)
-    }
-
-    func setCurrentSiteZoom(_ percent: Int) {
-        guard let current = activeTab else {
-            return
-        }
-        let host = WebAppearancePolicy.host(for: current.url)
-        guard !host.isEmpty else {
-            return
-        }
-        settings.siteZoomRatios.removeAll { $0.host == host }
-        let clamped = WebAppearancePolicy.clampedZoomPercent(percent)
-        if clamped != 100 {
-            settings.siteZoomRatios.append(SiteZoomRatio(host: host, percent: clamped))
-        }
-        settings.siteZoomRatios = WebAppearancePolicy.normalizedZoomRatios(settings.siteZoomRatios)
-        persistSettings()
-        activeController?.applyWebAppearance()
-    }
-
-    private func applyResolvedUserAgentToActive() {
-        guard let current = activeTab, !URLPolicy.isHomeURL(current.url) else {
-            return
-        }
-        let usesDesktop = effectiveSiteControl(for: current.url).desktopUserAgentEnabled
-        applyUserAgentOnce(usesDesktop ? .desktop : .mobile)
-    }
-
-    func beginFind() {
-        guard let current = activeTab, !URLPolicy.isHomeURL(current.url) else {
-            return
-        }
-        showsFind = true
-    }
-
-    func updateFindQuery(_ query: String) {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            findCurrent = 0
-            findTotal = 0
-            return
-        }
-        ensureLive(activeTabID)
-        activeController?.countMatches(trimmed) { [weak self] total in
-            guard let self else {
-                return
-            }
-            self.findTotal = total
-            if total == 0 {
-                self.findCurrent = 0
-                return
-            }
-            self.activeController?.find(trimmed, backwards: false) { found in
-                self.findCurrent = found ? 1 : 0
-            }
-        }
-    }
-
-    func findNext() {
-        let trimmed = findQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard findTotal > 0, !trimmed.isEmpty else {
-            return
-        }
-        activeController?.find(trimmed, backwards: false) { [weak self] found in
-            guard let self, found else {
-                return
-            }
-            self.findCurrent = self.findCurrent >= self.findTotal ? 1 : self.findCurrent + 1
-        }
-    }
-
-    func findPrevious() {
-        let trimmed = findQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard findTotal > 0, !trimmed.isEmpty else {
-            return
-        }
-        activeController?.find(trimmed, backwards: true) { [weak self] found in
-            guard let self, found else {
-                return
-            }
-            self.findCurrent = self.findCurrent <= 1 ? self.findTotal : self.findCurrent - 1
-        }
-    }
-
-    func endFind() {
-        showsFind = false
-        findQuery = ""
-        findCurrent = 0
-        findTotal = 0
-    }
-
-    func setSearchEngine(_ engine: SearchEngine) {
-        settings.searchEngine = engine
-        persistSettings()
-    }
-
-    func setCustomSearchTemplate(_ template: String) {
-        settings.customSearchTemplate = BrowserSettings.normalizedSearchTemplate(template)
-        persistSettings()
-    }
-
-    func setGesturesEnabled(_ enabled: Bool) {
-        settings.gesturesEnabled = enabled
-        persistSettings()
-    }
-
-    func setGestureActionsEnabled(_ enabled: Bool) {
-        settings.gestureActionsEnabled = enabled
-        persistSettings()
-    }
-
-    func setGestureTabSwitchEnabled(_ enabled: Bool) {
-        settings.gestureTabSwitchEnabled = enabled
-        persistSettings()
-    }
-
-    func setGestureBlockingEnabled(_ enabled: Bool) {
-        settings.gestureBlockingEnabled = enabled
-        persistSettings()
-    }
-
-    func setAutoHideToolbarEnabled(_ enabled: Bool) {
-        settings.autoHideToolbarEnabled = enabled
-        persistSettings()
-    }
-
-    func setTelemetryEnabled(_ enabled: Bool) {
-        settings.telemetryEnabled = enabled
-        persistSettings()
-    }
+    // MARK: - Telemetry & Notices
 
     func recordPageLoad(milliseconds: Double, tabID: String) {
         TelemetryService.shared.recordPageLoad(
@@ -1164,9 +399,21 @@ final class BrowserSession: ObservableObject {
         if isPrimaryWindow {
             TelemetryService.shared.recordMemoryPressure(context: telemetryContext())
         }
-        tabThumbnails.removeAll()
+        clearTabThumbnails()
         tabThumbnailTokens.removeAll()
         trimLive(limit: 1)
+    }
+
+    func setSiteIcon(_ image: UIImage?, forHost host: String) {
+        siteIcons[host] = image
+    }
+
+    func setTabThumbnail(_ image: UIImage?, forTabID tabID: String) {
+        tabThumbnails[tabID] = image
+    }
+
+    func clearTabThumbnails() {
+        tabThumbnails.removeAll()
     }
 
     private func telemetryContext(tabID: String? = nil) -> TelemetryContext {
@@ -1178,994 +425,6 @@ final class BrowserSession: ObservableObject {
         )
     }
 
-    func openLibrary(_ tab: LibraryTab) {
-        libraryTab = tab
-        showsLibrary = true
-    }
-
-    func openArticleLibrary(selecting articleID: String? = nil) {
-        pendingArticleSelectionID = articleID
-        showsArticles = true
-    }
-
-    func setSearchSuggestionsEnabled(_ enabled: Bool) {
-        settings.searchSuggestionsEnabled = enabled
-        persistSettings()
-    }
-
-    func acceptPrivacyConsent() {
-        settings.privacyConsentAccepted = true
-        persistSettings()
-        refreshSiteIcons()
-    }
-
-    func finishOnboarding() {
-        settings.onboardingCompleted = true
-        persistSettings()
-        refreshHomeBackground()
-    }
-
-    func setAppearance(_ appearance: AppearanceMode) {
-        settings.appearance = appearance
-        persistSettings()
-    }
-
-    func setQuickSitesEnabled(_ enabled: Bool) {
-        settings.quickSitesEnabled = enabled
-        persistSettings()
-    }
-
-    func openSettings(_ section: SettingsSection? = nil) {
-        settingsInitialSection = section
-        showsSettings = true
-    }
-
-    func setQuickSiteLimit(_ limit: Int) {
-        settings.quickSiteLimit = BrowserSettings.clampedQuickSiteLimit(limit)
-        persistSettings()
-        refreshSiteIcons()
-    }
-
-    func setHomeBackgroundStyle(_ style: HomeBackgroundStyle) {
-        if style == .plain {
-            settings.homeBackgroundEnabled = false
-        } else {
-            settings.homeBackgroundEnabled = true
-            settings.homeBackgroundStyle = style.isBuiltIn ? .forest : style
-        }
-        persistSettings()
-        refreshHomeBackground()
-    }
-
-    func setHomeBackgroundEnabled(_ enabled: Bool) {
-        settings.homeBackgroundEnabled = enabled
-        persistSettings()
-        refreshHomeBackground()
-    }
-
-    func setHomePortraitPreset(_ preset: HomePortraitBackgroundPreset) {
-        settings.homePortraitPreset = preset
-        settings.homeBackgroundEnabled = true
-        settings.homeBackgroundStyle = .forest
-        persistSettings()
-        refreshHomeBackground()
-    }
-
-    func setHomeLandscapePreset(_ preset: HomeLandscapeBackgroundPreset) {
-        settings.homeLandscapePreset = preset
-        settings.homeBackgroundEnabled = true
-        settings.homeBackgroundStyle = .forest
-        persistSettings()
-        refreshHomeBackground()
-    }
-
-    func importCustomHomeBackground(_ data: Data) async {
-        do {
-            let normalized = try await Task.detached(priority: .userInitiated) {
-                try HomeBackgroundService.importCustomImage(data)
-            }.value
-            homeBackgroundImage = UIImage(data: normalized)
-            settings.homeBackgroundEnabled = true
-            settings.homeBackgroundStyle = .custom
-            persistSettings()
-        } catch {
-            flash("无法使用这张图片")
-        }
-    }
-
-    func refreshHomeBackground() {
-        guard settings.homeBackgroundEnabled else {
-            homeBackgroundImage = nil
-            isHomeBackgroundLoading = false
-            return
-        }
-        let style = settings.homeBackgroundStyle
-        if style != .daily && style != .custom {
-            homeBackgroundImage = nil
-            isHomeBackgroundLoading = false
-            return
-        }
-        if let cached = HomeBackgroundService.cachedImageData(for: style) {
-            homeBackgroundImage = UIImage(data: cached)
-        } else {
-            homeBackgroundImage = nil
-        }
-        guard BingDailyWallpaperPolicy.shouldRefresh(
-            backgroundEnabled: settings.homeBackgroundEnabled,
-            dailySelected: style == .daily,
-            privacyConsentAccepted: settings.privacyConsentAccepted,
-            onboardingCompleted: settings.onboardingCompleted
-        ) else { return }
-        isHomeBackgroundLoading = true
-        Task { [weak self] in
-            let data = await HomeBackgroundService.dailyImageData()
-            guard let self,
-                  self.settings.homeBackgroundEnabled,
-                  self.settings.homeBackgroundStyle == .daily else { return }
-            self.homeBackgroundImage = data.flatMap(UIImage.init(data:))
-            self.isHomeBackgroundLoading = false
-        }
-    }
-
-    func setTabExpiry(_ expiry: TabExpiry) {
-        settings.tabExpiry = expiry
-        persistSettings()
-    }
-
-    func setHistoryRetention(_ retention: HistoryRetention) {
-        settings.historyRetention = retention
-        history = LibraryPolicy.applyingHistoryRetention(
-            history,
-            retentionDays: retention.rawValue
-        )
-        persistSettings()
-        persistLibrary()
-    }
-
-    func setLiveWebViewLimit(_ limit: Int) {
-        settings.liveWebViewLimit = BrowserSettings.clampedLiveWebViewLimit(limit)
-        trimLive()
-        persistSettings()
-    }
-
-    func setTabSoftLimit(_ limit: Int) {
-        settings.tabSoftLimit = BrowserSettings.clampedTabSoftLimit(limit)
-        persistSettings()
-    }
-
-    func setDownloadConcurrency(_ limit: Int) {
-        settings.downloadConcurrency = BrowserSettings.clampedDownloadConcurrency(limit)
-        persistDownloadSettings()
-    }
-
-    func setLargeDownloadThresholdMB(_ threshold: Int) {
-        settings.largeDownloadThresholdMB = BrowserSettings.clampedLargeDownloadThresholdMB(threshold)
-        persistDownloadSettings()
-    }
-
-    func setWifiOnlyDownloads(_ enabled: Bool) {
-        settings.wifiOnlyDownloads = enabled
-        persistDownloadSettings()
-    }
-
-    func setDownloadNotificationsEnabled(_ enabled: Bool) {
-        guard enabled else {
-            settings.downloadNotificationsEnabled = false
-            persistDownloadSettings()
-            return
-        }
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.settings.downloadNotificationsEnabled = granted
-                self.persistDownloadSettings()
-                if !granted {
-                    self.flash("未获得通知权限")
-                }
-            }
-        }
-    }
-
-    func setClearCookiesOnTabClose(_ enabled: Bool) {
-        settings.clearCookiesOnTabClose = enabled
-        persistSettings()
-    }
-
-    func retryDownload(_ id: String) {
-        downloads.retry(id, using: activeController?.webView)
-    }
-
-    private func persistDownloadSettings() {
-        downloads.configure(settings: settings)
-        persistSettings()
-    }
-
-    @discardableResult
-    func saveQuickSite(title: String, url: String, replacing: QuickSite? = nil) -> Bool {
-        guard let site = QuickSitePolicy.normalized(title: title, url: url, replacing: replacing, in: quickSites) else {
-            return false
-        }
-        quickSites = QuickSitePolicy.upsert(quickSites, site: site)
-        persistQuickSites()
-        refreshSiteIcons()
-        return true
-    }
-
-    func removeQuickSite(_ id: String) {
-        quickSites.removeAll { $0.id == id }
-        persistQuickSites()
-    }
-
-    func moveQuickSites(from offsets: IndexSet, to destination: Int) {
-        quickSites = QuickSitePolicy.move(quickSites, from: offsets, to: destination)
-        persistQuickSites()
-    }
-
-    func moveVisibleQuickSite(_ id: String, to targetID: String) {
-        let reordered = QuickSitePolicy.moveVisible(
-            quickSites,
-            fromID: id,
-            toID: targetID,
-            visibleLimit: settings.quickSiteLimit
-        )
-        guard reordered != quickSites else { return }
-        quickSites = reordered
-        persistQuickSites()
-    }
-
-    func siteIcon(for url: String) -> UIImage? {
-        siteIcons[URLPolicy.rawHost(url)]
-    }
-
-    func siteIcon(for tab: BrowserTab) -> UIImage? {
-        tab.isPrivate ? nil : siteIcon(for: tab.url)
-    }
-
-    func tabThumbnail(for tab: BrowserTab) -> UIImage? {
-        tab.isPrivate ? nil : tabThumbnails[tab.id]
-    }
-
-    func captureTabThumbnail(tabID: String, completion: @escaping () -> Void = {}) {
-        guard let tab = tab(tabID), let controller = controllers[tabID] else {
-            completion()
-            return
-        }
-        let webView = controller.webView
-        let bounds = webView.bounds
-        guard TabThumbnailPolicy.shouldCapture(
-            url: tab.url,
-            isPrivate: tab.isPrivate,
-            isAttached: webView.window != nil,
-            viewWidth: Double(bounds.width),
-            viewHeight: Double(bounds.height)
-        ) else {
-            completion()
-            return
-        }
-        let token = UUID()
-        tabThumbnailTokens[tabID] = token
-        let configuration = WKSnapshotConfiguration()
-        configuration.rect = CGRect(
-            x: 0,
-            y: 0,
-            width: bounds.width,
-            height: CGFloat(
-                TabThumbnailPolicy.visibleSnapshotHeight(
-                    viewWidth: Double(bounds.width),
-                    viewHeight: Double(bounds.height)
-                )
-            )
-        )
-        configuration.snapshotWidth = NSNumber(value: TabThumbnailPolicy.snapshotWidth)
-        webView.takeSnapshot(with: configuration) { [weak self] image, _ in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                if self.tabThumbnailTokens[tabID] == token,
-                   self.tab(tabID) != nil,
-                   let image {
-                    self.tabThumbnails[tabID] = image
-                }
-                completion()
-            }
-        }
-    }
-
-    func invalidateTabThumbnail(tabID: String) {
-        tabThumbnailTokens[tabID] = UUID()
-        tabThumbnails[tabID] = nil
-    }
-
-    private func removeTabThumbnail(tabID: String) {
-        tabThumbnailTokens[tabID] = nil
-        tabThumbnails[tabID] = nil
-    }
-
-    func refreshSiteIcons() {
-        guard settings.privacyConsentAccepted else { return }
-        var requests = quickSites.prefix(settings.quickSiteLimit).map {
-            SiteIconRequest(url: $0.url, isPrivate: false)
-        }
-        requests.append(contentsOf: tabs.map { SiteIconRequest(url: $0.url, isPrivate: $0.isPrivate) })
-        for request in SiteIconPolicy.targets(requests) {
-            requestSiteIcon(pageURL: request.url)
-        }
-    }
-
-    func refreshSiteIcon(tabID: String, declaredURL: String) {
-        guard settings.privacyConsentAccepted,
-              let tab = tab(tabID),
-              !tab.isPrivate,
-              !URLPolicy.isHomeURL(tab.url) else {
-            return
-        }
-        requestSiteIcon(pageURL: tab.url, declaredURL: declaredURL)
-    }
-
-    private func requestSiteIcon(pageURL: String, declaredURL: String = "") {
-        let host = URLPolicy.rawHost(pageURL)
-        guard !host.isEmpty, siteIcons[host] == nil else { return }
-        if siteIconLoadingHosts.contains(host) {
-            if !declaredURL.isEmpty {
-                deferredSiteIconRequests[host] = (pageURL, declaredURL)
-            }
-            return
-        }
-        siteIconLoadingHosts.insert(host)
-        Task { [weak self] in
-            let data = await SiteIconStore.shared.iconData(
-                for: pageURL,
-                declaredURL: declaredURL.isEmpty ? nil : declaredURL
-            )
-            guard let self else { return }
-            self.siteIconLoadingHosts.remove(host)
-            if let data, let image = SiteIconImage.decode(data) {
-                self.siteIcons[host] = image
-                self.deferredSiteIconRequests.removeValue(forKey: host)
-                return
-            }
-            if let deferred = self.deferredSiteIconRequests.removeValue(forKey: host) {
-                self.requestSiteIcon(pageURL: deferred.pageURL, declaredURL: deferred.declaredURL)
-            }
-        }
-    }
-
-    func requestSitePermission(
-        origin: String,
-        kinds: [SitePermissionKind],
-        persist: Bool,
-        completion: @escaping (Bool) -> Void
-    ) {
-        if origin.isEmpty || kinds.isEmpty {
-            completion(false)
-            return
-        }
-        if permissionReply != nil {
-            completion(false)
-            return
-        }
-        let stored = persist ? sitePermissions.first(where: { $0.origin == origin }) : nil
-        switch SitePermissionPolicy.decision(stored: stored, kinds: kinds) {
-        case .allow:
-            completion(true)
-        case .deny:
-            completion(false)
-        case .prompt:
-            permissionReply = completion
-            permissionPrompt = PermissionPrompt(origin: origin, kinds: kinds, persist: persist)
-        }
-    }
-
-    func allowPermission() {
-        completePermission(true)
-    }
-
-    func denyPermission() {
-        completePermission(false)
-    }
-
-    func denyPermissionIfPending() {
-        if permissionReply != nil {
-            completePermission(false)
-        }
-    }
-
-    func removeSitePermission(_ origin: String) {
-        sitePermissions.removeAll { $0.origin == origin }
-        persistSitePermissions()
-    }
-
-    func toggleSitePermissionDecision(origin: String, kind: SitePermissionKind) {
-        guard let stored = sitePermissions.first(where: { $0.origin == origin }) else {
-            return
-        }
-        sitePermissions = SitePermissionPolicy.apply(
-            sitePermissions,
-            origin: origin,
-            kinds: [kind],
-            decision: SitePermissionPolicy.toggledDecision(from: stored.decision(for: kind))
-        )
-        persistSitePermissions()
-    }
-
-    func adsBlockEnabled(for url: String) -> Bool {
-        let effective = BlockingPolicy.effectiveControl(for: url, settings: settings)
-        return effective.networkBlockingEnabled && effective.trackerBlockingEnabled &&
-            !AllowListPolicy.isHostAllowed(allowedHosts, URLPolicy.rawHost(url))
-    }
-
-    func effectiveSiteControl(for url: String) -> EffectiveSiteControl {
-        BlockingPolicy.effectiveControl(for: url, settings: settings)
-    }
-
-    func isBlockingAllowListed(for url: String) -> Bool {
-        AllowListPolicy.isHostAllowed(allowedHosts, URLPolicy.rawHost(url))
-    }
-
-    func currentSiteControl() -> SiteControl {
-        BlockingPolicy.siteControl(for: activeTab?.url ?? "", controls: settings.siteControls)
-    }
-
-    func setCurrentSiteControl(_ control: SiteControl) {
-        let host = URLPolicy.rawHost(activeTab?.url ?? "").lowercased()
-        guard !host.isEmpty else { return }
-        var normalized = control
-        normalized.host = host
-        settings.siteControls.removeAll { $0.host == host }
-        if normalized.hasOverride {
-            settings.siteControls.append(normalized)
-        }
-        settings.siteControls = BlockingPolicy.normalizedSiteControls(settings.siteControls)
-        persistSettings()
-        controllers.values.forEach { $0.applyContentBlocker() }
-        if let current = activeTab, !URLPolicy.isHomeURL(current.url) {
-            activeController?.applyWebAppearance(for: current.url)
-            applyResolvedUserAgentToActive()
-        } else {
-            activeController?.reload()
-        }
-    }
-
-    func setRuleStrength(_ strength: RuleStrength) {
-        guard settings.ruleStrength != strength else { return }
-        settings.ruleStrength = strength
-        persistSettings()
-        activeController?.reload()
-    }
-
-    func updateRemoteRules(manual: Bool = true) {
-        guard !isRulesUpdating else { return }
-        isRulesUpdating = true
-        ContentBlocker.shared.updateRemoteRules(
-            allowsExpensiveNetworkAccess: manual
-        ) { [weak self] success, updatedAt in
-            guard let self else { return }
-            self.isRulesUpdating = false
-            if success, let updatedAt {
-                self.settings.rulesLastUpdatedAt = updatedAt.timeIntervalSince1970
-                self.persistSettings()
-                if manual { self.flash("拦截规则已更新") }
-            } else if manual {
-                self.flash("规则更新失败，已保留当前规则")
-            }
-        }
-    }
-
-    func recordObservedBlocking(
-        tabID: String,
-        url: String,
-        stats: BlockStats,
-        resources: [ObservedBlockResource] = []
-    ) {
-        guard stats.total > 0, PageStatePolicy.isSamePage(tab(tabID)?.url ?? "", url) else { return }
-        var tabStats = tabBlockStats[tabID] ?? BlockStats()
-        tabStats.add(stats)
-        tabBlockStats[tabID] = tabStats
-        let now = Date()
-        let newEvents = BlockObservationPolicy.eventDrafts(stats: stats, resources: resources).map { draft in
-            BlockEvent(
-                id: UUID().uuidString,
-                tabID: tabID,
-                pageURL: url,
-                category: draft.category,
-                count: draft.count,
-                occurredAt: now,
-                resourceHost: draft.resourceHost,
-                engine: draft.engine
-            )
-        }
-        blockEvents.insert(contentsOf: newEvents, at: 0)
-        blockEvents = Array(blockEvents.prefix(200))
-        guard tab(tabID)?.isPrivate == false else { return }
-        let host = URLPolicy.rawHost(url).lowercased()
-        guard !host.isEmpty else { return }
-        var entries = siteBlockStats
-        if let index = entries.firstIndex(where: { $0.host == host }) {
-            entries[index].stats.add(stats)
-        } else {
-            entries.append(SiteBlockStats(host: host, stats: stats))
-        }
-        siteBlockStats = BlockingPolicy.normalizedSiteStats(entries)
-        persistSiteBlockStats()
-    }
-
-    func observedStatsForActiveTab() -> BlockStats {
-        tabBlockStats[activeTabID] ?? BlockStats()
-    }
-
-    func observedStatsForCurrentSite() -> BlockStats {
-        let host = URLPolicy.rawHost(activeTab?.url ?? "").lowercased()
-        return siteBlockStats.first(where: { $0.host == host })?.stats ?? BlockStats()
-    }
-
-    func observedCumulativeStats() -> BlockStats {
-        BlockingPolicy.cumulativeStats(siteBlockStats)
-    }
-
-    func observedEventsForActiveTab() -> [BlockEvent] {
-        BlockEventPresentationPolicy.visibleEvents(blockEvents, tabID: activeTabID)
-    }
-
-    func resetObservedBlocking(tabID: String) {
-        tabBlockStats[tabID] = BlockStats()
-        blockEvents.removeAll { $0.tabID == tabID }
-    }
-
-    func applyAutomaticReaderIfNeeded(tabID: String) {
-        guard let current = tab(tabID), !current.isReader,
-              disposableReaderTabIDs.contains(tabID) || effectiveSiteControl(for: current.url).autoReaderEnabled,
-              let controller = controllers[tabID] else { return }
-        controller.applyReader(settings: readerSettings) { [weak self] success in
-            guard let self else { return }
-            guard success else {
-                if self.disposableReaderTabIDs.contains(tabID) {
-                    self.closeTab(tabID)
-                }
-                return
-            }
-            self.update(tabID: tabID) { $0.isReader = true }
-            self.persist()
-        }
-    }
-
-    func handleFinishedPageLoad(tabID: String) {
-        if pendingArticleCaptureTabIDs.remove(tabID) != nil {
-            captureArticle(tabID: tabID)
-        }
-        applyAutomaticReaderIfNeeded(tabID: tabID)
-    }
-
-    func isCurrentHostAllowed() -> Bool {
-        guard let tab = activeTab else {
-            return false
-        }
-        return AllowListPolicy.isHostAllowed(allowedHosts, URLPolicy.rawHost(tab.url))
-    }
-
-    func toggleCurrentHostAllowed() {
-        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url) else {
-            return
-        }
-        let host = URLPolicy.rawHost(tab.url)
-        let allowed = !AllowListPolicy.isHostAllowed(allowedHosts, host)
-        allowedHosts = AllowListPolicy.setHostAllowed(allowedHosts, host: host, allowed: allowed)
-        persistAllowList()
-        controllers.values.forEach { $0.applyContentBlocker() }
-        activeController?.reload()
-        flash(allowed ? "已允许此站点加载广告" : "已对此站点恢复拦截")
-    }
-
-    func removeAllowedHost(_ host: String) {
-        allowedHosts = AllowListPolicy.setHostAllowed(allowedHosts, host: host, allowed: false)
-        persistAllowList()
-        controllers.values.forEach { $0.applyContentBlocker() }
-        if let tab = activeTab, URLPolicy.rawHost(tab.url) == host {
-            activeController?.reload()
-        }
-    }
-
-    func setBlockAds(_ enabled: Bool) {
-        settings.blockAds = enabled
-        persistSettings()
-        controllers.values.forEach { $0.applyContentBlocker() }
-        activeController?.reload()
-    }
-
-    func shareCurrentPage() {
-        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url) else {
-            return
-        }
-        var items: [Any] = []
-        if let url = URL(string: tab.url) {
-            items.append(url)
-        } else {
-            items.append(tab.url)
-        }
-        if !tab.title.isEmpty {
-            items.insert(tab.title, at: 0)
-        }
-        shareItems = items
-        showsShare = true
-    }
-
-    func shareCurrentScreenshot() async {
-        guard !isGeneratingScreenshot,
-              let tab = activeTab,
-              !URLPolicy.isHomeURL(tab.url),
-              let controller = activeController else {
-            return
-        }
-        let expectedTabID = tab.id
-        let expectedURL = tab.url
-        isGeneratingScreenshot = true
-        defer { isGeneratingScreenshot = false }
-
-        do {
-            let result = try await controller.captureLongScreenshot()
-            guard activeTabID == expectedTabID, activeTab?.url == expectedURL else {
-                flash("页面已切换，截图未分享")
-                return
-            }
-            shareItems = [result.image]
-            if result.usedViewportFallback {
-                flash("长截图生成失败，已改为分享当前画面")
-            } else if result.wasTruncated {
-                flash("页面过长，已生成前 40 屏")
-            }
-            showsShare = true
-        } catch {
-            flash("无法生成页面截图")
-        }
-    }
-
-    func reportPageIssue() {
-        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url) else { return }
-        let bounds = activeController?.webView.window?.bounds ?? activeController?.webView.bounds ?? UIScreen.main.bounds
-        let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
-        pageIssueDiagnostic = PageIssueDiagnostic.create(
-            appVersion: "\(shortVersion) (\(build))",
-            width: bounds.width,
-            height: bounds.height,
-            loadError: tab.loadError,
-            events: observedEventsForActiveTab(),
-            control: currentSiteControl()
-        )
-    }
-
-    func copyPageIssueDiagnostic(_ diagnostic: PageIssueDiagnostic) {
-        UIPasteboard.general.string = diagnostic.summary
-        pageIssueDiagnostic = nil
-        flash("诊断信息已复制")
-    }
-
-    func copyCurrentLink() {
-        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url), let url = URL(string: tab.url) else {
-            return
-        }
-        UIPasteboard.general.url = url
-        flash("链接已复制")
-    }
-
-    func visitClipboardLink() {
-        guard let value = UIPasteboard.general.string,
-              let address = ExternalProtocolPolicy.clipboardAddress(from: value, engine: settings.searchEngine) else {
-            flash("剪贴板中没有可访问的网页链接")
-            return
-        }
-        openInActiveTab(address)
-    }
-
-    func handleExternalNavigation(_ rawURL: String, sourceURL: String) -> Bool {
-        switch ExternalProtocolPolicy.decision(for: rawURL, sourceURL: sourceURL) {
-        case .allow:
-            return false
-        case .blocked:
-            flash("已阻止不安全的外部协议")
-            return true
-        case let .confirm(request):
-            externalProtocolRequest = request
-            return true
-        }
-    }
-
-    func openExternalProtocol(_ request: ExternalProtocolRequest) {
-        guard let url = URL(string: request.url) else {
-            externalProtocolRequest = nil
-            return
-        }
-        externalProtocolRequest = nil
-        UIApplication.shared.open(url, options: [:]) { [weak self] opened in
-            guard !opened else { return }
-            DispatchQueue.main.async {
-                self?.flash("没有可处理此链接的应用")
-            }
-        }
-    }
-
-    func cancelPendingExternalProtocol() {
-        externalProtocolRequest = nil
-    }
-
-    func consumeInboundShares() {
-        guard isPrimaryWindow, settings.privacyConsentAccepted, settings.onboardingCompleted else { return }
-        do {
-            let pending = try InboundShareQueue.pending()
-            var consumed = 0
-            for request in pending {
-                guard applyInboundShare(request) else { break }
-                try InboundShareQueue.remove(request)
-                consumed += 1
-            }
-            if consumed > 0 {
-                flash("已处理 \(consumed) 个分享链接")
-            }
-        } catch {
-            #if DEBUG
-            print("Inbound share inbox unavailable: \(error)")
-            #endif
-        }
-    }
-
-    private func applyInboundShare(_ request: InboundShareRequest) -> Bool {
-        if request.action.requiresPro, !pro.isPro {
-            showsProPaywall = true
-            flash("保存离线文章需要卓阅 Pro")
-            return true
-        }
-        guard let tabID = createTab(isPrivate: request.action.usesPrivateTab) else {
-            flash("标签页已达上限，分享链接仍保留在收件箱")
-            return false
-        }
-        if request.action.opensDisposableReader {
-            disposableReaderTabIDs.insert(tabID)
-        }
-        if request.action.shouldCaptureArticle {
-            pendingArticleCaptureTabIDs.insert(tabID)
-        }
-        let target = request.action.targetURL(in: request)
-        openInActiveTab(target)
-        if !request.title.isEmpty {
-            update(tabID: tabID) { tab in tab.title = request.title }
-        }
-        return true
-    }
-
-    func captureCurrentArticle() {
-        captureArticle(tabID: activeTabID)
-    }
-
-    func importArticleURL(_ rawURL: String) {
-        guard pro.isPro else {
-            showsProPaywall = true
-            flash("导入离线文章需要卓阅 Pro")
-            return
-        }
-        let trimmed = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard URLPolicy.looksLikeURL(trimmed) else {
-            flash("请输入有效的网址")
-            return
-        }
-        let normalized = URLPolicy.normalizeAddress(trimmed, engine: settings.searchEngine)
-        guard let url = URL(string: normalized), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
-            flash("仅支持导入 http 或 https 网页")
-            return
-        }
-        if let existing = articles.articles.first(where: { $0.canonicalUrl == normalized || $0.sourceUrl == normalized }),
-           existing.quality != .failed, articles.hasContent(for: existing) {
-            pendingArticleSelectionID = existing.id
-            flash("文章已在离线库中")
-            return
-        }
-        captureFromURL(normalized)
-    }
-
-    func retryArticleCapture(_ article: SavedArticle) {
-        guard pro.isPro else {
-            showsProPaywall = true
-            flash("保存离线文章需要卓阅 Pro")
-            return
-        }
-        captureFromURL(article.sourceUrl, existingArticleID: article.id)
-    }
-
-    func openArticleSource(_ article: SavedArticle) {
-        showsArticles = false
-        openInActiveTab(article.sourceUrl)
-    }
-
-    private func captureFromURL(_ urlString: String, existingArticleID: String? = nil) {
-        guard let url = URL(string: urlString) else { return }
-        let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()
-        let webView = WKWebView(frame: .zero, configuration: config)
-        let token = UUID().uuidString
-        importWebViews[token] = webView
-
-        flash("正在载入并保存文章…")
-
-        Task { @MainActor [weak self, weak webView] in
-            guard let self, let webView else { return }
-            defer {
-                self.importWebViews.removeValue(forKey: token)
-            }
-
-            let request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 20)
-            _ = webView.load(request)
-
-            do {
-                try? await Task.sleep(nanoseconds: 800_000_000)
-                let snapshot = try await ArticleCapture.captureWithRetries(from: webView, timeoutSeconds: 15)
-                let saved = try await self.articles.save(snapshot)
-                self.pendingArticleSelectionID = saved.id
-                let suffix = saved.quality == .partial ? "，部分图片未保存" : ""
-                self.flash("已保存离线文章\(suffix)")
-            } catch {
-                if let existingID = existingArticleID,
-                   let existing = self.articles.articles.first(where: { $0.id == existingID }),
-                   existing.quality != .failed, self.articles.hasContent(for: existing) {
-                    self.flash("重试失败，已保留原文章")
-                } else {
-                    let failureKind: ArticleSaveFailure = (error as? ArticleCaptureError)?.failureKind ?? .extractionUnavailable
-                    _ = try? await self.articles.saveFailure(
-                        id: existingArticleID,
-                        url: urlString,
-                        title: nil,
-                        failure: failureKind,
-                        message: error.localizedDescription
-                    )
-                    self.flash("保存失败: \(error.localizedDescription)")
-                }
-            }
-        }
-    }
-
-    private func captureArticle(tabID: String) {
-        guard pro.isPro else {
-            showsProPaywall = true
-            flash("保存离线文章需要卓阅 Pro")
-            return
-        }
-        guard let tab = tab(tabID) else { return }
-        if tab.isPrivate {
-            flash("无痕标签页无法保存离线文章")
-            return
-        }
-        if URLPolicy.isHomeURL(tab.url) {
-            return
-        }
-        guard let webView = controllers[tabID]?.webView else {
-            return
-        }
-        let expectedURL = tab.url
-        Task { [weak self, weak webView] in
-            guard let self, let webView else { return }
-            do {
-                let snapshot = try await ArticleCapture.captureWithRetries(from: webView, timeoutSeconds: 8)
-                guard PageStatePolicy.isSamePage(expectedURL, snapshot.sourceUrl) else {
-                    _ = try? await self.articles.saveFailure(
-                        url: expectedURL,
-                        title: tab.title,
-                        failure: .pageChanged,
-                        message: "页面已变化，请重新保存"
-                    )
-                    self.flash("页面已变化，请重新保存")
-                    return
-                }
-                let article = try await self.articles.save(snapshot)
-                let suffix = article.quality == .partial ? "，部分图片未保存" : ""
-                self.flash("已保存离线文章\(suffix)")
-            } catch {
-                let failureKind: ArticleSaveFailure = (error as? ArticleCaptureError)?.failureKind ?? .extractionUnavailable
-                _ = try? await self.articles.saveFailure(
-                    url: expectedURL,
-                    title: tab.title,
-                    failure: failureKind,
-                    message: error.localizedDescription
-                )
-                self.flash(error.localizedDescription)
-            }
-        }
-    }
-
-    func clearBrowsingData(_ selection: BrowsingDataSelection) {
-        guard selection.hasSelection else {
-            return
-        }
-        if selection.history {
-            let cutoff = BrowsingPrivacyPolicy.cutoff(for: selection.range).timeIntervalSince1970
-            history.removeAll { $0.visitedAt >= cutoff }
-            persistLibrary()
-        }
-        if selection.permissions {
-            allowedHosts = []
-            sitePermissions = []
-            settings.siteControls = []
-            persistAllowList()
-            persistSitePermissions()
-            persistSettings()
-            controllers.values.forEach { $0.applyContentBlocker() }
-        }
-        var dataTypes = Set<String>()
-        if selection.cookies {
-            dataTypes.formUnion(Self.cookieAndStorageDataTypes)
-        }
-        if selection.cache {
-            dataTypes.formUnion(Self.cacheDataTypes)
-        }
-        guard !dataTypes.isEmpty else {
-            flash("已清除所选浏览数据")
-            return
-        }
-        let store = WKWebsiteDataStore.default()
-        store.removeData(ofTypes: dataTypes, modifiedSince: .distantPast) {
-            DispatchQueue.main.async {
-                self.flash("已清除所选浏览数据")
-            }
-        }
-    }
-
-    func clearCurrentSiteData() {
-        guard let tab = activeTab else { return }
-        let host = URLPolicy.rawHost(tab.url)
-        guard !host.isEmpty else { return }
-        history = LibraryPolicy.removeHistoryForHost(history, host: host)
-        allowedHosts.removeAll { $0.caseInsensitiveCompare(host) == .orderedSame }
-        sitePermissions.removeAll { permission in
-            guard let permissionHost = URL(string: permission.origin)?.host else { return false }
-            return permissionHost.caseInsensitiveCompare(host) == .orderedSame
-        }
-        settings.siteControls.removeAll { $0.host == host.lowercased() }
-        siteBlockStats.removeAll { $0.host == host.lowercased() }
-        persistLibrary()
-        persistAllowList()
-        persistSitePermissions()
-        persistSettings()
-        persistSiteBlockStats()
-        controllers.values.forEach { $0.applyContentBlocker() }
-
-        let store = WKWebsiteDataStore.default()
-        let types = WKWebsiteDataStore.allWebsiteDataTypes()
-        store.fetchDataRecords(ofTypes: types) { records in
-            let matching = records.filter {
-                BrowsingPrivacyPolicy.recordDisplayName($0.displayName, matches: host)
-            }
-            store.removeData(ofTypes: types, for: matching) {
-                DispatchQueue.main.async {
-                    self.activeController?.reload()
-                    self.showsSecurityPanel = false
-                    self.flash("已清除 \(host) 的站点数据")
-                }
-            }
-        }
-    }
-
-    func openSecurityPanel() {
-        guard let tab = activeTab, !URLPolicy.isHomeURL(tab.url) else { return }
-        showsSecurityPanel = true
-    }
-
-    func handlePasswordFocus(tabID: String, url: String) {
-        guard tabID == activeTabID,
-              PageStatePolicy.isSamePage(tab(tabID)?.url ?? "", url),
-              SiteSecurityPolicy.shouldWarnForPasswordFocus(on: url) else {
-            return
-        }
-        securityWarning = SiteSecurityWarning(host: URLPolicy.displayHost(url))
-    }
-
-    private func clearCookies() {
-        WKWebsiteDataStore.default().removeData(
-            ofTypes: [WKWebsiteDataTypeCookies],
-            modifiedSince: .distantPast
-        ) {}
-    }
-
-    func persistSettings() {
-        if let data = try? JSONEncoder().encode(settings) {
-            UserDefaults.standard.set(data, forKey: "browser_settings")
-        }
-    }
-
     func flash(_ message: String) {
         notice = message
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
@@ -2174,6 +433,8 @@ final class BrowserSession: ObservableObject {
             }
         }
     }
+
+    // MARK: - Page State & Prompts
 
     func captureActivePageState() {
         captureTabThumbnail(tabID: activeTabID)
@@ -2253,98 +514,111 @@ final class BrowserSession: ObservableObject {
         pageResumeRequest = nil
     }
 
-    func persistReaderSettings() {
-        if let data = try? JSONEncoder().encode(readerSettings) {
-            UserDefaults.standard.set(data, forKey: "reader_settings")
+    func openPopupTab(
+        from sourceTabID: String,
+        configuration: WKWebViewConfiguration,
+        initialURL: String
+    ) -> WKWebView? {
+        guard let sourceIndex = tabs.firstIndex(where: { $0.id == sourceTabID }),
+              tabs.count < SessionPolicy.maxTabCount else {
+            return nil
         }
+        if tabs.count >= settings.tabSoftLimit {
+            showsTabSoftLimitPrompt = true
+        }
+        let source = tabs[sourceIndex]
+        let normalizedURL = initialURL.isEmpty ? "about:blank" : initialURL
+        var popup = BrowserTab.home(isPrivate: source.isPrivate)
+        popup.url = normalizedURL
+        popup.title = URLPolicy.displayHost(normalizedURL).isEmpty
+            ? (source.isPrivate ? "无痕" : "新标签页")
+            : URLPolicy.displayHost(normalizedURL)
+        popup.isDesktop = source.isDesktop
+        popup.isLoading = true
+        tabs.insert(popup, at: sourceIndex + 1)
+        let store = popup.isPrivate ? privateStore : WKWebsiteDataStore.default()
+        let controller = TabController(
+            tab: popup,
+            session: self,
+            dataStore: store,
+            popupConfiguration: configuration
+        )
+        controllers[popup.id] = controller
+        selectTab(popup.id)
+        return controller.webView
     }
 
-    private func completePermission(_ allowed: Bool) {
-        guard let prompt = permissionPrompt else {
+    func closePopupTab(_ id: String) {
+        guard tab(id) != nil else { return }
+        finishClosingTab(id)
+    }
+
+    func handleWebProcessTerminated(tabID: String) {
+        cancelPrompts(forTabID: tabID)
+        let now = Date().timeIntervalSince1970
+        let previous = lastWebProcessTerminationAt[tabID] ?? 0
+        lastWebProcessTerminationAt[tabID] = now
+        guard let current = tab(tabID), !URLPolicy.isHomeURL(current.url) else {
             return
         }
-        let reply = permissionReply
-        permissionReply = nil
-        permissionPrompt = nil
-        if prompt.persist {
-            sitePermissions = SitePermissionPolicy.apply(
-                sitePermissions,
-                origin: prompt.origin,
-                kinds: prompt.kinds,
-                decision: allowed ? .allow : .deny
-            )
-            persistSitePermissions()
+        if now - previous < 5 {
+            update(tabID: tabID) { tab in
+                tab.isLoading = false
+                tab.loadError = .unknown
+                tab.failedURL = current.displayAddressURL
+            }
+            flash("网页渲染进程异常中断，请点击重试")
+            return
         }
-        reply?(allowed)
+        update(tabID: tabID) { tab in
+            tab.isLoading = true
+            tab.progress = 0
+        }
+        controllers[tabID]?.reload()
     }
 
-    func persistSitePermissions() {
-        if let data = try? JSONEncoder().encode(sitePermissions) {
-            UserDefaults.standard.set(data, forKey: "site_permissions")
+    func presentJsDialog(_ dialog: PendingJsDialog) {
+        guard dialog.tabID == activeTabID else {
+            dialog.cancel()
+            return
         }
+        activeJsDialog?.cancel()
+        activeJsDialog = dialog
     }
 
-    func persistAllowList() {
-        if let data = try? JSONEncoder().encode(allowedHosts) {
-            UserDefaults.standard.set(data, forKey: "allowed_hosts")
-        }
+    func dismissJsDialog() {
+        activeJsDialog?.cancel()
+        activeJsDialog = nil
     }
 
-    private func persistSiteBlockStats() {
-        let limited = Array(siteBlockStats.sorted { $0.stats.total > $1.stats.total }.prefix(500))
-        if let data = try? JSONEncoder().encode(limited) {
-            UserDefaults.standard.set(data, forKey: siteBlockStatsKey)
+    func presentHttpAuth(_ challenge: PendingHttpAuth) {
+        guard challenge.tabID == activeTabID else {
+            challenge.cancel()
+            return
         }
+        activeHttpAuth?.cancel()
+        activeHttpAuth = challenge
     }
 
-    func persistLibrary() {
-        if let historyData = try? JSONEncoder().encode(history) {
-            UserDefaults.standard.set(historyData, forKey: "browser_history")
-        }
-        if let savedData = try? JSONEncoder().encode(savedItems) {
-            UserDefaults.standard.set(savedData, forKey: "browser_saved_items")
-        }
+    func dismissHttpAuth() {
+        activeHttpAuth?.cancel()
+        activeHttpAuth = nil
     }
 
-    func persistQuickSites() {
-        if let data = try? JSONEncoder().encode(quickSites) {
-            UserDefaults.standard.set(data, forKey: "browser_quick_sites")
+    func cancelPrompts(forTabID tabID: String) {
+        if activeJsDialog?.tabID == tabID {
+            activeJsDialog?.cancel()
+            activeJsDialog = nil
         }
-    }
-
-    func persistArchivedTabs() {
-        guard isPrimaryWindow else { return }
-        if let data = try? JSONEncoder().encode(archivedTabs) {
-            UserDefaults.standard.set(data, forKey: archivedTabsKey)
-        }
-    }
-
-    func persist() {
-        persistSettings()
-        persistReaderSettings()
-        persistLibrary()
-        persistAllowList()
-        persistSitePermissions()
-        persistQuickSites()
-        guard isPrimaryWindow else { return }
-        let persistable = SessionPolicy.persistableTabs(tabs).map { tab -> BrowserTab in
-            var copy = tab
-            copy.isLoading = false
-            copy.progress = 0
-            copy.canGoBack = false
-            copy.canGoForward = false
-            return copy
-        }
-        let active = persistable.contains(where: { $0.id == activeTabID })
-            ? activeTabID
-            : persistable.first?.id ?? ""
-        let payload = PersistedSession(tabs: persistable, activeTabID: active)
-        if let data = try? JSONEncoder().encode(payload) {
-            UserDefaults.standard.set(data, forKey: defaultsKey)
+        if activeHttpAuth?.tabID == tabID {
+            activeHttpAuth?.cancel()
+            activeHttpAuth = nil
         }
     }
 
-    private func ensureLive(_ id: String) {
+    // MARK: - Live WebViews & State Capture
+
+    func ensureLive(_ id: String) {
         guard let current = tab(id), !URLPolicy.isHomeURL(current.url) else {
             return
         }
@@ -2354,12 +628,12 @@ final class BrowserSession: ObservableObject {
         trimLive()
     }
 
-    private func makeController(for tab: BrowserTab) -> TabController {
+    func makeController(for tab: BrowserTab) -> TabController {
         let store = tab.isPrivate ? privateStore : WKWebsiteDataStore.default()
         return TabController(tab: tab, session: self, dataStore: store)
     }
 
-    private func trimLive(limit: Int? = nil) {
+    func trimLive(limit: Int? = nil) {
         let live = SessionPolicy.liveTabIDs(
             tabs: tabs,
             activeTabID: activeTabID,
@@ -2378,12 +652,13 @@ final class BrowserSession: ObservableObject {
                     tab.isLoading = false
                 }
             }
+            cancelPrompts(forTabID: id)
             capturePageState(id)
             controllers[id] = nil
         }
     }
 
-    private func capturePageState(_ id: String) {
+    func capturePageState(_ id: String) {
         guard let current = tab(id),
               !URLPolicy.isHomeURL(current.url),
               let controller = controllers[id] else {
@@ -2413,7 +688,7 @@ final class BrowserSession: ObservableObject {
         }
     }
 
-    private func restoreStoredScroll(tabID: String, promptIfActive: Bool) {
+    func restoreStoredScroll(tabID: String, promptIfActive: Bool) {
         guard let current = tab(tabID), let controller = controllers[tabID] else {
             return
         }
@@ -2455,20 +730,80 @@ final class BrowserSession: ObservableObject {
         }
     }
 
-    private func recyclePrivateStoreIfNeeded() {
+    func recyclePrivateStoreIfNeeded() {
         if tabs.contains(where: { $0.isPrivate }) {
             return
         }
         privateStore = WKWebsiteDataStore.nonPersistent()
     }
 
-    private static func restore(settings: BrowserSettings) -> (
+    // MARK: - Persistence
+
+    func persistSettings() {
+        persistence.save(settings, for: .settings)
+    }
+
+    func persistReaderSettings() {
+        persistence.save(readerSettings, for: .readerSettings)
+    }
+
+    func persistSitePermissions() {
+        persistence.save(sitePermissions, for: .sitePermissions)
+    }
+
+    func persistAllowList() {
+        persistence.save(allowedHosts, for: .allowedHosts)
+    }
+
+    func persistSiteBlockStats() {
+        let limited = Array(siteBlockStats.sorted { $0.stats.total > $1.stats.total }.prefix(500))
+        persistence.save(limited, for: .siteBlockStats)
+    }
+
+    func persistLibrary() {
+        persistence.save(history, for: .history)
+        persistence.save(savedItems, for: .savedItems)
+    }
+
+    func persistQuickSites() {
+        persistence.save(quickSites, for: .quickSites)
+    }
+
+    func persistArchivedTabs() {
+        guard isPrimaryWindow else { return }
+        persistence.save(archivedTabs, for: .archivedTabs)
+    }
+
+    func persist() {
+        guard isPrimaryWindow else { return }
+        let persistable = SessionPolicy.persistableTabs(tabs).map { tab -> BrowserTab in
+            var copy = tab
+            copy.isLoading = false
+            copy.progress = 0
+            copy.canGoBack = false
+            copy.canGoForward = false
+            return copy
+        }
+        let active = persistable.contains(where: { $0.id == activeTabID })
+            ? activeTabID
+            : persistable.first?.id ?? ""
+        let payload = PersistedSession(tabs: persistable, activeTabID: active)
+        persistence.save(payload, for: .session)
+    }
+
+    private static func restore(
+        settings: BrowserSettings,
+        persistence: BrowserPersistenceStore
+    ) -> (
         tabs: [BrowserTab],
         activeTabID: String,
         expiredTabs: [BrowserTab]
     )? {
-        guard let data = UserDefaults.standard.data(forKey: "browser_session"),
-              let payload = try? JSONDecoder().decode(PersistedSession.self, from: data) else {
+        guard let payload: PersistedSession = persistence.load(
+            .session,
+            as: PersistedSession?.self,
+            default: { nil }
+        ) else {
             return nil
         }
         let partition = SessionPolicy.partitionExpiredTabs(
@@ -2483,11 +818,8 @@ final class BrowserSession: ObservableObject {
         return (tabs, active, partition.expired)
     }
 
-    private static func loadArchivedTabs() -> [BrowserTab] {
-        guard let data = UserDefaults.standard.data(forKey: "browser_archived_tabs"),
-              let tabs = try? JSONDecoder().decode([BrowserTab].self, from: data) else {
-            return []
-        }
+    private static func loadArchivedTabs(persistence: BrowserPersistenceStore) -> [BrowserTab] {
+        let tabs = persistence.load(.archivedTabs, as: [BrowserTab].self) { [] }
         return SessionPolicy.persistableTabs(tabs)
     }
 
@@ -2496,71 +828,7 @@ final class BrowserSession: ObservableObject {
         return (newlyExpired + existing).filter { seen.insert($0.id).inserted }
     }
 
-    private static func loadSitePermissions() -> [SitePermission] {
-        guard let data = UserDefaults.standard.data(forKey: "site_permissions"),
-              let items = try? JSONDecoder().decode([SitePermission].self, from: data) else {
-            return []
-        }
-        return items
-    }
-
-    private static func loadAllowedHosts() -> [String] {
-        guard let data = UserDefaults.standard.data(forKey: "allowed_hosts"),
-              let hosts = try? JSONDecoder().decode([String].self, from: data) else {
-            return []
-        }
-        return hosts
-    }
-
-    private static func loadHistory() -> [HistoryEntry] {
-        guard let data = UserDefaults.standard.data(forKey: "browser_history"),
-              let items = try? JSONDecoder().decode([HistoryEntry].self, from: data) else {
-            return []
-        }
-        return items
-    }
-
-    private static func loadSavedItems() -> [SavedItem] {
-        guard let data = UserDefaults.standard.data(forKey: "browser_saved_items"),
-              let items = try? JSONDecoder().decode([SavedItem].self, from: data) else {
-            return []
-        }
-        return items
-    }
-
-    private static func loadSettings() -> BrowserSettings {
-        guard let data = UserDefaults.standard.data(forKey: "browser_settings"),
-              let settings = try? JSONDecoder().decode(BrowserSettings.self, from: data) else {
-            return BrowserSettings()
-        }
-        return settings
-    }
-
-    private static func loadQuickSites() -> [QuickSite] {
-        guard let data = UserDefaults.standard.data(forKey: "browser_quick_sites"),
-              let sites = try? JSONDecoder().decode([QuickSite].self, from: data) else {
-            return QuickSite.defaults
-        }
-        return Array(sites.prefix(QuickSitePolicy.maximumCount))
-    }
-
-    private static func loadSiteBlockStats() -> [SiteBlockStats] {
-        guard let data = UserDefaults.standard.data(forKey: "browser_site_block_stats"),
-              let entries = try? JSONDecoder().decode([SiteBlockStats].self, from: data) else {
-            return []
-        }
-        return BlockingPolicy.normalizedSiteStats(entries)
-    }
-
-    private static func loadReaderSettings() -> ReaderSettings {
-        guard let data = UserDefaults.standard.data(forKey: "reader_settings"),
-              let settings = try? JSONDecoder().decode(ReaderSettings.self, from: data) else {
-            return ReaderSettings()
-        }
-        return settings
-    }
-
-    private static let cookieAndStorageDataTypes: Set<String> = [
+    static let cookieAndStorageDataTypes: Set<String> = [
         WKWebsiteDataTypeCookies,
         WKWebsiteDataTypeSessionStorage,
         WKWebsiteDataTypeLocalStorage,
@@ -2568,7 +836,7 @@ final class BrowserSession: ObservableObject {
         WKWebsiteDataTypeIndexedDBDatabases
     ]
 
-    private static let cacheDataTypes: Set<String> = [
+    static let cacheDataTypes: Set<String> = [
         WKWebsiteDataTypeDiskCache,
         WKWebsiteDataTypeMemoryCache,
         WKWebsiteDataTypeOfflineWebApplicationCache

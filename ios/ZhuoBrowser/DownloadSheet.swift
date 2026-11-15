@@ -6,64 +6,53 @@ private struct DownloadPreview: Identifiable {
     var id: String { url.path }
 }
 
-struct DownloadSheet: View {
+struct DownloadListContent: View {
     @EnvironmentObject private var session: BrowserSession
-    @Environment(\.dismiss) private var dismiss
     @State private var shareItems: [Any] = []
     @State private var showsShare = false
     @State private var preview: DownloadPreview?
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if session.downloads.tasks.isEmpty {
-                    ContentUnavailableView("暂无下载", systemImage: "arrow.down.circle")
-                } else {
-                    List(session.downloads.tasks) { task in
-                        DownloadTaskRow(
-                            task: task,
-                            onPause: { session.downloads.pause(task.id) },
-                            onResume: { session.downloads.resume(task.id) },
-                            onRetry: { session.retryDownload(task.id) },
-                            onCancel: { session.downloads.cancel(task.id) },
-                            onOpen: { open(task) },
-                            onShare: { share(task) }
-                        )
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button("删除记录", role: .destructive) {
-                                session.downloads.remove(task.id, deleteFile: false)
-                            }
-                            if task.status == .completed {
-                                Button("删除文件", role: .destructive) {
-                                    session.downloads.remove(task.id, deleteFile: true)
-                                }
+        Group {
+            if session.downloads.tasks.isEmpty {
+                ContentUnavailableView("暂无下载", systemImage: "arrow.down.circle")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(session.downloads.tasks) { task in
+                    DownloadTaskRow(
+                        task: task,
+                        onPause: { session.downloads.pause(task.id) },
+                        onResume: { session.downloads.resume(task.id) },
+                        onRetry: { session.retryDownload(task.id) },
+                        onCancel: { session.downloads.cancel(task.id) },
+                        onOpen: { open(task) },
+                        onShare: { share(task) }
+                    )
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button("删除记录", role: .destructive) {
+                            session.downloads.remove(task.id, deleteFile: false)
+                        }
+                        if task.status == .completed {
+                            Button("删除文件", role: .destructive) {
+                                session.downloads.remove(task.id, deleteFile: true)
                             }
                         }
-                        .contextMenu {
-                            if task.status == .completed {
-                                Button("打开") { open(task) }
-                                Button("分享") { share(task) }
-                                Button("删除文件", role: .destructive) {
-                                    session.downloads.remove(task.id, deleteFile: true)
-                                }
-                            }
-                            Button("删除记录", role: .destructive) {
-                                session.downloads.remove(task.id, deleteFile: false)
-                            }
-                        }
-                        .accessibilityIdentifier("download-row-\(task.id)")
                     }
-                    .listStyle(.plain)
+                    .contextMenu {
+                        if task.status == .completed {
+                            Button("打开") { open(task) }
+                            Button("分享") { share(task) }
+                            Button("删除文件", role: .destructive) {
+                                session.downloads.remove(task.id, deleteFile: true)
+                            }
+                        }
+                        Button("删除记录", role: .destructive) {
+                            session.downloads.remove(task.id, deleteFile: false)
+                        }
+                    }
+                    .accessibilityIdentifier("download-row-\(task.id)")
                 }
-            }
-            .background(DesignTokens.pageBackground)
-            .navigationTitle("下载")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("完成") { dismiss() }
-                        .accessibilityIdentifier("downloads-done")
-                }
+                .listStyle(.plain)
             }
         }
         .sheet(isPresented: $showsShare) {
@@ -72,7 +61,6 @@ struct DownloadSheet: View {
         .sheet(item: $preview) { item in
             QuickLookPreview(url: item.url)
         }
-        .accessibilityIdentifier("download-sheet")
     }
 
     private func open(_ task: DownloadTask) {
@@ -84,6 +72,27 @@ struct DownloadSheet: View {
         guard let file = session.downloads.fileURL(for: task) else { return }
         shareItems = [file]
         showsShare = true
+    }
+}
+
+struct DownloadSheet: View {
+    @EnvironmentObject private var session: BrowserSession
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            DownloadListContent()
+                .background(DesignTokens.pageBackground)
+                .navigationTitle("下载")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("完成") { dismiss() }
+                            .accessibilityIdentifier("downloads-done")
+                    }
+                }
+        }
+        .accessibilityIdentifier("download-sheet")
     }
 }
 
