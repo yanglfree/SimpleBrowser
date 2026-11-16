@@ -104,6 +104,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     private var canGoForwardObservation: NSKeyValueObservation?
     private let isPrivateTab: Bool
     private var hasRegisteredPageExtensionBridge: Bool = false
+    private var appliedSessionStorageGeneration: Int = -1
 
     /// - Parameters:
     ///   - initialURL: navigation target used only when no restorable snapshot exists
@@ -277,8 +278,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     private func applyContentProtection(to userContentController: WKUserContentController) {
         let activeSettings = session?.settings ?? BrowserSettings.shared
         userContentController.removeAllUserScripts()
-        if !isPrivateTab, let sessionStorageScript = WebSessionStorageStore.shared.makeBootstrapUserScript() {
-            userContentController.addUserScript(sessionStorageScript)
+        if !isPrivateTab {
+            appliedSessionStorageGeneration = WebSessionStorageStore.shared.generation
+            if let sessionStorageScript = WebSessionStorageStore.shared.makeBootstrapUserScript() {
+                userContentController.addUserScript(sessionStorageScript)
+            }
         }
         if activeSettings.adBlockEnabled, let trackerScript = InjectedScripts.shared.makeTrackerBlockScript() {
             userContentController.addUserScript(trackerScript)
@@ -302,8 +306,18 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
     }
 
+    private func refreshSessionStorageScriptIfNeeded() {
+        guard !isPrivateTab,
+              let userContentController = webView?.configuration.userContentController,
+              appliedSessionStorageGeneration != WebSessionStorageStore.shared.generation else {
+            return
+        }
+        applyContentProtection(to: userContentController)
+    }
+
     public func load(url: URL) {
         guard let webView = webView else { return }
+        refreshSessionStorageScriptIfNeeded()
         cancelRestoration()
         // A typed/open navigation is an explicit intent: never restore an old offset.
         shouldRestoreScrollAfterLoad = false
@@ -329,6 +343,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     public func reload() {
         guard let webView else { return }
+        refreshSessionStorageScriptIfNeeded()
         cancelRestoration()
         shouldRestoreScrollAfterLoad = lastKnownScrollPositionY > 0
         session?.updateTab(tabID) { $0.isSnapshotStale = false }
@@ -359,6 +374,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// upgrading any plain-HTTP public domain to HTTPS.
     public func reloadFromOrigin() {
         guard let webView else { return }
+        refreshSessionStorageScriptIfNeeded()
         cancelRestoration()
         shouldRestoreScrollAfterLoad = lastKnownScrollPositionY > 0
         session?.updateTab(tabID) { $0.isSnapshotStale = false }

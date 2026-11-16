@@ -1129,14 +1129,22 @@ public final class BrowserSession: ObservableObject {
 
     public func clearWebsiteData(clearCookies: Bool = true, clearCache: Bool = true, completion: (() -> Void)? = nil) {
         var dataTypes = Set<String>()
-        if clearCache {
-            dataTypes.insert(WKWebsiteDataTypeDiskCache)
-            dataTypes.insert(WKWebsiteDataTypeMemoryCache)
-        }
-        if clearCookies {
-            dataTypes.insert(WKWebsiteDataTypeCookies)
-            dataTypes.insert(WKWebsiteDataTypeLocalStorage)
-            dataTypes.insert(WKWebsiteDataTypeSessionStorage)
+        if clearCookies && clearCache {
+            dataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
+        } else {
+            if clearCache {
+                dataTypes.insert(WKWebsiteDataTypeDiskCache)
+                dataTypes.insert(WKWebsiteDataTypeMemoryCache)
+                dataTypes.insert(WKWebsiteDataTypeFetchCache)
+                dataTypes.insert(WKWebsiteDataTypeOfflineWebApplicationCache)
+            }
+            if clearCookies {
+                dataTypes.insert(WKWebsiteDataTypeCookies)
+                dataTypes.insert(WKWebsiteDataTypeLocalStorage)
+                dataTypes.insert(WKWebsiteDataTypeSessionStorage)
+                dataTypes.insert(WKWebsiteDataTypeIndexedDBDatabases)
+                dataTypes.insert(WKWebsiteDataTypeServiceWorkerRegistrations)
+            }
         }
         guard !dataTypes.isEmpty else {
             completion?()
@@ -1149,6 +1157,7 @@ public final class BrowserSession: ObservableObject {
         if clearCookies && !RuntimeEnvironment.isRunningUnitTests {
             CookieSessionStore.shared.clearArchive()
             WebSessionStorageStore.shared.clearAll()
+            applyContentProtectionSettingsToAllTabs()
         }
         targetStore.removeData(ofTypes: dataTypes, modifiedSince: Date.distantPast) {
             DispatchQueue.main.async {

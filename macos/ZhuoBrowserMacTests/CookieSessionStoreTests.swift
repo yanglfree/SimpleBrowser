@@ -101,6 +101,16 @@ final class CookieSessionStoreTests: XCTestCase {
         XCTAssertEqual(entries["auth_token"], "tok_999")
     }
 
+    func testWebSessionStorageGenerationIncrementsOnUpdateAndClear() {
+        let store = WebSessionStorageStore(isPersistenceEnabled: false)
+        let initialGeneration = store.generation
+        store.updateEntries(["k": "v"], forOrigin: "https://aistudio.google.com")
+        XCTAssertEqual(store.generation, initialGeneration + 1)
+        store.clearAll()
+        XCTAssertEqual(store.generation, initialGeneration + 2)
+        XCTAssertTrue(store.entries(forOrigin: "https://aistudio.google.com").isEmpty)
+    }
+
     @MainActor
     func testSessionStorageBootstrapRunsInIsolatedWorldWithoutPatchingStoragePrototype() throws {
         let tempDir = FileManager.default.temporaryDirectory

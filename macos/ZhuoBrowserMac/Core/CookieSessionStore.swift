@@ -384,7 +384,14 @@ public final class WebSessionStorageStore {
     private var storageByOrigin: [String: [String: String]] = [:]
     private var cachedBootstrapScript: WKUserScript?
     private var isBootstrapScriptDirty: Bool = true
+    private var _generation: Int = 0
     private var debounceWorkItem: DispatchWorkItem?
+
+    public var generation: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return _generation
+    }
     private let ioQueue = DispatchQueue(label: "com.youdroid.zhuobrowser.session-storage", qos: .utility)
 
     public init(
@@ -442,6 +449,7 @@ public final class WebSessionStorageStore {
         }
         isBootstrapScriptDirty = true
         cachedBootstrapScript = nil
+        _generation += 1
         lock.unlock()
         scheduleFlush()
     }
@@ -451,6 +459,7 @@ public final class WebSessionStorageStore {
         storageByOrigin.removeAll()
         isBootstrapScriptDirty = true
         cachedBootstrapScript = nil
+        _generation += 1
         lock.unlock()
         debounceWorkItem?.cancel()
         debounceWorkItem = nil
