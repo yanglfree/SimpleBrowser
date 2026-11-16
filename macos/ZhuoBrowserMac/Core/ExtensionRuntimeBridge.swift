@@ -7,6 +7,10 @@ public enum ExtensionRuntimeBridge {
     /// Name of the `WKScriptMessageHandler` registered on tab and popup `WKUserContentController`s.
     public static let messageHandlerName = "zhuoExtensionBridge"
 
+    /// Isolated content world for content scripts so `window.chrome`, `window.browser`, and
+    /// `GM_*` polyfills never leak into the webpage's main JS environment.
+    public static let contentScriptWorld: WKContentWorld = .defaultClient
+
     /// Execution context type where the bridge is injected.
     public enum ContextType: String, Sendable {
         case contentScript = "content_script"

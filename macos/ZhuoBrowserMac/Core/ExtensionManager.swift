@@ -634,7 +634,12 @@ public final class ExtensionManager: ObservableObject {
                 });
             }
             """
-            webView.evaluateJavaScript(dispatchJS, completionHandler: nil)
+            webView.evaluateJavaScript(
+                dispatchJS,
+                in: nil,
+                in: targetContentWorld(for: webView),
+                completionHandler: nil
+            )
         }
     }
 
@@ -744,9 +749,18 @@ public final class ExtensionManager: ObservableObject {
         """
         let targetSession = session ?? BrowserSession.shared
         for tab in targetSession.tabs {
-            targetSession.controller(for: tab.id)?.webView?.evaluateJavaScript(js, completionHandler: nil)
+            if let tabWebView = targetSession.controller(for: tab.id)?.webView {
+                tabWebView.evaluateJavaScript(
+                    js,
+                    in: nil,
+                    in: targetContentWorld(for: tabWebView),
+                    completionHandler: nil
+                )
+            }
         }
-        activePopupWebView?.evaluateJavaScript(js, completionHandler: nil)
+        if let popupWebView = activePopupWebView {
+            popupWebView.evaluateJavaScript(js, in: nil, in: .page, completionHandler: nil)
+        }
     }
 
     // MARK: - Content Script Compilation & Injection into `WKUserContentController`
@@ -796,7 +810,8 @@ public final class ExtensionManager: ObservableObject {
                         WKUserScript(
                             source: cssJS,
                             injectionTime: injectionTime,
-                            forMainFrameOnly: mainFrameOnly
+                            forMainFrameOnly: mainFrameOnly,
+                            in: ExtensionRuntimeBridge.contentScriptWorld
                         )
                     )
                 }
@@ -815,7 +830,8 @@ public final class ExtensionManager: ObservableObject {
                         WKUserScript(
                             source: wrapped,
                             injectionTime: injectionTime,
-                            forMainFrameOnly: mainFrameOnly
+                            forMainFrameOnly: mainFrameOnly,
+                            in: ExtensionRuntimeBridge.contentScriptWorld
                         )
                     )
                 }
@@ -856,6 +872,7 @@ public final class ExtensionManager: ObservableObject {
             i18nCatalog: i18n
         )
 
+        let targetWorld = targetContentWorld(for: webView)
         for (specIndex, spec) in ext.manifest.contentScripts.enumerated() {
             guard spec.matchesURL(urlString, isMainFrame: true) else { continue }
             for (cssIdx, cssRelPath) in spec.css.enumerated() {
@@ -867,7 +884,7 @@ public final class ExtensionManager: ObservableObject {
                         styleID: styleID,
                         cssContent: i18n.resolvePlaceholders(in: rawCSS)
                     )
-                    webView.evaluateJavaScript(cssJS, completionHandler: nil)
+                    webView.evaluateJavaScript(cssJS, in: nil, in: targetWorld, completionHandler: nil)
                 }
             }
             for jsRelPath in spec.js {
@@ -879,7 +896,7 @@ public final class ExtensionManager: ObservableObject {
                         jsSource: rawJS,
                         polyfillScript: polyfill
                     )
-                    webView.evaluateJavaScript(wrapped, completionHandler: nil)
+                    webView.evaluateJavaScript(wrapped, in: nil, in: targetWorld, completionHandler: nil)
                 }
             }
         }
@@ -892,8 +909,22 @@ public final class ExtensionManager: ObservableObject {
         """
         let targetSession = session ?? BrowserSession.shared
         for tab in targetSession.tabs {
-            targetSession.controller(for: tab.id)?.webView?.evaluateJavaScript(cleanupJS, completionHandler: nil)
+            if let tabWebView = targetSession.controller(for: tab.id)?.webView {
+                tabWebView.evaluateJavaScript(
+                    cleanupJS,
+                    in: nil,
+                    in: targetContentWorld(for: tabWebView),
+                    completionHandler: nil
+                )
+            }
         }
+    }
+
+    private func targetContentWorld(for webView: WKWebView) -> WKContentWorld {
+        if webView === activePopupWebView || webView.url?.scheme == ExtensionSchemeHandler.scheme {
+            return .page
+        }
+        return ExtensionRuntimeBridge.contentScriptWorld
     }
 
     private func syncAllOpenTabs(evaluateLiveScripts: Bool) {
@@ -949,6 +980,7 @@ public final class ExtensionManager: ObservableObject {
         }
         let payload = (body["payload"] as? [String: Any]) ?? [:]
         let originatingWebView = sourceWebView ?? message.webView
+        let replyWorld = message.world
 
         processBridgeCall(
             extensionID: extensionID,
@@ -967,7 +999,7 @@ public final class ExtensionManager: ObservableObject {
             let responseJSON = ExtensionRuntimeBridge.serializeJSONDictionary(responseObj)
             let escapedReqID = ExtensionRuntimeBridge.escapeJSString(requestID)
             let callbackJS = "window.__zhuoExtensionResolveCallback && window.__zhuoExtensionResolveCallback(\"\(escapedReqID)\", \(responseJSON));"
-            originatingWebView.evaluateJavaScript(callbackJS, completionHandler: nil)
+            originatingWebView.evaluateJavaScript(callbackJS, in: nil, in: replyWorld, completionHandler: nil)
         }
     }
 
@@ -1178,11 +1210,12 @@ public final class ExtensionManager: ObservableObject {
                 return
             }
             let combined = scriptsToRun.joined(separator: ";\n")
-            webView.evaluateJavaScript(combined) { evalResult, error in
-                if let error {
+            webView.evaluateJavaScript(combined, in: nil, in: targetContentWorld(for: webView)) { result in
+                switch result {
+                case .failure(let error):
                     completion([], error.localizedDescription)
-                } else {
-                    let safeResult: Any = (evalResult != nil && JSONSerialization.isValidJSONObject(["v": evalResult!])) ? evalResult! : NSNull()
+                case .success(let evalResult):
+                    let safeResult: Any = JSONSerialization.isValidJSONObject(["v": evalResult]) ? evalResult : NSNull()
                     completion([["frameId": 0, "result": safeResult]], nil)
                 }
             }
@@ -1214,7 +1247,7 @@ public final class ExtensionManager: ObservableObject {
                 styleID: styleID,
                 cssContent: cssBlocks.joined(separator: "\n")
             )
-            webView.evaluateJavaScript(js) { _, _ in
+            webView.evaluateJavaScript(js, in: nil, in: targetContentWorld(for: webView)) { _ in
                 completion(NSNull(), nil)
             }
 
@@ -1224,7 +1257,7 @@ public final class ExtensionManager: ObservableObject {
             if let targetUUID, let webView = targetSession.controller(for: targetUUID)?.webView {
                 let styleID = "zhuo-ext-dynamic-css-\(extensionID)"
                 let js = "document.getElementById(\"\(ExtensionRuntimeBridge.escapeJSString(styleID))\")?.remove();"
-                webView.evaluateJavaScript(js, completionHandler: nil)
+                webView.evaluateJavaScript(js, in: nil, in: targetContentWorld(for: webView), completionHandler: nil)
             }
             completion(NSNull(), nil)
 
@@ -1318,8 +1351,9 @@ public final class ExtensionManager: ObservableObject {
             return null;
         })();
         """
-        webView.evaluateJavaScript(js) { evalResult, _ in
-            if let jsonStr = evalResult as? String,
+        webView.evaluateJavaScript(js, in: nil, in: targetContentWorld(for: webView)) { result in
+            if case .success(let evalResult) = result,
+               let jsonStr = evalResult as? String,
                let data = jsonStr.data(using: .utf8),
                let parsed = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) {
                 completion(parsed, nil)

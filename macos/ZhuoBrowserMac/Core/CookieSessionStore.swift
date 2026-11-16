@@ -133,26 +133,40 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
 
         isRestoring = true
         let cookieStore = dataStore.httpCookieStore
-        let group = DispatchGroup()
-        for cookie in cookies {
-            group.enter()
-            cookieStore.setCookie(cookie) {
-                group.leave()
+        cookieStore.getAllCookies { [weak self] existingCookies in
+            let existingKeys = Set(existingCookies.map { Self.cookieIdentityKey($0) })
+            let cookiesToRestore = cookies.filter { cookie in
+                // WebKit's native persistent cookie store preserves SameSite=None and Partitioned
+                // attributes that Foundation's HTTPCookie cannot round-trip. Never overwrite a live
+                // cookie already present in WKHTTPCookieStore with a re-encoded copy.
+                !existingKeys.contains(Self.cookieIdentityKey(cookie))
             }
-        }
-        group.notify(queue: .main) { [weak self] in
-            guard let self else {
+
+            let group = DispatchGroup()
+            for cookie in cookiesToRestore {
+                group.enter()
+                cookieStore.setCookie(cookie) {
+                    group.leave()
+                }
+            }
+            group.notify(queue: .main) { [weak self] in
+                guard let self else {
+                    completion?()
+                    return
+                }
+                self.isRestoring = false
+                let callbacks = self.readyCallbacks
+                self.readyCallbacks.removeAll()
+                for callback in callbacks {
+                    callback()
+                }
                 completion?()
-                return
             }
-            self.isRestoring = false
-            let callbacks = self.readyCallbacks
-            self.readyCallbacks.removeAll()
-            for callback in callbacks {
-                callback()
-            }
-            completion?()
         }
+    }
+
+    private static func cookieIdentityKey(_ cookie: HTTPCookie) -> String {
+        "\(cookie.name)\u{0}\(cookie.domain.lowercased())\u{0}\(cookie.path)"
     }
 
     /// Archives all valid (session-only and non-expired persistent) cookies to disk.
@@ -528,28 +542,23 @@ public final class WebSessionStorageStore {
                     } catch (_) {}
                 }
 
-                const rawSetItem = Storage.prototype.setItem;
-                const rawRemoveItem = Storage.prototype.removeItem;
-                const rawClear = Storage.prototype.clear;
-
-                Storage.prototype.setItem = function(k, v) {
-                    rawSetItem.apply(this, arguments);
-                    if (this === window.sessionStorage) syncToNative();
-                };
-                Storage.prototype.removeItem = function(k) {
-                    rawRemoveItem.apply(this, arguments);
-                    if (this === window.sessionStorage) syncToNative();
-                };
-                Storage.prototype.clear = function() {
-                    rawClear.apply(this, arguments);
-                    if (this === window.sessionStorage) syncToNative();
-                };
-
+                window.__zhuoSyncSessionStorage = syncToNative;
                 window.addEventListener('pagehide', syncToNative, { capture: true });
+                window.addEventListener('beforeunload', syncToNative, { capture: true });
+                document.addEventListener('visibilitychange', function() {
+                    if (document.visibilityState === 'hidden') {
+                        syncToNative();
+                    }
+                }, { capture: true });
             } catch (_) {}
         })();
         """
-        let script = WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        let script = WKUserScript(
+            source: source,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false,
+            in: .defaultClient
+        )
         lock.lock()
         cachedBootstrapScript = script
         isBootstrapScriptDirty = false

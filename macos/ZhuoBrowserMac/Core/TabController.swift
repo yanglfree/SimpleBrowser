@@ -103,6 +103,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     private var canGoBackObservation: NSKeyValueObservation?
     private var canGoForwardObservation: NSKeyValueObservation?
     private let isPrivateTab: Bool
+    private var hasRegisteredPageExtensionBridge: Bool = false
 
     /// - Parameters:
     ///   - initialURL: navigation target used only when no restorable snapshot exists
@@ -162,15 +163,21 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         if !isPrivate {
             userContentController.add(
                 WeakSessionStorageMessageHandler(target: self),
+                contentWorld: .defaultClient,
                 name: WebSessionStorageStore.messageHandlerName
             )
         }
+        let extensionBridgeHandler = WeakExtensionBridgeMessageHandler(target: self)
         userContentController.add(
-            WeakExtensionBridgeMessageHandler(target: self),
+            extensionBridgeHandler,
+            contentWorld: ExtensionRuntimeBridge.contentScriptWorld,
             name: ExtensionRuntimeBridge.messageHandlerName
         )
+        // Extension options pages (`zhuo-extension://`) load their runtime polyfill in `.page`.
+        ensurePageExtensionBridgeIfNeeded(for: lastTargetURL, on: userContentController)
         userContentController.add(
             WeakAutoFillMessageHandler(target: self),
+            contentWorld: .defaultClient,
             name: "zhuoAutoFill"
         )
         applyContentProtection(to: userContentController)
@@ -235,6 +242,19 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
     }
 
+    private func ensurePageExtensionBridgeIfNeeded(for url: URL?, on userContentController: WKUserContentController) {
+        guard !hasRegisteredPageExtensionBridge,
+              url?.scheme?.lowercased() == ExtensionSchemeHandler.scheme else {
+            return
+        }
+        hasRegisteredPageExtensionBridge = true
+        userContentController.add(
+            WeakExtensionBridgeMessageHandler(target: self),
+            contentWorld: .page,
+            name: ExtensionRuntimeBridge.messageHandlerName
+        )
+    }
+
     public func applyContentProtectionSettings(evaluateLiveScripts: Bool = false) {
         guard let userContentController = webView?.configuration.userContentController else { return }
         applyContentProtection(to: userContentController)
@@ -243,11 +263,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         let cosmeticEnabled = session?.settings.cosmeticCleanupEnabled ?? BrowserSettings.shared.cosmeticCleanupEnabled
         if cosmeticEnabled {
             if let script = InjectedScripts.shared.scriptContent(named: "content-cleanup-standard") {
-                webView.evaluateJavaScript(script, completionHandler: nil)
+                webView.evaluateJavaScript(script, in: nil, in: .defaultClient, completionHandler: nil)
             }
         } else {
             if let restoreScript = InjectedScripts.shared.scriptContent(named: "restore-hidden") {
-                webView.evaluateJavaScript(restoreScript, completionHandler: nil)
+                webView.evaluateJavaScript(restoreScript, in: nil, in: .defaultClient, completionHandler: nil)
             }
         }
         let extManager = session?.extensionManager ?? ExtensionManager.shared
@@ -298,6 +318,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             lastTargetURL = targetURL
             lastNavigationFailed = false
         }
+        ensurePageExtensionBridgeIfNeeded(for: targetURL, on: webView.configuration.userContentController)
         if targetURL.isFileURL {
             webView.loadFileURL(targetURL, allowingReadAccessTo: targetURL.deletingLastPathComponent())
             return
@@ -579,14 +600,24 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         webView?.uiDelegate = nil
         if !isPrivateTab {
             webView?.configuration.userContentController.removeScriptMessageHandler(
-                forName: WebSessionStorageStore.messageHandlerName
+                forName: WebSessionStorageStore.messageHandlerName,
+                contentWorld: .defaultClient
             )
         }
         webView?.configuration.userContentController.removeScriptMessageHandler(
-            forName: ExtensionRuntimeBridge.messageHandlerName
+            forName: ExtensionRuntimeBridge.messageHandlerName,
+            contentWorld: ExtensionRuntimeBridge.contentScriptWorld
         )
+        if hasRegisteredPageExtensionBridge {
+            webView?.configuration.userContentController.removeScriptMessageHandler(
+                forName: ExtensionRuntimeBridge.messageHandlerName,
+                contentWorld: .page
+            )
+            hasRegisteredPageExtensionBridge = false
+        }
         webView?.configuration.userContentController.removeScriptMessageHandler(
-            forName: "zhuoAutoFill"
+            forName: "zhuoAutoFill",
+            contentWorld: .defaultClient
         )
         webView?.configuration.userContentController.removeAllUserScripts()
         webView?.removeFromSuperview()
@@ -909,6 +940,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 return
             }
             lastTargetURL = url
+            ensurePageExtensionBridgeIfNeeded(for: url, on: webView.configuration.userContentController)
         }
         decisionHandler(.allow)
     }
@@ -1326,7 +1358,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             }
         })();
         """
-        webView.evaluateJavaScript(js, completionHandler: nil)
+        webView.evaluateJavaScript(js, in: nil, in: .defaultClient, completionHandler: nil)
     }
 
     /// JSON-encodes a Swift string so quotes, backslashes, newlines and U+2028/U+2029 cannot break

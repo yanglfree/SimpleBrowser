@@ -37,7 +37,8 @@ public final class InjectedScripts: @unchecked Sendable {
         return WKUserScript(
             source: source,
             injectionTime: .atDocumentEnd,
-            forMainFrameOnly: false
+            forMainFrameOnly: false,
+            in: .defaultClient
         )
     }
 
@@ -47,7 +48,8 @@ public final class InjectedScripts: @unchecked Sendable {
         return WKUserScript(
             source: source,
             injectionTime: .atDocumentStart,
-            forMainFrameOnly: false
+            forMainFrameOnly: false,
+            in: .defaultClient
         )
     }
 
@@ -57,7 +59,8 @@ public final class InjectedScripts: @unchecked Sendable {
         return WKUserScript(
             source: source,
             injectionTime: .atDocumentEnd,
-            forMainFrameOnly: false
+            forMainFrameOnly: false,
+            in: .defaultClient
         )
     }
 }

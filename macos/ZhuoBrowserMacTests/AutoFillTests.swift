@@ -179,7 +179,7 @@ final class AutoFillTests: XCTestCase {
     func testAgentFillsWithoutAutoSubmittingOrBroadcasting() {
         let recorder = AutoFillMessageRecorder()
         let controller = WKUserContentController()
-        controller.add(recorder, name: "zhuoAutoFill")
+        controller.add(recorder, contentWorld: .defaultClient, name: "zhuoAutoFill")
         guard let script = InjectedScripts.shared.makeAutoFillScript() else {
             XCTFail("autofill-agent script missing")
             return
@@ -218,10 +218,16 @@ final class AutoFillTests: XCTestCase {
 
         let filled = expectation(description: "filled")
         webView.evaluateJavaScript(
-            "document.getElementById('u').focus(); JSON.stringify(window.__zhuoAutoFill.fill('alice', 's3cret'))"
-        ) { result, error in
-            XCTAssertNil(error)
-            XCTAssertEqual(result as? String, "true")
+            "document.getElementById('u').focus(); JSON.stringify(window.__zhuoAutoFill.fill('alice', 's3cret'))",
+            in: nil,
+            in: .defaultClient
+        ) { result in
+            switch result {
+            case .success(let value):
+                XCTAssertEqual(value as? String, "true")
+            case .failure(let error):
+                XCTFail("Unexpected JS error: \(error)")
+            }
             filled.fulfill()
         }
         wait(for: [filled], timeout: 5)
@@ -250,7 +256,7 @@ final class AutoFillTests: XCTestCase {
         // with the web views created by later tests in the same host process.
         webView.stopLoading()
         webView.navigationDelegate = nil
-        controller.removeScriptMessageHandler(forName: "zhuoAutoFill")
+        controller.removeScriptMessageHandler(forName: "zhuoAutoFill", contentWorld: .defaultClient)
     }
 }
 

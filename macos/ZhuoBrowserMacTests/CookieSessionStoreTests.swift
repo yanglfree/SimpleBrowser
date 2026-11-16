@@ -100,4 +100,69 @@ final class CookieSessionStoreTests: XCTestCase {
         XCTAssertEqual(entries["finder_uin"], "v2_abc")
         XCTAssertEqual(entries["auth_token"], "tok_999")
     }
+
+    @MainActor
+    func testSessionStorageBootstrapRunsInIsolatedWorldWithoutPatchingStoragePrototype() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("WebSessionStorageWebViewTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let fileURL = tempDir.appendingPathComponent("web-session-storage.json")
+        let store = WebSessionStorageStore(isPersistenceEnabled: true, storageURL: fileURL)
+        store.updateEntries(["token": "abc_123"], forOrigin: "https://aistudio.google.com")
+
+        let script = try XCTUnwrap(store.makeBootstrapUserScript())
+        XCTAssertEqual(script.injectionTime, .atDocumentStart)
+
+        let controller = WKUserContentController()
+        controller.addUserScript(script)
+
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .nonPersistent()
+        config.userContentController = controller
+        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 400, height: 300), configuration: config)
+
+        let navDelegate = CookieTestNavigationDelegate()
+        webView.navigationDelegate = navDelegate
+        let loaded = expectation(description: "html loaded")
+        navDelegate.onFinish = { loaded.fulfill() }
+        webView.loadHTMLString("<html><body>ok</body></html>", baseURL: URL(string: "https://aistudio.google.com/api-keys")!)
+        wait(for: [loaded], timeout: 5.0)
+
+        let check = expectation(description: "page storage check")
+        webView.evaluateJavaScript("""
+            JSON.stringify({
+                restoredValue: window.sessionStorage.getItem('token'),
+                setItemNative: Storage.prototype.setItem.toString().includes('[native code]'),
+                removeItemNative: Storage.prototype.removeItem.toString().includes('[native code]'),
+                clearNative: Storage.prototype.clear.toString().includes('[native code]'),
+                hasLeak: typeof window.__zhuoSyncSessionStorage !== 'undefined'
+            })
+        """, in: nil, in: .page) { result in
+            if case .success(let val) = result,
+               let data = (val as? String)?.data(using: .utf8),
+               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                XCTAssertEqual(dict["restoredValue"] as? String, "abc_123")
+                XCTAssertEqual(dict["setItemNative"] as? Bool, true)
+                XCTAssertEqual(dict["removeItemNative"] as? Bool, true)
+                XCTAssertEqual(dict["clearNative"] as? Bool, true)
+                XCTAssertEqual(dict["hasLeak"] as? Bool, false)
+            } else {
+                XCTFail("Unexpected JS check result: \(result)")
+            }
+            check.fulfill()
+        }
+        wait(for: [check], timeout: 5.0)
+        webView.stopLoading()
+        webView.navigationDelegate = nil
+    }
+}
+
+private final class CookieTestNavigationDelegate: NSObject, WKNavigationDelegate {
+    var onFinish: (() -> Void)?
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        onFinish?()
+    }
 }

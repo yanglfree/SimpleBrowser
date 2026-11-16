@@ -456,5 +456,31 @@ final class ExtensionSystemTests: XCTestCase {
         XCTAssertNotNil(items)
         XCTAssertEqual(items?.count, 3)
         XCTAssertEqual(receivedResp?["pageTitle"] as? String, "Test Media Page")
+
+        // 5. Verify page world stays completely clean (no window.chrome/browser/GM_* pollution)
+        let pageWorldExp = expectation(description: "page world isolation")
+        webView.evaluateJavaScript("""
+            JSON.stringify({
+                hasChrome: typeof window.chrome !== 'undefined',
+                hasBrowser: typeof window.browser !== 'undefined',
+                hasGMInfo: typeof window.GM_info !== 'undefined',
+                hasZhuoExtensions: typeof window.__ZHUO_EXTENSIONS__ !== 'undefined',
+                hasZhuoAutoFill: typeof window.__zhuoAutoFill !== 'undefined'
+            })
+        """, in: nil, in: .page) { result in
+            if case .success(let value) = result,
+               let json = (value as? String)?.data(using: .utf8),
+               let dict = try? JSONSerialization.jsonObject(with: json) as? [String: Bool] {
+                XCTAssertEqual(dict["hasChrome"], false)
+                XCTAssertEqual(dict["hasBrowser"], false)
+                XCTAssertEqual(dict["hasGMInfo"], false)
+                XCTAssertEqual(dict["hasZhuoExtensions"], false)
+                XCTAssertEqual(dict["hasZhuoAutoFill"], false)
+            } else {
+                XCTFail("Failed to inspect page world globals: \(result)")
+            }
+            pageWorldExp.fulfill()
+        }
+        wait(for: [pageWorldExp], timeout: 2.0)
     }
 }
