@@ -139,7 +139,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         if isPrivate {
             startNavigation()
         } else {
-            CookieSessionStore.shared.performWhenReady(startNavigation)
+            session.cookieSessionStore.performWhenReady(startNavigation)
         }
     }
 
@@ -149,8 +149,8 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         // downgrade bare WKWebView User-Agent requests to legacy basic HTML pipelines.
         config.applicationNameForUserAgent = Self.safariApplicationNameForUserAgent
 
-        // Shared or private data store
-        config.websiteDataStore = isPrivate ? .nonPersistent() : .default()
+        // Profile-isolated or private data store
+        config.websiteDataStore = isPrivate ? .nonPersistent() : (session?.websiteDataStore ?? .default())
 
         // Custom scheme handler for `zhuo-extension://<id>/<path>`
         let extManager = session?.extensionManager ?? ExtensionManager.shared
@@ -279,8 +279,9 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         let activeSettings = session?.settings ?? BrowserSettings.shared
         userContentController.removeAllUserScripts()
         if !isPrivateTab {
-            appliedSessionStorageGeneration = WebSessionStorageStore.shared.generation
-            if let sessionStorageScript = WebSessionStorageStore.shared.makeBootstrapUserScript() {
+            let sessionStorageStore = session?.webSessionStorageStore ?? WebSessionStorageStore.shared
+            appliedSessionStorageGeneration = sessionStorageStore.generation
+            if let sessionStorageScript = sessionStorageStore.makeBootstrapUserScript() {
                 userContentController.addUserScript(sessionStorageScript)
             }
         }
@@ -307,9 +308,10 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     private func refreshSessionStorageScriptIfNeeded() {
+        let sessionStorageStore = session?.webSessionStorageStore ?? WebSessionStorageStore.shared
         guard !isPrivateTab,
               let userContentController = webView?.configuration.userContentController,
-              appliedSessionStorageGeneration != WebSessionStorageStore.shared.generation else {
+              appliedSessionStorageGeneration != sessionStorageStore.generation else {
             return
         }
         applyContentProtection(to: userContentController)
@@ -922,7 +924,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 lastNavigationFailed = false
                 MainActor.assumeIsolated {
                     if OAuthPolicy.isOAuthOrLoginURL(url) {
-                        WebPopupWindowManager.shared.openPopup(url: url, parentWindow: webView.window)
+                        WebPopupWindowManager.shared.openPopup(
+                            url: url,
+                            parentWindow: webView.window,
+                            websiteDataStore: webView.configuration.websiteDataStore
+                        )
                     } else {
                         session?.createTab(url: url.absoluteString, select: true)
                     }
@@ -939,7 +945,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             if let query = url.query?.lowercased(), query.contains("ux_mode=popup") || query.contains("display=popup") {
                 decisionHandler(.cancel)
                 MainActor.assumeIsolated {
-                    WebPopupWindowManager.shared.openPopup(url: url, parentWindow: webView.window)
+                    _ = WebPopupWindowManager.shared.openPopup(
+                        url: url,
+                        parentWindow: webView.window,
+                        websiteDataStore: webView.configuration.websiteDataStore
+                    )
                 }
                 return
             }
@@ -1267,7 +1277,8 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 entries[key] = str
             }
         }
-        WebSessionStorageStore.shared.updateEntries(entries, forOrigin: origin)
+        let sessionStorageStore = session?.webSessionStorageStore ?? WebSessionStorageStore.shared
+        sessionStorageStore.updateEntries(entries, forOrigin: origin)
     }
 
     fileprivate func handleExtensionBridgeMessage(_ message: WKScriptMessage) {

@@ -3,17 +3,27 @@ import SwiftUI
 /// Unified minimalist macOS toolbar containing navigation, omnibox, and status indicators.
 public struct UnifiedToolbarView: View {
     @ObservedObject var session: BrowserSession
+    @ObservedObject private var profileManager = ProfileManager.shared
     @ObservedObject private var accountManager = AccountManager.shared
     @ObservedObject private var downloadManager = DownloadManager.shared
     @ObservedObject private var extensionManager = ExtensionManager.shared
+    @Environment(\.openWindow) private var openWindow
     @State private var isOmniboxFocused: Bool = false
     @State private var currentText: String = ""
     @State private var isShowingSettings: Bool = false
-    @State private var isShowingAccount: Bool = false
+    @State private var isShowingProfilePopover: Bool = false
     @State private var isFullScreen: Bool = false
 
     private var activeTab: BrowserTab? {
         session.activeTab
+    }
+
+    private var currentProfile: BrowserProfile {
+        profileManager.profile(for: session.profileID)
+    }
+
+    private var showsProfileNamePill: Bool {
+        profileManager.profiles.count > 1 || !currentProfile.isDefault
     }
 
     public var body: some View {
@@ -151,43 +161,81 @@ public struct UnifiedToolbarView: View {
             .buttonStyle(ToolbarHoverButtonStyle())
             .help("偏好设置 (Cmd+,)")
 
-            // User Account Button
-            Button(action: { isShowingAccount.toggle() }) {
-                if accountManager.isLoggedIn {
-                    if let cachedImage = accountManager.avatarImage {
-                        Image(nsImage: cachedImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 24, height: 24)
-                            .clipShape(Circle())
-                    } else if let avatarURL = accountManager.currentUser?.resolvedAvatarURL {
-                        AsyncImage(url: avatarURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 24, height: 24)
-                                    .clipShape(Circle())
-                            default:
-                                toolbarInitialsAvatar
-                            }
+            // Chrome-Style Profile Switcher & Account Button
+            Button(action: { isShowingProfilePopover.toggle() }) {
+                HStack(spacing: 5) {
+                    if profileManager.profiles.count == 1 && currentProfile.isDefault && accountManager.isLoggedIn {
+                        if let cachedImage = accountManager.avatarImage {
+                            Image(nsImage: cachedImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 22, height: 22)
+                                .clipShape(Circle())
+                        } else {
+                            ProfileAvatarBadge(profile: currentProfile, size: 22)
                         }
-                        .frame(width: 24, height: 24)
                     } else {
-                        toolbarInitialsAvatar
+                        ProfileAvatarBadge(profile: currentProfile, size: 22)
                     }
-                } else {
-                    Image(systemName: "person.crop.circle")
-                        .font(.system(size: 14))
-                        .frame(width: 24, height: 24)
-                        .foregroundColor(.secondary)
+
+                    if showsProfileNamePill {
+                        Text(currentProfile.displayName)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                            .frame(maxWidth: 80, alignment: .leading)
+                    }
                 }
+                .padding(.horizontal, showsProfileNamePill ? 6 : 2)
+                .frame(height: 24)
+                .background(
+                    showsProfileNamePill
+                        ? AnyView(Capsule().fill(currentProfile.tintColor.opacity(0.14)))
+                        : AnyView(Color.clear)
+                )
             }
             .buttonStyle(ToolbarHoverButtonStyle())
-            .help(accountManager.isLoggedIn ? "账号中心 (\(accountManager.currentUser?.displayName ?? ""))" : "登录 / 注册账号")
-            .sheet(isPresented: $isShowingAccount) {
-                AccountView(session: session, isPresented: $isShowingAccount)
+            .help("个人资料：\(currentProfile.displayName) · 点击切换或新建独立账号窗口")
+            .popover(
+                isPresented: $isShowingProfilePopover,
+                attachmentAnchor: .rect(.bounds),
+                arrowEdge: .bottom
+            ) {
+                ProfileSwitcherPopoverView(
+                    session: session,
+                    profileManager: profileManager,
+                    isPresented: $isShowingProfilePopover
+                ) { targetProfileID in
+                    openProfileWindow(targetProfileID)
+                }
+            }
+            .sheet(isPresented: $session.isShowingAccountSheet) {
+                AccountView(session: session, isPresented: $session.isShowingAccountSheet)
+            }
+            .sheet(isPresented: $session.isShowingProfileManager) {
+                ProfileManagerSheetView(
+                    session: session,
+                    profileManager: profileManager,
+                    isPresented: $session.isShowingProfileManager
+                ) { targetProfileID in
+                    openProfileWindow(targetProfileID)
+                }
+            }
+            .sheet(isPresented: $session.isShowingCreateProfile) {
+                ProfileEditorSheetView(
+                    profileManager: profileManager,
+                    mode: .create,
+                    isPresented: $session.isShowingCreateProfile
+                ) { newProfileID in
+                    openProfileWindow(newProfileID)
+                }
+            }
+            .sheet(isPresented: $session.isShowingProfileEditor) {
+                ProfileEditorSheetView(
+                    profileManager: profileManager,
+                    mode: .edit(currentProfile),
+                    isPresented: $session.isShowingProfileEditor
+                )
             }
             .sheet(isPresented: $session.isShowingBookmarkManager) {
                 BookmarkManagerView(session: session, isPresented: $session.isShowingBookmarkManager)
@@ -446,15 +494,9 @@ public struct UnifiedToolbarView: View {
         syncDisplayAddress()
     }
 
-    private var toolbarInitialsAvatar: some View {
-        ZStack {
-            Circle()
-                .fill(Color.accentColor.opacity(0.2))
-                .frame(width: 24, height: 24)
-
-            Text(accountManager.currentUser?.displayName.prefix(1).uppercased() ?? "U")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.accentColor)
+    private func openProfileWindow(_ id: UUID) {
+        if !profileManager.focusExistingWindow(forProfileID: id) {
+            openWindow(id: ProfileManager.windowGroupID, value: id)
         }
     }
 }

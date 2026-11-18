@@ -11,6 +11,7 @@ public struct SettingsView: View {
     @Binding var isPresented: Bool
 
     @ObservedObject private var settings = BrowserSettings.shared
+    @ObservedObject private var profileManager = ProfileManager.shared
     @ObservedObject private var defaultBrowserManager = DefaultBrowserManager.shared
     @ObservedObject private var accountManager = AccountManager.shared
     @ObservedObject private var bgManager = HomeBackgroundManager.shared
@@ -71,7 +72,7 @@ public struct SettingsView: View {
             }
             Button("取消", role: .cancel) {}
         } message: {
-            Text("将清除所有网站的本地缓存、Cookie 及离线存储。已登录的网页状态可能需要重新登录。")
+            Text("将清除当前个人资料「\(profileManager.profile(for: session.profileID).displayName)」的所有网站本地缓存、Cookie 及离线存储，不会影响其他个人资料的登录态。")
         }
     }
 
@@ -127,7 +128,12 @@ public struct SettingsView: View {
 
                     Divider()
 
-                    // 5. 账号与云端同步 (Account & Cloud Sync)
+                    // 5. 个人资料与多账号隔离 (Chrome-style Profiles)
+                    profileSection
+
+                    Divider()
+
+                    // 6. 账号与云端同步 (Account & Cloud Sync)
                     accountSection
 
                     Divider()
@@ -721,7 +727,46 @@ public struct SettingsView: View {
         }
     }
 
-    // 5. 账号与云端同步
+    // 5. 个人资料与多账号隔离
+    private var profileSection: some View {
+        let currentProfile = profileManager.profile(for: session.profileID)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                sectionHeader(title: "个人资料 (多账号隔离)", icon: "person.2.circle.fill")
+                Spacer()
+                Button("添加个人资料...") {
+                    isPresented = false
+                    session.isShowingCreateProfile = true
+                }
+                .font(.system(size: 12))
+
+                Button("管理个人资料...") {
+                    isPresented = false
+                    session.isShowingProfileManager = true
+                }
+                .font(.system(size: 12))
+            }
+
+            HStack(spacing: 12) {
+                ProfileAvatarBadge(profile: currentProfile, size: 32)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("当前窗口：\(currentProfile.displayName)")
+                        .font(.system(size: 12.5, weight: .semibold))
+                    Text("共 \(profileManager.profiles.count) 个个人资料 · 每个资料拥有独立 Cookie、LocalStorage 与 Google 登录态")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(currentProfile.tintColor.opacity(0.08))
+            .cornerRadius(8)
+        }
+    }
+
+    // 6. 账号与云端同步
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {

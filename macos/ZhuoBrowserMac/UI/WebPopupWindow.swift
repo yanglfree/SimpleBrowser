@@ -311,9 +311,13 @@ public final class WebPopupWindowManager: NSObject {
 
     /// Opens a third-party login or OAuth URL in a dedicated popup window.
     @discardableResult
-    public func openPopup(url: URL, parentWindow: NSWindow? = nil) -> WebPopupWindowController {
+    public func openPopup(
+        url: URL,
+        parentWindow: NSWindow? = nil,
+        websiteDataStore: WKWebsiteDataStore = .default()
+    ) -> WebPopupWindowController {
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()
+        config.websiteDataStore = websiteDataStore
         config.applicationNameForUserAgent = TabController.safariApplicationNameForUserAgent
 
         let contentRect = NSRect(x: 0, y: 0, width: Self.defaultPopupWidth, height: Self.defaultPopupHeight)

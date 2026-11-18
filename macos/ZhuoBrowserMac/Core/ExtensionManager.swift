@@ -928,8 +928,18 @@ public final class ExtensionManager: ObservableObject {
     }
 
     private func syncAllOpenTabs(evaluateLiveScripts: Bool) {
-        let targetSession = session ?? BrowserSession.shared
-        targetSession.applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: evaluateLiveScripts)
+        let activeSessions = ProfileManager.shared.activeSessions
+        if activeSessions.isEmpty {
+            let targetSession = session ?? BrowserSession.shared
+            targetSession.applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: evaluateLiveScripts)
+            return
+        }
+        for activeSession in activeSessions {
+            activeSession.applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: evaluateLiveScripts)
+        }
+        if let session, !activeSessions.contains(where: { $0 === session }) {
+            session.applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: evaluateLiveScripts)
+        }
     }
 
     // MARK: - Numeric Tab ID Mapping for `chrome.tabs`
@@ -1010,7 +1020,12 @@ public final class ExtensionManager: ObservableObject {
         sourceTabID: String?,
         completion: @escaping (Any?, String?) -> Void
     ) {
-        let targetSession = session ?? BrowserSession.shared
+        let targetSession: BrowserSession
+        if let sourceTabID, let matchedSession = ProfileManager.shared.session(containingTabID: sourceTabID) {
+            targetSession = matchedSession
+        } else {
+            targetSession = session ?? ProfileManager.shared.focusedSession
+        }
 
         switch action {
         // 1. Storage APIs

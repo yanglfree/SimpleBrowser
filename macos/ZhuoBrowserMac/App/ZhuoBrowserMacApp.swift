@@ -27,7 +27,7 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
         guard !RuntimeEnvironment.isRunningUnitTests else { return }
         for url in urls {
-            BrowserSession.shared.openExternalURL(url.absoluteString)
+            ProfileManager.shared.focusedSession.openExternalURL(url.absoluteString)
         }
     }
 
@@ -41,9 +41,7 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidResignActive(_ notification: Notification) {
-        CookieSessionStore.shared.persistSessionCookies()
-        WebSessionStorageStore.shared.flushAsync()
-        BrowserSession.shared.captureSessionOnResignActive()
+        ProfileManager.shared.persistAllSessionsForResignActive()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -54,16 +52,14 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
     private func handleInitialLaunchArguments() {
         let urls = SingleInstanceGuard.extractURLs(from: CommandLine.arguments)
         for url in urls {
-            BrowserSession.shared.openExternalURL(url)
+            ProfileManager.shared.focusedSession.openExternalURL(url)
         }
     }
 
     private func flushAllStateForTermination() {
         WebPopupWindowManager.shared.closeAllPopups()
         BrowserSettings.shared.flushSynchronously()
-        CookieSessionStore.shared.persistSessionCookiesSynchronously()
-        WebSessionStorageStore.shared.flushSynchronously()
-        BrowserSession.shared.captureSessionForTermination(synchronously: true)
+        ProfileManager.shared.flushAllSessionsForTermination()
     }
 
     private func installTerminationSignalHandlers() {
@@ -135,10 +131,15 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
 @main
 public struct ZhuoBrowserMacApp: App {
     @NSApplicationDelegateAdaptor(ZhuoBrowserMacAppDelegate.self) private var appDelegate
-    private let session = BrowserSession.shared
+    @ObservedObject private var profileManager = ProfileManager.shared
+    @Environment(\.openWindow) private var openWindow
 
     /// How many of the most recent visits are listed directly in the History menu.
     private static let recentHistoryLimit = 10
+
+    private var session: BrowserSession {
+        profileManager.focusedSession
+    }
 
     public init() {
         guard !RuntimeEnvironment.isRunningUnitTests else { return }
@@ -148,13 +149,22 @@ public struct ZhuoBrowserMacApp: App {
         _ = CredentialStore.shared
     }
 
+    private func openProfileWindow(_ id: UUID) {
+        if !profileManager.focusExistingWindow(forProfileID: id) {
+            openWindow(id: ProfileManager.windowGroupID, value: id)
+        }
+    }
+
     public var body: some Scene {
-        WindowGroup {
-            MainWindowView(session: session)
+        WindowGroup(id: ProfileManager.windowGroupID, for: UUID.self) { $profileID in
+            let targetSession = profileManager.session(for: profileID)
+            MainWindowView(session: targetSession)
                 .handlesExternalEvents(preferring: Set(["*"]), allowing: Set(["*"]))
                 .onOpenURL { url in
-                    session.openExternalURL(url.absoluteString)
+                    profileManager.focusedSession.openExternalURL(url.absoluteString)
                 }
+        } defaultValue: {
+            ProfileManager.shared.initialLaunchProfileID
         }
         .windowStyle(.hiddenTitleBar)
         .handlesExternalEvents(matching: Set(["*"]))
@@ -441,6 +451,34 @@ public struct ZhuoBrowserMacApp: App {
                             Button(ext.manifest.name) {
                                 session.extensionManager.triggerExtensionAction(id: ext.id, in: session)
                             }
+                        }
+                    }
+                }
+            }
+
+            CommandMenu("个人资料") {
+                Button("添加个人资料...") {
+                    session.isShowingCreateProfile = true
+                }
+
+                Button("编辑当前个人资料...") {
+                    session.isShowingProfileEditor = true
+                }
+
+                Button("管理个人资料...") {
+                    session.isShowingProfileManager = true
+                }
+
+                Divider()
+
+                ForEach(profileManager.profiles) { profile in
+                    Button {
+                        openProfileWindow(profile.id)
+                    } label: {
+                        if profile.id == profileManager.focusedProfileID {
+                            Text("✓ \(profile.displayName)")
+                        } else {
+                            Text(profile.displayName)
                         }
                     }
                 }

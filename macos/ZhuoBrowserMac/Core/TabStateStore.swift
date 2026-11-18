@@ -27,22 +27,32 @@ public final class TabStateStore {
     private var memoryCache: [String: TabStateSnapshot] = [:]
     private var memoryOrder: [String] = []
 
-    public init(fileManager: FileManager = .default, isPersistenceEnabled: Bool = !RuntimeEnvironment.isRunningUnitTests) {
+    public init(
+        fileManager: FileManager = .default,
+        isPersistenceEnabled: Bool = !RuntimeEnvironment.isRunningUnitTests,
+        rootURL: URL? = nil
+    ) {
         self.fileManager = fileManager
         self.isPersistenceEnabled = isPersistenceEnabled
 
-        if isPersistenceEnabled,
-           let base = try? fileManager.url(
-               for: .applicationSupportDirectory,
-               in: .userDomainMask,
-               appropriateFor: nil,
-               create: true
-           ) {
-            let root = base
-                .appendingPathComponent("ZhuoBrowserMac", isDirectory: true)
-                .appendingPathComponent("TabState", isDirectory: true)
-            try? fileManager.createDirectory(at: root, withIntermediateDirectories: true)
-            self.rootURL = root
+        if isPersistenceEnabled {
+            if let rootURL {
+                try? fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
+                self.rootURL = rootURL
+            } else if let base = try? fileManager.url(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            ) {
+                let root = base
+                    .appendingPathComponent("ZhuoBrowserMac", isDirectory: true)
+                    .appendingPathComponent("TabState", isDirectory: true)
+                try? fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+                self.rootURL = root
+            } else {
+                self.rootURL = nil
+            }
         } else {
             self.rootURL = nil
         }

@@ -15,7 +15,18 @@ import WebKit
 /// The live pool is capped by `MemoryBudgetPolicy` (and auto-shrunk under system
 /// memory pressure), so parallel tabs stay bounded without ever forcing a re-fetch.
 public final class BrowserSession: ObservableObject {
-    public static let shared = BrowserSession()
+    public static var shared: BrowserSession {
+        ProfileManager.shared.defaultSession
+    }
+
+    public let profileID: UUID
+    public let isDefaultProfile: Bool
+    public let websiteDataStore: WKWebsiteDataStore
+    public let cookieSessionStore: CookieSessionStore
+    public let webSessionStorageStore: WebSessionStorageStore
+    public let libraryStore: LibraryStore
+    public let favoritesManager: FavoritesManager
+    public weak var hostWindow: NSWindow?
 
     @Published public var tabs: [BrowserTab] = []
     @Published public var activeTabID: String?
@@ -54,12 +65,15 @@ public final class BrowserSession: ObservableObject {
     @Published public var isShowingOmniboxBookmarkPopover: Bool = false
     @Published public var bookmarkManagerSelectedFolderID: String? = nil
     @Published public var isShowingSettings: Bool = false
+    @Published public var isShowingAccountSheet: Bool = false
+    @Published public var isShowingProfileManager: Bool = false
+    @Published public var isShowingCreateProfile: Bool = false
+    @Published public var isShowingProfileEditor: Bool = false
     @Published public var librarySelectedTab: Int = 0
     @Published public private(set) var canReopenClosedTab: Bool = false
 
     public let settings = BrowserSettings.shared
     public let extensionManager: ExtensionManager
-    private let libraryStore = LibraryStore.shared
     private let stateStore: TabStateStore
     private let pressureMonitor: MemoryPressureMonitor
 
@@ -88,12 +102,34 @@ public final class BrowserSession: ObservableObject {
     }
 
     public init(
+        profileID: UUID = ProfileManager.defaultFallbackProfileID,
+        isDefaultProfile: Bool = true,
+        websiteDataStore: WKWebsiteDataStore = .default(),
+        cookieSessionStore: CookieSessionStore = .shared,
+        webSessionStorageStore: WebSessionStorageStore = .shared,
         stateStore: TabStateStore = .shared,
+        libraryStore: LibraryStore = .shared,
+        favoritesManager: FavoritesManager? = nil,
         pressureMonitor: MemoryPressureMonitor = .shared,
         extensionManager: ExtensionManager = .shared,
         restoresPreviousSession: Bool? = nil
     ) {
+        self.profileID = profileID
+        self.isDefaultProfile = isDefaultProfile
+        self.websiteDataStore = websiteDataStore
+        self.cookieSessionStore = cookieSessionStore
+        self.webSessionStorageStore = webSessionStorageStore
         self.stateStore = stateStore
+        self.libraryStore = libraryStore
+        if let favoritesManager {
+            self.favoritesManager = favoritesManager
+        } else if Thread.isMainThread {
+            self.favoritesManager = MainActor.assumeIsolated { FavoritesManager.shared }
+        } else {
+            self.favoritesManager = DispatchQueue.main.sync {
+                MainActor.assumeIsolated { FavoritesManager.shared }
+            }
+        }
         self.pressureMonitor = pressureMonitor
         self.extensionManager = extensionManager
         extensionManager.session = self
@@ -105,8 +141,8 @@ public final class BrowserSession: ObservableObject {
 
         // Re-inject the session cookies archived at the last quit *before* any page
         // starts loading, otherwise sites would treat the first paint as logged out.
-        CookieSessionStore.shared.restoreArchivedCookies()
-        CookieSessionStore.shared.startPeriodicFlush()
+        cookieSessionStore.restoreArchivedCookies()
+        cookieSessionStore.startPeriodicFlush()
 
         // Load saved bookmarks, folders, and history
         let initialLibrary = libraryStore.loadInitialBookmarksAndFolders()
@@ -473,12 +509,11 @@ public final class BrowserSession: ObservableObject {
 
         if !RuntimeEnvironment.isRunningUnitTests {
             NSApp.activate(ignoringOtherApps: true)
-            for window in NSApp.windows where window.canBecomeKey {
+            if let window = hostWindow ?? NSApp.windows.first(where: { $0.canBecomeKey }) {
                 if window.isMiniaturized {
                     window.deminiaturize(nil)
                 }
                 window.makeKeyAndOrderFront(nil)
-                break
             }
         }
 
@@ -1101,13 +1136,14 @@ public final class BrowserSession: ObservableObject {
     private func syncFavoritesManager() {
         let foldersSnapshot = bookmarkFolders
         let bookmarksSnapshot = bookmarks
+        let manager = favoritesManager
         if Thread.isMainThread {
             MainActor.assumeIsolated {
-                FavoritesManager.shared.sync(folders: foldersSnapshot, bookmarks: bookmarksSnapshot)
+                manager.sync(folders: foldersSnapshot, bookmarks: bookmarksSnapshot)
             }
         } else {
             Task { @MainActor in
-                FavoritesManager.shared.sync(folders: foldersSnapshot, bookmarks: bookmarksSnapshot)
+                manager.sync(folders: foldersSnapshot, bookmarks: bookmarksSnapshot)
             }
         }
     }
@@ -1150,13 +1186,13 @@ public final class BrowserSession: ObservableObject {
             completion?()
             return
         }
-        // Never wipe the user's real WebKit cookies/storage when running unit tests.
-        let targetStore: WKWebsiteDataStore = RuntimeEnvironment.isRunningUnitTests
+        // Never wipe the user's real default WebKit cookies/storage when running unit tests.
+        let targetStore: WKWebsiteDataStore = (RuntimeEnvironment.isRunningUnitTests && websiteDataStore === WKWebsiteDataStore.default())
             ? .nonPersistent()
-            : .default()
-        if clearCookies && !RuntimeEnvironment.isRunningUnitTests {
-            CookieSessionStore.shared.clearArchive()
-            WebSessionStorageStore.shared.clearAll()
+            : websiteDataStore
+        if clearCookies {
+            cookieSessionStore.clearArchive()
+            webSessionStorageStore.clearAll()
             applyContentProtectionSettingsToAllTabs()
         }
         targetStore.removeData(ofTypes: dataTypes, modifiedSince: Date.distantPast) {
@@ -1164,6 +1200,20 @@ public final class BrowserSession: ObservableObject {
                 completion?()
             }
         }
+    }
+
+    /// Destroys all live WebViews and stops periodic cookie flushing when a profile is deleted.
+    public func shutdownAllWebViews() {
+        sessionPersistenceWork?.cancel()
+        sessionPersistenceWork = nil
+        cookieSessionStore.stopPeriodicFlush()
+        pendingHibernations.removeAll()
+        let ids = Array(controllers.keys)
+        for id in ids {
+            teardownController(for: id)
+        }
+        activeController = nil
+        activeLiveControllersCount = 0
     }
 
     public func openLibrary(tabIndex: Int = 0) {

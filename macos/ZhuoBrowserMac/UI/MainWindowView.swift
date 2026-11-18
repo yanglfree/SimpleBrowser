@@ -3,17 +3,31 @@ import SwiftUI
 /// Main window view composing the toolbar, tab strip, and content viewport.
 public struct MainWindowView: View {
     @ObservedObject var session: BrowserSession
+    @ObservedObject private var profileManager = ProfileManager.shared
 
     private var isHomeActive: Bool {
         session.activeTab?.isHome ?? true
     }
 
+    private var currentProfile: BrowserProfile {
+        profileManager.profile(for: session.profileID)
+    }
+
     /// Window menu and Mission Control read the window title. Home tabs show the
     /// product name instead of the generic "新标签页" so the chrome never presents
-    /// a second, competing brand.
+    /// a second, competing brand. When multiple profiles exist, append the profile
+    /// name so separate Google account windows are easy to tell apart.
     private var windowTitle: String {
-        guard let tab = session.activeTab, !tab.isHome else { return "Zhuo浏览器" }
-        return tab.displayTitle
+        let baseTitle: String
+        if let tab = session.activeTab, !tab.isHome {
+            baseTitle = tab.displayTitle
+        } else {
+            baseTitle = "Zhuo浏览器"
+        }
+        if profileManager.profiles.count > 1 || !currentProfile.isDefault {
+            return "\(baseTitle) — \(currentProfile.displayName)"
+        }
+        return baseTitle
     }
 
     public var body: some View {
@@ -57,13 +71,13 @@ public struct MainWindowView: View {
         .frame(minWidth: 700, minHeight: 480)
         .navigationTitle(windowTitle)
         .ignoresSafeArea(.all, edges: .top)
-        .background(WindowConfigurator())
+        .background(WindowConfigurator(profileID: session.profileID))
         .background(Color(NSColor.windowBackgroundColor))
         .sheet(isPresented: $session.isShowingSettings) {
             SettingsView(session: session, isPresented: $session.isShowingSettings)
         }
         .onAppear {
-            if AccountManager.shared.isLoggedIn {
+            if session.isDefaultProfile && AccountManager.shared.isLoggedIn {
                 Task {
                     await AccountManager.shared.syncWithCloud(session: session)
                 }

@@ -7,7 +7,7 @@ public struct FavoritesSectionView: View {
     @ObservedObject var session: BrowserSession
     let hasWallpaper: Bool
 
-    @ObservedObject private var favoritesManager = FavoritesManager.shared
+    @ObservedObject private var favoritesManager: FavoritesManager
     @State private var activeFolderID: String?
     @State private var editingRootBookmarkID: String?
     @State private var isShowingAddBookmarkPopover: Bool = false
@@ -23,6 +23,7 @@ public struct FavoritesSectionView: View {
     public init(session: BrowserSession, hasWallpaper: Bool) {
         self.session = session
         self.hasWallpaper = hasWallpaper
+        self._favoritesManager = ObservedObject(wrappedValue: session.favoritesManager)
     }
 
     public var body: some View {

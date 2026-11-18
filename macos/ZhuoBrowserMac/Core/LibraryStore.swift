@@ -25,11 +25,19 @@ public final class LibraryStore: @unchecked Sendable {
         directoryURL.appendingPathComponent("bookmark_tombstones.json")
     }
 
-    public init(isPersistenceEnabled: Bool = !RuntimeEnvironment.isRunningUnitTests) {
+    public init(
+        isPersistenceEnabled: Bool = !RuntimeEnvironment.isRunningUnitTests,
+        directoryURL: URL? = nil
+    ) {
         self.isPersistenceEnabled = isPersistenceEnabled
         let fileManager = FileManager.default
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("ZhuoBrowserMac", isDirectory: true)
+        let dir: URL
+        if let directoryURL {
+            dir = directoryURL
+        } else {
+            let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            dir = appSupport.appendingPathComponent("ZhuoBrowserMac", isDirectory: true)
+        }
 
         if isPersistenceEnabled && !fileManager.fileExists(atPath: dir.path) {
             try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true, attributes: nil)

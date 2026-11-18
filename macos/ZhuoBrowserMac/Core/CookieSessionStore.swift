@@ -26,27 +26,36 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
     private var isRestoring: Bool = false
     private var readyCallbacks: [() -> Void] = []
     private var isObservingCookieStore: Bool = false
+    private lazy var observerProxy = WeakCookieObserverProxy(owner: self)
     private let ioQueue = DispatchQueue(label: "com.youdroid.zhuobrowser.cookie-session", qos: .utility)
 
     public init(
         dataStore: WKWebsiteDataStore = .default(),
         fileManager: FileManager = .default,
-        isPersistenceEnabled: Bool = !RuntimeEnvironment.isRunningUnitTests
+        isPersistenceEnabled: Bool = !RuntimeEnvironment.isRunningUnitTests,
+        archiveURL: URL? = nil
     ) {
         self.dataStore = dataStore
         self.fileManager = fileManager
         self.isPersistenceEnabled = isPersistenceEnabled
 
-        if isPersistenceEnabled,
-           let base = try? fileManager.url(
-               for: .applicationSupportDirectory,
-               in: .userDomainMask,
-               appropriateFor: nil,
-               create: true
-           ) {
-            let directory = base.appendingPathComponent("ZhuoBrowserMac/SessionCookies", isDirectory: true)
-            try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-            self.archiveURL = directory.appendingPathComponent("session-cookies.archive")
+        if isPersistenceEnabled {
+            if let archiveURL {
+                let directory = archiveURL.deletingLastPathComponent()
+                try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+                self.archiveURL = archiveURL
+            } else if let base = try? fileManager.url(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true
+            ) {
+                let directory = base.appendingPathComponent("ZhuoBrowserMac/SessionCookies", isDirectory: true)
+                try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+                self.archiveURL = directory.appendingPathComponent("session-cookies.archive")
+            } else {
+                self.archiveURL = nil
+            }
         } else {
             self.archiveURL = nil
         }
@@ -57,7 +66,7 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
             DispatchQueue.main.async { [weak self] in
                 guard let self, !self.isObservingCookieStore else { return }
                 self.isObservingCookieStore = true
-                self.dataStore.httpCookieStore.add(self)
+                self.dataStore.httpCookieStore.add(self.observerProxy)
             }
         }
     }
@@ -65,8 +74,9 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
     deinit {
         if isObservingCookieStore {
             let store = dataStore.httpCookieStore
+            let proxy = observerProxy
             DispatchQueue.main.async {
-                store.remove(self)
+                store.remove(proxy)
             }
         }
     }
@@ -573,5 +583,17 @@ public final class WebSessionStorageStore {
         isBootstrapScriptDirty = false
         lock.unlock()
         return script
+    }
+}
+
+private final class WeakCookieObserverProxy: NSObject, WKHTTPCookieStoreObserver {
+    private weak var owner: CookieSessionStore?
+
+    init(owner: CookieSessionStore) {
+        self.owner = owner
+    }
+
+    func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
+        owner?.cookiesDidChange(in: cookieStore)
     }
 }
