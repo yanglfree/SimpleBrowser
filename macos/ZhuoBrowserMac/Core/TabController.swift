@@ -105,6 +105,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     private let isPrivateTab: Bool
     private var hasRegisteredPageExtensionBridge: Bool = false
     private var appliedSessionStorageGeneration: Int = -1
+    private var isContentProtectionBypassedForAllowlist: Bool = false
 
     /// - Parameters:
     ///   - initialURL: navigation target used only when no restorable snapshot exists
@@ -181,9 +182,12 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             contentWorld: .defaultClient,
             name: "zhuoAutoFill"
         )
-        applyContentProtection(to: userContentController)
+        applyContentProtection(to: userContentController, configuration: config)
 
-        // Preferences for performance
+        // Preferences for performance, video fullscreen, and safe browsing
+        config.preferences.isElementFullscreenEnabled = true
+        let effectiveSettings = session?.settings ?? BrowserSettings.shared
+        SecurityRuntimeService.applySafeBrowsing(level: effectiveSettings.safeBrowsingLevel, to: config)
         let prefs = WKWebpagePreferences()
         prefs.allowsContentJavaScript = true
         config.defaultWebpagePreferences = prefs
@@ -257,12 +261,15 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
 
     public func applyContentProtectionSettings(evaluateLiveScripts: Bool = false) {
-        guard let userContentController = webView?.configuration.userContentController else { return }
-        applyContentProtection(to: userContentController)
+        guard let webView else { return }
+        let userContentController = webView.configuration.userContentController
+        let host = URLPolicy.rawHost(webView.url?.absoluteString ?? lastTargetURL?.absoluteString ?? session?.tab(for: tabID)?.url ?? "")
+        applyContentProtection(to: userContentController, configuration: webView.configuration, host: host)
 
-        guard evaluateLiveScripts, let webView, webView.url != nil else { return }
-        let cosmeticEnabled = session?.settings.cosmeticCleanupEnabled ?? BrowserSettings.shared.cosmeticCleanupEnabled
-        if cosmeticEnabled {
+        guard evaluateLiveScripts, webView.url != nil else { return }
+        let activeSettings = session?.settings ?? BrowserSettings.shared
+        let isAllowlisted = activeSettings.isHostAllowlisted(host)
+        if activeSettings.cosmeticCleanupEnabled && !isAllowlisted {
             if let script = InjectedScripts.shared.scriptContent(named: "content-cleanup-standard") {
                 webView.evaluateJavaScript(script, in: nil, in: .defaultClient, completionHandler: nil)
             }
@@ -275,8 +282,22 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         extManager.evaluateEnabledExtensions(on: webView, tabID: tabID, isPrivate: isPrivateTab)
     }
 
-    private func applyContentProtection(to userContentController: WKUserContentController) {
+    private func applyContentProtection(
+        to userContentController: WKUserContentController,
+        configuration: WKWebViewConfiguration? = nil,
+        host: String? = nil
+    ) {
         let activeSettings = session?.settings ?? BrowserSettings.shared
+        let resolvedHost = host ?? URLPolicy.rawHost(
+            webView?.url?.absoluteString ?? lastTargetURL?.absoluteString ?? session?.tab(for: tabID)?.url ?? ""
+        )
+        let isAllowlisted = activeSettings.isHostAllowlisted(resolvedHost)
+        isContentProtectionBypassedForAllowlist = isAllowlisted
+
+        if let targetConfig = configuration ?? webView?.configuration {
+            SecurityRuntimeService.applySafeBrowsing(level: activeSettings.safeBrowsingLevel, to: targetConfig)
+        }
+
         userContentController.removeAllUserScripts()
         if !isPrivateTab {
             let sessionStorageStore = session?.webSessionStorageStore ?? WebSessionStorageStore.shared
@@ -285,11 +306,20 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 userContentController.addUserScript(sessionStorageScript)
             }
         }
-        if activeSettings.adBlockEnabled, let trackerScript = InjectedScripts.shared.makeTrackerBlockScript() {
+        if !activeSettings.javascriptJITOptimizationEnabled {
+            userContentController.addUserScript(SecurityRuntimeService.makeHardenedNoJITScript())
+        }
+        if activeSettings.adBlockEnabled && !isAllowlisted,
+           let trackerScript = InjectedScripts.shared.makeTrackerBlockScript() {
             userContentController.addUserScript(trackerScript)
         }
-        if activeSettings.cosmeticCleanupEnabled, let cosmeticScript = InjectedScripts.shared.makeCosmeticCleanupScript() {
+        if activeSettings.cosmeticCleanupEnabled && !isAllowlisted,
+           let cosmeticScript = InjectedScripts.shared.makeCosmeticCleanupScript() {
             userContentController.addUserScript(cosmeticScript)
+        }
+        if activeSettings.safeBrowsingLevel == .enhanced,
+           let linkGuardScript = InjectedScripts.shared.makeBlockedLinkGuardScript() {
+            userContentController.addUserScript(linkGuardScript)
         }
         if let autoFillScript = InjectedScripts.shared.makeAutoFillScript() {
             userContentController.addUserScript(autoFillScript)
@@ -302,8 +332,18 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
 
         userContentController.removeAllContentRuleLists()
-        if activeSettings.adBlockEnabled {
+        if activeSettings.adBlockEnabled && !isAllowlisted {
             ContentBlocker.shared.install(on: userContentController)
+        }
+    }
+
+    private func refreshContentProtectionIfNeeded(for targetURL: URL?) {
+        guard let webView else { return }
+        let activeSettings = session?.settings ?? BrowserSettings.shared
+        let host = URLPolicy.rawHost(targetURL?.absoluteString ?? "")
+        let shouldBypass = activeSettings.isHostAllowlisted(host)
+        if shouldBypass != isContentProtectionBypassedForAllowlist {
+            applyContentProtection(to: webView.configuration.userContentController, configuration: webView.configuration, host: host)
         }
     }
 
@@ -330,9 +370,11 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
            let upgraded = URL(string: URLPolicy.upgradeToHTTPSIfPublicHost(targetURL.absoluteString)) {
             targetURL = upgraded
         }
+        refreshContentProtectionIfNeeded(for: targetURL)
         if !URLPolicy.isBlankURL(targetURL.absoluteString) {
             lastTargetURL = targetURL
             lastNavigationFailed = false
+            session?.updateTab(tabID) { $0.loadErrorDescription = nil }
         }
         ensurePageExtensionBridgeIfNeeded(for: targetURL, on: webView.configuration.userContentController)
         if targetURL.isFileURL {
@@ -460,6 +502,30 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     public func stopLoading() {
         webView?.stopLoading()
+    }
+
+    public func find(query: String, forward: Bool = true) {
+        guard let webView else { return }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let config = WKFindConfiguration()
+        config.backwards = !forward
+        config.caseSensitive = false
+        config.wraps = true
+        webView.find(trimmed, configuration: config) { _ in }
+    }
+
+    public func printCurrentDocument() {
+        guard let webView else { return }
+        let printInfo = NSPrintInfo.shared
+        let operation = webView.printOperation(with: printInfo)
+        operation.showsPrintPanel = true
+        operation.showsProgressPanel = true
+        if let window = webView.window {
+            operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+        } else {
+            operation.run()
+        }
     }
 
     // MARK: - Snapshot / Restore
@@ -752,11 +818,15 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         session?.updateTab(tabID) { tab in
             tab.isLoading = true
             tab.loadingProgress = 0.1
+            tab.loadErrorDescription = nil
         }
     }
 
     public func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         hasCommittedNavigation = true
+        session?.updateTab(tabID) { tab in
+            tab.loadErrorDescription = nil
+        }
     }
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -869,6 +939,32 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         return nil
     }
 
+    public static func userFacingErrorMessage(for error: Error) -> String? {
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+            return nil
+        }
+        // WebKit frame-load interrupted by policy change (e.g. download handoff)
+        if nsError.domain == "WebKitErrorDomain" && nsError.code == 102 {
+            return nil
+        }
+        switch (nsError.domain, nsError.code) {
+        case (NSURLErrorDomain, NSURLErrorNotConnectedToInternet):
+            return "似乎已断开与互联网的连接，请检查网络设置后重试。"
+        case (NSURLErrorDomain, NSURLErrorCannotFindHost), (NSURLErrorDomain, NSURLErrorDNSLookupFailed):
+            return "找不到该服务器域名，请检查网址拼写或 DNS 设置。"
+        case (NSURLErrorDomain, NSURLErrorTimedOut):
+            return "请求超时，目标服务器响应时间过长。"
+        case (NSURLErrorDomain, NSURLErrorSecureConnectionFailed),
+             (NSURLErrorDomain, NSURLErrorServerCertificateUntrusted),
+             (NSURLErrorDomain, NSURLErrorServerCertificateHasBadDate),
+             (NSURLErrorDomain, NSURLErrorServerCertificateHasUnknownRoot):
+            return "安全连接 (HTTPS) 验证失败，证书不受信任或已过期。"
+        default:
+            return nsError.localizedDescription.isEmpty ? "无法打开该网页。" : nsError.localizedDescription
+        }
+    }
+
     /// Handles a navigation failure while preserving the intended target URL on the tab
     /// so the address bar never reverts to `about:blank` and `Cmd+R` can retry the URL.
     public func handleNavigationFailure(_ error: Error, wasRestoring: Bool = false) {
@@ -881,9 +977,15 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             lastTargetURL = failingURL
         }
 
+        let willFallbackFromRestore = wasRestoring && !didAttemptRestoreFallback && restoreFallbackURL != nil
+        let errorMessage = willFallbackFromRestore ? nil : Self.userFacingErrorMessage(for: error)
+
         let preservedURLString = lastTargetURL?.absoluteString
         session?.updateTab(tabID) { tab in
             tab.isLoading = false
+            if let errorMessage {
+                tab.loadErrorDescription = errorMessage
+            }
             if let preserved = preservedURLString,
                !preserved.isEmpty,
                !URLPolicy.isBlankURL(preserved),
@@ -966,6 +1068,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 return
             }
             lastTargetURL = url
+            refreshContentProtectionIfNeeded(for: url)
             ensurePageExtensionBridgeIfNeeded(for: url, on: webView.configuration.userContentController)
         }
         decisionHandler(.allow)
@@ -1264,6 +1367,43 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
     }
 
+    public func webView(
+        _ webView: WKWebView,
+        requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        type: WKMediaCaptureType,
+        decisionHandler: @escaping (WKPermissionDecision) -> Void
+    ) {
+        let resourceName: String
+        switch type {
+        case .camera:
+            resourceName = "摄像头"
+        case .microphone:
+            resourceName = "麦克风"
+        case .cameraAndMicrophone:
+            resourceName = "摄像头和麦克风"
+        @unknown default:
+            resourceName = "音视频设备"
+        }
+
+        let host = origin.host.isEmpty ? (webView.url?.host ?? "此网站") : origin.host
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "“\(host)”请求使用您的\(resourceName)"
+        alert.informativeText = "允许后，该网站将可以在当前会话中访问您的\(resourceName)。"
+        alert.addButton(withTitle: "允许")
+        alert.addButton(withTitle: "拒绝")
+
+        if let window = webView.window {
+            alert.beginSheetModal(for: window) { response in
+                decisionHandler(response == .alertFirstButtonReturn ? .grant : .deny)
+            }
+        } else {
+            let response = alert.runModal()
+            decisionHandler(response == .alertFirstButtonReturn ? .grant : .deny)
+        }
+    }
+
     fileprivate func handleSessionStorageMessage(_ message: WKScriptMessage) {
         guard !isPrivateTab,
               let payload = message.body as? [String: Any],
@@ -1405,12 +1545,20 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
         let account = username.isEmpty ? "未命名账户" : username
         let isUpdate = CredentialStore.shared.hasCredential(domain: hostname, username: account)
+        let activeSettings = session?.settings ?? BrowserSettings.shared
+        let isCompromised = activeSettings.leakedPasswordDetectionEnabled
+            && SecurityRuntimeService.isPasswordKnownCompromised(password)
+
         let alert = NSAlert()
-        alert.alertStyle = .informational
+        alert.alertStyle = isCompromised ? .warning : .informational
         alert.messageText = isUpdate
             ? "要更新“\(hostname)”的密码吗？"
             : "要存储“\(hostname)”的密码吗？"
-        alert.informativeText = "账户：\(account)\n密码将保存到 macOS 登录钥匙串（钥匙串访问 → 密码），只有本应用可以读取。"
+        var details = "账户：\(account)\n密码将保存到 macOS 登录钥匙串（钥匙串访问 → 密码），只有本应用可以读取。"
+        if isCompromised {
+            details += "\n\n⚠️ 安全预警：检测到此密码属于常见高危或已知泄露弱口令，建议登录后尽快更换为独立强密码。"
+        }
+        alert.informativeText = details
         alert.addButton(withTitle: isUpdate ? "更新密码" : "存储密码")
         alert.addButton(withTitle: "稍后")
 

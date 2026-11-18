@@ -48,9 +48,9 @@
         <a href="#mac-features">核心优势</a>
         <a href="#extensions">扩展生态</a>
         <a href="#security">安全与钥匙串</a>
-        <a href="#specs">技术规格</a>
+        <a href="#specs">版本对比</a>
         <a href="#harmony">HarmonyOS 版</a>
-        <a class="nav-cta" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>下载 Mac 版</a>
+        <a class="nav-cta" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>下载公证 DMG</a>
       </div>
     </nav>
   </header>
@@ -69,34 +69,44 @@
         </p>
 
         <div class="hero-actions">
-          <a class="primary-link" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>
+          <a class="primary-link" href="#release-channels">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+            <span>Mac App Store 官方版 (优先推荐)</span>
+          </a>
+          <a class="secondary-link" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            <span>下载 macOS 版 (.dmg)</span>
+            <span>官网公证独立版 (.dmg)</span>
           </a>
           <a class="secondary-link store-link" href="https://appgallery.huawei.com/app/detail?id=com.youdroid.browser&channelId=SHARE&source=appshare" target="_blank" rel="noopener noreferrer">
             <span>HarmonyOS NEXT 版</span>
           </a>
         </div>
 
-        <div class="download-meta" aria-label="安装包签名与版本信息">
+        <div class="download-meta" aria-label="双渠道分发与签名版本信息">
           <div class="meta-badges">
             <span class="meta-badge meta-badge-verified">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
-              Apple Developer ID 已签名 &amp; 公证 (Notarized)
+              Mac App Store 沙盒合规 · 优先上架
+            </span>
+            <span class="meta-badge meta-badge-verified">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+              官网 DMG · Developer ID 签名与 Apple 公证
             </span>
             <span class="meta-badge">Universal (Apple Silicon + Intel)</span>
             <span class="meta-badge">v1.0.0 · macOS 14.0+ · 23.7 MB</span>
           </div>
           <p class="sha-line">
-            <span>SHA-256:</span>
+            <span>DMG SHA-256:</span>
             <code>cc9f79546bb454bf246060522de6102ade5e5bc3deee55b9f10fa6e1e2d3db82</code>
           </p>
           <p class="en-note">
-            <strong>For Apple Review &amp; Evaluators:</strong> Direct download of the Developer ID signed &amp; notarized universal DMG above. No account or sign-in is required to download or use any core browsing feature.
+            <strong>For Apple Review &amp; Users:</strong> Mac App Store build bundles the 5 curated built-in extensions with full App Sandbox isolation; the notarized universal DMG above additionally enables loading unpacked Chrome MV3 extensions &amp; <code>.crx</code> / <code>.user.js</code> packages. No sign-in is required to use any core browsing feature.
           </p>
         </div>
       </div>
@@ -312,9 +322,49 @@
             </div>
             <div class="spec-row">
               <dt>隐私与数据存储</dt>
-              <dd>书签、历史、会话快照默认存储于本机沙盒；无痕标签页采用 <code>WKWebsiteDataStore.nonPersistent()</code> 内存隔离；可选云端书签同步</dd>
+              <dd>书签、历史、会话快照默认存储于本机沙盒；无痕标签页采用 <code>WKWebsiteDataStore.nonPersistent()</code> 内存隔离；可选云端书签同步与账号一键永久注销</dd>
             </div>
           </dl>
+        </div>
+      </div>
+
+      <div class="shell channel-compare-wrap" id="release-channels" aria-labelledby="channels-title">
+        <div class="channel-compare-head">
+          <p class="eyebrow eyebrow-light">DUAL DISTRIBUTION CHANNELS</p>
+          <h3 id="channels-title">双渠道分发版本对比：按需选择最适合你的方式</h3>
+        </div>
+        <div class="channel-compare-grid">
+          <article class="channel-card channel-card-mas">
+            <div class="channel-card-top">
+              <span class="channel-badge channel-badge-primary">优先推荐 · 上架审核通道</span>
+              <h4>Mac App Store 官方版</h4>
+              <p>遵循 Apple 严格 App Sandbox 审核规范，由 App Store 负责下载校验与系统自动更新。</p>
+            </div>
+            <ul class="channel-list">
+              <li>内置 5 大精选扩展（暗黑护眼、沉浸翻译、资源嗅探、超级复制/JSON、样式标尺），开箱即用</li>
+              <li>完整集成系统登录钥匙串、Touch ID、防欺诈安全浏览、加密 DNS 与页内查找 / 打印</li>
+              <li>为满足 App Store 2.5.2 安全准则，不开放外部第三方 <code>.crx</code> / <code>.user.js</code> 动态脚本导入</li>
+            </ul>
+            <div class="channel-card-actions">
+              <span class="channel-status-pill">正在提交 Mac App Store 审核上架</span>
+            </div>
+          </article>
+
+          <article class="channel-card channel-card-dmg">
+            <div class="channel-card-top">
+              <span class="channel-badge">官网独立分发 · 已通过 Apple 公证</span>
+              <h4>官网公证独立版 (.dmg)</h4>
+              <p>使用 Apple Developer ID 签名并通过 Notarization 公证，支持直装即用与完整扩展生态。</p>
+            </div>
+            <ul class="channel-list">
+              <li>包含 Mac App Store 版全部浏览器内核与 5 大内置精选扩展能力</li>
+              <li>额外完整开放外部 <code>.crx</code> / <code>.zip</code> 扩展包导入、Tampermonkey <code>.user.js</code> 脚本与开发者模式热重载</li>
+              <li>Universal 通用镜像（<code>arm64</code> + <code>x86_64</code>），拖入 Applications 即可运行</li>
+            </ul>
+            <div class="channel-card-actions">
+              <a class="channel-dmg-btn" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>下载公证版 DMG (23.7 MB)</a>
+            </div>
+          </article>
         </div>
       </div>
     </section>
@@ -350,7 +400,7 @@
           <span class="headline-line">轻装上阵，</span>
           <span class="headline-line">回归纯粹浏览。</span>
         </h2>
-        <p>macOS 14.0+ 通用安装包 · Developer ID 签名与 Apple 公证通过 · 拖入 Applications 即可使用。</p>
+        <p>优先通过 Mac App Store 获取官方沙盒认证版，或下载已通过 Apple 公证的 Universal DMG 独立分发版。</p>
         <div class="closing-actions">
           <a class="primary-link" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -358,7 +408,10 @@
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            <span>下载 ZhuoBrowser-1.0.0-mac-universal.dmg (23.7 MB)</span>
+            <span>下载官网公证 DMG (23.7 MB)</span>
+          </a>
+          <a class="secondary-link" href="#release-channels">
+            <span>查看 Mac App Store 版说明</span>
           </a>
         </div>
       </div>

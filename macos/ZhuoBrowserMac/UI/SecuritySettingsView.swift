@@ -111,6 +111,12 @@ public struct SecuritySettingsView: View {
         .sheet(isPresented: $isShowingPasskeySheet) {
             passkeyManagementSheet
         }
+        .onChange(of: settings.safeBrowsingLevel) { _ in
+            session.applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: true)
+        }
+        .onChange(of: settings.javascriptJITOptimizationEnabled) { _ in
+            session.applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: true)
+        }
     }
 
     // MARK: - 1. 安全浏览 (Safe Browsing)

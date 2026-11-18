@@ -922,13 +922,131 @@ code {
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.18);
 }
 
-#mac-features, #extensions, #security, #specs, #harmony {
+#mac-features, #extensions, #security, #specs, #harmony, #release-channels {
   scroll-margin-top: 88px;
+}
+
+.channel-compare-wrap {
+  margin-top: 84px;
+  padding-top: 64px;
+  border-top: 1px solid #32342f;
+}
+
+.channel-compare-head h3 {
+  margin: 0 0 28px;
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 420;
+  color: var(--on-dark);
+}
+
+.channel-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.channel-card {
+  padding: 28px;
+  border-radius: var(--radius-medium);
+  border: 1px solid #353832;
+  background: #252622;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.channel-card-mas {
+  border-color: color-mix(in srgb, var(--focus) 50%, #353832);
+  background: linear-gradient(160deg, #242c28 0%, #20221e 100%);
+}
+
+.channel-badge {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #454942;
+  color: var(--on-dark-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.channel-badge-primary {
+  border-color: rgba(132, 167, 148, 0.55);
+  background: rgba(46, 107, 92, 0.3);
+  color: #b4e8d6;
+}
+
+.channel-card h4 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--on-dark);
+}
+
+.channel-card-top > p {
+  margin: 0;
+  color: var(--on-dark-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.channel-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: #d6d3cb;
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.channel-list code {
+  background: rgba(255, 255, 255, 0.1);
+  color: #b4e8d6;
+}
+
+.channel-card-actions {
+  padding-top: 8px;
+}
+
+.channel-status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: var(--radius-small);
+  border: 1px solid rgba(132, 167, 148, 0.4);
+  background: rgba(46, 107, 92, 0.22);
+  color: #b4e8d6;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.channel-dmg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: var(--radius-small);
+  background: var(--on-dark);
+  color: var(--dark);
+  font-size: 13.5px;
+  font-weight: 650;
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.channel-dmg-btn:hover {
+  background: #b4e8d6;
 }
 
 @media (max-width: 900px) {
   .mac-stage { min-height: auto; padding: 52px 20px 28px; }
   .spec-row { grid-template-columns: 1fr; gap: 4px; }
   .harmony-banner { grid-template-columns: 1fr; padding: 32px 28px; }
+  .channel-compare-grid { grid-template-columns: 1fr; }
 }
 

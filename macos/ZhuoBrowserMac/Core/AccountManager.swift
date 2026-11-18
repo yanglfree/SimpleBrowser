@@ -392,6 +392,53 @@ public final class AccountManager: ObservableObject {
             }
         }
 
+        clearLocalSessionState()
+    }
+
+    /// Permanently deletes the authenticated user's cloud account, sync data, and avatar,
+    /// then clears all local credentials and session files (App Store Guideline 5.1.1(v)).
+    @discardableResult
+    public func deleteAccount() async -> Bool {
+        errorMessage = nil
+        guard isLoggedIn, let token = self.token else {
+            errorMessage = "当前未登录账号"
+            return false
+        }
+
+        if !isPersistenceEnabled {
+            clearLocalSessionState()
+            return true
+        }
+
+        guard let url = URL(string: "\(Self.serverBaseURL)/api/auth/account") else {
+            errorMessage = "账号注销地址无效"
+            return false
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                errorMessage = "未收到服务器响应"
+                return false
+            }
+            if httpResponse.statusCode == 200 || httpResponse.statusCode == 401 || httpResponse.statusCode == 404 {
+                clearLocalSessionState()
+                return true
+            }
+            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+            errorMessage = json["error"] as? String ?? "账号注销失败 (HTTP \(httpResponse.statusCode))"
+            return false
+        } catch {
+            errorMessage = "账号注销失败：\(error.localizedDescription)"
+            return false
+        }
+    }
+
+    private func clearLocalSessionState() {
         KeychainHelper.deleteToken()
         self.token = nil
         self.currentUser = nil
@@ -493,6 +540,9 @@ public final class AccountManager: ObservableObject {
             if let cosmetic = dict["cosmeticCleanupEnabled"] as? Bool {
                 target.cosmeticCleanupEnabled = cosmetic
             }
+            if let allowlisted = dict["adBlockAllowlistedHosts"] as? [String] {
+                target.adBlockAllowlistedHosts = PersistedBrowserSettings.normalizeHosts(allowlisted)
+            }
             if let budget = dict["liveWebViewBudget"] as? Int {
                 target.liveWebViewBudget = budget
             }
@@ -540,6 +590,7 @@ public final class AccountManager: ObservableObject {
         return [
             "adBlockEnabled": settings.adBlockEnabled,
             "cosmeticCleanupEnabled": settings.cosmeticCleanupEnabled,
+            "adBlockAllowlistedHosts": settings.adBlockAllowlistedHosts,
             "liveWebViewBudget": settings.liveWebViewBudget,
             "tabHibernationEnabled": settings.tabHibernationEnabled,
             "quickSitesEnabled": settings.quickSitesEnabled,

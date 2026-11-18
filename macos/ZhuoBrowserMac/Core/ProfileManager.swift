@@ -251,7 +251,7 @@ public final class ProfileManager: ObservableObject {
         }
 
         if let session = sessions.removeValue(forKey: id) {
-            session.shutdownAllWebViews()
+            session.prepareForProfileDeletion()
         }
 
         if isPersistenceEnabled {

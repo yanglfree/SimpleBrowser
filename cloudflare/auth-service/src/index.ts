@@ -111,6 +111,17 @@ export default {
         return jsonResponse({ ok: true, message: 'Logged out successfully' }, corsHeaders);
       }
 
+      if (
+        (url.pathname === '/api/auth/account' && request.method === 'DELETE') ||
+        (url.pathname === '/api/auth/delete-account' && request.method === 'POST')
+      ) {
+        const user = await authenticateRequest(request, env);
+        if (!user) {
+          return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
+        }
+        return await handleDeleteAccount(user, env, corsHeaders);
+      }
+
       // Cloud Sync routes
       if (url.pathname === '/api/sync/pull' && request.method === 'GET') {
         const user = await authenticateRequest(request, env);
@@ -288,6 +299,19 @@ async function handleLogout(request: Request, env: Env): Promise<void> {
   if (token) {
     await env.AUTH_DB.prepare('DELETE FROM sessions WHERE id = ?').bind(token).run();
   }
+}
+
+async function handleDeleteAccount(user: UserRow, env: Env, headers: Record<string, string>): Promise<Response> {
+  if (env.AVATARS) {
+    const avatarKeys = ['jpg', 'png', 'webp', 'gif'].map((ext) => `avatars/${user.id}.${ext}`);
+    await Promise.all(avatarKeys.map((key) => env.AVATARS?.delete(key).catch(() => undefined)));
+  }
+
+  await env.AUTH_DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id).run();
+  await env.AUTH_DB.prepare('DELETE FROM user_sync_data WHERE user_id = ?').bind(user.id).run();
+  await env.AUTH_DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id).run();
+
+  return jsonResponse({ ok: true, message: 'Account deleted permanently' }, headers);
 }
 
 async function handleSyncPull(userId: string, env: Env, headers: Record<string, string>): Promise<Response> {

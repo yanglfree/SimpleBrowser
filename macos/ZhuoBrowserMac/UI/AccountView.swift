@@ -15,6 +15,8 @@ public struct AccountView: View {
     @State private var isUploadingAvatar: Bool = false
     @State private var isHoveringAvatar: Bool = false
     @State private var isShowingFilePicker: Bool = false
+    @State private var isShowingDeleteAccountAlert: Bool = false
+    @State private var isDeletingAccount: Bool = false
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -218,19 +220,51 @@ public struct AccountView: View {
 
             Spacer()
 
-            // Logout Button
-            Button(action: {
-                accountManager.logout()
-            }) {
-                Text("退出登录")
-                    .font(.system(size: 12))
-                    .foregroundColor(.red)
-                    .padding(.vertical, 6)
+            // Logout & Permanent Account Deletion (App Store Guideline 5.1.1(v))
+            HStack(spacing: 18) {
+                Button(action: {
+                    accountManager.logout()
+                }) {
+                    Text("退出登录")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                .disabled(isDeletingAccount)
+
+                Text("·")
+                    .foregroundColor(.secondary.opacity(0.5))
+
+                Button(action: {
+                    isShowingDeleteAccountAlert = true
+                }) {
+                    Text(isDeletingAccount ? "正在注销..." : "永久注销并删除账号...")
+                        .font(.system(size: 12))
+                        .foregroundColor(.red)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                .disabled(isDeletingAccount)
             }
-            .buttonStyle(.plain)
             .padding(.bottom, 16)
         }
         .padding(.horizontal, 20)
+        .alert("确定永久注销并删除此账号？", isPresented: $isShowingDeleteAccountAlert) {
+            Button("永久删除账号", role: .destructive) {
+                isDeletingAccount = true
+                Task {
+                    let deleted = await accountManager.deleteAccount()
+                    isDeletingAccount = false
+                    if deleted {
+                        isPresented = false
+                    }
+                }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("此操作将永久删除您的云端账号、同步书签设置与头像数据，且无法恢复。本机当前打开的标签页与本地数据不会被清空。")
+        }
     }
 
     // Login & Register Form
@@ -308,6 +342,28 @@ public struct AccountView: View {
             .buttonStyle(.plain)
 
             Spacer()
+
+            HStack(spacing: 4) {
+                Text("使用账号服务即同意")
+                    .font(.system(size: 10.5))
+                    .foregroundColor(.secondary)
+                Button("用户协议") {
+                    isPresented = false
+                    _ = session.createTab(url: "https://zhuobrowser.youdroid.top/terms.html")
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 10.5))
+                Text("与")
+                    .font(.system(size: 10.5))
+                    .foregroundColor(.secondary)
+                Button("隐私政策") {
+                    isPresented = false
+                    _ = session.createTab(url: "https://zhuobrowser.youdroid.top/privacy.html")
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 10.5))
+            }
+            .padding(.bottom, 14)
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)

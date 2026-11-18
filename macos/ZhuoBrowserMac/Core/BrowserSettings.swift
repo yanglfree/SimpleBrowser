@@ -117,6 +117,7 @@ public struct PersistedBrowserSettings: Codable, Equatable {
     public var tabHibernationEnabled: Bool
     public var adBlockEnabled: Bool
     public var cosmeticCleanupEnabled: Bool
+    public var adBlockAllowlistedHosts: [String]
     public var restoreSessionOnLaunch: Bool
     public var safeBrowsingLevel: SafeBrowsingLevel
     public var alwaysUseSecureConnections: Bool
@@ -135,6 +136,7 @@ public struct PersistedBrowserSettings: Codable, Equatable {
         case tabHibernationEnabled
         case adBlockEnabled
         case cosmeticCleanupEnabled
+        case adBlockAllowlistedHosts
         case restoreSessionOnLaunch
         case safeBrowsingLevel
         case alwaysUseSecureConnections
@@ -154,6 +156,7 @@ public struct PersistedBrowserSettings: Codable, Equatable {
         tabHibernationEnabled: Bool = false,
         adBlockEnabled: Bool = true,
         cosmeticCleanupEnabled: Bool = true,
+        adBlockAllowlistedHosts: [String] = [],
         restoreSessionOnLaunch: Bool = true,
         safeBrowsingLevel: SafeBrowsingLevel = .standard,
         alwaysUseSecureConnections: Bool = false,
@@ -171,6 +174,7 @@ public struct PersistedBrowserSettings: Codable, Equatable {
         self.tabHibernationEnabled = tabHibernationEnabled
         self.adBlockEnabled = adBlockEnabled
         self.cosmeticCleanupEnabled = cosmeticCleanupEnabled
+        self.adBlockAllowlistedHosts = Self.normalizeHosts(adBlockAllowlistedHosts)
         self.restoreSessionOnLaunch = restoreSessionOnLaunch
         self.safeBrowsingLevel = safeBrowsingLevel
         self.alwaysUseSecureConnections = alwaysUseSecureConnections
@@ -192,6 +196,8 @@ public struct PersistedBrowserSettings: Codable, Equatable {
         self.tabHibernationEnabled = try container.decodeIfPresent(Bool.self, forKey: .tabHibernationEnabled) ?? false
         self.adBlockEnabled = try container.decodeIfPresent(Bool.self, forKey: .adBlockEnabled) ?? true
         self.cosmeticCleanupEnabled = try container.decodeIfPresent(Bool.self, forKey: .cosmeticCleanupEnabled) ?? true
+        let rawAllowlist = try container.decodeIfPresent([String].self, forKey: .adBlockAllowlistedHosts) ?? []
+        self.adBlockAllowlistedHosts = Self.normalizeHosts(rawAllowlist)
         self.restoreSessionOnLaunch = try container.decodeIfPresent(Bool.self, forKey: .restoreSessionOnLaunch) ?? true
         self.safeBrowsingLevel = try container.decodeIfPresent(SafeBrowsingLevel.self, forKey: .safeBrowsingLevel) ?? .standard
         self.alwaysUseSecureConnections = try container.decodeIfPresent(Bool.self, forKey: .alwaysUseSecureConnections) ?? false
@@ -203,6 +209,17 @@ public struct PersistedBrowserSettings: Codable, Equatable {
         self.updatedAt = try container.decodeIfPresent(Int64.self, forKey: .updatedAt) ?? 0
         self.hasPendingLocalChanges = try container.decodeIfPresent(Bool.self, forKey: .hasPendingLocalChanges) ?? false
     }
+
+    public static func normalizeHosts(_ hosts: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for raw in hosts {
+            let clean = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard !clean.isEmpty, seen.insert(clean).inserted else { continue }
+            result.append(clean)
+        }
+        return result.sorted()
+    }
 }
 
 public class BrowserSettings: ObservableObject {
@@ -213,6 +230,7 @@ public class BrowserSettings: ObservableObject {
         static let liveWebViewBudget = "ZhuoBrowser_LiveWebViewBudget"
         static let adBlockEnabled = "ZhuoBrowser_AdBlockEnabled"
         static let cosmeticCleanupEnabled = "ZhuoBrowser_CosmeticCleanupEnabled"
+        static let adBlockAllowlistedHosts = "ZhuoBrowser_AdBlockAllowlistedHosts"
         static let quickSitesEnabled = "ZhuoBrowser_QuickSitesEnabled"
         static let restoreSessionOnLaunch = "ZhuoBrowser_RestoreSessionOnLaunch"
         static let tabHibernationEnabled = "ZhuoBrowser_TabHibernationEnabled"
@@ -294,6 +312,19 @@ public class BrowserSettings: ObservableObject {
         }
     }
 
+    /// Lowercased hostnames where ad-blocking and cosmetic cleanup are paused.
+    @Published public var adBlockAllowlistedHosts: [String] {
+        didSet {
+            let normalized = PersistedBrowserSettings.normalizeHosts(adBlockAllowlistedHosts)
+            if adBlockAllowlistedHosts != normalized {
+                adBlockAllowlistedHosts = normalized
+                return
+            }
+            guard adBlockAllowlistedHosts != oldValue else { return }
+            recordLocalMutation()
+        }
+    }
+
     /// Reopens the tabs from the previous launch.
     @Published public var restoreSessionOnLaunch: Bool {
         didSet {
@@ -330,6 +361,7 @@ public class BrowserSettings: ObservableObject {
     @Published public var secureDNSEnabled: Bool {
         didSet {
             guard secureDNSEnabled != oldValue else { return }
+            applySecureDNSConfiguration()
             recordLocalMutation()
         }
     }
@@ -338,6 +370,7 @@ public class BrowserSettings: ObservableObject {
     @Published public var secureDNSProvider: SecureDNSProvider {
         didSet {
             guard secureDNSProvider != oldValue else { return }
+            applySecureDNSConfiguration()
             recordLocalMutation()
         }
     }
@@ -346,6 +379,7 @@ public class BrowserSettings: ObservableObject {
     @Published public var customSecureDNSURL: String {
         didSet {
             guard customSecureDNSURL != oldValue else { return }
+            applySecureDNSConfiguration()
             recordLocalMutation()
         }
     }
@@ -438,6 +472,7 @@ public class BrowserSettings: ObservableObject {
         self.tabHibernationEnabled = chosen.tabHibernationEnabled
         self.adBlockEnabled = chosen.adBlockEnabled
         self.cosmeticCleanupEnabled = chosen.cosmeticCleanupEnabled
+        self.adBlockAllowlistedHosts = chosen.adBlockAllowlistedHosts
         self.restoreSessionOnLaunch = chosen.restoreSessionOnLaunch
         self.safeBrowsingLevel = chosen.safeBrowsingLevel
         self.alwaysUseSecureConnections = chosen.alwaysUseSecureConnections
@@ -448,6 +483,8 @@ public class BrowserSettings: ObservableObject {
         self.javascriptJITOptimizationEnabled = chosen.javascriptJITOptimizationEnabled
         self.updatedAt = chosen.updatedAt
         self.hasPendingLocalChanges = chosen.hasPendingLocalChanges
+
+        applySecureDNSConfiguration()
 
         if needsMigrationWrite {
             persistToStorage()
@@ -466,6 +503,7 @@ public class BrowserSettings: ObservableObject {
             tabHibernationEnabled: tabHibernationEnabled,
             adBlockEnabled: adBlockEnabled,
             cosmeticCleanupEnabled: cosmeticCleanupEnabled,
+            adBlockAllowlistedHosts: adBlockAllowlistedHosts,
             restoreSessionOnLaunch: restoreSessionOnLaunch,
             safeBrowsingLevel: safeBrowsingLevel,
             alwaysUseSecureConnections: alwaysUseSecureConnections,
@@ -479,12 +517,45 @@ public class BrowserSettings: ObservableObject {
         )
     }
 
+    public func isHostAllowlisted(_ host: String) -> Bool {
+        let clean = host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !clean.isEmpty else { return false }
+        return adBlockAllowlistedHosts.contains(clean)
+    }
+
+    @discardableResult
+    public func toggleHostAllowlist(_ host: String) -> Bool {
+        let clean = host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !clean.isEmpty else { return false }
+        var next = adBlockAllowlistedHosts
+        let isNowAllowlisted: Bool
+        if let idx = next.firstIndex(of: clean) {
+            next.remove(at: idx)
+            isNowAllowlisted = false
+        } else {
+            next.append(clean)
+            isNowAllowlisted = true
+        }
+        adBlockAllowlistedHosts = PersistedBrowserSettings.normalizeHosts(next)
+        return isNowAllowlisted
+    }
+
+    private func applySecureDNSConfiguration() {
+        guard !RuntimeEnvironment.isRunningUnitTests else { return }
+        SecurityRuntimeService.applySecureDNS(
+            enabled: secureDNSEnabled,
+            provider: secureDNSProvider,
+            customURL: customSecureDNSURL
+        )
+    }
+
     /// Applies settings received from cloud sync without marking them as unsynced local edits.
     public func performRemoteUpdate(remoteUpdatedAt: Int64? = nil, _ updates: (BrowserSettings) -> Void) {
         isApplyingRemoteSettings = true
         updates(self)
         isApplyingRemoteSettings = false
 
+        applySecureDNSConfiguration()
         if let remoteUpdatedAt, remoteUpdatedAt > 0 {
             self.updatedAt = max(self.updatedAt, remoteUpdatedAt)
         }
@@ -531,6 +602,7 @@ public class BrowserSettings: ObservableObject {
         userDefaults.set(current.tabHibernationEnabled, forKey: Keys.tabHibernationEnabled)
         userDefaults.set(current.adBlockEnabled, forKey: Keys.adBlockEnabled)
         userDefaults.set(current.cosmeticCleanupEnabled, forKey: Keys.cosmeticCleanupEnabled)
+        userDefaults.set(current.adBlockAllowlistedHosts, forKey: Keys.adBlockAllowlistedHosts)
         userDefaults.set(current.restoreSessionOnLaunch, forKey: Keys.restoreSessionOnLaunch)
         userDefaults.set(current.safeBrowsingLevel.rawValue, forKey: Keys.safeBrowsingLevel)
         userDefaults.set(current.alwaysUseSecureConnections, forKey: Keys.alwaysUseSecureConnections)
@@ -561,6 +633,7 @@ public class BrowserSettings: ObservableObject {
             Keys.liveWebViewBudget,
             Keys.adBlockEnabled,
             Keys.cosmeticCleanupEnabled,
+            Keys.adBlockAllowlistedHosts,
             Keys.quickSitesEnabled,
             Keys.restoreSessionOnLaunch,
             Keys.tabHibernationEnabled,
@@ -602,6 +675,8 @@ public class BrowserSettings: ObservableObject {
         let cosmetic = defaults.object(forKey: Keys.cosmeticCleanupEnabled) != nil
             ? defaults.bool(forKey: Keys.cosmeticCleanupEnabled)
             : true
+
+        let allowlistedHosts = defaults.stringArray(forKey: Keys.adBlockAllowlistedHosts) ?? []
 
         let quickSites = defaults.object(forKey: Keys.quickSitesEnabled) != nil
             ? defaults.bool(forKey: Keys.quickSitesEnabled)
@@ -657,6 +732,7 @@ public class BrowserSettings: ObservableObject {
             tabHibernationEnabled: hibernation,
             adBlockEnabled: adBlock,
             cosmeticCleanupEnabled: cosmetic,
+            adBlockAllowlistedHosts: allowlistedHosts,
             restoreSessionOnLaunch: restoreSession,
             safeBrowsingLevel: safeBrowsing,
             alwaysUseSecureConnections: alwaysHTTPS,

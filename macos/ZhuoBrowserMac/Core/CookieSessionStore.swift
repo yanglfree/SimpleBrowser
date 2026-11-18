@@ -26,6 +26,7 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
     private var isRestoring: Bool = false
     private var readyCallbacks: [() -> Void] = []
     private var isObservingCookieStore: Bool = false
+    private var isInvalidated: Bool = false
     private lazy var observerProxy = WeakCookieObserverProxy(owner: self)
     private let ioQueue = DispatchQueue(label: "com.youdroid.zhuobrowser.cookie-session", qos: .utility)
 
@@ -136,7 +137,8 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
 
         // Rewrite in canonical PropertyList format if decoded from a legacy archive.
         if let reencoded = Self.encodeCookies(cookies) {
-            ioQueue.async {
+            ioQueue.async { [weak self] in
+                guard let self, !self.isInvalidated else { return }
                 try? reencoded.write(to: archiveURL, options: .atomic)
             }
         }
@@ -190,7 +192,15 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
                 completion?()
                 return
             }
-            self.ioQueue.async {
+            self.ioQueue.async { [weak self] in
+                guard let self, !self.isInvalidated else {
+                    if let completion {
+                        DispatchQueue.main.async {
+                            completion()
+                        }
+                    }
+                    return
+                }
                 let now = Date()
                 let validCookies = cookies.filter { cookie in
                     if let expires = cookie.expiresDate {
@@ -217,7 +227,7 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
         debounceWorkItem = nil
 
         var finished = false
-        dataStore.httpCookieStore.getAllCookies { cookies in
+        dataStore.httpCookieStore.getAllCookies { [weak self] cookies in
             let now = Date()
             let validCookies = cookies.filter { cookie in
                 if let expires = cookie.expiresDate {
@@ -226,7 +236,10 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
                 return true
             }
             if !validCookies.isEmpty, let data = Self.encodeCookies(validCookies) {
-                try? data.write(to: archiveURL, options: .atomic)
+                self?.ioQueue.async { [weak self] in
+                    guard let self, !self.isInvalidated else { return }
+                    try? data.write(to: archiveURL, options: .atomic)
+                }
             }
             finished = true
         }
@@ -244,7 +257,8 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
         debounceWorkItem = nil
         guard isPersistenceEnabled, let archiveURL else { return }
         ioQueue.async { [weak self] in
-            try? self?.fileManager.removeItem(at: archiveURL)
+            guard let self, !self.isInvalidated else { return }
+            try? self.fileManager.removeItem(at: archiveURL)
         }
     }
 
@@ -261,6 +275,21 @@ public final class CookieSessionStore: NSObject, WKHTTPCookieStoreObserver {
     public func stopPeriodicFlush() {
         flushTimer?.invalidate()
         flushTimer = nil
+    }
+
+    /// Stops observers/timers and waits for pending cookie archive writes to complete
+    /// before deleting a profile directory.
+    public func invalidateAndDrainIO() {
+        stopPeriodicFlush()
+        debounceWorkItem?.cancel()
+        debounceWorkItem = nil
+        if Thread.isMainThread, isObservingCookieStore {
+            dataStore.httpCookieStore.remove(observerProxy)
+            isObservingCookieStore = false
+        }
+        ioQueue.sync {
+            isInvalidated = true
+        }
     }
 
     // MARK: - Codec
@@ -403,6 +432,7 @@ public final class WebSessionStorageStore {
         return _generation
     }
     private let ioQueue = DispatchQueue(label: "com.youdroid.zhuobrowser.session-storage", qos: .utility)
+    private var isInvalidated: Bool = false
 
     public init(
         fileManager: FileManager = .default,
@@ -475,32 +505,46 @@ public final class WebSessionStorageStore {
         debounceWorkItem = nil
         guard isPersistenceEnabled, let fileURL else { return }
         ioQueue.async { [weak self] in
-            try? self?.fileManager.removeItem(at: fileURL)
+            guard let self, !self.isInvalidated else { return }
+            try? self.fileManager.removeItem(at: fileURL)
         }
     }
 
     public func flushAsync() {
-        guard isPersistenceEnabled, let fileURL else { return }
-        debounceWorkItem?.cancel()
-        debounceWorkItem = nil
-        lock.lock()
-        let snapshot = storageByOrigin
-        lock.unlock()
-        ioQueue.async {
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            try? data.write(to: fileURL, options: .atomic)
-        }
+        writeSnapshot(synchronously: false)
     }
 
     public func flushSynchronously() {
+        writeSnapshot(synchronously: true)
+    }
+
+    /// Cancels debounced flushes and waits for queued session-storage writes to finish
+    /// before the owning profile directory is removed.
+    public func invalidateAndDrainIO() {
+        debounceWorkItem?.cancel()
+        debounceWorkItem = nil
+        ioQueue.sync {
+            isInvalidated = true
+        }
+    }
+
+    private func writeSnapshot(synchronously: Bool) {
         guard isPersistenceEnabled, let fileURL else { return }
         debounceWorkItem?.cancel()
         debounceWorkItem = nil
         lock.lock()
         let snapshot = storageByOrigin
         lock.unlock()
-        if let data = try? JSONEncoder().encode(snapshot) {
+
+        let work = { [weak self] in
+            guard let self, !self.isInvalidated else { return }
+            guard let data = try? JSONEncoder().encode(snapshot) else { return }
             try? data.write(to: fileURL, options: .atomic)
+        }
+        if synchronously {
+            ioQueue.sync(execute: work)
+        } else {
+            ioQueue.async(execute: work)
         }
     }
 

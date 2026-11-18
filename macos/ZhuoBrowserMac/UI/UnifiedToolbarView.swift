@@ -12,6 +12,7 @@ public struct UnifiedToolbarView: View {
     @State private var currentText: String = ""
     @State private var isShowingSettings: Bool = false
     @State private var isShowingProfilePopover: Bool = false
+    @State private var isShowingShieldPopover: Bool = false
     @State private var isFullScreen: Bool = false
 
     private var activeTab: BrowserTab? {
@@ -384,12 +385,26 @@ public struct UnifiedToolbarView: View {
                 }
             }
 
-            // Ad blocker shield indicator
+            // Ad blocker shield button with per-site allowlist popover
             if session.settings.adBlockEnabled {
-                Image(systemName: "shield.checkered")
-                    .font(.system(size: 12))
-                    .foregroundColor(.accentColor)
-                    .help("原生规则去广告与追踪保护已开启")
+                let isHostAllowlisted = session.isActiveTabHostAllowlisted
+                Button(action: { isShowingShieldPopover.toggle() }) {
+                    Image(systemName: isHostAllowlisted ? "shield.slash" : "shield.checkered")
+                        .font(.system(size: 12))
+                        .foregroundColor(isHostAllowlisted ? .secondary : .accentColor)
+                }
+                .buttonStyle(.plain)
+                .help(isHostAllowlisted ? "已在此站点暂停拦截 · 点击恢复" : "原生规则去广告与追踪保护已开启 · 点击管理站点例外")
+                .popover(
+                    isPresented: $isShowingShieldPopover,
+                    attachmentAnchor: .rect(.bounds),
+                    arrowEdge: .bottom
+                ) {
+                    AdShieldPopoverView(
+                        session: session,
+                        isPresented: $isShowingShieldPopover
+                    )
+                }
             }
 
             if isOmniboxFocused && !currentText.isEmpty {
@@ -725,5 +740,97 @@ struct OmniboxBookmarkPopoverView: View {
             folderID: folderID,
             isPinnedToStartPage: folderID == nil ? pinToStartPage : false
         )
+    }
+}
+
+/// Popover anchored to the Omnibox shield icon for toggling per-site ad-block allowlist.
+private struct AdShieldPopoverView: View {
+    @ObservedObject var session: BrowserSession
+    @Binding var isPresented: Bool
+    @ObservedObject private var settings = BrowserSettings.shared
+
+    private var currentHost: String {
+        guard let tab = session.activeTab, !tab.isHome else { return "" }
+        return URLPolicy.rawHost(tab.url)
+    }
+
+    private var isAllowlisted: Bool {
+        !currentHost.isEmpty && settings.isHostAllowlisted(currentHost)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: isAllowlisted ? "shield.slash.fill" : "shield.checkered")
+                    .font(.system(size: 16))
+                    .foregroundColor(isAllowlisted ? .orange : .accentColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(isAllowlisted ? "当前站点已暂停拦截" : "原生规则拦截已启用")
+                        .font(.system(size: 13, weight: .bold))
+                    Text("基于 WebKit 字节码 (EasyList + China) · 零 JS 开销")
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Divider()
+
+            if !currentHost.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("当前域名")
+                            .font(.system(size: 11.5))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(currentHost)
+                            .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
+                            .lineLimit(1)
+                    }
+
+                    Button(action: {
+                        session.toggleAdBlockAllowlistForActiveTab()
+                    }) {
+                        HStack {
+                            Spacer()
+                            Image(systemName: isAllowlisted ? "shield.lefthalf.filled" : "pause.circle")
+                                .font(.system(size: 12))
+                            Text(isAllowlisted ? "在此网站恢复去广告与净化" : "在此网站暂停拦截（加入白名单）")
+                                .font(.system(size: 12, weight: .medium))
+                            Spacer()
+                        }
+                        .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(isAllowlisted ? .accentColor : .orange)
+
+                    Text("若某些网页的登录弹窗或播放器被规则误伤，可临时为该域名关闭拦截。")
+                        .font(.system(size: 10.5))
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                Text("在普通网页标签中可按域名单独配置拦截白名单。")
+                    .font(.system(size: 11.5))
+                    .foregroundColor(.secondary)
+            }
+
+            Divider()
+
+            HStack {
+                Text("已放行域名：\(settings.adBlockAllowlistedHosts.count) 个")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button("安全与防护设置...") {
+                    isPresented = false
+                    session.isShowingSettings = true
+                }
+                .font(.system(size: 11))
+                .buttonStyle(.plain)
+                .foregroundColor(.accentColor)
+            }
+        }
+        .padding(14)
+        .frame(width: 300)
     }
 }

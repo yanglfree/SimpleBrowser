@@ -26,6 +26,7 @@ public final class TabStateStore {
 
     private var memoryCache: [String: TabStateSnapshot] = [:]
     private var memoryOrder: [String] = []
+    private var isInvalidated = false
 
     public init(
         fileManager: FileManager = .default,
@@ -93,17 +94,11 @@ public final class TabStateStore {
         touch(tabID)
 
         guard persistToDisk, isPersistenceEnabled, let url = snapshotURL(for: tabID) else { return }
-        let writeWork = { [weak self] in
-            guard let self else { return }
+        enqueueWrite(synchronously: synchronously) { store in
             guard let encoded = try? JSONEncoder().encode(snapshot),
                   encoded.count <= Self.maxSnapshotBytes else { return }
             try? encoded.write(to: url, options: .atomic)
-            self.evictIfNeeded(protecting: tabID)
-        }
-        if synchronously {
-            ioQueue.sync(execute: writeWork)
-        } else {
-            ioQueue.async(execute: writeWork)
+            store.evictIfNeeded(protecting: tabID)
         }
     }
 
@@ -111,8 +106,8 @@ public final class TabStateStore {
         memoryCache.removeValue(forKey: tabID)
         memoryOrder.removeAll { $0 == tabID }
         guard isPersistenceEnabled, let url = snapshotURL(for: tabID) else { return }
-        ioQueue.async { [weak self] in
-            try? self?.fileManager.removeItem(at: url)
+        enqueueWrite { store in
+            try? store.fileManager.removeItem(at: url)
         }
     }
 
@@ -124,13 +119,12 @@ public final class TabStateStore {
             removeSnapshot(for: id)
         }
         guard isPersistenceEnabled, let rootURL else { return }
-        ioQueue.async { [weak self] in
-            guard let self else { return }
-            let files = (try? self.fileManager.contentsOfDirectory(at: rootURL, includingPropertiesForKeys: nil)) ?? []
+        enqueueWrite { store in
+            let files = (try? store.fileManager.contentsOfDirectory(at: rootURL, includingPropertiesForKeys: nil)) ?? []
             for file in files where file.pathExtension == "snapshot" {
                 let id = file.deletingPathExtension().lastPathComponent
                 if !tabIDs.contains(id) {
-                    try? self.fileManager.removeItem(at: file)
+                    try? store.fileManager.removeItem(at: file)
                 }
             }
         }
@@ -150,14 +144,9 @@ public final class TabStateStore {
 
     public func saveTabSession(_ tabs: [PersistedTabState], synchronously: Bool = false) {
         guard isPersistenceEnabled, let url = sessionURL else { return }
-        let writeWork: () -> Void = {
+        enqueueWrite(synchronously: synchronously) { _ in
             guard let data = try? JSONEncoder().encode(tabs) else { return }
             try? data.write(to: url, options: .atomic)
-        }
-        if synchronously {
-            ioQueue.sync(execute: writeWork)
-        } else {
-            ioQueue.async(execute: writeWork)
         }
     }
 
@@ -165,9 +154,30 @@ public final class TabStateStore {
         memoryCache.removeAll()
         memoryOrder.removeAll()
         guard isPersistenceEnabled, let rootURL else { return }
-        ioQueue.async { [weak self] in
-            try? self?.fileManager.removeItem(at: rootURL)
-            try? self?.fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        enqueueWrite { store in
+            try? store.fileManager.removeItem(at: rootURL)
+            try? store.fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        }
+    }
+
+    /// Stops future disk writes and waits for queued I/O before deleting the profile folder.
+    public func invalidateAndDrainIO() {
+        memoryCache.removeAll()
+        memoryOrder.removeAll()
+        ioQueue.sync {
+            isInvalidated = true
+        }
+    }
+
+    private func enqueueWrite(synchronously: Bool = false, _ work: @escaping (TabStateStore) -> Void) {
+        let writeWork = { [weak self] in
+            guard let self, !self.isInvalidated else { return }
+            work(self)
+        }
+        if synchronously {
+            ioQueue.sync(execute: writeWork)
+        } else {
+            ioQueue.async(execute: writeWork)
         }
     }
 

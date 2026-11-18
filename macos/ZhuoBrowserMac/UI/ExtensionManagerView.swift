@@ -117,11 +117,21 @@ public struct ExtensionManagerView: View {
 
             // 4. Footer
             HStack {
-                Text("支持 Chrome Manifest V3 / V2 扩展目录、.crx / .zip 扩展包及 Tampermonkey .user.js 脚本")
+                Text(DistributionChannel.current.allowsExternalExtensionPackages
+                     ? "支持 Chrome Manifest V3 / V2 扩展目录、.crx / .zip 扩展包及 Tampermonkey .user.js 脚本"
+                     : "当前为 Mac App Store 官方版，已内置 5 大精选扩展工具；如需导入外部 .crx 扩展或启用开发者模式，请前往官网获取公证独立分发版 (DMG)。")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
 
                 Spacer()
+
+                if !DistributionChannel.current.allowsExternalExtensionPackages {
+                    Button("前往官网获取 DMG 版") {
+                        isPresented = false
+                        session.createTab(url: "https://zhuobrowser.youdroid.top/#specs")
+                    }
+                    .controlSize(.small)
+                }
 
                 Button("完成") {
                     isPresented = false
@@ -181,21 +191,23 @@ public struct ExtensionManagerView: View {
 
             Spacer()
 
-            // Chrome-style Developer Mode Toggle
-            HStack(spacing: 6) {
-                Text("开发者模式")
-                    .font(.system(size: 12, weight: .medium))
-                Toggle("", isOn: $extensionManager.isDeveloperMode)
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .labelsHidden()
+            if DistributionChannel.current.allowsExternalExtensionPackages {
+                // Chrome-style Developer Mode Toggle
+                HStack(spacing: 6) {
+                    Text("开发者模式")
+                        .font(.system(size: 12, weight: .medium))
+                    Toggle("", isOn: $extensionManager.isDeveloperMode)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .labelsHidden()
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(extensionManager.isDeveloperMode ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.08))
+                )
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(extensionManager.isDeveloperMode ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.08))
-            )
 
             Button(action: { isPresented = false }) {
                 Image(systemName: "xmark.circle.fill")
@@ -260,42 +272,44 @@ public struct ExtensionManagerView: View {
                 )
             }
 
-            // Action Buttons Row (Always shows quick install + expanded developer tools in Developer Mode)
-            HStack(spacing: 8) {
-                Button(action: {
-                    extensionManager.promptLoadUnpackedExtension()
-                }) {
-                    Label("加载已解压的扩展程序...", systemImage: "folder.badge.plus")
-                        .font(.system(size: 11.5, weight: .medium))
-                }
-                .controlSize(.small)
-
-                Button(action: {
-                    extensionManager.promptInstallExtensionPackage()
-                }) {
-                    Label("安装 CRX / ZIP / .user.js...", systemImage: "square.and.arrow.down")
-                        .font(.system(size: 11.5, weight: .medium))
-                }
-                .controlSize(.small)
-
-                Button(action: {
-                    extensionManager.isShowingCreatorSheet = true
-                }) {
-                    Label("新建自定义脚本 / 扩展...", systemImage: "sparkles.rectangle.stack")
-                        .font(.system(size: 11.5, weight: .medium))
-                }
-                .controlSize(.small)
-
-                Spacer()
-
-                if extensionManager.isDeveloperMode {
+            if DistributionChannel.current.allowsExternalExtensionPackages {
+                // Action Buttons Row (Always shows quick install + expanded developer tools in Developer Mode)
+                HStack(spacing: 8) {
                     Button(action: {
-                        extensionManager.reloadAllExtensions()
+                        extensionManager.promptLoadUnpackedExtension()
                     }) {
-                        Label("重新加载全部", systemImage: "arrow.clockwise")
-                            .font(.system(size: 11.5))
+                        Label("加载已解压的扩展程序...", systemImage: "folder.badge.plus")
+                            .font(.system(size: 11.5, weight: .medium))
                     }
                     .controlSize(.small)
+
+                    Button(action: {
+                        extensionManager.promptInstallExtensionPackage()
+                    }) {
+                        Label("安装 CRX / ZIP / .user.js...", systemImage: "square.and.arrow.down")
+                            .font(.system(size: 11.5, weight: .medium))
+                    }
+                    .controlSize(.small)
+
+                    Button(action: {
+                        extensionManager.isShowingCreatorSheet = true
+                    }) {
+                        Label("新建自定义脚本 / 扩展...", systemImage: "sparkles.rectangle.stack")
+                            .font(.system(size: 11.5, weight: .medium))
+                    }
+                    .controlSize(.small)
+
+                    Spacer()
+
+                    if extensionManager.isDeveloperMode {
+                        Button(action: {
+                            extensionManager.reloadAllExtensions()
+                        }) {
+                            Label("重新加载全部", systemImage: "arrow.clockwise")
+                                .font(.system(size: 11.5))
+                        }
+                        .controlSize(.small)
+                    }
                 }
             }
         }
@@ -387,7 +401,7 @@ public struct ExtensionManagerView: View {
                 .frame(maxWidth: .infinity, minHeight: 32, alignment: .topLeading)
 
             // Developer Mode Metadata
-            if extensionManager.isDeveloperMode {
+            if extensionManager.isDeveloperMode && DistributionChannel.current.allowsExternalExtensionPackages {
                 HStack(spacing: 6) {
                     Text("ID: \(ext.id)")
                         .font(.system(size: 10, design: .monospaced))
@@ -467,7 +481,7 @@ public struct ExtensionManagerView: View {
                 .foregroundColor(.secondary)
                 .help("重新加载此扩展")
 
-                if extensionManager.isDeveloperMode {
+                if extensionManager.isDeveloperMode && DistributionChannel.current.allowsExternalExtensionPackages {
                     Button(action: {
                         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: ext.directoryPath)
                     }) {

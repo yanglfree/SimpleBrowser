@@ -1,3 +1,4 @@
+import WebKit
 import XCTest
 @testable import ZhuoBrowserMac
 
@@ -148,5 +149,107 @@ final class SecuritySettingsTests: XCTestCase {
         XCTAssertEqual(targetSettings.secureDNSProvider, .dnspod)
         XCTAssertEqual(targetSettings.customSecureDNSURL, "https://doh.pub/dns-query")
         XCTAssertFalse(targetSettings.javascriptJITOptimizationEnabled)
+    }
+
+    func testDistributionChannelCapabilitiesAndOverride() {
+        defer { DistributionChannel.overrideForTesting = nil }
+
+        DistributionChannel.overrideForTesting = .appStore
+        XCTAssertEqual(DistributionChannel.current, .appStore)
+        XCTAssertFalse(DistributionChannel.current.allowsExternalExtensionPackages)
+
+        DistributionChannel.overrideForTesting = .directDMG
+        XCTAssertEqual(DistributionChannel.current, .directDMG)
+        XCTAssertTrue(DistributionChannel.current.allowsExternalExtensionPackages)
+    }
+
+    func testSecurityRuntimeServiceBindings() {
+        let config = WKWebViewConfiguration()
+
+        SecurityRuntimeService.applySafeBrowsing(level: .disabled, to: config)
+        XCTAssertFalse(config.preferences.isFraudulentWebsiteWarningEnabled)
+
+        SecurityRuntimeService.applySafeBrowsing(level: .standard, to: config)
+        XCTAssertTrue(config.preferences.isFraudulentWebsiteWarningEnabled)
+
+        SecurityRuntimeService.applySafeBrowsing(level: .enhanced, to: config)
+        XCTAssertTrue(config.preferences.isFraudulentWebsiteWarningEnabled)
+
+        XCTAssertNil(SecurityRuntimeService.effectiveDoHURL(enabled: false, provider: .cloudflare, customURL: ""))
+        XCTAssertNil(SecurityRuntimeService.effectiveDoHURL(enabled: true, provider: .system, customURL: ""))
+        XCTAssertNil(SecurityRuntimeService.effectiveDoHURL(enabled: true, provider: .custom, customURL: "http://insecure.dns/query"))
+        XCTAssertEqual(
+            SecurityRuntimeService.effectiveDoHURL(enabled: true, provider: .cloudflare, customURL: "")?.absoluteString,
+            "https://cloudflare-dns.com/dns-query"
+        )
+        XCTAssertEqual(
+            SecurityRuntimeService.effectiveDoHURL(enabled: true, provider: .custom, customURL: "https://dns.example.org/dns-query")?.absoluteString,
+            "https://dns.example.org/dns-query"
+        )
+
+        XCTAssertTrue(SecurityRuntimeService.isPasswordKnownCompromised("123456"))
+        XCTAssertTrue(SecurityRuntimeService.isPasswordKnownCompromised("Password"))
+        XCTAssertTrue(SecurityRuntimeService.isPasswordKnownCompromised("aaaaaa"))
+        XCTAssertTrue(SecurityRuntimeService.isPasswordKnownCompromised("67890"))
+        XCTAssertFalse(SecurityRuntimeService.isPasswordKnownCompromised("Zhuo!9xK#2026mQ"))
+
+        let noJITScript = SecurityRuntimeService.makeHardenedNoJITScript()
+        XCTAssertEqual(noJITScript.injectionTime, .atDocumentStart)
+        XCTAssertTrue(noJITScript.source.contains("__zhuoHardenedNoJIT"))
+    }
+
+    func testPerSiteAdBlockAllowlistAndSync() {
+        let isolated = BrowserSettings(persistsAutomatically: false)
+        XCTAssertFalse(isolated.isHostAllowlisted("example.com"))
+
+        XCTAssertTrue(isolated.toggleHostAllowlist("  Example.COM "))
+        XCTAssertTrue(isolated.isHostAllowlisted("example.com"))
+        XCTAssertEqual(isolated.adBlockAllowlistedHosts, ["example.com"])
+
+        let payload = AccountManager.shared.settingsPayload(from: isolated)
+        XCTAssertEqual(payload["adBlockAllowlistedHosts"] as? [String], ["example.com"])
+
+        XCTAssertFalse(isolated.toggleHostAllowlist("example.com"))
+        XCTAssertFalse(isolated.isHostAllowlisted("example.com"))
+
+        AccountManager.shared.applySettings([
+            "adBlockAllowlistedHosts": ["Sub.Example.org", "docs.swift.org"],
+            "updatedAt": 2000000000001
+        ], to: isolated)
+        XCTAssertTrue(isolated.isHostAllowlisted("sub.example.org"))
+        XCTAssertTrue(isolated.isHostAllowlisted("docs.swift.org"))
+    }
+
+    func testFindInPageStateAndErrorMapping() {
+        let session = BrowserSession(stateStore: TabStateStore(isPersistenceEnabled: false), restoresPreviousSession: false)
+        // Home tab should not open find bar
+        session.openFindBar()
+        XCTAssertFalse(session.isShowingFindBar)
+
+        _ = session.createTab(url: "https://example.com", select: true)
+        session.openFindBar()
+        XCTAssertTrue(session.isShowingFindBar)
+
+        session.closeFindBar()
+        XCTAssertFalse(session.isShowingFindBar)
+
+        let cancelled = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
+        XCTAssertNil(TabController.userFacingErrorMessage(for: cancelled))
+
+        let offline = NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)
+        XCTAssertNotNil(TabController.userFacingErrorMessage(for: offline))
+    }
+
+    func testAccountManagerDeleteAccountClearsSession() async {
+        let account = AccountManager(isPersistenceEnabled: false)
+        let profile = UserProfile(id: "u_del_1", email: "del@youdroid.com", displayName: "DeleteMe")
+        account.saveSession(token: "tok_del_123", profile: profile)
+        XCTAssertTrue(account.isLoggedIn)
+
+        let deleted = await account.deleteAccount()
+        XCTAssertTrue(deleted)
+        XCTAssertFalse(account.isLoggedIn)
+        XCTAssertNil(account.currentUser)
+        XCTAssertNil(account.token)
     }
 }

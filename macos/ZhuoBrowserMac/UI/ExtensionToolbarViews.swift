@@ -427,42 +427,44 @@ public struct ExtensionsMenuPopoverView: View {
 
             // Footer Actions
             VStack(spacing: 4) {
-                Button(action: {
-                    isPresented = false
-                    extensionManager.isShowingCreatorSheet = true
-                    extensionManager.isShowingExtensionManager = true
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus.square.on.square")
-                            .font(.system(size: 12))
-                            .frame(width: 16)
-                        Text("新建自定义脚本 / 扩展...")
-                            .font(.system(size: 12))
-                        Spacer()
+                if DistributionChannel.current.allowsExternalExtensionPackages {
+                    Button(action: {
+                        isPresented = false
+                        extensionManager.isShowingCreatorSheet = true
+                        extensionManager.isShowingExtensionManager = true
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus.square.on.square")
+                                .font(.system(size: 12))
+                                .frame(width: 16)
+                            Text("新建自定义脚本 / 扩展...")
+                                .font(.system(size: 12))
+                            Spacer()
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(ExtensionMenuRowButtonStyle())
+                    .buttonStyle(ExtensionMenuRowButtonStyle())
 
-                Button(action: {
-                    isPresented = false
-                    extensionManager.promptInstallExtensionPackage()
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "square.and.arrow.down")
-                            .font(.system(size: 12))
-                            .frame(width: 16)
-                        Text("安装 CRX / ZIP / .user.js 脚本...")
-                            .font(.system(size: 12))
-                        Spacer()
+                    Button(action: {
+                        isPresented = false
+                        extensionManager.promptInstallExtensionPackage()
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(.system(size: 12))
+                                .frame(width: 16)
+                            Text("安装 CRX / ZIP / .user.js 脚本...")
+                                .font(.system(size: 12))
+                            Spacer()
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
+                    .buttonStyle(ExtensionMenuRowButtonStyle())
                 }
-                .buttonStyle(ExtensionMenuRowButtonStyle())
 
                 Button(action: {
                     isPresented = false

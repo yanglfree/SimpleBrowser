@@ -7,6 +7,7 @@ public final class LibraryStore: @unchecked Sendable {
 
     private let ioQueue = DispatchQueue(label: "com.youdroid.zhuobrowser.mac.library-io", qos: .utility)
     private let directoryURL: URL
+    private var isInvalidated = false
     private let isPersistenceEnabled: Bool
 
     private var bookmarksFileURL: URL {
@@ -98,13 +99,7 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     public func saveBookmarkFolders(_ folders: [BookmarkFolder]) {
-        guard isPersistenceEnabled else { return }
-        let snapshot = folders
-        ioQueue.async { [weak self] in
-            guard let self = self else { return }
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            try? data.write(to: self.bookmarkFoldersFileURL, options: .atomic)
-        }
+        enqueueJSONWrite(folders, to: bookmarkFoldersFileURL)
     }
 
     // MARK: - Bookmarks
@@ -119,13 +114,7 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     public func saveBookmarks(_ bookmarks: [BookmarkEntry]) {
-        guard isPersistenceEnabled else { return }
-        let snapshot = bookmarks
-        ioQueue.async { [weak self] in
-            guard let self = self else { return }
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            try? data.write(to: self.bookmarksFileURL, options: .atomic)
-        }
+        enqueueJSONWrite(bookmarks, to: bookmarksFileURL)
     }
 
     // MARK: - Tombstones
@@ -140,13 +129,7 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     public func saveTombstones(_ tombstones: [BookmarkTombstone]) {
-        guard isPersistenceEnabled else { return }
-        let snapshot = tombstones
-        ioQueue.async { [weak self] in
-            guard let self = self else { return }
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            try? data.write(to: self.tombstonesFileURL, options: .atomic)
-        }
+        enqueueJSONWrite(tombstones, to: tombstonesFileURL)
     }
 
     // MARK: - History
@@ -161,20 +144,35 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     public func saveHistory(_ history: [HistoryEntry]) {
-        guard isPersistenceEnabled else { return }
-        let snapshot = history
-        ioQueue.async { [weak self] in
-            guard let self = self else { return }
-            guard let data = try? JSONEncoder().encode(snapshot) else { return }
-            try? data.write(to: self.historyFileURL, options: .atomic)
-        }
+        enqueueJSONWrite(history, to: historyFileURL)
     }
 
     public func clearHistory() {
+        performIO { store in
+            try? FileManager.default.removeItem(at: store.historyFileURL)
+        }
+    }
+
+    /// Cancels future disk writes and waits for queued writes to finish before deleting
+    /// the profile directory.
+    public func invalidateAndDrainIO() {
+        ioQueue.sync {
+            isInvalidated = true
+        }
+    }
+
+    private func enqueueJSONWrite<T: Encodable>(_ value: T, to url: URL) {
+        performIO { _ in
+            guard let data = try? JSONEncoder().encode(value) else { return }
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+
+    private func performIO(_ work: @escaping (LibraryStore) -> Void) {
         guard isPersistenceEnabled else { return }
         ioQueue.async { [weak self] in
-            guard let self = self else { return }
-            try? FileManager.default.removeItem(at: self.historyFileURL)
+            guard let self, !self.isInvalidated else { return }
+            work(self)
         }
     }
 }

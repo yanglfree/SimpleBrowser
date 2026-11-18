@@ -22,6 +22,8 @@ public struct BrowserTab: Identifiable, Codable, Equatable {
     /// no longer reflect the live site. Purely informational: the page is already
     /// visible, so the user can keep reading or refresh on demand.
     public var isSnapshotStale: Bool
+    /// Non-nil when the most recent main-frame navigation failed with a user-visible error.
+    public var loadErrorDescription: String?
 
     public init(
         id: String = UUID().uuidString,
@@ -38,7 +40,8 @@ public struct BrowserTab: Identifiable, Codable, Equatable {
         blockedItemsCount: Int = 0,
         isReaderModeActive: Bool = false,
         readerContentHTML: String? = nil,
-        isSnapshotStale: Bool = false
+        isSnapshotStale: Bool = false,
+        loadErrorDescription: String? = nil
     ) {
         self.id = id
         self.url = url
@@ -55,6 +58,7 @@ public struct BrowserTab: Identifiable, Codable, Equatable {
         self.isReaderModeActive = isReaderModeActive
         self.readerContentHTML = readerContentHTML
         self.isSnapshotStale = isSnapshotStale
+        self.loadErrorDescription = loadErrorDescription
     }
 
     public var isHome: Bool {

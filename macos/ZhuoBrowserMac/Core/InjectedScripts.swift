@@ -63,4 +63,15 @@ public final class InjectedScripts: @unchecked Sendable {
             in: .defaultClient
         )
     }
+
+    /// User script for blocking unsafe javascript:/chrome: links and recovering broken callback pages
+    public func makeBlockedLinkGuardScript() -> WKUserScript? {
+        guard let source = scriptContent(named: "blocked-link-guard") else { return nil }
+        return WKUserScript(
+            source: source,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true,
+            in: .defaultClient
+        )
+    }
 }

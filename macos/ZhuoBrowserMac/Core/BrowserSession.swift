@@ -71,6 +71,8 @@ public final class BrowserSession: ObservableObject {
     @Published public var isShowingProfileEditor: Bool = false
     @Published public var librarySelectedTab: Int = 0
     @Published public private(set) var canReopenClosedTab: Bool = false
+    @Published public var isShowingFindBar: Bool = false
+    @Published public var findQuery: String = ""
 
     public let settings = BrowserSettings.shared
     public let extensionManager: ExtensionManager
@@ -355,6 +357,9 @@ public final class BrowserSession: ObservableObject {
         if omniboxText != nextOmnibox {
             omniboxText = nextOmnibox
         }
+        if tabs[index].isHome && isShowingFindBar {
+            isShowingFindBar = false
+        }
         dismissOmniboxSuggestions()
 
         // Instant path: reuse the warm WebView, or revive the frozen snapshot. No
@@ -549,11 +554,13 @@ public final class BrowserSession: ObservableObject {
         if normalizedURL == "zhuo://home" {
             // Explicit reset to the start page: the old page is no longer reachable
             // from this tab, so releasing it is intentional rather than a reload.
+            isShowingFindBar = false
             pendingHibernations.remove(activeID)
             teardownController(for: activeID)
             stateStore.removeSnapshot(for: activeID)
             tabs[index].title = tabs[index].isPrivate ? "无痕新标签" : "新标签页"
             tabs[index].scrollPositionY = 0
+            tabs[index].loadErrorDescription = nil
             publishMemoryStats()
             return
         }
@@ -620,6 +627,41 @@ public final class BrowserSession: ObservableObject {
 
     public func downloadActiveTabDocument() {
         activeController?.downloadCurrentDocument()
+    }
+
+    public func printActiveTab() {
+        activeController?.printCurrentDocument()
+    }
+
+    public func openFindBar() {
+        guard !(activeTab?.isHome ?? true) else { return }
+        isShowingFindBar = true
+    }
+
+    public func closeFindBar() {
+        isShowingFindBar = false
+    }
+
+    public func findNext() {
+        activeController?.find(query: findQuery, forward: true)
+    }
+
+    public func findPrevious() {
+        activeController?.find(query: findQuery, forward: false)
+    }
+
+    public var isActiveTabHostAllowlisted: Bool {
+        guard let tab = activeTab, !tab.isHome else { return false }
+        let host = URLPolicy.rawHost(tab.url)
+        return settings.isHostAllowlisted(host)
+    }
+
+    public func toggleAdBlockAllowlistForActiveTab() {
+        guard let tab = activeTab, !tab.isHome else { return }
+        let host = URLPolicy.rawHost(tab.url)
+        guard !host.isEmpty else { return }
+        _ = settings.toggleHostAllowlist(host)
+        applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: true)
     }
 
     public func resetZoomActiveTab() {
@@ -1214,6 +1256,16 @@ public final class BrowserSession: ObservableObject {
         }
         activeController = nil
         activeLiveControllersCount = 0
+    }
+
+    /// Tears down all WebViews and drains per-profile background persistence before deleting
+    /// the profile's storage directory on disk.
+    public func prepareForProfileDeletion() {
+        shutdownAllWebViews()
+        cookieSessionStore.invalidateAndDrainIO()
+        webSessionStorageStore.invalidateAndDrainIO()
+        stateStore.invalidateAndDrainIO()
+        libraryStore.invalidateAndDrainIO()
     }
 
     public func openLibrary(tabIndex: Int = 0) {

@@ -638,22 +638,31 @@ public struct SettingsView: View {
 
                 Spacer()
 
-                Button("加载已解压扩展...") {
-                    extensionManager.promptLoadUnpackedExtension()
-                }
-                .font(.system(size: 11.5))
-                .controlSize(.small)
+                if DistributionChannel.current.allowsExternalExtensionPackages {
+                    Button("加载已解压扩展...") {
+                        extensionManager.promptLoadUnpackedExtension()
+                    }
+                    .font(.system(size: 11.5))
+                    .controlSize(.small)
 
-                Button("导入 CRX / 脚本...") {
-                    extensionManager.promptInstallExtensionPackage()
+                    Button("导入 CRX / 脚本...") {
+                        extensionManager.promptInstallExtensionPackage()
+                    }
+                    .font(.system(size: 11.5))
+                    .controlSize(.small)
                 }
-                .font(.system(size: 11.5))
-                .controlSize(.small)
             }
 
-            Toggle("开启扩展开发者模式 (支持直接加载本地解包目录与热重载调试)", isOn: $extensionManager.isDeveloperMode)
-                .toggleStyle(.checkbox)
-                .font(.system(size: 13))
+            if DistributionChannel.current.allowsExternalExtensionPackages {
+                Toggle("开启扩展开发者模式 (支持直接加载本地解包目录与热重载调试)", isOn: $extensionManager.isDeveloperMode)
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: 13))
+            } else {
+                Text("当前为 Mac App Store 官方版，已内置 5 大精选扩展工具；如需导入外部 .crx 扩展或启用开发者模式，请前往官网获取公证独立分发版 (DMG)。")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -864,14 +873,14 @@ public struct SettingsView: View {
 
     // 7. 关于 Zhuo浏览器
     private var aboutSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             sectionHeader(title: "关于 Zhuo浏览器", icon: "info.circle.fill")
 
             HStack {
                 Text("Zhuo浏览器 · Mac 原生轻量浏览器")
                     .font(.system(size: 12, weight: .medium))
                 Spacer()
-                Text("v1.0.0 (Build 2026.11)")
+                Text("v1.0.0 · \(DistributionChannel.current.displayName)")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
@@ -880,6 +889,30 @@ public struct SettingsView: View {
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 14) {
+                Button("官方网站") {
+                    isPresented = false
+                    _ = session.createTab(url: "https://zhuobrowser.youdroid.top/")
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 11.5))
+
+                Button("隐私政策") {
+                    isPresented = false
+                    _ = session.createTab(url: "https://zhuobrowser.youdroid.top/privacy.html")
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 11.5))
+
+                Button("用户协议") {
+                    isPresented = false
+                    _ = session.createTab(url: "https://zhuobrowser.youdroid.top/terms.html")
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 11.5))
+            }
+            .padding(.top, 2)
         }
     }
 

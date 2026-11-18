@@ -217,6 +217,14 @@ public struct ZhuoBrowserMacApp: App {
                 .disabled(session.activeTab?.isHome ?? true)
             }
 
+            CommandGroup(replacing: .printItem) {
+                Button("打印...") {
+                    session.printActiveTab()
+                }
+                .keyboardShortcut("p", modifiers: .command)
+                .disabled(session.activeTab?.isHome ?? true)
+            }
+
             CommandMenu("浏览") {
                 Button("后退") {
                     session.goBackActiveTab()
@@ -279,6 +287,26 @@ public struct ZhuoBrowserMacApp: App {
                     DownloadManager.shared.isShowingPopover.toggle()
                 }
                 .keyboardShortcut("l", modifiers: [.command, .option])
+
+                Divider()
+
+                Button("在页面中查找...") {
+                    session.openFindBar()
+                }
+                .keyboardShortcut("f", modifiers: .command)
+                .disabled(session.activeTab?.isHome ?? true)
+
+                Button("查找下一个") {
+                    session.findNext()
+                }
+                .keyboardShortcut("g", modifiers: .command)
+                .disabled((session.activeTab?.isHome ?? true) || session.findQuery.isEmpty)
+
+                Button("查找上一个") {
+                    session.findPrevious()
+                }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled((session.activeTab?.isHome ?? true) || session.findQuery.isEmpty)
 
                 Divider()
 
@@ -423,24 +451,26 @@ public struct ZhuoBrowserMacApp: App {
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
 
-                Button("新建自定义脚本 / 扩展...") {
-                    session.extensionManager.isShowingCreatorSheet = true
-                    session.openExtensionManager()
-                }
-                .keyboardShortcut("e", modifiers: [.command, .option])
+                if DistributionChannel.current.allowsExternalExtensionPackages {
+                    Button("新建自定义脚本 / 扩展...") {
+                        session.extensionManager.isShowingCreatorSheet = true
+                        session.openExtensionManager()
+                    }
+                    .keyboardShortcut("e", modifiers: [.command, .option])
 
-                Divider()
+                    Divider()
 
-                Button("加载已解压的扩展程序...") {
-                    session.extensionManager.promptLoadUnpackedExtension()
-                }
+                    Button("加载已解压的扩展程序...") {
+                        session.extensionManager.promptLoadUnpackedExtension()
+                    }
 
-                Button("安装扩展程序包 (.crx / .zip / .user.js)...") {
-                    session.extensionManager.promptInstallExtensionPackage()
-                }
+                    Button("安装扩展程序包 (.crx / .zip / .user.js)...") {
+                        session.extensionManager.promptInstallExtensionPackage()
+                    }
 
-                Button("重新加载全部扩展") {
-                    session.extensionManager.reloadAllExtensions()
+                    Button("重新加载全部扩展") {
+                        session.extensionManager.reloadAllExtensions()
+                    }
                 }
 
                 if !session.extensionManager.enabledExtensions.isEmpty {
