@@ -39,5 +39,36 @@ export default function browserShortcutTest(): void {
       expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_W, ctrl: true, shift: true, keyDown: true }))
         .assertEqual(BrowserShortcut.None);
     });
+
+    it('maps desktop zoom, panel, private-tab, reload, and alt navigation shortcuts', 0, (): void => {
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_EQUALS, ctrl: true, shift: false, keyDown: true }))
+        .assertEqual(BrowserShortcut.ZoomIn);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_NUMPAD_ADD, ctrl: true, shift: true, keyDown: true }))
+        .assertEqual(BrowserShortcut.ZoomIn);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_MINUS, ctrl: true, shift: false, keyDown: true }))
+        .assertEqual(BrowserShortcut.ZoomOut);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_NUMPAD_SUBTRACT, ctrl: true, shift: false, keyDown: true }))
+        .assertEqual(BrowserShortcut.ZoomOut);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_0, ctrl: true, shift: false, keyDown: true }))
+        .assertEqual(BrowserShortcut.ZoomReset);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_NUMPAD_0, ctrl: true, shift: false, keyDown: true }))
+        .assertEqual(BrowserShortcut.ZoomReset);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_H, ctrl: true, shift: false, keyDown: true }))
+        .assertEqual(BrowserShortcut.OpenHistory);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_J, ctrl: true, shift: false, keyDown: true }))
+        .assertEqual(BrowserShortcut.OpenDownloads);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_D, ctrl: true, shift: false, keyDown: true }))
+        .assertEqual(BrowserShortcut.BookmarkPage);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_N, ctrl: true, shift: true, keyDown: true }))
+        .assertEqual(BrowserShortcut.NewPrivateTab);
+      expect(resolveBrowserShortcut({ keyCode: KeyCode.KEYCODE_F5, ctrl: false, shift: false, keyDown: true }))
+        .assertEqual(BrowserShortcut.Reload);
+      expect(resolveBrowserShortcut({
+        keyCode: KeyCode.KEYCODE_DPAD_LEFT, ctrl: false, shift: false, alt: true, keyDown: true
+      })).assertEqual(BrowserShortcut.NavigateBack);
+      expect(resolveBrowserShortcut({
+        keyCode: KeyCode.KEYCODE_DPAD_RIGHT, ctrl: false, shift: false, alt: true, keyDown: true
+      })).assertEqual(BrowserShortcut.NavigateForward);
+    });
   });
 }

@@ -1,8 +1,14 @@
 export const MEDIUM_WINDOW_MIN_WIDTH: number = 600;
 export const EXPANDED_WINDOW_MIN_WIDTH: number = 840;
+export const PC_DESKTOP_WINDOW_MIN_WIDTH: number = 840;
 export const DESKTOP_WINDOW_MIN_WIDTH: number = 1440;
 export const CONSTRAINED_WINDOW_MAX_HEIGHT: number = 480;
 export const WIDE_WINDOW_MIN_ASPECT_RATIO: number = 2;
+
+export function isDesktopFormFactor(deviceType: string): boolean {
+  const normalized: string = deviceType.trim().toLowerCase();
+  return normalized === '2in1' || normalized === 'pc';
+}
 
 export enum BrowserLayoutClass {
   Compact = 0,
@@ -32,7 +38,8 @@ export interface BrowserWindowMetrics {
 export function createWindowMetrics(
   widthVp: number,
   heightVp: number,
-  windowMode: BrowserWindowMode
+  windowMode: BrowserWindowMode,
+  isDesktopDevice: boolean = false
 ): BrowserWindowMetrics {
   const safeWidth: number = normalizedDimension(widthVp);
   const safeHeight: number = normalizedDimension(heightVp);
@@ -41,14 +48,20 @@ export function createWindowMetrics(
     widthVp: safeWidth,
     heightVp: safeHeight,
     aspectRatio: aspectRatio,
-    layoutClass: layoutClassForWidth(safeWidth),
+    layoutClass: layoutClassForWidth(safeWidth, isDesktopDevice),
     windowMode: windowMode,
     isHeightConstrained: safeHeight < CONSTRAINED_WINDOW_MAX_HEIGHT ||
       aspectRatio >= WIDE_WINDOW_MIN_ASPECT_RATIO
   };
 }
 
-export function layoutClassForWidth(widthVp: number): BrowserLayoutClass {
+export function layoutClassForWidth(
+  widthVp: number,
+  isDesktopDevice: boolean = false
+): BrowserLayoutClass {
+  if (isDesktopDevice && widthVp >= PC_DESKTOP_WINDOW_MIN_WIDTH) {
+    return BrowserLayoutClass.Desktop;
+  }
   if (widthVp >= DESKTOP_WINDOW_MIN_WIDTH) {
     return BrowserLayoutClass.Desktop;
   }

@@ -140,6 +140,27 @@ export enum UserAgentPreference {
   Desktop = 2
 }
 
+export function resolveDefaultDesktopUserAgent(
+  preference: UserAgentPreference,
+  isDesktopDevice: boolean
+): boolean {
+  if (preference === UserAgentPreference.Desktop) {
+    return true;
+  }
+  if (preference === UserAgentPreference.Mobile) {
+    return false;
+  }
+  return isDesktopDevice;
+}
+
+export function defaultLiveWebViewLimitForDevice(isDesktopDevice: boolean): number {
+  return isDesktopDevice ? 12 : 4;
+}
+
+export function defaultTabSoftLimitForDevice(isDesktopDevice: boolean): number {
+  return isDesktopDevice ? 30 : 12;
+}
+
 /** Parsed X.509 summary shown in the security panel. */
 export interface CertificateSummary {
   subject: string;

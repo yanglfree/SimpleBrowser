@@ -1,7 +1,9 @@
 import { ConfigurationConstant, common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
+import { deviceInfo } from '@kit.BasicServicesKit';
 import { AppearanceMode } from '../models/BrowserModels';
 import { BrowserSystemBarStyle } from '../models/SystemBarStyle';
+import { isDesktopFormFactor } from '../models/WindowMetrics';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'ThemeService';
@@ -9,8 +11,8 @@ const TAG: string = 'ThemeService';
 const TRANSPARENT_BACKGROUND: string = '#00000000';
 
 /** Keeps the ArkUI origin stable while surface colours change between tabs. */
-export function shouldLayoutFullScreen(_isHome: boolean): boolean {
-  return true;
+export function shouldLayoutFullScreen(_isHome: boolean, isDesktopDevice: boolean = false): boolean {
+  return !isDesktopDevice;
 }
 
 export function systemBarBackgroundColor(isFullScreen: boolean, background: string): string {
@@ -41,7 +43,13 @@ export class ThemeService {
       if (ThemeService.revisions.get(context) !== revision) {
         return;
       }
-      const isFullScreen: boolean = shouldLayoutFullScreen(style.wallpaper);
+      let isDesktopDevice: boolean = false;
+      try {
+        isDesktopDevice = isDesktopFormFactor(deviceInfo.deviceType);
+      } catch (_error) {
+        isDesktopDevice = false;
+      }
+      const isFullScreen: boolean = shouldLayoutFullScreen(style.wallpaper, isDesktopDevice);
       if (mainWindow.getWindowProperties().isLayoutFullScreen !== isFullScreen) {
         await mainWindow.setWindowLayoutFullScreen(isFullScreen);
       }

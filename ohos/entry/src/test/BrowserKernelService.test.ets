@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@ohos/hypium';
 import { DESKTOP_VIEWPORT_SCRIPT } from '../main/ets/constants/AppConstants';
-import { WebKernelService } from '../main/ets/services/WebKernelService';
+import { WebKernelService, WebLongPressKind } from '../main/ets/services/WebKernelService';
 
 export default function browserKernelServiceTest(): void {
   describe('WebKernelService policy', (): void => {
@@ -49,6 +49,33 @@ export default function browserKernelServiceTest(): void {
     it('uses the available web surface for desktop viewport layout', 0, (): void => {
       expect(DESKTOP_VIEWPORT_SCRIPT).assertContain('width=device-width');
       expect(DESKTOP_VIEWPORT_SCRIPT.includes('width=1024')).assertFalse();
+    });
+
+    it('synchronizes desktop UA Chrome version from the stock kernel user agent', 0, (): void => {
+      const stock: string = 'Mozilla/5.0 (OpenHarmony) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.55 Safari/537.36';
+      const desktop: string = WebKernelService.resolveDesktopUserAgent(stock);
+      expect(desktop).assertContain('Chrome/141.0.7390.55');
+      expect(desktop).assertContain('X11; Linux x86_64');
+      expect(WebKernelService.resolveDesktopUserAgent('custom-agent')).assertContain('Chrome/132.0.0.0');
+    });
+
+    it('resolves desktop right-click targets, file selector limits, and bounded zoom percentages', 0, (): void => {
+      const linkTarget = WebKernelService.resolveContextMenuTarget('https://example.com/a', '', false, 'Link');
+      expect(linkTarget?.kind).assertEqual(WebLongPressKind.Link);
+      expect(linkTarget?.url).assertEqual('https://example.com/a');
+
+      const imageTarget = WebKernelService.resolveContextMenuTarget('', 'https://cdn.example/a.png', true, '');
+      expect(imageTarget?.kind).assertEqual(WebLongPressKind.Image);
+      expect(imageTarget?.url).assertEqual('https://cdn.example/a.png');
+
+      expect(WebKernelService.resolveContextMenuTarget('javascript:void(0)', '', false, '') === undefined).assertTrue();
+      expect(WebKernelService.resolveFileSelectorMaxCount(0)).assertEqual(1);
+      expect(WebKernelService.resolveFileSelectorMaxCount(1)).assertEqual(50);
+
+      expect(WebKernelService.stepSiteZoomPercent(100, 10)).assertEqual(110);
+      expect(WebKernelService.stepSiteZoomPercent(200, 10)).assertEqual(200);
+      expect(WebKernelService.stepSiteZoomPercent(50, -10)).assertEqual(50);
+      expect(WebKernelService.stepSiteZoomPercent(Number.NaN, -10)).assertEqual(90);
     });
   });
 }

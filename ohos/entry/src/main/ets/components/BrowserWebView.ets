@@ -1,6 +1,8 @@
 import { PrivacyService } from '../services/PrivacyService';
+import { common } from '@kit.AbilityKit';
 import { webview } from '@kit.ArkWeb';
 import { deviceInfo } from '@kit.BasicServicesKit';
+import { picker } from '@kit.CoreFileKit';
 import {
   applyDocumentHashScript,
   BLOCKED_LINK_GUARD_SCRIPT,
@@ -10,7 +12,7 @@ import { BrowserTab, WebDarkModePreference } from '../models/BrowserModels';
 import { BlockCategory } from '../models/BlockEventModels';
 import { AdsBlockService } from '../services/AdsBlockService';
 import { createExternalProtocolRequest, isBlockedProtocol } from '../services/ExternalProtocolService';
-import { WebKernelCallbacks, WebKernelService } from '../services/WebKernelService';
+import { WebKernelCallbacks, WebKernelService, WebLongPressTarget } from '../services/WebKernelService';
 import { Logger } from '../utils/Logger';
 import { isSameDocumentHashNavigation, isSameDocumentUrl, urlHash } from '../utils/UrlUtils';
 import { AppIcon, IconName } from './AppIcon';
@@ -41,6 +43,7 @@ export struct BrowserWebView {
   @Prop minimumFontSize: number = 14;
   @Prop webDarkMode: WebDarkModePreference = WebDarkModePreference.System;
   @Prop darkModeExcluded: boolean = false;
+  @Prop isDesktop: boolean = false;
   /**
    * A popup created by window.open receives its document through the handed-over
    * controller; loading its own src as well would race that navigation and drop
@@ -64,6 +67,8 @@ export struct BrowserWebView {
   onOwnRuleBlocked: (url: string, category: BlockCategory, ruleSource: string) => void =
     (_url: string, _category: BlockCategory, _ruleSource: string): void => {};
   onLongPress: () => void = (): void => {};
+  onContextMenuTarget: (target: WebLongPressTarget) => void = (_target: WebLongPressTarget): void => {};
+  onWheelZoom: (zoomIn: boolean) => void = (_zoomIn: boolean): void => {};
   onPermissionRequest: (event: OnPermissionRequestEvent) => void =
     (_event: OnPermissionRequestEvent): void => {};
   onGeolocationShow: (event: OnGeolocationShowEvent) => void =
@@ -73,6 +78,9 @@ export struct BrowserWebView {
     (_url: string, _sourceUrl: string): void => {};
   onShortcut: (event: KeyEvent) => boolean = (_event: KeyEvent): boolean => false;
   private securityBridge: DolphinSecurityBridge = new DolphinSecurityBridge();
+  private wheelZoomModifier: DesktopWheelZoomModifier = new DesktopWheelZoomModifier(
+    (event: AxisEvent): void => this.handleAxisEvent(event)
+  );
   /**
    * Initial document only. Binding src to the live tab URL reloads hash-only
    * SPA routes through loadUrl, which does not dispatch hashchange.
@@ -228,6 +236,9 @@ export struct BrowserWebView {
       .onFullScreenExit(() => {
         this.kernelCallbacks.onFullScreenExit();
       })
+      .onContextMenuShow((event: OnContextMenuShowEvent): boolean => this.handleContextMenuShow(event))
+      .onShowFileSelector((event: OnShowFileSelectorEvent): boolean => this.handleShowFileSelector(event))
+      .attributeModifier(this.wheelZoomModifier)
       .parallelGesture(
         PanGesture({ direction: PanDirection.Vertical, distance: 8 })
           .onActionStart((event: GestureEvent) => this.startPull(event))
@@ -238,13 +249,13 @@ export struct BrowserWebView {
       .parallelGesture(
         LongPressGesture({ repeat: false, duration: 500 })
           .onAction(() => {
-            if (!this.tab.isReader) {
+            if (!this.tab.isReader && !this.isDesktop) {
               this.onLongPress();
             }
           })
       )
 
-      if (this.gesturesEnabled) {
+      if (this.gesturesEnabled && !this.isDesktop) {
         this.EdgeRail(true)
         this.EdgeRail(false)
       }
@@ -426,7 +437,74 @@ export struct BrowserWebView {
     }
   }
 
+  private handleContextMenuShow(event: OnContextMenuShowEvent): boolean {
+    if (this.tab.isReader || event.param.isEditable()) {
+      return false;
+    }
+    const target: WebLongPressTarget | undefined = WebKernelService.resolveContextMenuTarget(
+      event.param.getLinkUrl() ?? '',
+      event.param.getSourceUrl() ?? '',
+      event.param.existsImageContents(),
+      event.param.getSelectionText() ?? ''
+    );
+    if (target === undefined) {
+      return false;
+    }
+    event.result.closeContextMenu();
+    this.onContextMenuTarget(target);
+    return true;
+  }
+
+  private handleShowFileSelector(event: OnShowFileSelectorEvent): boolean {
+    try {
+      const hostContext: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const selectOptions: picker.DocumentSelectOptions = {
+        maxSelectNumber: WebKernelService.resolveFileSelectorMaxCount(event.fileSelector.getMode() as number)
+      };
+      new picker.DocumentViewPicker(hostContext).select(selectOptions)
+        .then((uris: string[]): void => {
+          event.result.handleFileList(uris);
+        })
+        .catch((error: Error): void => {
+          Logger.warn(TAG, `File selector canceled or failed: ${String(error)}`);
+          event.result.handleFileList([]);
+        });
+      return true;
+    } catch (error) {
+      Logger.warn(TAG, `File selector unavailable: ${String(error)}`);
+      event.result.handleFileList([]);
+      return true;
+    }
+  }
+
+  private handleAxisEvent(event: AxisEvent): void {
+    if (deviceInfo.sdkApiVersion >= 17) {
+      if (event.action !== AxisAction.UPDATE) {
+        return;
+      }
+      let ctrlPressed: boolean = false;
+      try {
+        ctrlPressed = event.getModifierKeyState?.(['Ctrl']) ?? false;
+      } catch (_error) {
+        ctrlPressed = false;
+      }
+      if (!ctrlPressed) {
+        return;
+      }
+      const delta: number = event.getVerticalAxisValue();
+      if (delta === 0) {
+        return;
+      }
+      this.onWheelZoom(delta < 0);
+    }
+  }
+
   private startPull(event: GestureEvent): void {
+    if (this.isDesktop || event.source === SourceType.Mouse) {
+      this.pullBlocked = true;
+      this.pullDistance = 0;
+      return;
+    }
     // Block optimistically: while the scroll-state query is in flight the pull
     // indicator must stay hidden, or a downward drag on a scrolled list would
     // flash it before the query can veto the gesture.
@@ -485,5 +563,19 @@ class DolphinSecurityBridge {
 
   notifyPasswordFocus(): void {
     this.onPasswordFocus();
+  }
+}
+
+class DesktopWheelZoomModifier implements AttributeModifier<WebAttribute> {
+  private onAxis: (event: AxisEvent) => void;
+
+  constructor(onAxis: (event: AxisEvent) => void) {
+    this.onAxis = onAxis;
+  }
+
+  applyNormalAttribute(instance: WebAttribute): void {
+    if (deviceInfo.sdkApiVersion >= 17) {
+      instance.onAxisEvent((event: AxisEvent): void => this.onAxis(event));
+    }
   }
 }

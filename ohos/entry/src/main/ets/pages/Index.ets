@@ -2,7 +2,8 @@ import { webview } from '@kit.ArkWeb';
 import { abilityAccessCtrl, common, PermissionRequestResult, Permissions } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { unifiedDataChannel, uniformTypeDescriptor } from '@kit.ArkData';
-
+import { deviceInfo } from '@kit.BasicServicesKit';
+import { KeyCode } from '@kit.InputKit';
 import { image } from '@kit.ImageKit';
 import {
   DESKTOP_VIEWPORT_SCRIPT,
@@ -98,6 +99,12 @@ import { QuickSiteEditor } from '../components/QuickSiteEditor';
 import { StartPage } from '../components/StartPage';
 import { TabOverview, TabThumbnail } from '../components/TabOverview';
 import { DesktopTabStrip, DESKTOP_TAB_STRIP_HEIGHT } from '../components/DesktopTabStrip';
+import {
+  DesktopBookmarkBar,
+  DESKTOP_BOOKMARK_BAR_HEIGHT,
+  shouldShowDesktopBookmarkBar
+} from '../components/DesktopBookmarkBar';
+import { DesktopOmniboxPopover, moveOmniboxHighlight } from '../components/DesktopOmniboxPopover';
 import { UserAgentPolicySheet } from '../components/UserAgentPolicySheet';
 import { BrowserSidebar, SidebarPanel } from '../components/BrowserSidebar';
 import { WideActionMenu } from '../components/WideActionMenu';
@@ -167,6 +174,7 @@ import {
   BrowserWindowMetrics,
   BrowserWindowMode,
   createWindowMetrics,
+  isDesktopFormFactor,
   shouldEnableDockTabSwipe
 } from '../models/WindowMetrics';
 import { WindowMetricsService } from '../services/WindowMetricsService';
@@ -331,6 +339,10 @@ export function shouldShowBrowserChrome(layoutClass: BrowserLayoutClass, sheet: 
     (layoutClass >= BrowserLayoutClass.Medium && sheet === Overlay.QuickSiteEditor);
 }
 
+export function shouldUseInlineOmnibox(layoutClass: BrowserLayoutClass): boolean {
+  return layoutClass >= BrowserLayoutClass.Desktop;
+}
+
 /** Shape of the JSON the injected cleanup/tracker passes hand back. */
 interface CleanupResult {
   ads?: number;
@@ -474,6 +486,10 @@ struct Index {
   @State private isPro: boolean = false;
   @State private isGeneratingScreenshot: boolean = false;
   @State private settingsInitialPicker: PickerKind = PickerKind.None;
+  @State private isInlineAddressEditing: boolean = false;
+  @State private inlineAddressText: string = '';
+  @State private inlineHighlightIndex: number = -1;
+  private tabZoomPercents: Map<string, number> = new Map();
   private proBillingAdapter: ProBillingAdapter = new ProBillingAdapter();
   private isTabSoftLimitPromptVisible: boolean = false;
   /**
@@ -550,6 +566,9 @@ struct Index {
             this.sidebarPanel = SidebarPanel.None;
             this.closeSplitView();
           }
+          if (!shouldUseInlineOmnibox(metrics.layoutClass)) {
+            this.dismissInlineAddress();
+          }
           if (previousClass !== metrics.layoutClass) {
             this.refreshSystemBarStyle();
             Logger.debug(TAG, `Browser layout class changed to ${metrics.layoutClass}`);
@@ -562,6 +581,7 @@ struct Index {
           this.splitPrimaryRatio = clampPaneRatio(metrics.crease.leftVp / this.windowMetrics.widthVp);
         }
       });
+      this.viewModel.setDesktopDevice(isDesktopFormFactor(deviceInfo.deviceType));
       await this.viewModel.initialize(this.appContext());
       if (transferredTab !== undefined && !this.viewModel.hasRestoredSession()) {
         this.viewModel.adoptTransferredTab(transferredTab);
@@ -831,6 +851,10 @@ struct Index {
     if (this.sheet === Overlay.PrivacyConsent) {
       return true;
     }
+    if (this.isInlineAddressEditing) {
+      this.dismissInlineAddress();
+      return true;
+    }
     if (this.sidebarPanel !== SidebarPanel.None) {
       this.sidebarPanel = SidebarPanel.None;
       return true;
@@ -890,7 +914,14 @@ struct Index {
           if (this.isAddressMenuVisible) {
             this.AddressMenuDismissLayer()
           }
+          if (this.isInlineAddressEditing) {
+            this.InlineAddressDismissLayer()
+          }
           this.CapsuleLayer()
+          if (this.isInlineAddressEditing && shouldUseInlineOmnibox(this.windowMetrics.layoutClass) &&
+            this.suggestions.length > 0 && !this.isFullscreen) {
+            this.DesktopOmniboxPopoverLayer()
+          }
           this.DownloadNoticeLayer()
           this.ArticleSavedToastLayer()
         }
@@ -1019,6 +1050,7 @@ struct Index {
               webDarkMode: this.viewModel.effectiveSiteControl(tab.url).webDarkMode,
               darkModeExcluded: this.isDarkModeExcluded(tab.url) &&
                 this.viewModel.siteControlForUrl(tab.url).darkMode === SiteControlMode.Inherit,
+              isDesktop: this.usesDesktopTabStrip(),
               controller: this.controllerFor(tab.id),
               mountBlank: this.popupTabIds.has(tab.id),
               kernelCallbacks: {
@@ -1074,6 +1106,12 @@ struct Index {
                 void this.handleOwnRuleBlocked(tab.id, url, category, ruleSource);
               },
               onLongPress: (): void => { void this.openLongPressActions(tab.id); },
+              onContextMenuTarget: (target: WebLongPressTarget): void => {
+                this.openContextMenuTarget(target);
+              },
+              onWheelZoom: (zoomIn: boolean): void => {
+                this.stepActivePageZoom(zoomIn ? 10 : -10);
+              },
               onPermissionRequest: (event: OnPermissionRequestEvent): void =>
                 this.handlePermissionRequest(event),
               onGeolocationShow: (event: OnGeolocationShowEvent): void =>
@@ -1393,6 +1431,36 @@ struct Index {
   }
 
   @Builder
+  private InlineAddressDismissLayer() {
+    Row()
+      .width('100%')
+      .height('100%')
+      .onClick(() => { this.dismissInlineAddress(); })
+  }
+
+  @Builder
+  private DesktopOmniboxPopoverLayer() {
+    Row() {
+      DesktopOmniboxPopover({
+        suggestions: this.suggestions,
+        highlightedIndex: this.inlineHighlightIndex,
+        onPick: (url: string): void => this.submitInlineAddress(url),
+        onFill: (url: string): void => {
+          this.handleInlineAddressChange(url);
+        },
+        onDismiss: (): void => this.dismissInlineAddress()
+      })
+    }
+    .width(this.chromeWidth())
+    .justifyContent(FlexAlign.Center)
+    .position({
+      x: 0,
+      y: this.topInset + (this.usesDesktopTabStrip() ? DESKTOP_TAB_STRIP_HEIGHT : 0) + DOCK_HEIGHT + 4
+    })
+    .hitTestBehavior(HitTestMode.Transparent)
+  }
+
+  @Builder
   private CapsuleLayer() {
     if (!this.isFullscreen && shouldShowBrowserChrome(this.windowMetrics.layoutClass, this.sheet)) {
       if (this.usesWideChrome()) {
@@ -1469,7 +1537,13 @@ struct Index {
       isPrivate: this.activeTab()?.isPrivate === true,
       historyOpen: this.sidebarPanel === SidebarPanel.History || this.sheet === Overlay.History,
       hasOverlay: this.sheet !== Overlay.None,
+      inlineEditing: this.isInlineAddressEditing && shouldUseInlineOmnibox(this.windowMetrics.layoutClass),
+      inlineText: this.inlineAddressText,
       onOpenAddress: (): void => this.openAddress(),
+      onInlineChange: (query: string): void => this.handleInlineAddressChange(query),
+      onInlineSubmit: (query: string): void => this.submitInlineAddress(query),
+      onInlineDismiss: (): void => this.dismissInlineAddress(),
+      onInlineKeyEvent: (event: KeyEvent): boolean => this.handleInlineAddressKeyEvent(event),
       onBack: (): void => { void this.performAction('back'); },
       onForward: (): void => { void this.performAction('forward'); },
       onHome: (): void => { void this.performAction('home'); },
@@ -1526,6 +1600,15 @@ struct Index {
       })
       .transition(TransitionEffect.OPACITY.animation({ duration: 180 })
         .combine(TransitionEffect.translate({ y: 24 })))
+      if (shouldShowDesktopBookmarkBar(this.usesDesktopTabStrip(), this.isFullscreen, this.savedItems.length)) {
+        DesktopBookmarkBar({
+          items: this.savedItems,
+          siteIcons: this.siteIcons,
+          onSelect: (url: string): void => this.navigateTo(url),
+          onOpenBackground: (url: string): void => this.openUrlInBackgroundTab(url),
+          onDelete: (id: string): void => { void this.deleteFavorite(id); }
+        })
+      }
     }
     .width('100%')
   }
@@ -1749,7 +1832,13 @@ struct Index {
   }
 
   private wideChromeHeight(): number {
-    return DOCK_HEIGHT + (this.usesDesktopTabStrip() ? DESKTOP_TAB_STRIP_HEIGHT : 0);
+    const stripHeight: number = this.usesDesktopTabStrip() ? DESKTOP_TAB_STRIP_HEIGHT : 0;
+    const bookmarkBarHeight: number = shouldShowDesktopBookmarkBar(
+      this.usesDesktopTabStrip(),
+      this.isFullscreen,
+      this.savedItems.length
+    ) ? DESKTOP_BOOKMARK_BAR_HEIGHT : 0;
+    return DOCK_HEIGHT + stripHeight + bookmarkBarHeight;
   }
 
   private dockHeight(): number {
@@ -2200,6 +2289,7 @@ struct Index {
         target: this.longPressTarget,
         isPrivate: this.activeTab()?.isPrivate === true,
         canOpenRight: this.usesWideChrome(),
+        canOpenNewWindow: this.multiWindowSupported,
         onDismiss: (): void => this.closeLongPressActions(),
         onAction: (key: string): void => { void this.performLongPressAction(key); }
       })
@@ -2482,6 +2572,7 @@ struct Index {
     if (this.promptExternalProtocol(url, tab.url)) {
       return;
     }
+    this.dismissInlineAddress();
     this.sheet = Overlay.None;
     this.isCapsuleHidden = false;
     if (isHomeUrl(tab.url)) {
@@ -2664,6 +2755,7 @@ struct Index {
   }
 
   private goHome(id: string): void {
+    this.dismissInlineAddress();
     this.viewModel.updateTab(id, {
       url: HOME_URL,
       title: '',
@@ -2680,6 +2772,7 @@ struct Index {
   }
 
   private submitAddress(query: string): void {
+    this.dismissInlineAddress();
     const target: string = normalizeAddress(
       query,
       this.settings.searchEngine,
@@ -2696,8 +2789,62 @@ struct Index {
     this.overlayTargetPaneId = this.focusedPaneId;
     this.isAddressMenuVisible = false;
     this.showCapsule();
-    this.updateSuggestions(this.isActiveHome() ? '' : (this.activeDisplayUrl()));
+    const initialQuery: string = this.isActiveHome() ? '' : this.activeDisplayUrl();
+    this.updateSuggestions(initialQuery);
+    if (shouldUseInlineOmnibox(this.windowMetrics.layoutClass)) {
+      this.sheet = Overlay.None;
+      this.inlineAddressText = initialQuery;
+      this.inlineHighlightIndex = -1;
+      this.isInlineAddressEditing = true;
+      return;
+    }
     this.sheet = Overlay.Address;
+  }
+
+  private dismissInlineAddress(): void {
+    this.isInlineAddressEditing = false;
+    this.inlineAddressText = '';
+    this.inlineHighlightIndex = -1;
+  }
+
+  private handleInlineAddressChange(query: string): void {
+    this.inlineAddressText = query;
+    this.inlineHighlightIndex = -1;
+    this.updateSuggestions(query);
+  }
+
+  private submitInlineAddress(query: string): void {
+    const highlighted: Suggestion | undefined = this.inlineHighlightIndex >= 0 &&
+      this.inlineHighlightIndex < this.suggestions.length
+      ? this.suggestions[this.inlineHighlightIndex]
+      : undefined;
+    const rawTarget: string = highlighted !== undefined ? highlighted.url : query;
+    this.dismissInlineAddress();
+    this.submitAddress(rawTarget);
+  }
+
+  private handleInlineAddressKeyEvent(event: KeyEvent): boolean {
+    if (event.type !== KeyType.Down) {
+      return false;
+    }
+    if (event.keyCode === KeyCode.KEYCODE_ESCAPE) {
+      this.dismissInlineAddress();
+      return true;
+    }
+    if (event.keyCode === KeyCode.KEYCODE_DPAD_DOWN) {
+      this.inlineHighlightIndex = moveOmniboxHighlight(this.inlineHighlightIndex, this.suggestions.length, 1);
+      return true;
+    }
+    if (event.keyCode === KeyCode.KEYCODE_DPAD_UP) {
+      this.inlineHighlightIndex = moveOmniboxHighlight(this.inlineHighlightIndex, this.suggestions.length, -1);
+      return true;
+    }
+    if ((event.keyCode === KeyCode.KEYCODE_ENTER || event.keyCode === KeyCode.KEYCODE_NUMPAD_ENTER) &&
+      this.inlineHighlightIndex >= 0 && this.inlineHighlightIndex < this.suggestions.length) {
+      this.submitInlineAddress(this.suggestions[this.inlineHighlightIndex].url);
+      return true;
+    }
+    return false;
   }
 
   private updateSuggestions(query: string): void {
@@ -2878,6 +3025,7 @@ struct Index {
   }
 
   private async selectTab(id: string): Promise<void> {
+    this.dismissInlineAddress();
     this.dismissResumePrompt();
     await this.activateTab(id);
     await this.captureScrollPosition(this.activeTabId);
@@ -2907,6 +3055,7 @@ struct Index {
   }
 
   private createTab(isPrivate: boolean): void {
+    this.dismissInlineAddress();
     if (this.viewModel.isTabSoftLimitReached()) {
       this.promptTabSoftLimit();
     }
@@ -3008,6 +3157,7 @@ struct Index {
   }
 
   private closeTab(id: string): void {
+    this.tabZoomPercents.delete(id);
     if (this.activeTabId === id) {
       this.exitWebFullscreen();
     }
@@ -3087,11 +3237,15 @@ struct Index {
       keyCode: event.keyCode,
       ctrl: this.modifierPressed(event, 'ctrl'),
       shift: this.modifierPressed(event, 'shift'),
+      alt: this.modifierPressed(event, 'alt'),
       keyDown: event.type === KeyType.Down
     });
     if (shortcut === BrowserShortcut.None || this.sheet === Overlay.Address ||
       this.sheet === Overlay.Onboarding || this.sheet === Overlay.Permission ||
       this.sheet === Overlay.PrivacyConsent) {
+      return false;
+    }
+    if (this.isInlineAddressEditing && shortcut !== BrowserShortcut.FocusAddress) {
       return false;
     }
     if (this.sheet !== Overlay.None && shortcut !== BrowserShortcut.FocusAddress) {
@@ -3105,6 +3259,9 @@ struct Index {
         break;
       case BrowserShortcut.NewTab:
         this.createTab(this.activeTab()?.isPrivate === true);
+        break;
+      case BrowserShortcut.NewPrivateTab:
+        this.createTab(true);
         break;
       case BrowserShortcut.CloseTab:
         this.closeTab(this.activeTabId);
@@ -3140,6 +3297,34 @@ struct Index {
             void this.captureArticleForLibrary(this.activeTabId);
           }
         }
+        break;
+      case BrowserShortcut.ZoomIn:
+        this.stepActivePageZoom(10);
+        break;
+      case BrowserShortcut.ZoomOut:
+        this.stepActivePageZoom(-10);
+        break;
+      case BrowserShortcut.ZoomReset:
+        this.resetActivePageZoom();
+        break;
+      case BrowserShortcut.OpenHistory:
+        void this.performAction('history');
+        break;
+      case BrowserShortcut.OpenDownloads:
+        void this.performAction('downloads');
+        break;
+      case BrowserShortcut.BookmarkPage:
+        if (this.isActiveHome()) {
+          handled = false;
+        } else {
+          void this.performAction('bookmark');
+        }
+        break;
+      case BrowserShortcut.NavigateBack:
+        void this.performAction('back');
+        break;
+      case BrowserShortcut.NavigateForward:
+        void this.performAction('forward');
         break;
       default:
         handled = false;
@@ -3723,7 +3908,8 @@ struct Index {
 
   private async resetUserAgentPreferences(): Promise<void> {
     await this.viewModel.resetUserAgentPreferences();
-    this.applyUserAgentToActive(false);
+    const tab: BrowserTab | undefined = this.activeTab();
+    this.applyUserAgentToActive(tab !== undefined ? this.viewModel.preferredDesktopForUrl(tab.url) : false);
   }
 
   private applyUserAgentToActive(isDesktop: boolean): void {
@@ -3932,7 +4118,7 @@ struct Index {
     }
   }
 
-  private showToast(message: Resource): void {
+  private showToast(message: ResourceStr): void {
     try {
       this.getUIContext().getPromptAction().showToast({ message: message });
     } catch (error) {
@@ -4837,6 +5023,13 @@ struct Index {
         await this.runScript(controller, PASSWORD_FIELD_WATCHER_SCRIPT);
       }
     }
+    const savedZoom: number | undefined = this.tabZoomPercents.get(id);
+    if (savedZoom !== undefined && savedZoom !== 100) {
+      const controller: webview.WebviewController | undefined = this.controllers.get(id);
+      if (controller !== undefined) {
+        WebKernelService.applyZoomPercent(controller, savedZoom);
+      }
+    }
     this.syncState();
   }
 
@@ -4948,6 +5141,11 @@ struct Index {
     }
   }
 
+  private openContextMenuTarget(target: WebLongPressTarget): void {
+    this.longPressTarget = target;
+    this.sheet = Overlay.LinkActions;
+  }
+
   private async openLongPressActions(id: string): Promise<void> {
     if (id !== this.activeTabId) {
       return;
@@ -4994,6 +5192,15 @@ struct Index {
       this.closeLongPressActions();
       return;
     }
+    if (key === 'link_open_window') {
+      const tab: BrowserTab | undefined = this.viewModel.addBackgroundTab(target.url, false);
+      if (tab !== undefined) {
+        this.syncState();
+        await this.moveTabToNewWindow(tab.id);
+      }
+      this.closeLongPressActions();
+      return;
+    }
     if (key === 'link_copy') {
       const outcome: ShareOutcome = await ShareService.copy(target.url);
       if (outcome === ShareOutcome.Copied) {
@@ -5020,6 +5227,45 @@ struct Index {
       }
       this.closeLongPressActions();
     }
+  }
+
+  private openUrlInBackgroundTab(url: string): void {
+    const isPrivate: boolean = this.activeTab()?.isPrivate === true;
+    const tab: BrowserTab | undefined = this.viewModel.addBackgroundTab(url, isPrivate);
+    if (tab !== undefined) {
+      this.syncState();
+      void this.activateTab(tab.id);
+    }
+  }
+
+  private stepActivePageZoom(deltaPercent: number): void {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined || isHomeUrl(tab.url)) {
+      return;
+    }
+    const controller: webview.WebviewController | undefined = this.controllers.get(tab.id);
+    if (controller === undefined) {
+      return;
+    }
+    const current: number = this.tabZoomPercents.get(tab.id) ?? 100;
+    const next: number = WebKernelService.stepSiteZoomPercent(current, deltaPercent);
+    this.tabZoomPercents.set(tab.id, next);
+    WebKernelService.applyZoomPercent(controller, next);
+    this.showToast(`${next}%`);
+  }
+
+  private resetActivePageZoom(): void {
+    const tab: BrowserTab | undefined = this.activeTab();
+    if (tab === undefined || isHomeUrl(tab.url)) {
+      return;
+    }
+    const controller: webview.WebviewController | undefined = this.controllers.get(tab.id);
+    if (controller === undefined) {
+      return;
+    }
+    this.tabZoomPercents.set(tab.id, 100);
+    WebKernelService.applyZoomPercent(controller, 100);
+    this.showToast('100%');
   }
 
   private async injectCosmeticRules(id: string, pageUrl: string): Promise<void> {
@@ -5794,6 +6040,11 @@ struct Index {
       });
     for (const tab of this.tabs) {
       requests.push({ url: tab.url, isPrivate: tab.isPrivate });
+    }
+    if (this.usesDesktopTabStrip()) {
+      for (const item of this.savedItems) {
+        requests.push({ url: item.url, isPrivate: false });
+      }
     }
     return requests;
   }

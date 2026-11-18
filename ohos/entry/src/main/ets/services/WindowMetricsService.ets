@@ -1,9 +1,11 @@
 import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
+import { deviceInfo } from '@kit.BasicServicesKit';
 import {
   BrowserWindowMetrics,
   BrowserWindowMode,
-  createWindowMetrics
+  createWindowMetrics,
+  isDesktopFormFactor
 } from '../models/WindowMetrics';
 import { Logger } from '../utils/Logger';
 
@@ -108,7 +110,12 @@ export class WindowMetricsService {
   }
 
   private currentMetrics(): BrowserWindowMetrics {
-    return createWindowMetrics(this.widthVp, this.heightVp, this.windowMode);
+    return createWindowMetrics(
+      this.widthVp,
+      this.heightVp,
+      this.windowMode,
+      isDesktopFormFactor(deviceInfo.deviceType)
+    );
   }
 
   private toVp(value: number): number {

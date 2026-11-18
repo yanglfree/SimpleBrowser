@@ -227,8 +227,16 @@ export class WebKernelService {
     }
   }
 
+  static resolveDesktopUserAgent(stockUserAgent: string): string {
+    const match: RegExpMatchArray | null = stockUserAgent.match(/Chrome\/(\d+\.\d+\.\d+\.\d+)/);
+    if (match !== null && match[1].length > 0) {
+      return DESKTOP_USER_AGENT.replace(/Chrome\/\d+\.\d+\.\d+\.\d+/, `Chrome/${match[1]}`);
+    }
+    return DESKTOP_USER_AGENT;
+  }
+
   static userAgentFor(isDesktop: boolean, mobileUserAgent: string): string {
-    return isDesktop ? DESKTOP_USER_AGENT : mobileUserAgent;
+    return isDesktop ? WebKernelService.resolveDesktopUserAgent(mobileUserAgent) : mobileUserAgent;
   }
 
   /** Known mobile-only entry points that cannot negotiate a desktop page from UA alone. */
@@ -238,6 +246,48 @@ export class WebKernelService {
       return url;
     }
     return `https://weibo.com${match[3]}`;
+  }
+
+  static resolveContextMenuTarget(
+    linkUrl: string,
+    sourceUrl: string,
+    hasImage: boolean,
+    selectionText: string
+  ): WebLongPressTarget | undefined {
+    const trimmedLink: string = linkUrl.trim();
+    if (/^https?:/i.test(trimmedLink)) {
+      return {
+        kind: WebLongPressKind.Link,
+        url: trimmedLink,
+        title: selectionText.trim()
+      };
+    }
+    const trimmedSource: string = sourceUrl.trim();
+    if (hasImage && /^https?:/i.test(trimmedSource)) {
+      return {
+        kind: WebLongPressKind.Image,
+        url: trimmedSource,
+        title: selectionText.trim()
+      };
+    }
+    return undefined;
+  }
+
+  static resolveFileSelectorMaxCount(mode: number): number {
+    return mode === 1 ? 50 : 1;
+  }
+
+  static stepSiteZoomPercent(currentPercent: number, deltaPercent: number): number {
+    const base: number = Number.isFinite(currentPercent) && currentPercent >= 50 && currentPercent <= 200
+      ? currentPercent
+      : 100;
+    return Math.min(200, Math.max(50, base + deltaPercent));
+  }
+
+  static applyZoomPercent(controller: webview.WebviewController, percent: number): void {
+    const clamped: number = WebKernelService.stepSiteZoomPercent(percent, 0);
+    const factor: number = clamped / 100;
+    WebKernelService.run('zoom', (): void => controller.zoom(factor));
   }
 
   static shouldShowDialog(tabId: string, activeTabId: string): boolean {

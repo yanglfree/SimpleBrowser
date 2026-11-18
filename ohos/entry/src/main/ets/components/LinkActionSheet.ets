@@ -12,6 +12,7 @@ export struct LinkActionSheet {
   @Prop target: WebLongPressTarget;
   @Prop isPrivate: boolean = false;
   @Prop canOpenRight: boolean = false;
+  @Prop canOpenNewWindow: boolean = false;
   onDismiss: () => void = (): void => {};
   onAction: (key: string) => void = (_key: string): void => {};
 
@@ -105,6 +106,9 @@ export struct LinkActionSheet {
     ];
     if (this.canOpenRight) {
       actions.unshift({ key: 'link_open_right', label: $r('app.string.tab_open_right'), icon: IconName.Tabs });
+    }
+    if (this.canOpenNewWindow && !this.isPrivate) {
+      actions.push({ key: 'link_open_window', label: $r('app.string.tab_move_new_window'), icon: IconName.Desktop });
     }
     if (!this.isPrivate) {
       actions.push({ key: 'link_save_later', label: $r('app.string.link_menu_save_later'), icon: IconName.Reader });

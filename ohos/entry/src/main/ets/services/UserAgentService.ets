@@ -1,5 +1,5 @@
 import { webview } from '@kit.ArkWeb';
-import { DESKTOP_USER_AGENT } from '../constants/AppConstants';
+import { WebKernelService } from './WebKernelService';
 import { Logger } from '../utils/Logger';
 
 const TAG: string = 'UserAgentService';
@@ -26,7 +26,9 @@ export class UserAgentService {
   static apply(controller: webview.WebviewController, isDesktop: boolean): void {
     UserAgentService.remember(controller);
     try {
-      controller.setCustomUserAgent(isDesktop ? DESKTOP_USER_AGENT : defaultUserAgent);
+      controller.setCustomUserAgent(isDesktop
+        ? WebKernelService.resolveDesktopUserAgent(defaultUserAgent)
+        : defaultUserAgent);
     } catch (error) {
       Logger.warn(TAG, `Failed to set user agent: ${String(error)}`);
     }

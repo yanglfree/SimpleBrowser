@@ -12,6 +12,7 @@ import {
   resolveOverlayRowJustifyContent,
   shouldShowBrowserChrome,
   shouldMountOverlayLayer,
+  shouldUseInlineOmnibox,
   resolveDockBottomPadding,
   resolveReaderBarTopInset,
   resolveTabTopInset,
@@ -20,6 +21,14 @@ import {
   shouldUseWideActionMenu
 } from '../main/ets/pages/Index';
 import { SidebarPanel } from '../main/ets/components/BrowserSidebar';
+import { DESKTOP_BOOKMARK_BAR_HEIGHT, shouldShowDesktopBookmarkBar } from '../main/ets/components/DesktopBookmarkBar';
+import { moveOmniboxHighlight } from '../main/ets/components/DesktopOmniboxPopover';
+import {
+  UserAgentPreference,
+  defaultLiveWebViewLimitForDevice,
+  defaultTabSoftLimitForDevice,
+  resolveDefaultDesktopUserAgent
+} from '../main/ets/models/BrowserModels';
 import { BrowserLayoutClass, shouldEnableDockTabSwipe } from '../main/ets/models/WindowMetrics';
 import { shouldLayoutFullScreen, systemBarBackgroundColor } from '../main/ets/services/ThemeService';
 import {
@@ -185,6 +194,36 @@ export default function wideWindowRegressionTest(): void {
       const instanceId: string = resolveWindowInstanceId('window-42');
 
       expect(instanceId).assertEqual('window-42');
+    });
+
+    it('adapts fullscreen layout, UA, quotas, inline omnibox, and bookmark bar for 2in1 desktop', 0, (): void => {
+      expect(shouldLayoutFullScreen(false, false)).assertTrue();
+      expect(shouldLayoutFullScreen(false, true)).assertFalse();
+
+      expect(resolveDefaultDesktopUserAgent(UserAgentPreference.Default, true)).assertTrue();
+      expect(resolveDefaultDesktopUserAgent(UserAgentPreference.Default, false)).assertFalse();
+      expect(resolveDefaultDesktopUserAgent(UserAgentPreference.Mobile, true)).assertFalse();
+      expect(resolveDefaultDesktopUserAgent(UserAgentPreference.Desktop, false)).assertTrue();
+
+      expect(defaultLiveWebViewLimitForDevice(true)).assertEqual(12);
+      expect(defaultLiveWebViewLimitForDevice(false)).assertEqual(4);
+      expect(defaultTabSoftLimitForDevice(true)).assertEqual(30);
+      expect(defaultTabSoftLimitForDevice(false)).assertEqual(12);
+
+      expect(shouldUseInlineOmnibox(BrowserLayoutClass.Expanded)).assertFalse();
+      expect(shouldUseInlineOmnibox(BrowserLayoutClass.Desktop)).assertTrue();
+
+      expect(DESKTOP_BOOKMARK_BAR_HEIGHT).assertEqual(34);
+      expect(shouldShowDesktopBookmarkBar(true, false, 3)).assertTrue();
+      expect(shouldShowDesktopBookmarkBar(true, true, 3)).assertFalse();
+      expect(shouldShowDesktopBookmarkBar(true, false, 0)).assertFalse();
+      expect(shouldShowDesktopBookmarkBar(false, false, 3)).assertFalse();
+
+      expect(moveOmniboxHighlight(-1, 0, 1)).assertEqual(-1);
+      expect(moveOmniboxHighlight(-1, 3, 1)).assertEqual(0);
+      expect(moveOmniboxHighlight(2, 3, 1)).assertEqual(-1);
+      expect(moveOmniboxHighlight(-1, 3, -1)).assertEqual(2);
+      expect(moveOmniboxHighlight(1, 3, -1)).assertEqual(0);
     });
   });
 }

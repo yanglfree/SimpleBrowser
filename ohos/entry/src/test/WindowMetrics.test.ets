@@ -2,7 +2,8 @@ import { describe, expect, it } from '@ohos/hypium';
 import {
   BrowserLayoutClass,
   BrowserWindowMode,
-  createWindowMetrics
+  createWindowMetrics,
+  isDesktopFormFactor
 } from '../main/ets/models/WindowMetrics';
 
 export default function windowMetricsTest(): void {
@@ -19,6 +20,20 @@ export default function windowMetricsTest(): void {
       expect(createWindowMetrics(1439, 900, BrowserWindowMode.Floating).layoutClass)
         .assertEqual(BrowserLayoutClass.Expanded);
       expect(createWindowMetrics(1440, 900, BrowserWindowMode.Floating).layoutClass)
+        .assertEqual(BrowserLayoutClass.Desktop);
+    });
+
+    it('detects 2in1 and pc form factors and lowers desktop layout threshold to 840vp', 0, (): void => {
+      expect(isDesktopFormFactor('2in1')).assertTrue();
+      expect(isDesktopFormFactor('PC')).assertTrue();
+      expect(isDesktopFormFactor('phone')).assertFalse();
+      expect(isDesktopFormFactor('tablet')).assertFalse();
+
+      expect(createWindowMetrics(839, 760, BrowserWindowMode.Floating, true).layoutClass)
+        .assertEqual(BrowserLayoutClass.Medium);
+      expect(createWindowMetrics(840, 760, BrowserWindowMode.Floating, true).layoutClass)
+        .assertEqual(BrowserLayoutClass.Desktop);
+      expect(createWindowMetrics(1100, 760, BrowserWindowMode.Floating, true).layoutClass)
         .assertEqual(BrowserLayoutClass.Desktop);
     });
 

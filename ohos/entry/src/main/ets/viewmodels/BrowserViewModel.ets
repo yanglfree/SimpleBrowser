@@ -30,7 +30,10 @@ import {
   cloneSettings,
   cloneTab,
   defaultBrowserSettings,
+  defaultLiveWebViewLimitForDevice,
+  defaultTabSoftLimitForDevice,
   emptyBlockStats,
+  resolveDefaultDesktopUserAgent,
   totalBlocked
 } from '../models/BrowserModels';
 import { EffectiveSiteControl, SiteControl, resolveSiteControl } from '../models/SiteControlModels';
@@ -85,7 +88,25 @@ export class BrowserViewModel {
   private tabSequence: number = 0;
   private sessionPersistenceEnabled: boolean = true;
   private restoredSession: boolean = false;
+  private isDesktopDevice: boolean = false;
   private context: common.UIAbilityContext | undefined;
+
+  setDesktopDevice(isDesktopDevice: boolean): void {
+    this.isDesktopDevice = isDesktopDevice;
+    this.applyDeviceQuotaDefaults();
+  }
+
+  private applyDeviceQuotaDefaults(): void {
+    if (!this.isDesktopDevice) {
+      return;
+    }
+    if (this.settings.liveWebViewLimit === defaultLiveWebViewLimitForDevice(false)) {
+      this.settings.liveWebViewLimit = defaultLiveWebViewLimitForDevice(true);
+    }
+    if (this.settings.tabSoftLimit === defaultTabSoftLimitForDevice(false)) {
+      this.settings.tabSoftLimit = defaultTabSoftLimitForDevice(true);
+    }
+  }
 
   setSessionScope(scope: string, persistenceEnabled: boolean = true): void {
     this.repository.setSessionScope(scope);
@@ -100,6 +121,7 @@ export class BrowserViewModel {
     this.savedItems = this.repository.getSavedItems();
     this.history = this.repository.getHistory();
     this.settings = this.repository.getSettings();
+    this.applyDeviceQuotaDefaults();
     const session: BrowserSession | undefined = this.repository.getSession();
     this.restoredSession = session !== undefined && session.tabs.length > 0;
     if (session !== undefined && session.tabs.length > 0) {
@@ -541,7 +563,7 @@ export class BrowserViewModel {
       this.settings.blockTrackers,
       this.settings.blockAds,
       this.settings.webDarkMode,
-      this.userAgentPreferenceForUrl(url) === UserAgentPreference.Desktop
+      resolveDefaultDesktopUserAgent(this.userAgentPreferenceForUrl(url), this.isDesktopDevice)
     );
   }
 

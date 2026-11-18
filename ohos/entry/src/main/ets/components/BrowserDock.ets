@@ -1,5 +1,6 @@
 import { AppIcon, IconName, iconStrokeUnits } from './AppIcon';
 import { ReaderPaper, SecurityState, getReaderTheme } from '../models/BrowserModels';
+import { looksLikeUrl } from '../utils/UrlUtils';
 import {
   DOCK_BADGE_ICON_STROKE,
   DOCK_BADGE_SIZE,
@@ -73,7 +74,14 @@ export struct BrowserDock {
   /** Drives the history button's active tint while its panel owns the screen. */
   @Prop historyOpen: boolean = false;
   @Prop hasOverlay: boolean = false;
+  @Prop inlineEditing: boolean = false;
+  @Prop inlineText: string = '';
   onOpenAddress: () => void = (): void => {};
+  onInlineChange: (query: string) => void = (_query: string): void => {};
+  onInlineSubmit: (query: string) => void = (_query: string): void => {};
+  onInlineDismiss: () => void = (): void => {};
+  onInlineKeyEvent: (event: KeyEvent) => boolean = (_event: KeyEvent): boolean => false;
+  private inlineInputController: TextInputController = new TextInputController();
   onBack: () => void = (): void => {};
   onForward: () => void = (): void => {};
   onHome: () => void = (): void => {};
@@ -196,14 +204,64 @@ export struct BrowserDock {
             .onClick(() => this.onOpenBlocking())
           }
 
-          Text(this.isHome ? $r('app.string.address_placeholder') : this.host)
-            .layoutWeight(1)
-            .fontSize(15)
-            .fontWeight(this.isHome ? FontWeight.Regular : FontWeight.Medium)
-            .fontColor(this.primaryColor())
-            .textAlign(this.desktop ? TextAlign.Start : TextAlign.Center)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (this.desktop && this.inlineEditing) {
+            TextInput({
+              text: this.inlineText,
+              placeholder: $r('app.string.address_placeholder'),
+              controller: this.inlineInputController
+            })
+              .id('desktop-inline-address-input')
+              .layoutWeight(1)
+              .height(DOCK_ROW_HEIGHT - 6)
+              .padding({ left: 4, right: 4 })
+              .borderRadius(0)
+              .fontSize(14.5)
+              .fontColor(this.primaryColor())
+              .placeholderColor($r('app.color.text_secondary'))
+              .backgroundColor(Color.Transparent)
+              .caretColor($r('app.color.accent'))
+              .enterKeyType(looksLikeUrl(this.inlineText) ? EnterKeyType.Go : EnterKeyType.Search)
+              .defaultFocus(true)
+              .enableKeyboardOnFocus(true)
+              .onAppear(() => {
+                focusControl.requestFocus('desktop-inline-address-input');
+                setTimeout((): void => {
+                  this.inlineInputController.setTextSelection(0, this.inlineText.length);
+                }, 0);
+              })
+              .onChange((value: string): void => {
+                this.onInlineChange(value);
+              })
+              .onSubmit((): void => {
+                this.onInlineSubmit(this.inlineText);
+              })
+              .onKeyEvent((event: KeyEvent): boolean => this.onInlineKeyEvent(event))
+
+            if (this.inlineText.length > 0) {
+              Row() {
+                AppIcon({ name: IconName.Close, glyphSize: 14, color: this.iconColor() })
+              }
+              .id('desktop-inline-address-clear')
+              .width(28)
+              .height(DOCK_ROW_HEIGHT)
+              .justifyContent(FlexAlign.Center)
+              .hoverEffect(HoverEffect.Auto)
+              .accessibilityText($r('app.string.address_clear_input'))
+              .onClick(() => {
+                this.inlineInputController.caretPosition(0);
+                this.onInlineChange('');
+              })
+            }
+          } else {
+            Text(this.isHome ? $r('app.string.address_placeholder') : this.host)
+              .layoutWeight(1)
+              .fontSize(15)
+              .fontWeight(this.isHome ? FontWeight.Regular : FontWeight.Medium)
+              .fontColor(this.primaryColor())
+              .textAlign(this.desktop ? TextAlign.Start : TextAlign.Center)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
 
           if (!this.isHome && !this.desktop) {
             Column() {
@@ -221,7 +279,7 @@ export struct BrowserDock {
             .onClick(() => this.onReload())
           }
 
-          if (!this.isHome && this.desktop) {
+          if (!this.isHome && this.desktop && !this.inlineEditing) {
             Row() {
               AppIcon({
                 name: IconName.Star,
@@ -262,16 +320,19 @@ export struct BrowserDock {
           : (this.usesHomeColors() ? $r('app.color.home_control_border') : $r('app.color.border'))
       })
       .focusable(true)
-      .defaultFocus(this.wide && !this.hasOverlay)
+      .defaultFocus(this.wide && !this.hasOverlay && !this.inlineEditing)
       .focusOnTouch(true)
       .hoverEffect(HoverEffect.Auto)
       .clickEffect({ level: ClickEffectLevel.LIGHT, scale: 0.995 })
       .onAppear(() => {
-        if (this.wide && !this.hasOverlay && !this.addressMenuVisible) {
+        if (this.wide && !this.hasOverlay && !this.addressMenuVisible && !this.inlineEditing) {
           focusControl.requestFocus('browser-address');
         }
       })
       .onClick(() => {
+        if (this.desktop && this.inlineEditing) {
+          return;
+        }
         if (this.addressMenuVisible) {
           this.onDismissAddressMenu();
         } else {
@@ -282,7 +343,7 @@ export struct BrowserDock {
         GestureGroup(GestureMode.Exclusive,
           LongPressGesture({ repeat: false, duration: 450 })
             .onAction(() => {
-              if (!this.isHome) {
+              if (!this.isHome && !(this.desktop && this.inlineEditing)) {
                 this.onOpenAddressMenu();
               }
             }),

@@ -17,8 +17,8 @@ export const RESUME_PROMPT_TIMEOUT_MS: number = 7000;
 export const QUICK_SITE_COUNT: number = QUICK_SITE_LIMIT_MAX;
 
 export const DESKTOP_USER_AGENT: string =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
-  '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 ' +
+  '(KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36';
 
 /** Reader typography bounds. Line height is stored x100 to stay an integer. */
 export const READER_FONT_MIN: number = 15;
