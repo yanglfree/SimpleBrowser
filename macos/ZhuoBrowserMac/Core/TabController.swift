@@ -213,10 +213,23 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             }
         }
 
-        titleObservation = wv.observe(\.title, options: [.new]) { [weak self] _, change in
-            guard let self = self, let title = change.newValue, let title = title, !title.isEmpty else { return }
+        titleObservation = wv.observe(\.title, options: [.new]) { [weak self] webView, change in
+            guard let self = self,
+                  let rawTitle = change.newValue,
+                  let trimmedTitle = rawTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !trimmedTitle.isEmpty else {
+                return
+            }
             self.session?.updateTab(self.tabID) { tab in
-                tab.title = title
+                tab.title = trimmedTitle
+            }
+            if !self.isPrivateTab,
+               !self.isRestoringFromSnapshot,
+               let currentURL = webView.url?.absoluteString,
+               !currentURL.isEmpty,
+               !URLPolicy.isBlankURL(currentURL),
+               !URLPolicy.isHomeURL(currentURL) {
+                self.session?.updateHistoryTitleIfNeeded(url: currentURL, title: trimmedTitle)
             }
         }
 
@@ -865,12 +878,13 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             lastTargetURL = committedURL
         }
 
+        let resolvedTitle = (webView.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let restoredScrollY = lastKnownScrollPositionY
         session?.updateTab(tabID) { tab in
             tab.isLoading = false
             tab.loadingProgress = 1.0
-            if let title = webView.title, !title.isEmpty {
-                tab.title = title
+            if !resolvedTitle.isEmpty {
+                tab.title = resolvedTitle
             }
             if !finishedURL.isEmpty {
                 tab.url = finishedURL
@@ -890,7 +904,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         // Record browsing history for real navigations only. Reviving a frozen page is
         // not a visit and must not inflate history counters.
         if !wasRestoring, let tab = session?.tab(for: tabID), !tab.isPrivate && !tab.isHome {
-            session?.recordHistory(url: tab.url, title: tab.title)
+            session?.recordHistory(url: tab.url, title: resolvedTitle)
         }
 
         // Restore scroll position only for snapshot revival / explicit reloads, never

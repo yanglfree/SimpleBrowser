@@ -471,7 +471,7 @@ public enum OmniboxSuggestionPolicy {
             checksum = checksum &* 31 &+ lastBM.url.hashValue &+ Int(lastBM.updatedAt)
         }
         if let firstH = history.first {
-            checksum = checksum &* 31 &+ firstH.url.hashValue &+ firstH.visitCount
+            checksum = checksum &* 31 &+ firstH.url.hashValue &+ firstH.visitCount &+ firstH.title.hashValue
         }
         return CandidateCacheKey(
             historyCount: history.count,

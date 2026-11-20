@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import WebKit
 import XCTest
@@ -488,6 +489,159 @@ final class ProfileTests: XCTestCase {
         managerHost.frame = NSRect(x: 0, y: 0, width: 520, height: 460)
         managerHost.layoutSubtreeIfNeeded()
         XCTAssertEqual(managerHost.frame.width, 520)
+    }
+
+    // MARK: - 6. FocusedMenuState Tests
+
+    func testFocusedMenuStateSyncsHistoryRecordingBackfillRemovalAndClear() throws {
+        let tempDir = try makeTempDirectory(prefix: "MenuStateHistory")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let manager = ProfileManager(
+            rootDirectory: tempDir,
+            isPersistenceEnabled: false,
+            usesPersistentDataStores: false
+        )
+        let menuState = FocusedMenuState(profileManager: manager)
+        let session = manager.defaultSession
+
+        XCTAssertTrue(menuState.snapshot.recentHistory.isEmpty)
+        XCTAssertTrue(menuState.snapshot.isHistoryEmpty)
+
+        for i in 1...12 {
+            session.recordHistory(url: "https://site\(i).example.com/page", title: "Site \(i)")
+        }
+        XCTAssertEqual(menuState.snapshot.recentHistory.count, 10)
+        XCTAssertEqual(
+            menuState.snapshot.recentHistory.map(\.entry),
+            Array(session.history.prefix(10))
+        )
+        XCTAssertFalse(menuState.snapshot.isHistoryEmpty)
+
+        // Placeholder title backfill updates menu item title in place
+        session.recordHistory(url: "https://spa-app.example.com/home", title: "")
+        XCTAssertEqual(menuState.snapshot.recentHistory.first?.displayTitle, "spa-app.example.com")
+        session.updateHistoryTitleIfNeeded(url: "https://spa-app.example.com/home", title: "SPA Console")
+        XCTAssertEqual(menuState.snapshot.recentHistory.first?.displayTitle, "SPA Console")
+
+        // Removing the top history item immediately shifts the menu slice
+        let topID = try XCTUnwrap(session.history.first?.id)
+        session.removeHistoryItem(id: topID)
+        XCTAssertEqual(
+            menuState.snapshot.recentHistory.map(\.entry),
+            Array(session.history.prefix(10))
+        )
+        XCTAssertEqual(menuState.snapshot.recentHistory.first?.displayTitle, "Site 12")
+
+        // Clearing history updates both recentHistory and isHistoryEmpty
+        session.clearHistory()
+        XCTAssertTrue(menuState.snapshot.recentHistory.isEmpty)
+        XCTAssertTrue(menuState.snapshot.isHistoryEmpty)
+    }
+
+    func testFocusedMenuStateIgnoresHighFrequencyNonMenuUpdates() throws {
+        let tempDir = try makeTempDirectory(prefix: "MenuStateHighFreq")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let manager = ProfileManager(
+            rootDirectory: tempDir,
+            isPersistenceEnabled: false,
+            usesPersistentDataStores: false
+        )
+        let menuState = FocusedMenuState(profileManager: manager)
+        let session = manager.defaultSession
+
+        // Navigate to a real page and mark it loading so initial menu state settles
+        let tab = session.createTab(url: "https://example.com", select: true)
+        session.updateTab(tab.id) { t in
+            t.isLoading = true
+            t.loadingProgress = 0.1
+        }
+        session.findQuery = "a"
+
+        var emissionCount = 0
+        let cancellable = menuState.objectWillChange.sink { _ in
+            emissionCount += 1
+        }
+        defer { cancellable.cancel() }
+
+        // High-frequency typing in omnibox
+        session.omniboxText = "h"
+        session.omniboxText = "ht"
+        session.omniboxText = "https://example.com"
+
+        // Progress ticks while isLoading remains true
+        session.updateTab(tab.id) { $0.loadingProgress = 0.35 }
+        session.updateTab(tab.id) { $0.loadingProgress = 0.65 }
+        session.updateTab(tab.id) { $0.loadingProgress = 0.90 }
+
+        // Typing inside non-empty findQuery
+        session.findQuery = "ab"
+        session.findQuery = "abc"
+
+        // Re-focusing the already-focused profile updates lastActiveAt only
+        manager.markProfileFocused(manager.defaultProfile.id)
+
+        XCTAssertEqual(emissionCount, 0)
+    }
+
+    func testFocusedMenuStateSwitchesSessionWhenFocusedProfileChanges() throws {
+        let tempDir = try makeTempDirectory(prefix: "MenuStateProfileSwitch")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let manager = ProfileManager(
+            rootDirectory: tempDir,
+            isPersistenceEnabled: false,
+            usesPersistentDataStores: false
+        )
+        let workProfile = manager.createProfile(name: "工作")
+        let personalSession = manager.defaultSession
+        let workSession = manager.session(for: workProfile.id)
+
+        personalSession.recordHistory(url: "https://personal.example.com", title: "Personal Home")
+        workSession.recordHistory(url: "https://work.example.com", title: "Work Console")
+
+        let menuState = FocusedMenuState(profileManager: manager)
+        XCTAssertEqual(menuState.snapshot.recentHistory.map(\.displayTitle), ["Personal Home"])
+        XCTAssertEqual(menuState.snapshot.focusedProfileID, manager.defaultProfile.id)
+
+        // Switching focus switches snapshot and stops observing the old session
+        manager.markProfileFocused(workProfile.id)
+        XCTAssertEqual(menuState.snapshot.focusedProfileID, workProfile.id)
+        XCTAssertEqual(menuState.snapshot.recentHistory.map(\.displayTitle), ["Work Console"])
+        XCTAssertTrue(menuState.currentSession === workSession)
+
+        // Mutating old session does not alter focused menu state
+        personalSession.recordHistory(url: "https://personal-2.example.com", title: "Personal 2")
+        XCTAssertEqual(menuState.snapshot.recentHistory.map(\.displayTitle), ["Work Console"])
+
+        // Mutating newly focused session updates menu state immediately
+        workSession.recordHistory(url: "https://work-2.example.com", title: "Work Docs")
+        XCTAssertEqual(menuState.snapshot.recentHistory.map(\.displayTitle), ["Work Docs", "Work Console"])
+    }
+
+    func testFocusedMenuStateUpdatesBookmarkFoldersAndUngroupedBookmarks() throws {
+        defer { FavoritesManager.shared.resetToDefaults() }
+        let tempDir = try makeTempDirectory(prefix: "MenuStateBookmarks")
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let manager = ProfileManager(
+            rootDirectory: tempDir,
+            isPersistenceEnabled: false,
+            usesPersistentDataStores: false
+        )
+        let menuState = FocusedMenuState(profileManager: manager)
+        let session = manager.defaultSession
+
+        let folder = try XCTUnwrap(session.createBookmarkFolder(name: "常用工具"))
+        XCTAssertTrue(menuState.snapshot.bookmarkFolders.contains(where: { $0.folderID == folder.id && $0.name == "常用工具" }))
+
+        _ = session.addBookmark(url: "https://docs.swift.org", title: "Swift Docs", folderID: folder.id)
+        let updatedFolder = try XCTUnwrap(menuState.snapshot.bookmarkFolders.first(where: { $0.folderID == folder.id }))
+        XCTAssertEqual(updatedFolder.items.map(\.displayTitle), ["Swift Docs"])
+
+        _ = session.addBookmark(url: "https://news.ycombinator.com", title: "Hacker News", folderID: nil)
+        XCTAssertTrue(menuState.snapshot.ungroupedBookmarks.contains(where: { $0.url == "https://news.ycombinator.com" && $0.displayTitle == "Hacker News" }))
     }
 }
 

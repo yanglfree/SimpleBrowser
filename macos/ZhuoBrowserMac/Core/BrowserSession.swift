@@ -152,9 +152,17 @@ public final class BrowserSession: ObservableObject {
         bookmarks = initialLibrary.bookmarks
         tombstones = libraryStore.loadTombstones()
         let loadedHistory = libraryStore.loadHistory()
-        let cleanedHistory = loadedHistory.filter { !URLPolicy.isBlankURL($0.url) }
+        let cleanedHistory: [HistoryEntry] = loadedHistory.compactMap { entry in
+            guard !URLPolicy.isBlankURL(entry.url) else { return nil }
+            if LibraryPolicy.isPlaceholderHistoryTitle(entry.title) {
+                var normalized = entry
+                normalized.title = entry.url
+                return normalized
+            }
+            return entry
+        }
         history = cleanedHistory
-        if cleanedHistory.count != loadedHistory.count {
+        if cleanedHistory != loadedHistory {
             libraryStore.saveHistory(cleanedHistory)
         }
         syncFavoritesManager()
@@ -1192,6 +1200,14 @@ public final class BrowserSession: ObservableObject {
 
     public func recordHistory(url: String, title: String) {
         history = LibraryPolicy.recordHistory(history, url: url, title: title)
+        libraryStore.saveHistory(history)
+    }
+
+    public func updateHistoryTitleIfNeeded(url: String, title: String) {
+        guard let updated = LibraryPolicy.updateHistoryTitle(history, url: url, title: title) else {
+            return
+        }
+        history = updated
         libraryStore.saveHistory(history)
     }
 

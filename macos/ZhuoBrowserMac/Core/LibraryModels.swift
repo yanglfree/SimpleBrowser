@@ -22,10 +22,11 @@ public struct HistoryEntry: Identifiable, Equatable, Codable {
     }
 
     public var displayTitle: String {
-        if !title.isEmpty && title != url {
-            return title
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty && trimmed != url && !LibraryPolicy.isPlaceholderHistoryTitle(trimmed) {
+            return trimmed
         }
-        if let host = URL(string: url)?.host {
+        if let host = URL(string: url)?.host, !host.isEmpty {
             return host
         }
         return url
@@ -286,6 +287,27 @@ public enum LibraryPolicy {
         return "https://\(trimmed)"
     }
 
+    public static func isPlaceholderHistoryTitle(_ title: String) -> Bool {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty || trimmed == "新标签页" || trimmed == "无痕新标签"
+    }
+
+    public static func isPlaceholderOrFallbackHistoryTitle(_ title: String, url: String) -> Bool {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if isPlaceholderHistoryTitle(trimmed) {
+            return true
+        }
+        if trimmed == url || normalizeComparableURL(trimmed) == normalizeComparableURL(url) {
+            return true
+        }
+        if let host = URL(string: url)?.host,
+           !host.isEmpty,
+           trimmed.caseInsensitiveCompare(host) == .orderedSame {
+            return true
+        }
+        return false
+    }
+
     /// Records a new visit into history, deduplicating by URL and bumping visitCount.
     public static func recordHistory(
         _ history: [HistoryEntry],
@@ -297,7 +319,15 @@ public enum LibraryPolicy {
 
         let target = normalizeComparableURL(url)
         let previous = history.first { normalizeComparableURL($0.url) == target }
-        let entryTitle = !title.isEmpty ? title : (previous?.title ?? url)
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let previousValidTitle: String? = {
+            guard let prevTitle = previous?.title.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !isPlaceholderHistoryTitle(prevTitle) else {
+                return nil
+            }
+            return prevTitle
+        }()
+        let entryTitle = !isPlaceholderHistoryTitle(trimmedTitle) ? trimmedTitle : (previousValidTitle ?? url)
         let merged = HistoryEntry(
             id: previous?.id ?? UUID().uuidString,
             title: entryTitle,
@@ -308,6 +338,37 @@ public enum LibraryPolicy {
 
         let filtered = history.filter { normalizeComparableURL($0.url) != target }
         return [merged] + Array(filtered.prefix(maxHistoryCount - 1))
+    }
+
+    /// Backfills a placeholder or fallback title for an existing history entry without changing its
+    /// visit timestamp, visit count, or ordering.
+    public static func updateHistoryTitle(
+        _ history: [HistoryEntry],
+        url: String,
+        title: String
+    ) -> [HistoryEntry]? {
+        guard !url.isEmpty, url != "zhuo://home", !URLPolicy.isBlankURL(url) else { return nil }
+
+        let target = normalizeComparableURL(url)
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isPlaceholderHistoryTitle(trimmedTitle),
+              trimmedTitle != url,
+              normalizeComparableURL(trimmedTitle) != target else {
+            return nil
+        }
+
+        guard let index = history.firstIndex(where: { normalizeComparableURL($0.url) == target }) else {
+            return nil
+        }
+        let existing = history[index]
+        guard existing.title != trimmedTitle,
+              isPlaceholderOrFallbackHistoryTitle(existing.title, url: existing.url) else {
+            return nil
+        }
+
+        var updated = history
+        updated[index].title = trimmedTitle
+        return updated
     }
 
     /// Adds or updates a bookmark entry by URL, optionally assigning a folder and start-page visibility.

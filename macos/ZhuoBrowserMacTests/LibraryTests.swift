@@ -494,4 +494,203 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(parsedV2.tombstones.count, 1)
         XCTAssertEqual(parsedV2.tombstones.first?.url, "https://old.com")
     }
+
+    func testRecordHistoryRejectsPlaceholderTitlesAndPreservesValidTitles() {
+        var history: [HistoryEntry] = []
+
+        history = LibraryPolicy.recordHistory(
+            history,
+            url: "https://developer.huawei.com/consumer/cn",
+            title: "新标签页",
+            now: 100
+        )
+        XCTAssertEqual(history.count, 1)
+        XCTAssertEqual(history.first?.title, "https://developer.huawei.com/consumer/cn")
+        XCTAssertEqual(history.first?.displayTitle, "developer.huawei.com")
+
+        history = LibraryPolicy.recordHistory(
+            history,
+            url: "https://example.org/private",
+            title: "无痕新标签",
+            now: 101
+        )
+        XCTAssertEqual(history.first?.title, "https://example.org/private")
+        XCTAssertEqual(history.first?.displayTitle, "example.org")
+
+        history = LibraryPolicy.recordHistory(
+            history,
+            url: "https://example.org/empty",
+            title: "   ",
+            now: 102
+        )
+        XCTAssertEqual(history.first?.title, "https://example.org/empty")
+        XCTAssertEqual(history.first?.displayTitle, "example.org")
+
+        // Real title on a subsequent visit replaces placeholder/URL fallback
+        history = LibraryPolicy.recordHistory(
+            history,
+            url: "https://developer.huawei.com/consumer/cn",
+            title: "HUAWEI Developer",
+            now: 103
+        )
+        XCTAssertEqual(history.first?.title, "HUAWEI Developer")
+        XCTAssertEqual(history.first?.visitCount, 2)
+
+        // Later visit with empty or placeholder title keeps existing real title
+        history = LibraryPolicy.recordHistory(
+            history,
+            url: "https://developer.huawei.com/consumer/cn",
+            title: "新标签页",
+            now: 104
+        )
+        XCTAssertEqual(history.first?.title, "HUAWEI Developer")
+        XCTAssertEqual(history.first?.visitCount, 3)
+
+        history = LibraryPolicy.recordHistory(
+            history,
+            url: "https://developer.huawei.com/consumer/cn",
+            title: "",
+            now: 105
+        )
+        XCTAssertEqual(history.first?.title, "HUAWEI Developer")
+        XCTAssertEqual(history.first?.visitCount, 4)
+    }
+
+    func testHistoryEntryDisplayTitleFallsBackToHostForLegacyPlaceholders() {
+        let newTabLegacy = HistoryEntry(title: "新标签页", url: "https://developer.apple.com/documentation")
+        XCTAssertEqual(newTabLegacy.displayTitle, "developer.apple.com")
+
+        let privateTabLegacy = HistoryEntry(title: " 无痕新标签 ", url: "https://swift.org/blog/")
+        XCTAssertEqual(privateTabLegacy.displayTitle, "swift.org")
+
+        let emptyTitleLegacy = HistoryEntry(title: "   ", url: "https://example.com/path")
+        XCTAssertEqual(emptyTitleLegacy.displayTitle, "example.com")
+    }
+
+    func testUpdateHistoryTitleBackfillsPlaceholdersWithoutReorderingOrChurn() {
+        let h1 = HistoryEntry(
+            id: "id-1",
+            title: "新标签页",
+            url: "https://spa.example.com/app",
+            visitedAt: 1000,
+            visitCount: 2
+        )
+        let h2 = HistoryEntry(
+            id: "id-2",
+            title: "spa.example.com",
+            url: "https://other.example.com/",
+            visitedAt: 2000,
+            visitCount: 1
+        )
+        let h3 = HistoryEntry(
+            id: "id-3",
+            title: "(1) Inbox",
+            url: "https://mail.example.com/inbox",
+            visitedAt: 3000,
+            visitCount: 5
+        )
+        let h4 = HistoryEntry(
+            id: "id-4",
+            title: "https://fallback.example.com/docs",
+            url: "https://fallback.example.com/docs",
+            visitedAt: 4000,
+            visitCount: 3
+        )
+        let history = [h3, h4, h1, h2]
+
+        // Placeholder incoming title is ignored
+        XCTAssertNil(LibraryPolicy.updateHistoryTitle(history, url: "https://spa.example.com/app", title: "新标签页"))
+
+        // Real title backfills placeholder title in place without changing order, visitedAt, or visitCount
+        let updated1 = LibraryPolicy.updateHistoryTitle(history, url: "https://spa.example.com/app", title: "My SPA App")
+        XCTAssertEqual(updated1?.map(\.id), ["id-3", "id-4", "id-1", "id-2"])
+        XCTAssertEqual(updated1?[2].title, "My SPA App")
+        XCTAssertEqual(updated1?[2].visitedAt, 1000)
+        XCTAssertEqual(updated1?[2].visitCount, 2)
+
+        // URL fallback title is backfilled
+        let updated2 = LibraryPolicy.updateHistoryTitle(history, url: "https://fallback.example.com/docs", title: "Docs Home")
+        XCTAssertEqual(updated2?[1].title, "Docs Home")
+        XCTAssertEqual(updated2?[1].visitedAt, 4000)
+        XCTAssertEqual(updated2?[1].visitCount, 3)
+
+        // Host fallback title is backfilled (even when host matches another domain string)
+        let hostHistory = [HistoryEntry(id: "h-host", title: "other.example.com", url: "https://other.example.com/home", visitedAt: 500, visitCount: 4)]
+        let updatedHost = LibraryPolicy.updateHistoryTitle(hostHistory, url: "https://other.example.com/home", title: "Other Home")
+        XCTAssertEqual(updatedHost?.first?.title, "Other Home")
+        XCTAssertEqual(updatedHost?.first?.visitedAt, 500)
+        XCTAssertEqual(updatedHost?.first?.visitCount, 4)
+
+        // Existing real title is NOT overwritten (prevents unread badge churn)
+        XCTAssertNil(LibraryPolicy.updateHistoryTitle(history, url: "https://mail.example.com/inbox", title: "(2) Inbox"))
+    }
+
+    @MainActor
+    func testSessionInitNormalizesLegacyPlaceholderHistoryTitlesAndPersists() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LibraryTestsHistory-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let seedHistory = [
+            HistoryEntry(
+                id: "legacy-1",
+                title: "新标签页",
+                url: "https://developer.huawei.com/consumer/cn",
+                visitedAt: 1000,
+                visitCount: 2
+            ),
+            HistoryEntry(
+                id: "real-2",
+                title: "Apple Developer",
+                url: "https://developer.apple.com",
+                visitedAt: 900,
+                visitCount: 1
+            )
+        ]
+        let historyFile = tempDir.appendingPathComponent("history.json")
+        try JSONEncoder().encode(seedHistory).write(to: historyFile, options: .atomic)
+
+        let store = LibraryStore(isPersistenceEnabled: true, directoryURL: tempDir)
+        let session = BrowserSession(
+            websiteDataStore: .nonPersistent(),
+            cookieSessionStore: CookieSessionStore(dataStore: .nonPersistent(), isPersistenceEnabled: false),
+            webSessionStorageStore: WebSessionStorageStore(isPersistenceEnabled: false),
+            stateStore: TabStateStore(isPersistenceEnabled: false),
+            libraryStore: store,
+            restoresPreviousSession: false
+        )
+
+        XCTAssertEqual(session.history.count, 2)
+        XCTAssertEqual(session.history[0].title, "https://developer.huawei.com/consumer/cn")
+        XCTAssertEqual(session.history[0].displayTitle, "developer.huawei.com")
+        XCTAssertEqual(session.history[1].title, "Apple Developer")
+
+        store.invalidateAndDrainIO()
+        let reloaded = LibraryStore(isPersistenceEnabled: true, directoryURL: tempDir).loadHistory()
+        XCTAssertEqual(reloaded.first?.title, "https://developer.huawei.com/consumer/cn")
+    }
+
+    @MainActor
+    func testSessionUpdateHistoryTitleIfNeededUpdatesHistoryAndOmniboxSuggestions() {
+        let session = BrowserSession(
+            websiteDataStore: .nonPersistent(),
+            cookieSessionStore: CookieSessionStore(dataStore: .nonPersistent(), isPersistenceEnabled: false),
+            webSessionStorageStore: WebSessionStorageStore(isPersistenceEnabled: false),
+            stateStore: TabStateStore(isPersistenceEnabled: false),
+            libraryStore: LibraryStore(isPersistenceEnabled: false),
+            restoresPreviousSession: false
+        )
+        session.recordHistory(url: "https://unique-spa-portal.example/dashboard", title: "")
+        XCTAssertEqual(session.history.first?.title, "https://unique-spa-portal.example/dashboard")
+
+        let beforeSuggestions = session.suggestions(for: "unique-spa-portal.example/dashboard")
+        XCTAssertEqual(beforeSuggestions.first(where: { $0.url == "https://unique-spa-portal.example/dashboard" })?.title, "https://unique-spa-portal.example/dashboard")
+
+        session.updateHistoryTitleIfNeeded(url: "https://unique-spa-portal.example/dashboard", title: "Unique Portal Dashboard")
+        XCTAssertEqual(session.history.first?.title, "Unique Portal Dashboard")
+
+        let afterSuggestions = session.suggestions(for: "unique-spa-portal.example/dashboard")
+        XCTAssertEqual(afterSuggestions.first(where: { $0.url == "https://unique-spa-portal.example/dashboard" })?.title, "Unique Portal Dashboard")
+    }
 }
