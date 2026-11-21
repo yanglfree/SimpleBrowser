@@ -1,7 +1,11 @@
 import { webview } from '@kit.ArkWeb';
-import { DESKTOP_USER_AGENT } from '../constants/AppConstants';
+import {
+  COMPATIBLE_MOBILE_USER_AGENT,
+  DESKTOP_USER_AGENT,
+  MIN_COMPATIBLE_CHROME_MAJOR
+} from '../constants/AppConstants';
 import { Logger } from '../utils/Logger';
-import { isSameDocumentUrl } from '../utils/UrlUtils';
+import { isSameDocumentUrl, rawHost } from '../utils/UrlUtils';
 
 const TAG: string = 'WebKernelService';
 
@@ -213,30 +217,64 @@ export class WebKernelService {
     }
   }
 
-  static applyUserAgent(controller: webview.WebviewController, isDesktop: boolean): void {
+  static applyUserAgent(controller: webview.WebviewController, isDesktop: boolean, url: string = ''): boolean {
     try {
       if (WebKernelService.defaultUserAgent.length === 0) {
         WebKernelService.defaultUserAgent = controller.getUserAgent();
       }
-      controller.setCustomUserAgent(WebKernelService.userAgentFor(
+      const targetUa: string = WebKernelService.userAgentFor(
         isDesktop,
-        WebKernelService.defaultUserAgent
-      ));
+        WebKernelService.defaultUserAgent,
+        url
+      );
+      let currentUa: string = '';
+      try {
+        currentUa = controller.getCustomUserAgent();
+      } catch (_error) {
+        currentUa = '';
+      }
+      if (currentUa === targetUa) {
+        return false;
+      }
+      controller.setCustomUserAgent(targetUa);
+      return true;
     } catch (error) {
       Logger.warn(TAG, `Unable to apply user agent: ${String(error)}`);
+      return false;
     }
+  }
+
+  private static resolveCompatibleChromeVersion(stockUserAgent: string): string {
+    const match: RegExpMatchArray | null = stockUserAgent.match(/Chrome\/(\d+)\.(\d+\.\d+\.\d+)/);
+    if (match !== null && Number(match[1]) >= MIN_COMPATIBLE_CHROME_MAJOR) {
+      return `${match[1]}.${match[2]}`;
+    }
+    return `${MIN_COMPATIBLE_CHROME_MAJOR}.0.0.0`;
   }
 
   static resolveDesktopUserAgent(stockUserAgent: string): string {
-    const match: RegExpMatchArray | null = stockUserAgent.match(/Chrome\/(\d+\.\d+\.\d+\.\d+)/);
-    if (match !== null && match[1].length > 0) {
-      return DESKTOP_USER_AGENT.replace(/Chrome\/\d+\.\d+\.\d+\.\d+/, `Chrome/${match[1]}`);
-    }
-    return DESKTOP_USER_AGENT;
+    const version: string = WebKernelService.resolveCompatibleChromeVersion(stockUserAgent);
+    return DESKTOP_USER_AGENT.replace(/Chrome\/\d+\.\d+\.\d+\.\d+/, `Chrome/${version}`);
   }
 
-  static userAgentFor(isDesktop: boolean, mobileUserAgent: string): string {
-    return isDesktop ? WebKernelService.resolveDesktopUserAgent(mobileUserAgent) : mobileUserAgent;
+  static resolveCompatibleMobileUserAgent(stockUserAgent: string): string {
+    const version: string = WebKernelService.resolveCompatibleChromeVersion(stockUserAgent);
+    return COMPATIBLE_MOBILE_USER_AGENT.replace(/Chrome\/\d+\.\d+\.\d+\.\d+/, `Chrome/${version}`);
+  }
+
+  static needsCompatibleMobileUserAgent(url: string): boolean {
+    const host: string = rawHost(url);
+    return /^(?:[a-z0-9-]+\.)*google\.(?:com|cn|com\.[a-z]{2}|co\.[a-z]{2}|[a-z]{2})$/.test(host);
+  }
+
+  static userAgentFor(isDesktop: boolean, mobileUserAgent: string, url: string = ''): string {
+    if (isDesktop) {
+      return WebKernelService.resolveDesktopUserAgent(mobileUserAgent);
+    }
+    if (WebKernelService.needsCompatibleMobileUserAgent(url)) {
+      return WebKernelService.resolveCompatibleMobileUserAgent(mobileUserAgent);
+    }
+    return mobileUserAgent;
   }
 
   /** Known mobile-only entry points that cannot negotiate a desktop page from UA alone. */

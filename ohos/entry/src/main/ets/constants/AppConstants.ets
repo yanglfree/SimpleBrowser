@@ -19,6 +19,10 @@ export const QUICK_SITE_COUNT: number = QUICK_SITE_LIMIT_MAX;
 export const DESKTOP_USER_AGENT: string =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36';
+export const MIN_COMPATIBLE_CHROME_MAJOR: number = 132;
+export const COMPATIBLE_MOBILE_USER_AGENT: string =
+  'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 ' +
+  '(KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36';
 
 /** Reader typography bounds. Line height is stored x100 to stay an integer. */
 export const READER_FONT_MIN: number = 15;

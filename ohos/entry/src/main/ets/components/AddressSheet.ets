@@ -1,6 +1,5 @@
 import { KeyboardAvoidMode } from '@kit.ArkUI';
 import { Suggestion, SuggestionKind } from '../models/BrowserModels';
-import { looksLikeUrl } from '../utils/UrlUtils';
 import {
   applyOmniboxShortcut,
   OmniboxEditResult,
@@ -12,6 +11,16 @@ import { AppIcon, IconName } from './AppIcon';
 
 const TAG: string = 'AddressSheet';
 const INPUT_ID: string = 'address-input';
+/**
+ * Keep the IME action fixed rather than toggling between Search and Go while
+ * typing; mid-typing OnConfigurationChange resets third-party IME key state
+ * (e.g. Sogou IME) and drops subsequent taps on the Go key.
+ */
+export const OMNIBOX_ENTER_KEY_TYPE: EnterKeyType = EnterKeyType.Go;
+
+export function resolveSubmittedOmniboxText(eventText: string, fallbackText: string): string {
+  return eventText.length > 0 ? eventText : fallbackText;
+}
 
 /**
  * Keep the field and history in the keyboard-safe window. Using the larger of
@@ -120,7 +129,7 @@ export struct AddressSheet {
           .placeholderColor($r('app.color.text_secondary'))
           .backgroundColor(Color.Transparent)
           .caretColor($r('app.color.accent'))
-          .enterKeyType(looksLikeUrl(this.text) ? EnterKeyType.Go : EnterKeyType.Search)
+          .enterKeyType(OMNIBOX_ENTER_KEY_TYPE)
           .onChange((value: string) => {
             this.text = value;
             this.onQueryChange(value);
@@ -129,7 +138,9 @@ export struct AddressSheet {
             this.selectionStart = start;
             this.selectionEnd = end;
           })
-          .onSubmit(() => this.onSubmit(this.text))
+          .onSubmit((_enterKey: EnterKeyType, event: SubmitEvent): void => {
+            this.onSubmit(resolveSubmittedOmniboxText(event.text, this.text));
+          })
 
         if (this.text.length > 0) {
           Column() {

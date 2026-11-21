@@ -138,7 +138,8 @@ export struct BrowserWebView {
       .onControllerAttached(() => {
         PrivacyService.onWebControllerAttached();
         this.adsBlockService.configure(this.controller, this.blockAds);
-        WebKernelService.applyUserAgent(this.controller, this.tab.isDesktop);
+        const initialUrl: string = this.mountSrc.length > 0 ? this.mountSrc : this.tab.url;
+        WebKernelService.applyUserAgent(this.controller, this.tab.isDesktop, initialUrl);
         this.registerSecurityBridge();
       })
       .onPageBegin((event: OnPageBeginEvent) => this.kernelCallbacks.onPageBegin(event.url))
@@ -300,6 +301,11 @@ export struct BrowserWebView {
       return true;
     }
     if (createExternalProtocolRequest(url) === undefined) {
+      const uaChanged: boolean = WebKernelService.applyUserAgent(this.controller, this.tab.isDesktop, url);
+      if (uaChanged && request.getRequestMethod().toUpperCase() === 'GET' && !request.isRedirect()) {
+        WebKernelService.load(this.controller, url);
+        return true;
+      }
       return false;
     }
     this.onExternalProtocol(url, currentUrl);

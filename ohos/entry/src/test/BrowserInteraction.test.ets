@@ -32,7 +32,9 @@ import {
 import { quickSiteEditorPanelHeight } from '../main/ets/components/QuickSiteEditor';
 import {
   isAddressCompletionRow,
-  resolveAddressSheetBottomInset
+  OMNIBOX_ENTER_KEY_TYPE,
+  resolveAddressSheetBottomInset,
+  resolveSubmittedOmniboxText
 } from '../main/ets/components/AddressSheet';
 import {
   isSameDocumentHashNavigation,
@@ -169,6 +171,12 @@ export default function browserInteractionTest(): void {
       expect(matchesSettingsSearch('网页最小字号', '网页 字号 字体 大字 无障碍', '网页最小字号')).assertTrue();
       expect(matchesSettingsSearch('网页最小字号', '网页 字号 字体 大字 无障碍', '大字')).assertTrue();
       expect(matchesSettingsSearch('网页最小字号', '网页 字号 字体 大字 无障碍', '下载')).assertFalse();
+    });
+
+    it('keeps omnibox enter key stable and prefers submitted event text when available', 0, (): void => {
+      expect(OMNIBOX_ENTER_KEY_TYPE).assertEqual(EnterKeyType.Go);
+      expect(resolveSubmittedOmniboxText('google.com', 'google.co')).assertEqual('google.com');
+      expect(resolveSubmittedOmniboxText('', 'google.com')).assertEqual('google.com');
     });
   });
 }

@@ -2588,7 +2588,10 @@ struct Index {
       void this.enforceLiveWebViewLimit(this.liveWebViewLimit());
       return;
     }
-    this.runOnActive((controller: webview.WebviewController) => controller.loadUrl(url));
+    this.runOnActive((controller: webview.WebviewController) => {
+      WebKernelService.applyUserAgent(controller, tab.isDesktop, url);
+      controller.loadUrl(url);
+    });
   }
 
   private promptExternalProtocol(url: string, sourceUrl: string): boolean {
@@ -3409,6 +3412,7 @@ struct Index {
           this.viewModel.updateTab(tab.id, { isLoading: false });
           this.syncTab(tab.id);
         } else {
+          WebKernelService.applyUserAgent(controller, tab.isDesktop, tab.url);
           WebKernelService.reload(controller);
         }
       });
@@ -3922,7 +3926,7 @@ struct Index {
     this.sheet = Overlay.None;
     this.syncState();
     this.runOnActive((controller: webview.WebviewController): void => {
-      WebKernelService.applyUserAgent(controller, isDesktop);
+      WebKernelService.applyUserAgent(controller, isDesktop, targetUrl);
       if (targetUrl === tab.url) {
         WebKernelService.reload(controller);
       } else {
@@ -5340,6 +5344,7 @@ struct Index {
     this.isActivePageAtTop = true;
     this.viewModel.updateTab(id, { isLoading: true, progress: 0, loadError: LoadErrorKind.None });
     this.syncTab(id);
+    WebKernelService.applyUserAgent(controller, tab.isDesktop, tab.url);
     WebKernelService.reload(controller);
   }
 
@@ -5568,9 +5573,15 @@ struct Index {
     this.viewModel.updateTab(tab.id, { loadError: LoadErrorKind.None, isLoading: true, progress: 0 });
     this.syncTab(tab.id);
     if (failedUrl && failedUrl.length > 0) {
-      this.runOnActive((controller: webview.WebviewController) => controller.loadUrl(failedUrl));
+      this.runOnActive((controller: webview.WebviewController) => {
+        WebKernelService.applyUserAgent(controller, tab.isDesktop, failedUrl);
+        controller.loadUrl(failedUrl);
+      });
     } else {
-      this.runOnActive((controller: webview.WebviewController) => WebKernelService.reload(controller, true));
+      this.runOnActive((controller: webview.WebviewController) => {
+        WebKernelService.applyUserAgent(controller, tab.isDesktop, tab.url);
+        WebKernelService.reload(controller, true);
+      });
     }
   }
 
@@ -5601,8 +5612,10 @@ struct Index {
       return;
     }
     this.sheet = Overlay.None;
-    this.runOnActive((controller: webview.WebviewController) =>
-      WebKernelService.reload(controller, true));
+    this.runOnActive((controller: webview.WebviewController) => {
+      WebKernelService.applyUserAgent(controller, tab.isDesktop, tab.url);
+      WebKernelService.reload(controller, true);
+    });
   }
 
   private activeErrorKind(): LoadErrorKind {
@@ -5741,7 +5754,10 @@ struct Index {
         const effective = this.viewModel.effectiveSiteControl(tab.url);
         this.viewModel.updateTab(tab.id, { isDesktop: effective.desktopUserAgentEnabled });
         this.reconfigureBlocking();
-        this.runOnActive((controller: webview.WebviewController): void => controller.refresh());
+        this.runOnActive((controller: webview.WebviewController): void => {
+          WebKernelService.applyUserAgent(controller, effective.desktopUserAgentEnabled, tab.url);
+          controller.refresh();
+        });
       }
       this.syncState();
     } catch (error) {

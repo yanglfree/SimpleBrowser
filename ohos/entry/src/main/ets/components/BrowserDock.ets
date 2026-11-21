@@ -1,6 +1,6 @@
 import { AppIcon, IconName, iconStrokeUnits } from './AppIcon';
+import { OMNIBOX_ENTER_KEY_TYPE, resolveSubmittedOmniboxText } from './AddressSheet';
 import { ReaderPaper, SecurityState, getReaderTheme } from '../models/BrowserModels';
-import { looksLikeUrl } from '../utils/UrlUtils';
 import {
   DOCK_BADGE_ICON_STROKE,
   DOCK_BADGE_SIZE,
@@ -220,7 +220,7 @@ export struct BrowserDock {
               .placeholderColor($r('app.color.text_secondary'))
               .backgroundColor(Color.Transparent)
               .caretColor($r('app.color.accent'))
-              .enterKeyType(looksLikeUrl(this.inlineText) ? EnterKeyType.Go : EnterKeyType.Search)
+              .enterKeyType(OMNIBOX_ENTER_KEY_TYPE)
               .defaultFocus(true)
               .enableKeyboardOnFocus(true)
               .onAppear(() => {
@@ -232,8 +232,8 @@ export struct BrowserDock {
               .onChange((value: string): void => {
                 this.onInlineChange(value);
               })
-              .onSubmit((): void => {
-                this.onInlineSubmit(this.inlineText);
+              .onSubmit((_enterKey: EnterKeyType, event: SubmitEvent): void => {
+                this.onInlineSubmit(resolveSubmittedOmniboxText(event.text, this.inlineText));
               })
               .onKeyEvent((event: KeyEvent): boolean => this.onInlineKeyEvent(event))
 
