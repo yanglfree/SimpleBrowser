@@ -5,7 +5,7 @@ import {
   MIN_COMPATIBLE_CHROME_MAJOR
 } from '../constants/AppConstants';
 import { Logger } from '../utils/Logger';
-import { isSameDocumentUrl, rawHost } from '../utils/UrlUtils';
+import { isSameDocumentUrl } from '../utils/UrlUtils';
 
 const TAG: string = 'WebKernelService';
 
@@ -217,15 +217,14 @@ export class WebKernelService {
     }
   }
 
-  static applyUserAgent(controller: webview.WebviewController, isDesktop: boolean, url: string = ''): boolean {
+  static applyUserAgent(controller: webview.WebviewController, isDesktop: boolean): boolean {
     try {
       if (WebKernelService.defaultUserAgent.length === 0) {
         WebKernelService.defaultUserAgent = controller.getUserAgent();
       }
       const targetUa: string = WebKernelService.userAgentFor(
         isDesktop,
-        WebKernelService.defaultUserAgent,
-        url
+        WebKernelService.defaultUserAgent
       );
       let currentUa: string = '';
       try {
@@ -262,19 +261,11 @@ export class WebKernelService {
     return COMPATIBLE_MOBILE_USER_AGENT.replace(/Chrome\/\d+\.\d+\.\d+\.\d+/, `Chrome/${version}`);
   }
 
-  static needsCompatibleMobileUserAgent(url: string): boolean {
-    const host: string = rawHost(url);
-    return /^(?:[a-z0-9-]+\.)*google\.(?:com|cn|com\.[a-z]{2}|co\.[a-z]{2}|[a-z]{2})$/.test(host);
-  }
-
-  static userAgentFor(isDesktop: boolean, mobileUserAgent: string, url: string = ''): string {
+  static userAgentFor(isDesktop: boolean, mobileUserAgent: string): string {
     if (isDesktop) {
       return WebKernelService.resolveDesktopUserAgent(mobileUserAgent);
     }
-    if (WebKernelService.needsCompatibleMobileUserAgent(url)) {
-      return WebKernelService.resolveCompatibleMobileUserAgent(mobileUserAgent);
-    }
-    return mobileUserAgent;
+    return WebKernelService.resolveCompatibleMobileUserAgent(mobileUserAgent);
   }
 
   /** Known mobile-only entry points that cannot negotiate a desktop page from UA alone. */

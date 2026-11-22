@@ -23,10 +23,10 @@ export class UserAgentService {
     }
   }
 
-  static apply(controller: webview.WebviewController, isDesktop: boolean, url: string = ''): void {
+  static apply(controller: webview.WebviewController, isDesktop: boolean): void {
     UserAgentService.remember(controller);
     try {
-      controller.setCustomUserAgent(WebKernelService.userAgentFor(isDesktop, defaultUserAgent, url));
+      controller.setCustomUserAgent(WebKernelService.userAgentFor(isDesktop, defaultUserAgent));
     } catch (error) {
       Logger.warn(TAG, `Failed to set user agent: ${String(error)}`);
     }

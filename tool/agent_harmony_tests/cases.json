@@ -1,269 +1,714 @@
 {
   "runner": {
-    "appName": "ZhuoBrowser AGC regression",
+    "appName": "ZhuoBrowser HarmonyOS Full Functional QA",
     "platformName": "HarmonyOS",
     "bundleId": "com.youdroid.browser"
   },
   "cases": [
     {
-      "id": "agc-baseline",
-      "title": "Reproduce blank OAuth callback",
+      "id": "qa-startup-01",
+      "title": "Cold launch, tab overview, and start page rendering",
       "priority": "p0",
-      "platforms": [
-        "HarmonyOS"
-      ],
-      "tags": [
-        "agc",
-        "cookie"
-      ],
+      "platforms": ["HarmonyOS"],
+      "tags": ["startup", "startpage"],
       "preconditions": [
-        "Connected unlocked tablet; account login for authenticated cases"
+        "Connected unlocked HarmonyOS device; signed entry HAP installed"
       ],
       "steps": [
-        "Reproduce blank OAuth callback"
+        "Launch com.youdroid.browser via aa start",
+        "Open TabOverview and tap + 新建标签页",
+        "Inspect StartPage wallpaper, quick sites, settings gear, and browser dock"
       ],
       "assertions": [
-        "Retained tablet had an empty handleAllianceLogin document; AGC APIs returned 401. Four stale host-only authentication cookies coexisted with fresh domain cookies."
+        "App launches cleanly into foreground without blank startup glitches",
+        "StartPage displays 每日美图 wallpaper, quick-site grid (下载页, 知乎, 哔哩哔哩, 少数派, 微博, 豆瓣, 36氪, 添加), top-right gear button, dock address pill, tab count badge, and menu button"
       ],
       "failureSignals": [
-        "Blank document, stale content, repeated login loop"
+        "Blank startup screen, missing wallpaper or dock controls, startup crash"
       ]
     },
     {
-      "id": "agc-cookie-differential",
-      "title": "Isolate cookie shadowing from routing",
-      "priority": "p0",
-      "platforms": [
-        "HarmonyOS"
-      ],
-      "tags": [
-        "agc",
-        "cookie"
-      ],
-      "preconditions": [
-        "Connected unlocked tablet; account login for authenticated cases"
-      ],
+      "id": "qa-startup-02",
+      "title": "Start page quick-site editor, page settings, and background picker",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["startpage", "customization"],
+      "preconditions": ["StartPage active"],
       "steps": [
-        "Isolate cookie shadowing from routing"
+        "Tap 添加 quick-site tile to open QuickSiteEditor and tap 取消",
+        "Tap StartPage top-right gear to open PageSettingsPanel and dismiss",
+        "Long-press StartPage background to open HomeBackgroundPicker and dismiss"
       ],
       "assertions": [
-        "Deleting only the four conflicting host copies restored the homepage and APP/service list, including the browser app. This was a diagnostic intervention before installing the final build, not final-build navigation acceptance."
+        "QuickSiteEditor renders 自定义/书签/历史 tabs and inputs cleanly above IME",
+        "PageSettingsPanel shows quick sites count/toggle, background toggle, theme, and 更多设置",
+        "HomeBackgroundPicker renders 每日美图, presets (雾山, 巷影), and gallery option"
       ],
       "failureSignals": [
-        "Blank document, stale content, repeated login loop"
+        "Unresponsive editor/sheets, keyboard overlap clipping actions, crash"
       ]
     },
     {
-      "id": "agc-build",
-      "title": "Build and install final Harmony package",
+      "id": "qa-nav-01",
+      "title": "Omnibox input and IME Go key submission for Google search",
       "priority": "p0",
-      "platforms": [
-        "HarmonyOS"
-      ],
-      "tags": [
-        "agc",
-        "cookie"
-      ],
-      "preconditions": [
-        "Connected unlocked tablet; account login for authenticated cases"
-      ],
+      "platforms": ["HarmonyOS"],
+      "tags": ["omnibox", "ime", "google"],
+      "preconditions": ["Active StartPage tab"],
       "steps": [
-        "Build and install final Harmony package"
+        "Tap browser-address dock pill to open AddressSheet",
+        "Enter 'g harmonyos' into address-input",
+        "Tap Sogou IME 「开始」 (EnterKeyType.Go) button"
       ],
       "assertions": [
-        "Release HAP built, signed, installed and launched on 45P0225509000207. SHA256 dbda03f4cd7dc12c7f957cb78b4732ae45488f2dec9538f3c7fda425d3279b8b."
+        "IME Go key immediately submits query without needing toolbar suggestions",
+        "Google Search navigates to https://www.google.com/search?q=harmonyos and renders full SERP (AI 概览 and organic results) with no '更新浏览器' / unsupported-browser banner"
       ],
       "failureSignals": [
-        "Blank document, stale content, repeated login loop"
+        "IME Go key unresponsive, '更新浏览器' block page, failed submission"
       ]
     },
     {
-      "id": "agc-startup",
-      "title": "Render after process restart",
+      "id": "qa-nav-02",
+      "title": "Compatible mobile User-Agent stability across Google and non-Google sites",
       "priority": "p0",
-      "platforms": [
-        "HarmonyOS"
-      ],
-      "tags": [
-        "agc",
-        "cookie"
-      ],
-      "preconditions": [
-        "Connected unlocked tablet; account login for authenticated cases"
-      ],
+      "platforms": ["HarmonyOS"],
+      "tags": ["webview", "user-agent", "google"],
+      "preconditions": ["Loaded Google SERP and sspai.com in browser session"],
       "steps": [
-        "Render after process restart"
+        "Load Google SERP under uniform compatible Android Chrome mobile UA",
+        "Navigate to https://sspai.com and verify desktop/mobile rendering"
       ],
       "assertions": [
-        "Final installed package completed fresh user login and displayed AGC homepage. No blank OAuth callback. Process-death session retention remains native-platform behavior."
+        "Google search and sspai.com both render cleanly with no unsupported browser errors",
+        "No runtime per-host UA switching occurs during navigation interception"
       ],
       "failureSignals": [
-        "Blank document, stale content, repeated login loop"
+        "Google unsupported-browser wall, broken layout on CN sites"
       ]
     },
     {
-      "id": "agc-navigation",
-      "title": "Switch all authenticated AGC sections",
+      "id": "qa-nav-03",
+      "title": "Cross-site Back, Forward, Reload, and Long-press address menu",
       "priority": "p0",
-      "platforms": [
-        "HarmonyOS"
-      ],
-      "tags": [
-        "agc",
-        "cookie"
-      ],
-      "preconditions": [
-        "Connected unlocked tablet; account login for authenticated cases"
-      ],
+      "platforms": ["HarmonyOS"],
+      "tags": ["navigation", "regression"],
+      "preconditions": ["Tab navigated from Google SERP to https://sspai.com"],
       "steps": [
-        "Switch all authenticated AGC sections"
+        "Tap dock Back (browser-dock-back) from sspai.com to return to Google SERP",
+        "Tap dock Forward (browser-dock-forward) back to sspai.com",
+        "Tap dock Reload and long-press browser-address pill"
       ],
       "assertions": [
-        "Passed two native-touch rounds (12 section selections): application list, analytics iframe with data, users iframe, certificates iframe, project list, and return to applications. Screenshots inspected and distinct content assertions passed. No HTTP 4xx/5xx observed during the rounds; only a site ResizeObserver warning."
+        "Cross-site Back returns smoothly to Google SERP with zero ArkWeb abort/reload loop and zero ThreadBlock6S freeze",
+        "Forward returns to sspai.com and Reload completes cleanly",
+        "Long-press opens address context menu (访问复制的链接/粘贴, 复制链接, 关闭当前标签)"
       ],
       "failureSignals": [
-        "Blank document, stale content, repeated login loop"
+        "THREAD_BLOCK_3S/6S process kill, infinite reload loop, unresponsive Back/Forward"
       ]
     },
     {
-      "id": "agc-background",
-      "title": "Retain authenticated content across background and refresh",
-      "priority": "p0",
-      "platforms": [
-        "HarmonyOS"
-      ],
-      "tags": [
-        "agc",
-        "cookie"
-      ],
-      "preconditions": [
-        "Connected unlocked tablet; account login for authenticated cases"
-      ],
+      "id": "qa-nav-04",
+      "title": "Network error state panel and retry flow",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["error-handling", "navigation"],
+      "preconditions": ["Open tab in browser"],
       "steps": [
-        "Retain authenticated content across background and refresh"
+        "Navigate to https://nonexistent.invalid",
+        "Inspect rendered ErrorStatePanel and tap 重试"
       ],
       "assertions": [
-        "Passed native Home/background, foreground return, toolbar refresh, another full section-switching round, native back to projects and forward to application list. No conflicting host-only auth cookies remained and final-process logs contained zero prior DOM-integrity errors."
+        "ErrorStatePanel renders 没有网络连接 prompt and 重试 action without crashing",
+        "Tapping 重试 initiates reload attempt cleanly"
       ],
       "failureSignals": [
-        "Blank document, stale content, repeated login loop"
+        "Permanent blank white screen on DNS/network error, unresponsive Retry button"
+      ]
+    },
+    {
+      "id": "qa-tabs-01",
+      "title": "Normal tabs, private tabs creation, preview redaction, and closing",
+      "priority": "p0",
+      "platforms": ["HarmonyOS"],
+      "tags": ["tabs", "private"],
+      "preconditions": ["Browser active with existing user tabs preserved"],
+      "steps": [
+        "Inspect live preview thumbnail in TabOverview for active sspai.com tab",
+        "Open ActionSheet and tap 新建无痕标签页",
+        "Verify dock privacy indicator, open TabOverview to check 无痕 section, and close temporary private tab"
+      ],
+      "assertions": [
+        "Dock address pill shows 无痕 badge in private mode",
+        "TabOverview separates private tabs under 无痕 section without thumbnail leakage",
+        "Closing QA tabs leaves pre-existing user tabs (tab-1, tab-17, tab-18, tab-19) intact"
+      ],
+      "failureSignals": [
+        "Private preview leaks screenshot, missing private badge, user tabs accidentally closed"
+      ]
+    },
+    {
+      "id": "qa-tabs-02",
+      "title": "Dock horizontal swipe tab switch and RecentTabs sheet",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["tabs", "gestures"],
+      "preconditions": ["Multiple open tabs"],
+      "steps": [
+        "Swipe horizontally across browser-address pill",
+        "Open ActionSheet and tap 最近标签页 (RecentTabsDock)",
+        "Select a recent tab card (sspai.com)"
+      ],
+      "assertions": [
+        "Horizontal swipe switches smoothly to adjacent tab and updates indicator dots",
+        "RecentTabsDock lists recently visited tabs with active indicator and switches selection cleanly"
+      ],
+      "failureSignals": [
+        "Deadlock on hibernated/blank WebView during tab switch, unresponsive swipe"
+      ]
+    },
+    {
+      "id": "qa-tools-01",
+      "title": "ActionSheet multi-page navigation and dismissal",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["tools", "actionsheet"],
+      "preconditions": ["Loaded web page"],
+      "steps": [
+        "Tap dock ≡ menu button to open ActionSheet page 1",
+        "Swipe horizontally to page 2 and scroll QuickActions row",
+        "Dismiss via scrim tap or back navigation"
+      ],
+      "assertions": [
+        "Page 1, Page 2 (查找, 阅读模式, 分享), QuickActions row (保存文章, 加入书签, 历史记录, 下载任务, 文章库, 设置), and BlockingRow render clearly",
+        "Swiping and dismissing animate cleanly"
+      ],
+      "failureSignals": [
+        "Missing actions, clipped pager, stuck backdrop"
+      ]
+    },
+    {
+      "id": "qa-tools-02",
+      "title": "Find-in-page search, match navigation, and clear on close",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["tools", "find"],
+      "preconditions": ["Loaded sspai.com page"],
+      "steps": [
+        "Open ActionSheet page 2 and tap 查找",
+        "Enter '少数派' in find-query-input",
+        "Tap Next (>) and Previous (<) buttons, then tap Close (✕)"
+      ],
+      "assertions": [
+        "Match counter updates from 0/0 to 1/7 and increments to 2/7 on Next",
+        "Page scrolls to highlighted match and FindSheet closes cleanly on ✕"
+      ],
+      "failureSignals": [
+        "Counter stuck at 0/0, buttons unresponsive, highlights remain after close"
+      ]
+    },
+    {
+      "id": "qa-tools-03",
+      "title": "UserAgentPolicySheet bottom alignment, Desktop mode toggle, and Mobile restore",
+      "priority": "p0",
+      "platforms": ["HarmonyOS"],
+      "tags": ["tools", "user-agent", "ui-layout"],
+      "preconditions": ["Loaded sspai.com page"],
+      "steps": [
+        "Open ActionSheet and tap 桌面版 to open UserAgentPolicySheet",
+        "Verify header '网站显示策略' sits unclipped inside bottom sheet with scrim",
+        "Toggle 桌面版 (once) and reload, then restore 手机版 and test scrim dismiss"
+      ],
+      "assertions": [
+        "UserAgentPolicySheet anchors to bottom with handle and scrim, with header completely below status bar",
+        "Switching between 桌面版 and 手机版 reloads cleanly without stuck loading"
+      ],
+      "failureSignals": [
+        "Header clipped under status bar, missing scrim, crash on UA reload"
+      ]
+    },
+    {
+      "id": "qa-tools-04",
+      "title": "Web dark mode setting and page visual adaptation",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["tools", "dark-mode"],
+      "preconditions": ["Loaded light-theme sspai.com page"],
+      "steps": [
+        "Open ActionSheet and tap 网页深色模式 to open WebDarkMode picker in Settings",
+        "Select 常暗 and return to active web page",
+        "Verify dark page rendering, then restore 跟随系统"
+      ],
+      "assertions": [
+        "sspai.com switches to dark palette under 常暗 while browser chrome adapts cleanly",
+        "Restoring 跟随系统 reverts web dark mode without side effects"
+      ],
+      "failureSignals": [
+        "No visual dark-mode effect, illegible contrast, setting fails to restore"
+      ]
+    },
+    {
+      "id": "qa-block-01",
+      "title": "Connection security inspection and per-site control policies",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["security", "site-controls"],
+      "preconditions": ["HTTPS page (sspai.com) loaded"],
+      "steps": [
+        "Tap dock shield icon inside browser-address pill to open SecurityPanel",
+        "Dismiss SecurityPanel and open BlockPanel -> 本站网页控制 (SiteControlSheet)"
+      ],
+      "assertions": [
+        "SecurityPanel confirms HTTPS encryption and host sspai.com",
+        "SiteControlSheet lists per-site overrides (网络拦截, 跟踪器, 外观清理, 自动阅读模式, 深色网页, 桌面版 UA)"
+      ],
+      "failureSignals": [
+        "Unresponsive shield button, missing host info, crashed site controls page"
+      ]
+    },
+    {
+      "id": "qa-block-02",
+      "title": "Ad/tracker blocking stats, activity log, and site toggle",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["adblock", "privacy"],
+      "preconditions": ["Loaded sspai.com page with blocked requests counter > 0"],
+      "steps": [
+        "Tap dock blocked-request badge / ActionSheet blocking row to open BlockPanel",
+        "Open 本页拦截活动 (BlockEventSheet) and return to BlockPanel",
+        "Toggle 在此站点关闭拦截 off and back on"
+      ],
+      "assertions": [
+        "BlockPanel shows per-site (28 -> 40) and cumulative (1,563 -> 1,575) blocked tracker counts",
+        "BlockEventSheet opens cleanly and site protection toggle restores cleanly"
+      ],
+      "failureSignals": [
+        "Broken stats display, toggle state lost, crash on returning from events list"
+      ]
+    },
+    {
+      "id": "qa-reader-01",
+      "title": "Reader Mode extraction and ReaderBar typography/theme controls",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["reader"],
+      "preconditions": ["Article page loaded on sspai.com"],
+      "steps": [
+        "Open ActionSheet page 2 and tap 阅读模式",
+        "Tap A+, dark paper theme circle, A-, sepia circle on ReaderBar",
+        "Tap 完成 to exit Reader Mode"
+      ],
+      "assertions": [
+        "Reader Mode extracts article title and clean body paragraphs without site clutter",
+        "ReaderBar adjusts font size and paper palette immediately and 完成 exits back to web page"
+      ],
+      "failureSignals": [
+        "Empty extraction on article page, ReaderBar buttons unresponsive"
+      ]
+    },
+    {
+      "id": "qa-reader-02",
+      "title": "Article library gating and OfflineArticleReader inspection",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["reader", "article-library"],
+      "preconditions": ["Article Library contains pre-existing saved 36kr article on Free tier"],
+      "steps": [
+        "Trigger 保存文章 and open 文章库 (ArticleLibrarySheet) from ActionSheet QuickActions",
+        "Inspect existing saved article entry and tap it to open OfflineArticleReader",
+        "Verify offline article text and highlights, then return cleanly without altering user article"
+      ],
+      "assertions": [
+        "ArticleLibrarySheet renders search, filters, Free-tier pro notice, and existing 36kr article",
+        "OfflineArticleReader displays offline body text, bold sections, highlights, 划线, and 笔记与整理 controls"
+      ],
+      "failureSignals": [
+        "Article fails to render offline, crash in library or reader"
+      ]
+    },
+    {
+      "id": "qa-bm-01",
+      "title": "Bookmark creation, search filter, and removal",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["bookmarks"],
+      "preconditions": ["Loaded article page"],
+      "steps": [
+        "Open ActionSheet and tap 加入书签",
+        "Open 编辑书签 (FavoritesSheet) and search '退烧'",
+        "Exit FavoritesSheet, reopen ActionSheet and tap 移出书签 to clean up temporary QA bookmark"
+      ],
+      "assertions": [
+        "Bookmark appears immediately in FavoritesSheet with title, host, and timestamp alongside user bookmark",
+        "Search filters to matching entry, and 移出书签 cleanly removes QA bookmark (reverts label to 加入书签)"
+      ],
+      "failureSignals": [
+        "Duplicate bookmark, broken search filter, failure to remove QA bookmark"
+      ]
+    },
+    {
+      "id": "qa-hist-01",
+      "title": "History list recording and search filter",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["history"],
+      "preconditions": ["Sites visited during QA session"],
+      "steps": [
+        "Open ActionSheet and tap 历史记录 (HistorySheet)",
+        "Verify recorded visits and enter 'harmonyos' in search bar"
+      ],
+      "assertions": [
+        "HistorySheet displays chronological entries (bai.xo, sspai.com, harmonyos - Google 搜索) with delete actions",
+        "Search filters cleanly to matching google.com history item"
+      ],
+      "failureSignals": [
+        "Missing session history entries, search returns empty or crashes"
+      ]
+    },
+    {
+      "id": "qa-dl-01",
+      "title": "Downloads sheet UI and empty-state rendering",
+      "priority": "p2",
+      "platforms": ["HarmonyOS"],
+      "tags": ["downloads"],
+      "preconditions": ["Browser active"],
+      "steps": [
+        "Open ActionSheet and tap 下载任务 (DownloadSheet)",
+        "Verify sheet renders cleanly and exit back"
+      ],
+      "assertions": [
+        "DownloadSheet displays '下载任务' header, empty state ('暂无下载任务'), and back navigation works"
+      ],
+      "failureSignals": [
+        "Blank sheet or crash opening Downloads"
+      ]
+    },
+    {
+      "id": "qa-share-01",
+      "title": "Share panel options rendering on loaded page",
+      "priority": "p2",
+      "platforms": ["HarmonyOS"],
+      "tags": ["share"],
+      "preconditions": ["Loaded sspai.com article"],
+      "steps": [
+        "Open ActionSheet page 2 and tap 分享",
+        "Inspect SharePanel actions and dismiss"
+      ],
+      "assertions": [
+        "SharePanel shows page title, sspai.com host, 系统分享, 分享截图, 复制链接, and 加入稍后读"
+      ],
+      "failureSignals": [
+        "Missing metadata, broken action icons, stuck modal"
+      ]
+    },
+    {
+      "id": "qa-js-01",
+      "title": "JavaScript alert/confirm/prompt dialog handling",
+      "priority": "p2",
+      "platforms": ["HarmonyOS"],
+      "tags": ["webview", "dialogs"],
+      "preconditions": ["Test page invoking JS alert/confirm/prompt dialogs"],
+      "steps": [
+        "Trigger JS dialog from loaded page and verify JsPromptSheet interaction"
+      ],
+      "assertions": [
+        "Alert/confirm/prompt sheet displays origin/message and resolves JsResult cleanly"
+      ],
+      "failureSignals": [
+        "Hanging JS dialog callback locking renderer"
+      ]
+    },
+    {
+      "id": "qa-settings-01",
+      "title": "Settings page search, pickers, privacy toggles, and feedback modal",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["settings", "feedback"],
+      "preconditions": ["Browser active"],
+      "steps": [
+        "Open SettingsPage via ActionSheet and open 默认搜索引擎 picker (verify 必应/百度/谷歌/DuckDuckGo)",
+        "Scroll lower sections (appearance, tab limits, privacy/site permissions, about v1.0.3)",
+        "Tap 用户反馈 to open FeedbackSheet without submitting, dismiss, then test settings-search-input with '外观'"
+      ],
+      "assertions": [
+        "Pickers, toggles, version info (1.0.3), ICP filing row, FeedbackSheet, and live settings search ('匹配的设置 -> 外观') all work cleanly"
+      ],
+      "failureSignals": [
+        "Search fails to filter, picker stuck, crash opening feedback"
+      ]
+    },
+    {
+      "id": "qa-iap-01",
+      "title": "Real Pro IAP purchase and restore checkout",
+      "priority": "p2",
+      "platforms": ["HarmonyOS"],
+      "tags": ["iap", "excluded"],
+      "preconditions": ["Huawei IAP test account and manual checkout confirmation"],
+      "steps": [
+        "Trigger real Huawei IAP purchase flow"
+      ],
+      "assertions": [
+        "Excluded from automated QA to prevent unapproved real financial transaction"
+      ],
+      "failureSignals": [
+        "Unexpected charge"
+      ]
+    },
+    {
+      "id": "qa-clear-data-01",
+      "title": "Destructive close-all-tabs and clear-all-browsing-data",
+      "priority": "p2",
+      "platforms": ["HarmonyOS"],
+      "tags": ["privacy", "excluded"],
+      "preconditions": ["Clean disposable profile"],
+      "steps": [
+        "Execute 全部关闭 / 清除浏览数据"
+      ],
+      "assertions": [
+        "Excluded on device to preserve user's existing tabs, history, cookies, and bookmarks"
+      ],
+      "failureSignals": [
+        "User session data loss"
       ]
     }
   ],
   "coverageAreas": [
     {
-      "title": "AGC recovery and navigation",
+      "id": "area-1-startup",
+      "title": "Area 1: Startup & Start Page",
       "status": "passed",
-      "caseIds": [
-        "agc-baseline",
-        "agc-cookie-differential",
-        "agc-build",
-        "agc-startup",
-        "agc-navigation",
-        "agc-background"
-      ],
-      "notes": "Final installed build passed fresh-login navigation, iframe content, refresh, background, back and forward on the connected tablet."
+      "caseIds": ["qa-startup-01", "qa-startup-02"],
+      "notes": "Cold start, TabOverview new tab, StartPage quick sites, QuickSiteEditor, PageSettingsPanel, and HomeBackgroundPicker passed."
+    },
+    {
+      "id": "area-2-nav",
+      "title": "Area 2: Omnibox, IME & Navigation",
+      "status": "passed",
+      "caseIds": ["qa-nav-01", "qa-nav-02", "qa-nav-03", "qa-nav-04"],
+      "notes": "Found P0 ThreadBlock6S infinite UA-switch loop during qa-nav-03 back navigation from sspai.com to google.com; fixed in WebKernelService/BrowserWebView/Index and re-verified on device."
+    },
+    {
+      "id": "area-3-tabs",
+      "title": "Area 3: Tabs, Private Browsing & Gestures",
+      "status": "passed",
+      "caseIds": ["qa-tabs-01", "qa-tabs-02"],
+      "notes": "Fixed popup liveTabIds immediate mount, popupTabIds cleanup, and runScriptWithTimeout non-deadlocking hibernation/tab activation; verified private tab & swipe/RecentTabs."
+    },
+    {
+      "id": "area-4-tools",
+      "title": "Area 4: Page Tools, Find, UA Policy & Web Dark Mode",
+      "status": "passed",
+      "caseIds": ["qa-tools-01", "qa-tools-02", "qa-tools-03", "qa-tools-04"],
+      "notes": "Fixed UserAgentPolicySheet missing bottom scrim/height wrapper (header clipped under status bar); re-verified clean bottom alignment and scrim dismissal on device."
+    },
+    {
+      "id": "area-5-block",
+      "title": "Area 5: Security & Ad/Tracker Blocking",
+      "status": "passed",
+      "caseIds": ["qa-block-01", "qa-block-02"],
+      "notes": "Verified SecurityPanel, SiteControlSheet, BlockPanel tracker counts, BlockEventSheet, and site protection toggle."
+    },
+    {
+      "id": "area-6-reader",
+      "title": "Area 6: Reader Mode & Offline Article Library",
+      "status": "passed",
+      "caseIds": ["qa-reader-01", "qa-reader-02"],
+      "notes": "Verified Reader Mode extraction + ReaderBar font/paper controls, Free-tier gating in ArticleLibrarySheet, and OfflineArticleReader content/highlight rendering."
+    },
+    {
+      "id": "area-7-bm-hist",
+      "title": "Area 7: Bookmarks & History",
+      "status": "passed",
+      "caseIds": ["qa-bm-01", "qa-hist-01"],
+      "notes": "Verified bookmark add/search/remove (QA bookmark cleaned up) and history timeline + search filtering."
+    },
+    {
+      "id": "area-8-dl-share-js",
+      "title": "Area 8: Downloads, Share & JS Dialogs",
+      "status": "partial",
+      "caseIds": ["qa-dl-01", "qa-share-01", "qa-js-01"],
+      "notes": "DownloadSheet and SharePanel passed on device; qa-js-01 marked not-run (no dedicated JS dialog trigger page executed)."
+    },
+    {
+      "id": "area-9-settings",
+      "title": "Area 9: Settings, Feedback & Excluded Destructive Flows",
+      "status": "partial",
+      "caseIds": ["qa-settings-01", "qa-iap-01", "qa-clear-data-01"],
+      "notes": "SettingsPage search, pickers, privacy/about sections, and FeedbackSheet passed; qa-iap-01 and qa-clear-data-01 intentionally not-run to preserve user data and avoid real charges."
     }
   ],
   "lastRun": {
-    "date": "2026-09-19",
+    "date": "2026-11-22",
     "target": {
-      "id": "45P0225509000207",
-      "name": "Connected Huawei tablet",
+      "id": "4UQ9K25530058677",
+      "name": "Connected HarmonyOS Phone (TLR-AL00, OS 7.0.0.111 / API 26)",
       "runtime": "HarmonyOS ArkWeb"
     },
     "appBuild": {
-      "version": "1.0.2 (1000025)",
-      "hapPath": "ohos/entry/build/default/outputs/default/entry-default-signed.hap"
+      "version": "1.0.3 (1000026)",
+      "hapPath": "ohos/entry/build/default/outputs/default/entry-default-signed.hap",
+      "sha256": "e63db204909c0913c06a1f8681f1f26fbdaf479da4a94610e48f88e7b67d070f"
     },
-    "authSource": "User completed fresh Huawei login on final installed package; no restored credential snapshot was used",
+    "authSource": "User unlocked physical phone directly; preserved all existing user tabs (tab-1, tab-17, tab-18, tab-19), user bookmarks, offline article, history, and cookies.",
     "results": [
       {
-        "caseId": "agc-baseline",
+        "caseId": "qa-startup-01",
         "status": "passed",
-        "notes": "Retained tablet had an empty handleAllianceLogin document; AGC APIs returned 401. Four stale host-only authentication cookies coexisted with fresh domain cookies.",
-        "evidence": [
-          {
-            "type": "local diagnostic artifacts",
-            "path": "/tmp/zhuo-agc-debug",
-            "notes": "Retained tablet had an empty handleAllianceLogin document; AGC APIs returned 401. Four stale host-only authentication cookies coexisted with fresh domain cookies."
-          }
-        ]
+        "notes": "Cold start launched cleanly into TabOverview; created StartPage tab showing 每日美图 wallpaper, 8 quick-site items, gear button, and dock pill.",
+        "evidence": [{ "type": "screenshot+layout", "path": "scratch/qa/qa_startpage.jpeg", "notes": "Verified StartPage and dock controls" }]
       },
       {
-        "caseId": "agc-cookie-differential",
+        "caseId": "qa-startup-02",
         "status": "passed",
-        "notes": "Deleting only the four conflicting host copies restored the homepage and APP/service list, including the browser app. This was a diagnostic intervention before installing the final build, not final-build navigation acceptance.",
-        "evidence": [
-          {
-            "type": "local diagnostic artifacts",
-            "path": "/tmp/zhuo-agc-debug",
-            "notes": "Deleting only the four conflicting host copies restored the homepage and APP/service list, including the browser app. This was a diagnostic intervention before installing the final build, not final-build navigation acceptance."
-          }
-        ]
+        "notes": "Verified QuickSiteEditor open/cancel, PageSettingsPanel open/dismiss, and long-press HomeBackgroundPicker.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_qse.jpeg", "notes": "QuickSiteEditor, PageSettingsPanel, and HomeBackgroundPicker captured" }]
       },
       {
-        "caseId": "agc-build",
+        "caseId": "qa-nav-01",
         "status": "passed",
-        "notes": "Corrected release HAP built, signed, installed and launched. SHA256 4a350b02689fd8b57f8309177b4e6af665f12a4ec3ce89a86ae31cd9ce5cad03.",
-        "evidence": [
-          {
-            "type": "local diagnostic artifacts",
-            "path": "/tmp/zhuo-agc-debug",
-            "notes": "Corrected release HAP built, signed, installed and launched. SHA256 4a350b02689fd8b57f8309177b4e6af665f12a4ec3ce89a86ae31cd9ce5cad03."
-          }
-        ]
+        "notes": "Sogou IME 「开始」 key (EnterKeyType.Go) submitted 'g harmonyos' and loaded Google SERP with AI 概览 and zero unsupported-browser errors.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_nav_serp_back.jpeg", "notes": "Google SERP rendered cleanly" }]
       },
       {
-        "caseId": "agc-startup",
+        "caseId": "qa-nav-02",
         "status": "passed",
-        "notes": "Final installed package completed fresh user login and displayed AGC homepage. No blank OAuth callback. Process-death session retention remains native-platform behavior.",
-        "evidence": [
-          {
-            "type": "local diagnostic artifacts",
-            "path": "/tmp/zhuo-agc-debug",
-            "notes": "Final installed package completed fresh user login and displayed AGC homepage. No blank OAuth callback. Process-death session retention remains native-platform behavior."
-          }
-        ]
+        "notes": "Uniform compatible Android Chrome mobile UA rendered both google.com SERP and sspai.com cleanly without per-host switching.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_nav_longpress.jpeg", "notes": "sspai.com and google.com rendered under uniform compatible UA" }]
       },
       {
-        "caseId": "agc-navigation",
+        "caseId": "qa-nav-03",
         "status": "passed",
-        "notes": "Passed two native-touch rounds (12 section selections): application list, analytics iframe with data, users iframe, certificates iframe, project list, and return to applications. Screenshots inspected and distinct content assertions passed. No HTTP 4xx/5xx observed during the rounds; only a site ResizeObserver warning.",
-        "evidence": [
-          {
-            "type": "local diagnostic artifacts",
-            "path": "/tmp/zhuo-agc-debug",
-            "notes": "Passed two native-touch rounds (12 section selections): application list, analytics iframe with data, users iframe, certificates iframe, project list, and return to applications. Screenshots inspected and distinct content assertions passed. No HTTP 4xx/5xx observed during the rounds; only a site ResizeObserver warning."
-          }
-        ]
+        "notes": "Caught & fixed P0 ThreadBlock6S crash from commit 03729a5 caused by calling setCustomUserAgent + loadUrl in BrowserWebView.interceptNavigation. Re-verified Google -> sspai.com -> Back -> Forward -> Reload -> Long-press address menu with zero freeze.",
+        "evidence": [{ "type": "screenshot+hilog", "path": "scratch/qa/qa_nav_serp_back.jpeg", "notes": "Cross-site Back/Forward/Long-press verified on fixed build" }]
       },
       {
-        "caseId": "agc-background",
+        "caseId": "qa-nav-04",
         "status": "passed",
-        "notes": "Passed native Home/background, foreground return, toolbar refresh, another full section-switching round, native back to projects and forward to application list. No conflicting host-only auth cookies remained and final-process logs contained zero prior DOM-integrity errors.",
-        "evidence": [
-          {
-            "type": "local diagnostic artifacts",
-            "path": "/tmp/zhuo-agc-debug",
-            "notes": "Passed native Home/background, foreground return, toolbar refresh, another full section-switching round, native back to projects and forward to application list. No conflicting host-only auth cookies remained and final-process logs contained zero prior DOM-integrity errors."
-          }
-        ]
+        "notes": "Verified ErrorStatePanel ('没有网络连接', '重试') on https://nonexistent.invalid and verified Retry triggers loading.",
+        "evidence": [{ "type": "screenshot+layout", "path": "scratch/qa/qa_err2.jpeg", "notes": "ErrorStatePanel rendered with Retry CTA" }]
+      },
+      {
+        "caseId": "qa-tabs-01",
+        "status": "passed",
+        "notes": "Verified live tab preview in TabOverview, private tab creation via 新建无痕标签页, dock 无痕 indicator, and TabOverview 无痕 section without thumbnail exposure; cleaned up all QA tabs leaving 4 user tabs.",
+        "evidence": [{ "type": "screenshot+layout", "path": "scratch/qa/qa_priv_tabs.jpeg", "notes": "Private tab badge and TabOverview section verified; qa_cleanup3.json confirms 4 user tabs retained" }]
+      },
+      {
+        "caseId": "qa-tabs-02",
+        "status": "passed",
+        "notes": "Fixed popup liveTabIds immediate mount, popupTabIds cleanup on goHome/navigateTo, and runScriptWithTimeout (400ms) around hibernate/tab-switch scripts; verified dock swipe tab switch and RecentTabsDock selection.",
+        "evidence": [{ "type": "screenshot+layout", "path": "scratch/qa/qa_recent_tabs.jpeg", "notes": "Dock swipe and RecentTabsDock verified" }]
+      },
+      {
+        "caseId": "qa-tools-01",
+        "status": "passed",
+        "notes": "Verified ActionSheet Page 1, horizontal swipe to Page 2 (查找, 阅读模式, 分享), QuickActions row scroll, and dismissal.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_actions2.jpeg", "notes": "ActionSheet pages 1 and 2 verified" }]
+      },
+      {
+        "caseId": "qa-tools-02",
+        "status": "passed",
+        "notes": "Verified FindSheet search for '少数派' displaying 1/7, incrementing to 2/7 on Next, scrolling page to match, and closing on ✕.",
+        "evidence": [{ "type": "screenshot+layout", "path": "scratch/qa/qa_find_27.jpeg", "notes": "FindSheet counter 2/7 and close verified" }]
+      },
+      {
+        "caseId": "qa-tools-03",
+        "status": "passed",
+        "notes": "Caught & fixed UserAgentPolicySheet top-edge clipping under status bar by wrapping it in full-height bottom-sheet scrim layout (matching SecurityPanel); re-verified clean bottom rendering and scrim dismiss.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_ua_fixed.jpeg", "notes": "Fixed UserAgentPolicySheet anchored cleanly with unclipped '网站显示策略'" }]
+      },
+      {
+        "caseId": "qa-tools-04",
+        "status": "passed",
+        "notes": "Toggled Web Dark Mode to 常暗, verified dark rendering on sspai.com, and restored setting to 跟随系统.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_sspai_dark_real.jpeg", "notes": "Web Dark Mode rendered cleanly on sspai.com and restored" }]
+      },
+      {
+        "caseId": "qa-block-01",
+        "status": "passed",
+        "notes": "Tapped dock shield icon to verify SecurityPanel ('连接安全', HTTPS/host) and opened SiteControlSheet ('本站网页控制') from BlockPanel.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_security_ok.jpeg", "notes": "SecurityPanel and SiteControlSheet verified" }]
+      },
+      {
+        "caseId": "qa-block-02",
+        "status": "passed",
+        "notes": "Verified BlockPanel per-site & cumulative tracker counts, BlockEventSheet ('本页拦截活动'), and site blocking toggle off/on.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_blockpanel.jpeg", "notes": "BlockPanel and BlockEventSheet verified" }]
+      },
+      {
+        "caseId": "qa-reader-01",
+        "status": "passed",
+        "notes": "Verified Reader Mode extraction on sspai.com bullet article, ReaderBar A+/A- font controls, Dark/Sepia paper themes, and 完成 exit.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_reader2.jpeg", "notes": "Reader Mode Dark theme and ReaderBar verified" }]
+      },
+      {
+        "caseId": "qa-reader-02",
+        "status": "passed",
+        "notes": "Verified ArticleLibrarySheet (Free-tier Pro banner noted) and opened user's saved 36kr article in OfflineArticleReader with formatted text, highlights, 划线, and 笔记与整理.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_offline_reader.jpeg", "notes": "ArticleLibrarySheet and OfflineArticleReader verified" }]
+      },
+      {
+        "caseId": "qa-bm-01",
+        "status": "passed",
+        "notes": "Bookmarked sspai.com article, verified entry and '退烧' search filter in FavoritesSheet, then removed QA bookmark cleanly (verified label reverted to 加入书签).",
+        "evidence": [{ "type": "screenshot+layout", "path": "scratch/qa/qa_bm3.jpeg", "notes": "FavoritesSheet add, search filter, and QA bookmark cleanup verified" }]
+      },
+      {
+        "caseId": "qa-hist-01",
+        "status": "passed",
+        "notes": "Verified chronological history list and live search filter for 'harmonyos' in HistorySheet.",
+        "evidence": [{ "type": "screenshot+layout", "path": "scratch/qa/qa_hist_ok.jpeg", "notes": "HistorySheet list and search verified" }]
+      },
+      {
+        "caseId": "qa-dl-01",
+        "status": "passed",
+        "notes": "Opened DownloadSheet from ActionSheet QuickActions and verified header/empty state and back navigation.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_dl.jpeg", "notes": "DownloadSheet rendered cleanly" }]
+      },
+      {
+        "caseId": "qa-share-01",
+        "status": "passed",
+        "notes": "Opened SharePanel on loaded sspai.com article; verified title, host, 系统分享, 分享截图, 复制链接, and 加入稍后读.",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_share.jpeg", "notes": "SharePanel rendered cleanly" }]
+      },
+      {
+        "caseId": "qa-js-01",
+        "status": "not-run",
+        "notes": "Not executed during this session; no dedicated JS alert/confirm/prompt trigger page was opened on device.",
+        "evidence": []
+      },
+      {
+        "caseId": "qa-settings-01",
+        "status": "passed",
+        "notes": "Verified SettingsPage search ('外观'), default search engine picker (必应/百度/谷歌/DuckDuckGo), web dark mode picker, privacy/about v1.0.3 rows, and FeedbackSheet (cancelled without submitting).",
+        "evidence": [{ "type": "screenshot", "path": "scratch/qa/qa_feedback.jpeg", "notes": "SettingsPage pickers, search, and FeedbackSheet verified" }]
+      },
+      {
+        "caseId": "qa-iap-01",
+        "status": "not-run",
+        "notes": "Excluded per QA rules: real Huawei IAP checkout requires manual user confirmation and billing.",
+        "evidence": []
+      },
+      {
+        "caseId": "qa-clear-data-01",
+        "status": "not-run",
+        "notes": "Excluded per QA rules: destructive close-all-tabs and clear-all-data intentionally skipped to preserve user tabs, bookmarks, offline articles, history, and cookies.",
+        "evidence": []
       }
     ],
     "validation": [
-      "84/84 Node tests passed",
-      "220/220 final entry Hypium tests passed",
-      "Final release HAP build, signing, install and launch passed",
-      "12/12 native-touch route/content assertions passed across fresh login and refresh",
-      "Native background/foreground, back and forward passed; no conflicting auth host copies",
-      "git diff --check passed"
+      "node --test scripts/*.test.mjs: 48/48 pass",
+      "cd ohos && hvigorw test --no-daemon -> test_result.txt: Tests run: 240, Failure: 0, Error: 0, Pass: 240, Ignore: 0",
+      "cd ohos && hvigorw assembleHap: BUILD SUCCESSFUL (SHA256 e63db204909c0913c06a1f8681f1f26fbdaf479da4a94610e48f88e7b67d070f)",
+      "Real-device interactive QA on 4UQ9K25530058677: 21/24 cases passed, 3/24 intentionally not-run (qa-js-01, qa-iap-01, qa-clear-data-01), 0 failed",
+      "Post-fix hilog audit (10:03:12-10:12): 0 FATAL, 0 THREAD_BLOCK, 0 AppFreeze, 0 uncaught JS errors, 0 invalidUrl errors"
     ],
     "knownExclusions": [
-      "Native tablet session-cookie persistence remains platform-owned; process death can require login.",
-      "iOS and Android shared assets synchronized; no platform build/device validation in this Harmony task.",
-      "One site ResizeObserver warning; no DOM-integrity failures or HTTP errors in tested navigation.",
-      "No store upload, publishing or git push."
+      "qa-iap-01: Real IAP checkout not executed to avoid financial charge.",
+      "qa-clear-data-01: Destructive clear-all-data / close-all-tabs not executed to preserve user session data.",
+      "qa-js-01: JS alert/confirm/prompt dialog not triggered during this device pass.",
+      "No AppGallery Connect upload/publish or git push performed."
     ]
   }
 }

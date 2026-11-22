@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ZhuoBrowser AGC regression HarmonyOS Report</title>
+  <title>ZhuoBrowser HarmonyOS Full Functional QA HarmonyOS Report</title>
   <style>
     :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; }
     body { margin: 0; padding: 32px; background: Canvas; color: CanvasText; }
@@ -25,27 +25,27 @@
 </head>
 <body>
 <main>
-  <h1>ZhuoBrowser AGC regression HarmonyOS Report</h1>
+  <h1>ZhuoBrowser HarmonyOS Full Functional QA HarmonyOS Report</h1>
   <p>
-    Date: 2026-09-19<br>
-    Target: Connected Huawei tablet, HarmonyOS ArkWeb, <code>45P0225509000207</code><br>
-    App: ZhuoBrowser AGC regression <code>1.0.2 (1000025)</code>, bundle <code>com.youdroid.browser</code><br>
+    Date: 2026-11-22<br>
+    Target: Connected HarmonyOS Phone (TLR-AL00, OS 7.0.0.111 / API 26), HarmonyOS ArkWeb, <code>4UQ9K25530058677</code><br>
+    App: ZhuoBrowser HarmonyOS Full Functional QA <code>1.0.3 (1000026)</code>, bundle <code>com.youdroid.browser</code><br>
     HAP: <code>ohos/entry/build/default/outputs/default/entry-default-signed.hap</code><br>
-    Auth source: User completed fresh Huawei login on final installed package; no restored credential snapshot was used
+    Auth source: User unlocked physical phone directly; preserved all existing user tabs (tab-1, tab-17, tab-18, tab-19), user bookmarks, offline article, history, and cookies.
   </p>
 
   <section class="summary" aria-label="Run summary">
-    <div class="metric"><strong>6</strong>Total cases</div>
-    <div class="metric"><strong>6</strong>Executed</div>
-    <div class="metric"><strong>6</strong>Passed</div>
+    <div class="metric"><strong>24</strong>Total cases</div>
+    <div class="metric"><strong>21</strong>Executed</div>
+    <div class="metric"><strong>21</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
     <div class="metric"><strong>0</strong>Blocked</div>
-    <div class="metric"><strong>0</strong>Not run</div>
+    <div class="metric"><strong>3</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 6 Harmony scenarios. This run executed 6 cases with fresh evidence.
+    The agent QA suite contains 24 Harmony scenarios. This run executed 21 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -54,10 +54,58 @@
     <thead><tr><th>Area</th><th>Status</th><th>Cases</th><th>Notes</th></tr></thead>
     <tbody>
       <tr>
-        <td>AGC recovery and navigation</td>
+        <td>Area 1: Startup &amp; Start Page</td>
         <td class="status-passed">passed</td>
-        <td><code>agc-baseline</code><br><code>agc-cookie-differential</code><br><code>agc-build</code><br><code>agc-startup</code><br><code>agc-navigation</code><br><code>agc-background</code></td>
-        <td>Final installed build passed fresh-login navigation, iframe content, refresh, background, back and forward on the connected tablet.</td>
+        <td><code>qa-startup-01</code><br><code>qa-startup-02</code></td>
+        <td>Cold start, TabOverview new tab, StartPage quick sites, QuickSiteEditor, PageSettingsPanel, and HomeBackgroundPicker passed.</td>
+      </tr>
+      <tr>
+        <td>Area 2: Omnibox, IME &amp; Navigation</td>
+        <td class="status-passed">passed</td>
+        <td><code>qa-nav-01</code><br><code>qa-nav-02</code><br><code>qa-nav-03</code><br><code>qa-nav-04</code></td>
+        <td>Found P0 ThreadBlock6S infinite UA-switch loop during qa-nav-03 back navigation from sspai.com to google.com; fixed in WebKernelService/BrowserWebView/Index and re-verified on device.</td>
+      </tr>
+      <tr>
+        <td>Area 3: Tabs, Private Browsing &amp; Gestures</td>
+        <td class="status-passed">passed</td>
+        <td><code>qa-tabs-01</code><br><code>qa-tabs-02</code></td>
+        <td>Fixed popup liveTabIds immediate mount, popupTabIds cleanup, and runScriptWithTimeout non-deadlocking hibernation/tab activation; verified private tab &amp; swipe/RecentTabs.</td>
+      </tr>
+      <tr>
+        <td>Area 4: Page Tools, Find, UA Policy &amp; Web Dark Mode</td>
+        <td class="status-passed">passed</td>
+        <td><code>qa-tools-01</code><br><code>qa-tools-02</code><br><code>qa-tools-03</code><br><code>qa-tools-04</code></td>
+        <td>Fixed UserAgentPolicySheet missing bottom scrim/height wrapper (header clipped under status bar); re-verified clean bottom alignment and scrim dismissal on device.</td>
+      </tr>
+      <tr>
+        <td>Area 5: Security &amp; Ad/Tracker Blocking</td>
+        <td class="status-passed">passed</td>
+        <td><code>qa-block-01</code><br><code>qa-block-02</code></td>
+        <td>Verified SecurityPanel, SiteControlSheet, BlockPanel tracker counts, BlockEventSheet, and site protection toggle.</td>
+      </tr>
+      <tr>
+        <td>Area 6: Reader Mode &amp; Offline Article Library</td>
+        <td class="status-passed">passed</td>
+        <td><code>qa-reader-01</code><br><code>qa-reader-02</code></td>
+        <td>Verified Reader Mode extraction + ReaderBar font/paper controls, Free-tier gating in ArticleLibrarySheet, and OfflineArticleReader content/highlight rendering.</td>
+      </tr>
+      <tr>
+        <td>Area 7: Bookmarks &amp; History</td>
+        <td class="status-passed">passed</td>
+        <td><code>qa-bm-01</code><br><code>qa-hist-01</code></td>
+        <td>Verified bookmark add/search/remove (QA bookmark cleaned up) and history timeline + search filtering.</td>
+      </tr>
+      <tr>
+        <td>Area 8: Downloads, Share &amp; JS Dialogs</td>
+        <td class="status-partial">partial</td>
+        <td><code>qa-dl-01</code><br><code>qa-share-01</code><br><code>qa-js-01</code></td>
+        <td>DownloadSheet and SharePanel passed on device; qa-js-01 marked not-run (no dedicated JS dialog trigger page executed).</td>
+      </tr>
+      <tr>
+        <td>Area 9: Settings, Feedback &amp; Excluded Destructive Flows</td>
+        <td class="status-partial">partial</td>
+        <td><code>qa-settings-01</code><br><code>qa-iap-01</code><br><code>qa-clear-data-01</code></td>
+        <td>SettingsPage search, pickers, privacy/about sections, and FeedbackSheet passed; qa-iap-01 and qa-clear-data-01 intentionally not-run to preserve user data and avoid real charges.</td>
       </tr></tbody>
   </table>
 
@@ -66,91 +114,302 @@
     <thead><tr><th>Case</th><th>Priority</th><th>Title</th><th>Latest Status</th><th>Tags</th></tr></thead>
     <tbody>
       <tr>
-        <td><code>agc-baseline</code></td>
+        <td><code>qa-startup-01</code></td>
         <td>p0</td>
-        <td>Reproduce blank OAuth callback</td>
+        <td>Cold launch, tab overview, and start page rendering</td>
         <td class="status-passed">passed</td>
-        <td>agc, cookie</td>
+        <td>startup, startpage</td>
       </tr>
       <tr>
-        <td><code>agc-cookie-differential</code></td>
-        <td>p0</td>
-        <td>Isolate cookie shadowing from routing</td>
+        <td><code>qa-startup-02</code></td>
+        <td>p1</td>
+        <td>Start page quick-site editor, page settings, and background picker</td>
         <td class="status-passed">passed</td>
-        <td>agc, cookie</td>
+        <td>startpage, customization</td>
       </tr>
       <tr>
-        <td><code>agc-build</code></td>
+        <td><code>qa-nav-01</code></td>
         <td>p0</td>
-        <td>Build and install final Harmony package</td>
+        <td>Omnibox input and IME Go key submission for Google search</td>
         <td class="status-passed">passed</td>
-        <td>agc, cookie</td>
+        <td>omnibox, ime, google</td>
       </tr>
       <tr>
-        <td><code>agc-startup</code></td>
+        <td><code>qa-nav-02</code></td>
         <td>p0</td>
-        <td>Render after process restart</td>
+        <td>Compatible mobile User-Agent stability across Google and non-Google sites</td>
         <td class="status-passed">passed</td>
-        <td>agc, cookie</td>
+        <td>webview, user-agent, google</td>
       </tr>
       <tr>
-        <td><code>agc-navigation</code></td>
+        <td><code>qa-nav-03</code></td>
         <td>p0</td>
-        <td>Switch all authenticated AGC sections</td>
+        <td>Cross-site Back, Forward, Reload, and Long-press address menu</td>
         <td class="status-passed">passed</td>
-        <td>agc, cookie</td>
+        <td>navigation, regression</td>
       </tr>
       <tr>
-        <td><code>agc-background</code></td>
-        <td>p0</td>
-        <td>Retain authenticated content across background and refresh</td>
+        <td><code>qa-nav-04</code></td>
+        <td>p1</td>
+        <td>Network error state panel and retry flow</td>
         <td class="status-passed">passed</td>
-        <td>agc, cookie</td>
+        <td>error-handling, navigation</td>
+      </tr>
+      <tr>
+        <td><code>qa-tabs-01</code></td>
+        <td>p0</td>
+        <td>Normal tabs, private tabs creation, preview redaction, and closing</td>
+        <td class="status-passed">passed</td>
+        <td>tabs, private</td>
+      </tr>
+      <tr>
+        <td><code>qa-tabs-02</code></td>
+        <td>p1</td>
+        <td>Dock horizontal swipe tab switch and RecentTabs sheet</td>
+        <td class="status-passed">passed</td>
+        <td>tabs, gestures</td>
+      </tr>
+      <tr>
+        <td><code>qa-tools-01</code></td>
+        <td>p1</td>
+        <td>ActionSheet multi-page navigation and dismissal</td>
+        <td class="status-passed">passed</td>
+        <td>tools, actionsheet</td>
+      </tr>
+      <tr>
+        <td><code>qa-tools-02</code></td>
+        <td>p1</td>
+        <td>Find-in-page search, match navigation, and clear on close</td>
+        <td class="status-passed">passed</td>
+        <td>tools, find</td>
+      </tr>
+      <tr>
+        <td><code>qa-tools-03</code></td>
+        <td>p0</td>
+        <td>UserAgentPolicySheet bottom alignment, Desktop mode toggle, and Mobile restore</td>
+        <td class="status-passed">passed</td>
+        <td>tools, user-agent, ui-layout</td>
+      </tr>
+      <tr>
+        <td><code>qa-tools-04</code></td>
+        <td>p1</td>
+        <td>Web dark mode setting and page visual adaptation</td>
+        <td class="status-passed">passed</td>
+        <td>tools, dark-mode</td>
+      </tr>
+      <tr>
+        <td><code>qa-block-01</code></td>
+        <td>p1</td>
+        <td>Connection security inspection and per-site control policies</td>
+        <td class="status-passed">passed</td>
+        <td>security, site-controls</td>
+      </tr>
+      <tr>
+        <td><code>qa-block-02</code></td>
+        <td>p1</td>
+        <td>Ad/tracker blocking stats, activity log, and site toggle</td>
+        <td class="status-passed">passed</td>
+        <td>adblock, privacy</td>
+      </tr>
+      <tr>
+        <td><code>qa-reader-01</code></td>
+        <td>p1</td>
+        <td>Reader Mode extraction and ReaderBar typography/theme controls</td>
+        <td class="status-passed">passed</td>
+        <td>reader</td>
+      </tr>
+      <tr>
+        <td><code>qa-reader-02</code></td>
+        <td>p1</td>
+        <td>Article library gating and OfflineArticleReader inspection</td>
+        <td class="status-passed">passed</td>
+        <td>reader, article-library</td>
+      </tr>
+      <tr>
+        <td><code>qa-bm-01</code></td>
+        <td>p1</td>
+        <td>Bookmark creation, search filter, and removal</td>
+        <td class="status-passed">passed</td>
+        <td>bookmarks</td>
+      </tr>
+      <tr>
+        <td><code>qa-hist-01</code></td>
+        <td>p1</td>
+        <td>History list recording and search filter</td>
+        <td class="status-passed">passed</td>
+        <td>history</td>
+      </tr>
+      <tr>
+        <td><code>qa-dl-01</code></td>
+        <td>p2</td>
+        <td>Downloads sheet UI and empty-state rendering</td>
+        <td class="status-passed">passed</td>
+        <td>downloads</td>
+      </tr>
+      <tr>
+        <td><code>qa-share-01</code></td>
+        <td>p2</td>
+        <td>Share panel options rendering on loaded page</td>
+        <td class="status-passed">passed</td>
+        <td>share</td>
+      </tr>
+      <tr>
+        <td><code>qa-js-01</code></td>
+        <td>p2</td>
+        <td>JavaScript alert/confirm/prompt dialog handling</td>
+        <td class="status-not-run">not-run</td>
+        <td>webview, dialogs</td>
+      </tr>
+      <tr>
+        <td><code>qa-settings-01</code></td>
+        <td>p1</td>
+        <td>Settings page search, pickers, privacy toggles, and feedback modal</td>
+        <td class="status-passed">passed</td>
+        <td>settings, feedback</td>
+      </tr>
+      <tr>
+        <td><code>qa-iap-01</code></td>
+        <td>p2</td>
+        <td>Real Pro IAP purchase and restore checkout</td>
+        <td class="status-not-run">not-run</td>
+        <td>iap, excluded</td>
+      </tr>
+      <tr>
+        <td><code>qa-clear-data-01</code></td>
+        <td>p2</td>
+        <td>Destructive close-all-tabs and clear-all-browsing-data</td>
+        <td class="status-not-run">not-run</td>
+        <td>privacy, excluded</td>
       </tr></tbody>
   </table>
 
   <h2>Latest Run Evidence</h2>
   
       <section class="case-result">
-        <h3><code>agc-baseline</code> <span class="status-passed">passed</span></h3>
-        <p>Retained tablet had an empty handleAllianceLogin document; AGC APIs returned 401. Four stale host-only authentication cookies coexisted with fresh domain cookies.</p>
-        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+        <h3><code>qa-startup-01</code> <span class="status-passed">passed</span></h3>
+        <p>Cold start launched cleanly into TabOverview; created StartPage tab showing 每日美图 wallpaper, 8 quick-site items, gear button, and dock pill.</p>
+        <ul><li><strong>screenshot+layout</strong>: <code>scratch/qa/qa_startpage.jpeg</code><br></li></ul>
       </section>
       <section class="case-result">
-        <h3><code>agc-cookie-differential</code> <span class="status-passed">passed</span></h3>
-        <p>Deleting only the four conflicting host copies restored the homepage and APP/service list, including the browser app. This was a diagnostic intervention before installing the final build, not final-build navigation acceptance.</p>
-        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+        <h3><code>qa-startup-02</code> <span class="status-passed">passed</span></h3>
+        <p>Verified QuickSiteEditor open/cancel, PageSettingsPanel open/dismiss, and long-press HomeBackgroundPicker.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_qse.jpeg</code><br></li></ul>
       </section>
       <section class="case-result">
-        <h3><code>agc-build</code> <span class="status-passed">passed</span></h3>
-        <p>Corrected release HAP built, signed, installed and launched. SHA256 4a350b02689fd8b57f8309177b4e6af665f12a4ec3ce89a86ae31cd9ce5cad03.</p>
-        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+        <h3><code>qa-nav-01</code> <span class="status-passed">passed</span></h3>
+        <p>Sogou IME 「开始」 key (EnterKeyType.Go) submitted 'g harmonyos' and loaded Google SERP with AI 概览 and zero unsupported-browser errors.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_nav_serp_back.jpeg</code><br></li></ul>
       </section>
       <section class="case-result">
-        <h3><code>agc-startup</code> <span class="status-passed">passed</span></h3>
-        <p>Final installed package completed fresh user login and displayed AGC homepage. No blank OAuth callback. Process-death session retention remains native-platform behavior.</p>
-        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+        <h3><code>qa-nav-02</code> <span class="status-passed">passed</span></h3>
+        <p>Uniform compatible Android Chrome mobile UA rendered both google.com SERP and sspai.com cleanly without per-host switching.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_nav_longpress.jpeg</code><br></li></ul>
       </section>
       <section class="case-result">
-        <h3><code>agc-navigation</code> <span class="status-passed">passed</span></h3>
-        <p>Passed two native-touch rounds (12 section selections): application list, analytics iframe with data, users iframe, certificates iframe, project list, and return to applications. Screenshots inspected and distinct content assertions passed. No HTTP 4xx/5xx observed during the rounds; only a site ResizeObserver warning.</p>
-        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+        <h3><code>qa-nav-03</code> <span class="status-passed">passed</span></h3>
+        <p>Caught &amp; fixed P0 ThreadBlock6S crash from commit 03729a5 caused by calling setCustomUserAgent + loadUrl in BrowserWebView.interceptNavigation. Re-verified Google -&gt; sspai.com -&gt; Back -&gt; Forward -&gt; Reload -&gt; Long-press address menu with zero freeze.</p>
+        <ul><li><strong>screenshot+hilog</strong>: <code>scratch/qa/qa_nav_serp_back.jpeg</code><br></li></ul>
       </section>
       <section class="case-result">
-        <h3><code>agc-background</code> <span class="status-passed">passed</span></h3>
-        <p>Passed native Home/background, foreground return, toolbar refresh, another full section-switching round, native back to projects and forward to application list. No conflicting host-only auth cookies remained and final-process logs contained zero prior DOM-integrity errors.</p>
-        <ul><li><strong>local diagnostic artifacts</strong>: <code>/tmp/zhuo-agc-debug</code><br></li></ul>
+        <h3><code>qa-nav-04</code> <span class="status-passed">passed</span></h3>
+        <p>Verified ErrorStatePanel ('没有网络连接', '重试') on https://nonexistent.invalid and verified Retry triggers loading.</p>
+        <ul><li><strong>screenshot+layout</strong>: <code>scratch/qa/qa_err2.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-tabs-01</code> <span class="status-passed">passed</span></h3>
+        <p>Verified live tab preview in TabOverview, private tab creation via 新建无痕标签页, dock 无痕 indicator, and TabOverview 无痕 section without thumbnail exposure; cleaned up all QA tabs leaving 4 user tabs.</p>
+        <ul><li><strong>screenshot+layout</strong>: <code>scratch/qa/qa_priv_tabs.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-tabs-02</code> <span class="status-passed">passed</span></h3>
+        <p>Fixed popup liveTabIds immediate mount, popupTabIds cleanup on goHome/navigateTo, and runScriptWithTimeout (400ms) around hibernate/tab-switch scripts; verified dock swipe tab switch and RecentTabsDock selection.</p>
+        <ul><li><strong>screenshot+layout</strong>: <code>scratch/qa/qa_recent_tabs.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-tools-01</code> <span class="status-passed">passed</span></h3>
+        <p>Verified ActionSheet Page 1, horizontal swipe to Page 2 (查找, 阅读模式, 分享), QuickActions row scroll, and dismissal.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_actions2.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-tools-02</code> <span class="status-passed">passed</span></h3>
+        <p>Verified FindSheet search for '少数派' displaying 1/7, incrementing to 2/7 on Next, scrolling page to match, and closing on ✕.</p>
+        <ul><li><strong>screenshot+layout</strong>: <code>scratch/qa/qa_find_27.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-tools-03</code> <span class="status-passed">passed</span></h3>
+        <p>Caught &amp; fixed UserAgentPolicySheet top-edge clipping under status bar by wrapping it in full-height bottom-sheet scrim layout (matching SecurityPanel); re-verified clean bottom rendering and scrim dismiss.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_ua_fixed.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-tools-04</code> <span class="status-passed">passed</span></h3>
+        <p>Toggled Web Dark Mode to 常暗, verified dark rendering on sspai.com, and restored setting to 跟随系统.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_sspai_dark_real.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-block-01</code> <span class="status-passed">passed</span></h3>
+        <p>Tapped dock shield icon to verify SecurityPanel ('连接安全', HTTPS/host) and opened SiteControlSheet ('本站网页控制') from BlockPanel.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_security_ok.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-block-02</code> <span class="status-passed">passed</span></h3>
+        <p>Verified BlockPanel per-site &amp; cumulative tracker counts, BlockEventSheet ('本页拦截活动'), and site blocking toggle off/on.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_blockpanel.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-reader-01</code> <span class="status-passed">passed</span></h3>
+        <p>Verified Reader Mode extraction on sspai.com bullet article, ReaderBar A+/A- font controls, Dark/Sepia paper themes, and 完成 exit.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_reader2.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-reader-02</code> <span class="status-passed">passed</span></h3>
+        <p>Verified ArticleLibrarySheet (Free-tier Pro banner noted) and opened user's saved 36kr article in OfflineArticleReader with formatted text, highlights, 划线, and 笔记与整理.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_offline_reader.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-bm-01</code> <span class="status-passed">passed</span></h3>
+        <p>Bookmarked sspai.com article, verified entry and '退烧' search filter in FavoritesSheet, then removed QA bookmark cleanly (verified label reverted to 加入书签).</p>
+        <ul><li><strong>screenshot+layout</strong>: <code>scratch/qa/qa_bm3.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-hist-01</code> <span class="status-passed">passed</span></h3>
+        <p>Verified chronological history list and live search filter for 'harmonyos' in HistorySheet.</p>
+        <ul><li><strong>screenshot+layout</strong>: <code>scratch/qa/qa_hist_ok.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-dl-01</code> <span class="status-passed">passed</span></h3>
+        <p>Opened DownloadSheet from ActionSheet QuickActions and verified header/empty state and back navigation.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_dl.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-share-01</code> <span class="status-passed">passed</span></h3>
+        <p>Opened SharePanel on loaded sspai.com article; verified title, host, 系统分享, 分享截图, 复制链接, and 加入稍后读.</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_share.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-js-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Not executed during this session; no dedicated JS alert/confirm/prompt trigger page was opened on device.</p>
+        <p>No fresh HarmonyOS evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-settings-01</code> <span class="status-passed">passed</span></h3>
+        <p>Verified SettingsPage search ('外观'), default search engine picker (必应/百度/谷歌/DuckDuckGo), web dark mode picker, privacy/about v1.0.3 rows, and FeedbackSheet (cancelled without submitting).</p>
+        <ul><li><strong>screenshot</strong>: <code>scratch/qa/qa_feedback.jpeg</code><br></li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-iap-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Excluded per QA rules: real Huawei IAP checkout requires manual user confirmation and billing.</p>
+        <p>No fresh HarmonyOS evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>qa-clear-data-01</code> <span class="status-not-run">not-run</span></h3>
+        <p>Excluded per QA rules: destructive close-all-tabs and clear-all-data intentionally skipped to preserve user tabs, bookmarks, offline articles, history, and cookies.</p>
+        <p>No fresh HarmonyOS evidence recorded for this case.</p>
       </section>
 
   <h2>Validation</h2>
   <table>
     <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
     <tbody>
-      <tr>
-        <td><code></code></td>
-        <td class="status-"></td>
-        <td></td>
-      </tr>
       <tr>
         <td><code></code></td>
         <td class="status-"></td>

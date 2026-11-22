@@ -1965,6 +1965,7 @@ struct Index {
         host: displayHost(this.activeDisplayUrl()),
         currentPreference: this.viewModel.userAgentPreferenceForUrl(this.activeDisplayUrl()),
         globalPreference: this.settings.defaultUserAgentPreference,
+        scrimProvided: this.usesResponsivePanel(),
         onApplyOnce: (preference: UserAgentPreference): void => this.applyUserAgentOnce(preference),
         onApplyAlways: (preference: UserAgentPreference): void => {
           void this.applyUserAgentAlways(preference);
@@ -2475,16 +2476,8 @@ struct Index {
     if (tab === undefined || isHomeUrl(tab.url) || this.liveTabIds.includes(id)) {
       return;
     }
-    while (this.liveTabIds.length >= this.liveWebViewLimit()) {
-      const candidate: string = this.leastRecentLiveTab(id);
-      if (candidate.length === 0) {
-        break;
-      }
-      await this.hibernateTab(candidate);
-    }
-    if (!this.liveTabIds.includes(id)) {
-      this.liveTabIds = this.liveTabIds.concat([id]);
-    }
+    this.liveTabIds = this.liveTabIds.concat([id]);
+    await this.enforceLiveWebViewLimit(this.liveWebViewLimit());
   }
 
   private leastRecentLiveTab(excludedId: string): string {
@@ -2579,6 +2572,8 @@ struct Index {
       // The initial src "browser://home" leaks into the back-forward history
       // and makes every subsequent backward() land on the start page.  Destroy
       // the controller so the fresh one loads the target URL as its first entry.
+      this.popupTabIds.delete(tab.id);
+      this.popupOpeners.delete(tab.id);
       this.controllers.delete(tab.id);
       this.viewModel.updateTab(tab.id, { url: url, isLoading: true, progress: 0 });
       if (!this.liveTabIds.includes(tab.id)) {
@@ -2589,7 +2584,7 @@ struct Index {
       return;
     }
     this.runOnActive((controller: webview.WebviewController) => {
-      WebKernelService.applyUserAgent(controller, tab.isDesktop, url);
+      WebKernelService.applyUserAgent(controller, tab.isDesktop);
       controller.loadUrl(url);
     });
   }
@@ -2768,6 +2763,8 @@ struct Index {
       canGoBack: false,
       canGoForward: false
     });
+    this.popupTabIds.delete(id);
+    this.popupOpeners.delete(id);
     this.controllers.delete(id);
     this.liveTabIds = this.liveTabIds.filter((tabId: string) => tabId !== id);
     this.viewModel.persistSession();
@@ -3412,7 +3409,7 @@ struct Index {
           this.viewModel.updateTab(tab.id, { isLoading: false });
           this.syncTab(tab.id);
         } else {
-          WebKernelService.applyUserAgent(controller, tab.isDesktop, tab.url);
+          WebKernelService.applyUserAgent(controller, tab.isDesktop);
           WebKernelService.reload(controller);
         }
       });
@@ -3926,7 +3923,7 @@ struct Index {
     this.sheet = Overlay.None;
     this.syncState();
     this.runOnActive((controller: webview.WebviewController): void => {
-      WebKernelService.applyUserAgent(controller, isDesktop, targetUrl);
+      WebKernelService.applyUserAgent(controller, isDesktop);
       if (targetUrl === tab.url) {
         WebKernelService.reload(controller);
       } else {
@@ -5344,7 +5341,7 @@ struct Index {
     this.isActivePageAtTop = true;
     this.viewModel.updateTab(id, { isLoading: true, progress: 0, loadError: LoadErrorKind.None });
     this.syncTab(id);
-    WebKernelService.applyUserAgent(controller, tab.isDesktop, tab.url);
+    WebKernelService.applyUserAgent(controller, tab.isDesktop);
     WebKernelService.reload(controller);
   }
 
@@ -5535,8 +5532,11 @@ struct Index {
     this.popupTabIds.add(tab.id);
     this.popupOpeners.set(tab.id, tabId);
     handler.setWebController(this.controllerFor(tab.id));
+    if (!this.liveTabIds.includes(tab.id)) {
+      this.liveTabIds = this.liveTabIds.concat([tab.id]);
+    }
     this.syncState();
-    void this.activateTab(tab.id);
+    void this.enforceLiveWebViewLimit(this.liveWebViewLimit());
   }
 
   private handleJsBeforeUnload(tabId: string, url: string, message: string, result: JsResult): boolean {
@@ -5574,12 +5574,12 @@ struct Index {
     this.syncTab(tab.id);
     if (failedUrl && failedUrl.length > 0) {
       this.runOnActive((controller: webview.WebviewController) => {
-        WebKernelService.applyUserAgent(controller, tab.isDesktop, failedUrl);
+        WebKernelService.applyUserAgent(controller, tab.isDesktop);
         controller.loadUrl(failedUrl);
       });
     } else {
       this.runOnActive((controller: webview.WebviewController) => {
-        WebKernelService.applyUserAgent(controller, tab.isDesktop, tab.url);
+        WebKernelService.applyUserAgent(controller, tab.isDesktop);
         WebKernelService.reload(controller, true);
       });
     }
@@ -5613,7 +5613,7 @@ struct Index {
     }
     this.sheet = Overlay.None;
     this.runOnActive((controller: webview.WebviewController) => {
-      WebKernelService.applyUserAgent(controller, tab.isDesktop, tab.url);
+      WebKernelService.applyUserAgent(controller, tab.isDesktop);
       WebKernelService.reload(controller, true);
     });
   }
@@ -5755,7 +5755,7 @@ struct Index {
         this.viewModel.updateTab(tab.id, { isDesktop: effective.desktopUserAgentEnabled });
         this.reconfigureBlocking();
         this.runOnActive((controller: webview.WebviewController): void => {
-          WebKernelService.applyUserAgent(controller, effective.desktopUserAgentEnabled, tab.url);
+          WebKernelService.applyUserAgent(controller, effective.desktopUserAgentEnabled);
           controller.refresh();
         });
       }
@@ -5890,13 +5890,36 @@ struct Index {
     }
   }
 
+  private runScriptWithTimeout(
+    controller: webview.WebviewController,
+    script: string,
+    timeoutMs: number = 400
+  ): Promise<string> {
+    return new Promise<string>((resolve: (value: string) => void) => {
+      let settled: boolean = false;
+      const timerId: number = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          resolve('');
+        }
+      }, timeoutMs);
+      void this.runScript(controller, script).then((result: string) => {
+        clearTimeout(timerId);
+        if (!settled) {
+          settled = true;
+          resolve(result);
+        }
+      });
+    });
+  }
+
   private async captureScrollPosition(id: string): Promise<void> {
     const controller: webview.WebviewController | undefined = this.controllers.get(id);
     const tab: BrowserTab | undefined = this.viewModel.getTab(id);
     if (controller === undefined || tab === undefined || isHomeUrl(tab.url)) {
       return;
     }
-    const raw: string = await this.runScript(controller, READ_SCROLL_POSITION_SCRIPT);
+    const raw: string = await this.runScriptWithTimeout(controller, READ_SCROLL_POSITION_SCRIPT);
     const position: number = Number(raw.replace(/[^0-9.-]/g, ''));
     if (Number.isNaN(position)) {
       return;
@@ -5917,7 +5940,7 @@ struct Index {
     if (controller === undefined || tab === undefined || isHomeUrl(tab.url)) {
       return;
     }
-    const raw: string = await this.runScript(controller, READ_FORM_DRAFT_SCRIPT);
+    const raw: string = await this.runScriptWithTimeout(controller, READ_FORM_DRAFT_SCRIPT);
     const draft: string = this.parseScriptString(raw);
     if (draft.length > 0) {
       this.viewModel.updateTab(id, { formDraft: draft });
