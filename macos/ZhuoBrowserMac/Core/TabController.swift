@@ -754,7 +754,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
         webView.startDownload(using: URLRequest(url: url)) { wkDownload in
             MainActor.assumeIsolated {
-                DownloadManager.shared.handleWebKitDownload(wkDownload, fallbackURL: url)
+                DownloadManager.shared.handleWebKitDownload(wkDownload, fallbackURL: url, originURL: webView.url)
             }
         }
     }
@@ -808,7 +808,8 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                     DownloadManager.shared.handleWebKitDownload(
                         wkDownload,
                         fallbackURL: sourceURL,
-                        customDestinationURL: destinationURL
+                        customDestinationURL: destinationURL,
+                        originURL: webView.url
                     )
                 }
             }
@@ -1115,8 +1116,9 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             tab.isLoading = false
         }
         let fallbackURL = navigationAction.request.url
+        let originURL = webView.url
         MainActor.assumeIsolated {
-            DownloadManager.shared.handleWebKitDownload(download, fallbackURL: fallbackURL)
+            DownloadManager.shared.handleWebKitDownload(download, fallbackURL: fallbackURL, originURL: originURL)
             closeIfTransientDownloadTab()
         }
     }
@@ -1130,8 +1132,9 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             tab.isLoading = false
         }
         let fallbackURL = navigationResponse.response.url
+        let originURL = webView.url
         MainActor.assumeIsolated {
-            DownloadManager.shared.handleWebKitDownload(download, fallbackURL: fallbackURL)
+            DownloadManager.shared.handleWebKitDownload(download, fallbackURL: fallbackURL, originURL: originURL)
             closeIfTransientDownloadTab()
         }
     }

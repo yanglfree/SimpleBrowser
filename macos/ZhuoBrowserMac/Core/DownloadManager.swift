@@ -3,6 +3,168 @@ import Foundation
 import UniformTypeIdentifiers
 import WebKit
 
+/// Materializes staged downloads into fresh destination files and applies standard
+/// Gatekeeper web-download quarantine metadata without `QTN_FLAG_HARD`.
+///
+/// Note: `Info.plist` must NOT set `LSFileQuarantineEnabled = true` while
+/// `com.apple.security.app-sandbox` is enabled, because `NSApplication.shared`
+/// would otherwise taint the host process itself with `QTN_FLAG_HARD` (`0087`).
+public enum DownloadFileFinalizer: Sendable {
+    public static let hardQuarantineFlag: UInt32 = 0x0004
+    public static let chunkSize: Int = 1024 * 1024
+
+    public static func parseQuarantineFlags(_ rawAttribute: String) -> UInt32? {
+        guard let firstToken = rawAttribute.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false).first else {
+            return nil
+        }
+        let hexToken = firstToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !hexToken.isEmpty else { return nil }
+        return UInt32(hexToken, radix: 16)
+    }
+
+    public static func isHardQuarantineFlags(_ flags: UInt32) -> Bool {
+        (flags & hardQuarantineFlag) != 0
+    }
+
+    public static func quarantineAttributeString(at fileURL: URL) -> String? {
+        fileURL.withUnsafeFileSystemRepresentation { fileSystemPath in
+            guard let fileSystemPath else { return nil }
+            let length = getxattr(fileSystemPath, "com.apple.quarantine", nil, 0, 0, 0)
+            guard length > 0 else { return nil }
+            var buffer = [UInt8](repeating: 0, count: length)
+            let bytesRead = getxattr(fileSystemPath, "com.apple.quarantine", &buffer, length, 0, 0)
+            guard bytesRead > 0 else { return nil }
+            let trimmed = buffer.prefix(bytesRead).prefix { $0 != 0 }
+            return String(bytes: trimmed, encoding: .utf8)
+        }
+    }
+
+    public static func hasHardQuarantineFlag(at fileURL: URL) -> Bool {
+        guard let rawAttribute = quarantineAttributeString(at: fileURL),
+              let flags = parseQuarantineFlags(rawAttribute) else {
+            return false
+        }
+        return isHardQuarantineFlags(flags)
+    }
+
+    /// Streams bytes from a WebKit-owned staging file into a freshly created destination file
+    /// owned by the host app process.
+    ///
+    /// Never use `FileManager.moveItem` or `FileManager.copyItem` here: macOS preserves
+    /// `com.apple.quarantine` (`0287` / `QTN_FLAG_HARD`) across both move and copy.
+    @discardableResult
+    public static func materializeFile(
+        from stagingURL: URL,
+        to destinationURL: URL,
+        removeSource: Bool = true,
+        shouldCancel: () -> Bool = { false }
+    ) throws -> Int64 {
+        let fm = FileManager.default
+        let parentDir = destinationURL.deletingLastPathComponent()
+        if !fm.fileExists(atPath: parentDir.path) {
+            try fm.createDirectory(at: parentDir, withIntermediateDirectories: true)
+        }
+        if fm.fileExists(atPath: destinationURL.path) {
+            try fm.removeItem(at: destinationURL)
+        }
+        guard fm.createFile(atPath: destinationURL.path, contents: nil) else {
+            throw NSError(
+                domain: NSPOSIXErrorDomain,
+                code: Int(errno != 0 ? errno : EIO),
+                userInfo: [
+                    NSLocalizedDescriptionKey: "无法创建下载目标文件：\(destinationURL.lastPathComponent)"
+                ]
+            )
+        }
+
+        let reader: FileHandle
+        let writer: FileHandle
+        do {
+            reader = try FileHandle(forReadingFrom: stagingURL)
+            writer = try FileHandle(forWritingTo: destinationURL)
+        } catch {
+            try? fm.removeItem(at: destinationURL)
+            throw error
+        }
+
+        var totalWritten: Int64 = 0
+        do {
+            while true {
+                if shouldCancel() {
+                    try? reader.close()
+                    try? writer.close()
+                    try? fm.removeItem(at: destinationURL)
+                    if removeSource {
+                        try? fm.removeItem(at: stagingURL)
+                    }
+                    throw CancellationError()
+                }
+                let chunk: Data? = try autoreleasepool {
+                    try reader.read(upToCount: chunkSize)
+                }
+                guard let chunk, !chunk.isEmpty else { break }
+                try autoreleasepool {
+                    try writer.write(contentsOf: chunk)
+                }
+                totalWritten += Int64(chunk.count)
+            }
+            try? reader.close()
+            try? writer.close()
+        } catch {
+            try? reader.close()
+            try? writer.close()
+            try? fm.removeItem(at: destinationURL)
+            throw error
+        }
+
+        if removeSource {
+            try? fm.removeItem(at: stagingURL)
+        }
+        return totalWritten
+    }
+
+    public static func applyWebDownloadQuarantine(
+        to fileURL: URL,
+        sourceURL: URL?,
+        originURL: URL?,
+        agentName: String? = nil,
+        bundleIdentifier: String? = nil
+    ) {
+        let resolvedAgentName = agentName
+            ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String)
+            ?? "ZhuoBrowserMac"
+        let resolvedBundleID = bundleIdentifier
+            ?? Bundle.main.bundleIdentifier
+            ?? "com.youdroid.zhuobrowser.mac"
+
+        var properties: [String: Any] = [
+            kLSQuarantineTypeKey as String: kLSQuarantineTypeWebDownload as String,
+            kLSQuarantineAgentNameKey as String: resolvedAgentName,
+            kLSQuarantineAgentBundleIdentifierKey as String: resolvedBundleID
+        ]
+        if let sourceURL, let scheme = sourceURL.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            properties[kLSQuarantineDataURLKey as String] = sourceURL
+        }
+        if let originURL, let scheme = originURL.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            properties[kLSQuarantineOriginURLKey as String] = originURL
+        }
+        try? (fileURL as NSURL).setResourceValue(properties, forKey: .quarantinePropertiesKey)
+    }
+}
+
+private final class FinalizationCancellationToken: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+
+    var isCancelled: Bool {
+        lock.withLock { cancelled }
+    }
+
+    func cancel() {
+        lock.withLock { cancelled = true }
+    }
+}
+
 /// Central coordinator for browser file downloads on macOS.
 ///
 /// Bridges `WKDownload` (and direct `URLSession` retry tasks) into an observable
@@ -17,6 +179,7 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
     private let ioQueue = DispatchQueue(label: "com.youdroid.zhuobrowser.mac.downloads-io", qos: .utility)
     private let storageFileURL: URL?
     private let downloadsDirectoryProvider: () -> URL
+    private let stagingDirectoryProvider: () -> URL
     private let autoOpenPopoverOnNewDownload: Bool
 
     private var activeWKDownloads: [String: WKDownload] = [:]
@@ -24,6 +187,12 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
     private var progressObservations: [String: [NSKeyValueObservation]] = [:]
     private var resumeDataByID: [String: Data] = [:]
     private var customDestinationsByID: [String: URL] = [:]
+    private var stagingURLsByID: [String: URL] = [:]
+    private var finalDestinationURLsByID: [String: URL] = [:]
+    private var isCustomDestinationByID: [String: Bool] = [:]
+    private var originURLsByID: [String: URL] = [:]
+    private var reservedDestinationPaths: Set<String> = []
+    private var finalizationTokensByID: [String: FinalizationCancellationToken] = [:]
     private var directTasks: [String: URLSessionDownloadTask] = [:]
 
     private lazy var directCoordinator = DirectDownloadCoordinator(owner: self)
@@ -37,13 +206,29 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
     public init(
         storageFileURL: URL? = DownloadManager.defaultStorageFileURL(),
         downloadsDirectoryProvider: @escaping () -> URL = DownloadManager.defaultDownloadsDirectory,
+        stagingDirectoryProvider: @escaping () -> URL = DownloadManager.defaultStagingDirectory,
         autoOpenPopoverOnNewDownload: Bool = !RuntimeEnvironment.isRunningUnitTests
     ) {
         self.storageFileURL = storageFileURL
         self.downloadsDirectoryProvider = downloadsDirectoryProvider
+        self.stagingDirectoryProvider = stagingDirectoryProvider
         self.autoOpenPopoverOnNewDownload = autoOpenPopoverOnNewDownload
         super.init()
         self.items = loadPersistedItems()
+        if !RuntimeEnvironment.isRunningUnitTests {
+            let stagingDir = stagingDirectoryProvider()
+            let staleEntries = (try? FileManager.default.contentsOfDirectory(
+                at: stagingDir,
+                includingPropertiesForKeys: nil
+            )) ?? []
+            if !staleEntries.isEmpty {
+                ioQueue.async {
+                    for entry in staleEntries {
+                        try? FileManager.default.removeItem(at: entry)
+                    }
+                }
+            }
+        }
     }
 
     nonisolated public static func defaultStorageFileURL() -> URL? {
@@ -62,6 +247,10 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
     nonisolated public static func defaultDownloadsDirectory() -> URL {
         FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads", isDirectory: true)
+    }
+
+    nonisolated public static func defaultStagingDirectory() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("ZhuoDownloads", isDirectory: true)
     }
 
     // MARK: - Computed Status
@@ -96,7 +285,8 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
     public func handleWebKitDownload(
         _ download: WKDownload,
         fallbackURL: URL? = nil,
-        customDestinationURL: URL? = nil
+        customDestinationURL: URL? = nil,
+        originURL: URL? = nil
     ) {
         let id = UUID().uuidString
         let requestURL = download.originalRequest?.url ?? fallbackURL
@@ -118,6 +308,9 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
 
         if let customDestinationURL {
             customDestinationsByID[id] = customDestinationURL
+        }
+        if let originURL {
+            originURLsByID[id] = originURL
         }
         insertOrUpdate(newItem)
         activeWKDownloads[id] = download
@@ -174,32 +367,54 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
                 return
             }
             let key = ObjectIdentifier(download)
-            let downloadID = self.wkDownloadIDByObject[key]
-            let destinationURL: URL
-            if let downloadID, let customURL = self.customDestinationsByID.removeValue(forKey: downloadID) {
+            guard let downloadID = self.wkDownloadIDByObject[key] else {
+                let targetDir = self.downloadsDirectoryProvider()
+                try? FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
+                let fallbackURL = DownloadPolicy.uniqueDestinationURL(
+                    in: targetDir,
+                    suggestedFilename: suggestedFilename,
+                    fileExists: { FileManager.default.fileExists(atPath: $0) || self.reservedDestinationPaths.contains($0) }
+                )
+                completionHandler(fallbackURL)
+                return
+            }
+
+            let isCustom: Bool
+            let finalDestinationURL: URL
+            if let customURL = self.customDestinationsByID.removeValue(forKey: downloadID) {
+                isCustom = true
                 try? FileManager.default.createDirectory(
                     at: customURL.deletingLastPathComponent(),
                     withIntermediateDirectories: true
                 )
-                destinationURL = customURL
+                finalDestinationURL = customURL
             } else {
+                isCustom = false
                 let targetDir = self.downloadsDirectoryProvider()
                 try? FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
-                destinationURL = DownloadPolicy.uniqueDestinationURL(
+                finalDestinationURL = DownloadPolicy.uniqueDestinationURL(
                     in: targetDir,
-                    suggestedFilename: suggestedFilename
+                    suggestedFilename: suggestedFilename,
+                    fileExists: { FileManager.default.fileExists(atPath: $0) || self.reservedDestinationPaths.contains($0) }
                 )
             }
 
-            // Remove any stale or zero-byte placeholder at destination to prevent WebKit write collisions
-            if FileManager.default.fileExists(atPath: destinationURL.path) {
-                try? FileManager.default.removeItem(at: destinationURL)
-            }
+            self.finalDestinationURLsByID[downloadID] = finalDestinationURL
+            self.isCustomDestinationByID[downloadID] = isCustom
+            self.reservedDestinationPaths.insert(finalDestinationURL.path)
 
-            if let id = downloadID,
-               let idx = self.items.firstIndex(where: { $0.id == id }) {
-                self.items[idx].filename = destinationURL.lastPathComponent
-                self.items[idx].destinationPath = destinationURL.path
+            let stagingDir = self.stagingDirectoryProvider()
+            try? FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+            let stagingName = "\(downloadID)-\(DownloadPolicy.sanitizeFilename(finalDestinationURL.lastPathComponent)).part"
+            let stagingURL = stagingDir.appendingPathComponent(stagingName, isDirectory: false)
+            if FileManager.default.fileExists(atPath: stagingURL.path) {
+                try? FileManager.default.removeItem(at: stagingURL)
+            }
+            self.stagingURLsByID[downloadID] = stagingURL
+
+            if let idx = self.items.firstIndex(where: { $0.id == downloadID }) {
+                self.items[idx].filename = finalDestinationURL.lastPathComponent
+                self.items[idx].destinationPath = finalDestinationURL.path
                 if let urlString = response.url?.absoluteString, !urlString.isEmpty, self.items[idx].sourceURL.isEmpty {
                     self.items[idx].sourceURL = urlString
                 }
@@ -210,7 +425,7 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
                 self.saveItems()
             }
 
-            completionHandler(destinationURL)
+            completionHandler(stagingURL)
         }
 
         if Thread.isMainThread {
@@ -230,22 +445,97 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
             let key = ObjectIdentifier(download)
             guard let id = self.wkDownloadIDByObject.removeValue(forKey: key) else { return }
             self.cleanupTracking(for: id)
+            self.resumeDataByID.removeValue(forKey: id)
 
-            if let idx = self.items.firstIndex(where: { $0.id == id }) {
-                let path = self.items[idx].destinationPath
-                if !path.isEmpty,
-                   let attrs = try? FileManager.default.attributesOfItem(atPath: path),
-                   let fileSize = (attrs[.size] as? NSNumber)?.int64Value,
-                   fileSize > 0 {
-                    self.items[idx].receivedBytes = fileSize
-                    self.items[idx].totalBytes = fileSize
-                } else if self.items[idx].receivedBytes > 0 && self.items[idx].totalBytes <= 0 {
-                    self.items[idx].totalBytes = self.items[idx].receivedBytes
+            let stagingURL = self.stagingURLsByID[id]
+            let finalDestinationURL = self.finalDestinationURLsByID[id]
+            let isCustomDestination = self.isCustomDestinationByID[id] ?? false
+            let originURL = self.originURLsByID[id]
+            let sourceURLString = self.items.first(where: { $0.id == id })?.sourceURL ?? ""
+
+            guard let stagingURL, let finalDestinationURL else {
+                self.releaseFinalizationTracking(for: id)
+                if let idx = self.items.firstIndex(where: { $0.id == id }) {
+                    let path = self.items[idx].destinationPath
+                    if !path.isEmpty,
+                       let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+                       let fileSize = (attrs[.size] as? NSNumber)?.int64Value,
+                       fileSize > 0 {
+                        self.items[idx].receivedBytes = fileSize
+                        self.items[idx].totalBytes = fileSize
+                    } else if self.items[idx].receivedBytes > 0 && self.items[idx].totalBytes <= 0 {
+                        self.items[idx].totalBytes = self.items[idx].receivedBytes
+                    }
+                    self.items[idx].state = .completed
+                    self.items[idx].completedAt = Date().timeIntervalSince1970
+                    self.items[idx].errorMessage = nil
+                    self.saveItems()
                 }
-                self.items[idx].state = .completed
-                self.items[idx].completedAt = Date().timeIntervalSince1970
-                self.items[idx].errorMessage = nil
-                self.saveItems()
+                return
+            }
+
+            let token = FinalizationCancellationToken()
+            self.finalizationTokensByID[id] = token
+            let ioQueue = self.ioQueue
+            ioQueue.async {
+                let resolvedDestination: URL
+                if !isCustomDestination && FileManager.default.fileExists(atPath: finalDestinationURL.path) {
+                    resolvedDestination = DownloadPolicy.uniqueDestinationURL(
+                        in: finalDestinationURL.deletingLastPathComponent(),
+                        suggestedFilename: finalDestinationURL.lastPathComponent
+                    )
+                } else {
+                    resolvedDestination = finalDestinationURL
+                }
+
+                do {
+                    let bytesWritten = try DownloadFileFinalizer.materializeFile(
+                        from: stagingURL,
+                        to: resolvedDestination,
+                        removeSource: true,
+                        shouldCancel: { token.isCancelled }
+                    )
+                    DownloadFileFinalizer.applyWebDownloadQuarantine(
+                        to: resolvedDestination,
+                        sourceURL: URL(string: sourceURLString),
+                        originURL: originURL
+                    )
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        self.releaseFinalizationTracking(for: id, reservedPath: finalDestinationURL.path)
+                        guard !token.isCancelled,
+                              let idx = self.items.firstIndex(where: { $0.id == id }),
+                              self.items[idx].state == .downloading else {
+                            return
+                        }
+                        self.items[idx].filename = resolvedDestination.lastPathComponent
+                        self.items[idx].destinationPath = resolvedDestination.path
+                        self.items[idx].receivedBytes = bytesWritten
+                        self.items[idx].totalBytes = bytesWritten
+                        self.items[idx].state = .completed
+                        self.items[idx].completedAt = Date().timeIntervalSince1970
+                        self.items[idx].errorMessage = nil
+                        self.saveItems()
+                    }
+                } catch is CancellationError {
+                    Task { @MainActor [weak self] in
+                        self?.releaseFinalizationTracking(for: id, reservedPath: finalDestinationURL.path)
+                    }
+                } catch {
+                    try? FileManager.default.removeItem(at: stagingURL)
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        self.releaseFinalizationTracking(for: id, reservedPath: finalDestinationURL.path)
+                        guard !token.isCancelled,
+                              let idx = self.items.firstIndex(where: { $0.id == id }),
+                              self.items[idx].state == .downloading else {
+                            return
+                        }
+                        self.items[idx].state = .failed
+                        self.items[idx].errorMessage = error.localizedDescription
+                        self.saveItems()
+                    }
+                }
             }
         }
 
@@ -270,9 +560,12 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
             let key = ObjectIdentifier(download)
             guard let id = self.wkDownloadIDByObject.removeValue(forKey: key) else { return }
             self.cleanupTracking(for: id)
+            self.releaseFinalizationTracking(for: id, preserveStagingURL: resumeData != nil)
 
             if let resumeData {
                 self.resumeDataByID[id] = resumeData
+            } else if let staleStagingURL = self.stagingURLsByID.removeValue(forKey: id) {
+                try? FileManager.default.removeItem(at: staleStagingURL)
             }
             if let idx = self.items.firstIndex(where: { $0.id == id }) {
                 if self.items[idx].state != .cancelled {
@@ -348,14 +641,27 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
         items[idx].state = .cancelled
         items[idx].errorMessage = nil
 
+        finalizationTokensByID.removeValue(forKey: id)?.cancel()
+        if let reservedPath = finalDestinationURLsByID.removeValue(forKey: id)?.path {
+            reservedDestinationPaths.remove(reservedPath)
+        }
+        isCustomDestinationByID.removeValue(forKey: id)
+        originURLsByID.removeValue(forKey: id)
+
         if let wkDownload = activeWKDownloads.removeValue(forKey: id) {
             wkDownloadIDByObject.removeValue(forKey: ObjectIdentifier(wkDownload))
             wkDownload.cancel { [weak self] resumeData in
-                guard let resumeData else { return }
                 MainActor.assumeIsolated {
-                    self?.resumeDataByID[id] = resumeData
+                    guard let self else { return }
+                    if let resumeData {
+                        self.resumeDataByID[id] = resumeData
+                    } else if let staleStagingURL = self.stagingURLsByID.removeValue(forKey: id) {
+                        try? FileManager.default.removeItem(at: staleStagingURL)
+                    }
                 }
             }
+        } else if let staleStagingURL = stagingURLsByID.removeValue(forKey: id) {
+            try? FileManager.default.removeItem(at: staleStagingURL)
         }
         if let task = directTasks.removeValue(forKey: id) {
             directCoordinator.unregister(taskID: task.taskIdentifier)
@@ -368,15 +674,28 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
     public func retryDownload(id: String, in webView: WKWebView? = nil) {
         guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
         let item = items[idx]
+        let originURL = webView?.url
 
         if let resumeData = resumeDataByID.removeValue(forKey: id), let webView {
+            let oldStagingURL = stagingURLsByID.removeValue(forKey: id)
             items.remove(at: idx)
             webView.resumeDownload(fromResumeData: resumeData) { [weak self] wkDownload in
                 MainActor.assumeIsolated {
-                    self?.handleWebKitDownload(wkDownload, fallbackURL: URL(string: item.sourceURL))
+                    self?.handleWebKitDownload(
+                        wkDownload,
+                        fallbackURL: URL(string: item.sourceURL),
+                        originURL: originURL
+                    )
+                    if let oldStagingURL {
+                        try? FileManager.default.removeItem(at: oldStagingURL)
+                    }
                 }
             }
             return
+        }
+
+        if let oldStagingURL = stagingURLsByID.removeValue(forKey: id) {
+            try? FileManager.default.removeItem(at: oldStagingURL)
         }
 
         guard let url = URL(string: item.sourceURL), !item.sourceURL.isEmpty else { return }
@@ -384,7 +703,11 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
             items.remove(at: idx)
             webView.startDownload(using: URLRequest(url: url)) { [weak self] wkDownload in
                 MainActor.assumeIsolated {
-                    self?.handleWebKitDownload(wkDownload, fallbackURL: url)
+                    self?.handleWebKitDownload(
+                        wkDownload,
+                        fallbackURL: url,
+                        originURL: originURL
+                    )
                 }
             }
         } else {
@@ -479,6 +802,8 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
         }
         items.removeAll { $0.id == id }
         resumeDataByID.removeValue(forKey: id)
+        cleanupTracking(for: id)
+        releaseFinalizationTracking(for: id, preserveStagingURL: false)
         if items.isEmpty {
             isShowingPopover = false
         }
@@ -492,6 +817,8 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
         let removedIDs = items.filter { $0.state != .downloading }.map(\.id)
         for id in removedIDs {
             resumeDataByID.removeValue(forKey: id)
+            cleanupTracking(for: id)
+            releaseFinalizationTracking(for: id, preserveStagingURL: false)
         }
         items.removeAll { $0.state != .downloading }
         if items.isEmpty {
@@ -552,6 +879,25 @@ public final class DownloadManager: NSObject, ObservableObject, WKDownloadDelega
         customDestinationsByID.removeValue(forKey: id)
         if let obsList = progressObservations.removeValue(forKey: id) {
             obsList.forEach { $0.invalidate() }
+        }
+    }
+
+    private func releaseFinalizationTracking(
+        for id: String,
+        reservedPath: String? = nil,
+        preserveStagingURL: Bool = false
+    ) {
+        finalizationTokensByID.removeValue(forKey: id)
+        isCustomDestinationByID.removeValue(forKey: id)
+        originURLsByID.removeValue(forKey: id)
+        if let trackedDest = finalDestinationURLsByID.removeValue(forKey: id) {
+            reservedDestinationPaths.remove(trackedDest.path)
+        }
+        if let reservedPath {
+            reservedDestinationPaths.remove(reservedPath)
+        }
+        if !preserveStagingURL, let staleStagingURL = stagingURLsByID.removeValue(forKey: id) {
+            try? FileManager.default.removeItem(at: staleStagingURL)
         }
     }
 
@@ -635,16 +981,24 @@ private final class DirectDownloadCoordinator: NSObject, URLSessionDownloadDeleg
         let taskID = downloadTask.taskIdentifier
         guard let ctx = lock.withLock({ contexts[taskID] }) else { return }
 
-        // Must move the file immediately before didFinishDownloadingTo returns
+        // Materialize a fresh destination file immediately before didFinishDownloadingTo returns
         var moveError: Error?
+        var fileSize: Int64 = 0
         do {
-            try? FileManager.default.removeItem(at: ctx.destinationURL)
-            try FileManager.default.moveItem(at: location, to: ctx.destinationURL)
+            fileSize = try DownloadFileFinalizer.materializeFile(
+                from: location,
+                to: ctx.destinationURL,
+                removeSource: false
+            )
+            let sourceURL = downloadTask.currentRequest?.url ?? downloadTask.originalRequest?.url
+            DownloadFileFinalizer.applyWebDownloadQuarantine(
+                to: ctx.destinationURL,
+                sourceURL: sourceURL,
+                originURL: nil
+            )
         } catch {
             moveError = error
         }
-
-        let fileSize = ((try? FileManager.default.attributesOfItem(atPath: ctx.destinationURL.path)[.size]) as? NSNumber)?.int64Value ?? 0
 
         Task { @MainActor [weak owner] in
             owner?.handleDirectDownloadFinished(

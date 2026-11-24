@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WebKit
 import XCTest
 @testable import ZhuoBrowserMac
 
@@ -284,5 +285,141 @@ final class DownloadTests: XCTestCase {
         let countBefore = menu.items.count
         webView?.willOpenMenu(menu, with: dummyEvent)
         XCTAssertEqual(menu.items.count, countBefore)
+    }
+
+    func testQuarantineFlagParsingDetectsHardQuarantine() {
+        for hardAttr in [
+            "0287;6b04ee08;ZhuoBrowserMac;",
+            "0387;6b0420e6;ZhuoBrowserMac;",
+            "0087;6ae99321;com.apple.WebKit.Networking;"
+        ] {
+            let parsed = DownloadFileFinalizer.parseQuarantineFlags(hardAttr)
+            XCTAssertNotNil(parsed)
+            XCTAssertTrue(DownloadFileFinalizer.isHardQuarantineFlags(parsed ?? 0))
+        }
+
+        for cleanAttr in [
+            "0283;6b04eeb7;ZhuoBrowserMac;A96B336A-6E02-4ED1-B352-D28FF7C2766F",
+            "0083;6a4646b1;Safari;8F36DD39-D7F2-4526-B7E9-6854DDCA7510",
+            "0082;6b04ee08;ZhuoBrowserMac;",
+            "0081;690342de;Edge;6ED88827-1F3B-4563-9102-9C121D733514"
+        ] {
+            let parsed = DownloadFileFinalizer.parseQuarantineFlags(cleanAttr)
+            XCTAssertNotNil(parsed)
+            XCTAssertFalse(DownloadFileFinalizer.isHardQuarantineFlags(parsed ?? 0))
+        }
+
+        XCTAssertNil(DownloadFileFinalizer.parseQuarantineFlags(""))
+        XCTAssertNil(DownloadFileFinalizer.parseQuarantineFlags(";6b04ee08;Safari;"))
+        XCTAssertNil(DownloadFileFinalizer.parseQuarantineFlags("not-hex;6b04ee08;Safari;"))
+    }
+
+    func testMaterializeFileStreamsMultiChunkPayloadAndCleansStaging() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ZhuoMaterializeTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        // Multi-chunk (> 1 MB) payload
+        var largePayload = Data(count: 1_600_000)
+        for index in largePayload.indices {
+            largePayload[index] = UInt8((index * 31) & 0xFF)
+        }
+        let largeStagingURL = tempDir.appendingPathComponent("large.part")
+        let largeDestURL = tempDir.appendingPathComponent("out/large.dmg")
+        try largePayload.write(to: largeStagingURL)
+
+        let bytesWritten = try DownloadFileFinalizer.materializeFile(
+            from: largeStagingURL,
+            to: largeDestURL,
+            removeSource: true
+        )
+        XCTAssertEqual(bytesWritten, Int64(largePayload.count))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: largeStagingURL.path))
+        XCTAssertEqual(try Data(contentsOf: largeDestURL), largePayload)
+        XCTAssertFalse(DownloadFileFinalizer.hasHardQuarantineFlag(at: largeDestURL))
+
+        // 0-byte payload
+        let emptyStagingURL = tempDir.appendingPathComponent("empty.part")
+        let emptyDestURL = tempDir.appendingPathComponent("out/empty.bin")
+        try Data().write(to: emptyStagingURL)
+
+        let emptyBytesWritten = try DownloadFileFinalizer.materializeFile(
+            from: emptyStagingURL,
+            to: emptyDestURL,
+            removeSource: true
+        )
+        XCTAssertEqual(emptyBytesWritten, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: emptyStagingURL.path))
+        XCTAssertEqual(try Data(contentsOf: emptyDestURL), Data())
+        XCTAssertFalse(DownloadFileFinalizer.hasHardQuarantineFlag(at: emptyDestURL))
+    }
+
+    func testWKDownloadMaterializesCleanFileWithoutHardQuarantine() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ZhuoWKDownloadCleanTests-\(UUID().uuidString)", isDirectory: true)
+        let downloadsDir = tempDir.appendingPathComponent("downloads", isDirectory: true)
+        let stagingDir = tempDir.appendingPathComponent("staging", isDirectory: true)
+        try FileManager.default.createDirectory(at: downloadsDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let manager = DownloadManager(
+            storageFileURL: tempDir.appendingPathComponent("downloads.json"),
+            downloadsDirectoryProvider: { downloadsDir },
+            stagingDirectoryProvider: { stagingDir },
+            autoOpenPopoverOnNewDownload: false
+        )
+
+        let payload = Data("ZhuoBrowserMac clean download payload".utf8)
+        let dataURL = URL(string: "data:application/octet-stream;base64,\(payload.base64EncodedString())")!
+        let webView = WKWebView(frame: .zero)
+        let exp = expectation(description: "WKDownload materializes without hard quarantine")
+
+        webView.startDownload(using: URLRequest(url: dataURL)) { wkDownload in
+            MainActor.assumeIsolated {
+                manager.handleWebKitDownload(
+                    wkDownload,
+                    fallbackURL: dataURL,
+                    originURL: URL(string: "https://example.com/downloads")
+                )
+            }
+        }
+
+        let startTime = Date()
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
+            Task { @MainActor in
+                if let item = manager.items.first {
+                    if item.state == .completed {
+                        timer.invalidate()
+                        let destURL = URL(fileURLWithPath: item.destinationPath)
+                        XCTAssertEqual(try? Data(contentsOf: destURL), payload)
+                        XCTAssertEqual(item.receivedBytes, Int64(payload.count))
+                        XCTAssertEqual(item.totalBytes, Int64(payload.count))
+                        XCTAssertFalse(DownloadFileFinalizer.hasHardQuarantineFlag(at: destURL))
+                        let remainingStaging = (try? FileManager.default.contentsOfDirectory(atPath: stagingDir.path)) ?? []
+                        XCTAssertTrue(remainingStaging.isEmpty, "Staging directory should be empty after finalization, found: \(remainingStaging)")
+                        exp.fulfill()
+                    } else if item.state == .failed || item.state == .cancelled {
+                        timer.invalidate()
+                        XCTFail("WKDownload failed with: \(item.errorMessage ?? "unknown")")
+                        exp.fulfill()
+                    }
+                }
+                if Date().timeIntervalSince(startTime) > 8.0 {
+                    timer.invalidate()
+                    XCTFail("WKDownload timed out")
+                    exp.fulfill()
+                }
+            }
+        }
+
+        wait(for: [exp], timeout: 10.0)
+    }
+
+    func testSandboxBundleDoesNotEnableProcessWideLSFileQuarantine() {
+        let appBundle = Bundle(for: DownloadManager.self)
+        let lsFileQuarantine = appBundle.object(forInfoDictionaryKey: "LSFileQuarantineEnabled") as? Bool
+        XCTAssertNotEqual(lsFileQuarantine, true)
     }
 }
