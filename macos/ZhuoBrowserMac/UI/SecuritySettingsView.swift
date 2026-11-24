@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 /// Dedicated Security Settings sub-page for ZhuoBrowser Mac, replicating the Chrome standard
 /// security settings interface (`chrome://settings/security`) with native macOS SwiftUI controls.
@@ -14,6 +15,8 @@ public struct SecuritySettingsView: View {
     @State private var isShowingJITSheet: Bool = false
     @State private var isShowingPasskeySheet: Bool = false
     @State private var isEnhancedExpanded: Bool = false
+    @State private var savedCredentials: [SavedCredential] = []
+    @State private var importStatusMessage: String?
 
     public init(session: BrowserSession, onBack: @escaping () -> Void, onDismiss: @escaping () -> Void) {
         self.session = session
@@ -452,6 +455,34 @@ public struct SecuritySettingsView: View {
         }
     }
 
+    private func refreshSavedCredentials() {
+        savedCredentials = CredentialStore.shared.allCredentials()
+    }
+
+    private func importPasswordsFromCSV() {
+        let panel = NSOpenPanel()
+        panel.title = "选择 Safari 或 Chrome 导出的密码 CSV 文件"
+        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else {
+            importStatusMessage = "无法读取所选 CSV 文件（请确认采用 UTF-8 编码）。"
+            return
+        }
+
+        let summary = CredentialStore.shared.importCSV(content)
+        refreshSavedCredentials()
+        if summary.imported == 0 && summary.skipped == 0 {
+            importStatusMessage = "未识别到有效密码列（需包含 URL 与 Password 表头）。"
+        } else if summary.skipped > 0 {
+            importStatusMessage = "已导入 \(summary.imported) 条密码（跳过 \(summary.skipped) 条无效记录）。"
+        } else {
+            importStatusMessage = "已成功导入 \(summary.imported) 条密码到登录钥匙串。"
+        }
+    }
+
     // MARK: - Sub-Sheets
 
     private var helpSheet: some View {
@@ -539,17 +570,69 @@ public struct SecuritySettingsView: View {
                         .foregroundColor(.accentColor)
                     Text("已保存的网站密码")
                         .font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    Text("已保存 \(savedCredentials.count) 条")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
                 }
 
-                Text("网站密码保存在 macOS 登录钥匙串的“密码”类别中，可在“钥匙串访问”里查看和删除。只有本应用能读取；每次自动填充前都需要 Touch ID 或 Mac 登录密码验证。")
+                Text("网站密码保存在 macOS 登录钥匙串的“密码”类别中，只有本应用能读取；每次自动填充前都需要 Touch ID 或 Mac 登录密码验证。")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                HStack {
-                    Text("存储位置")
-                        .font(.system(size: 12))
+                if savedCredentials.isEmpty {
+                    Text("暂无已保存的密码。在网站登录一次后点击“存储密码”，或点击下方按钮导入 Safari / Chrome 导出的 CSV 密码。")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.secondary.opacity(0.05))
+                        .cornerRadius(6)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 4) {
+                            ForEach(savedCredentials) { item in
+                                HStack(spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(item.username)
+                                            .font(.system(size: 12, weight: .medium))
+                                            .lineLimit(1)
+                                        Text(item.domain)
+                                            .font(.system(size: 10.5))
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                    Spacer()
+                                    Button {
+                                        CredentialStore.shared.delete(item)
+                                        refreshSavedCredentials()
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("删除该条保存的密码")
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+                                .cornerRadius(6)
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 130)
+                }
+
+                HStack(spacing: 8) {
+                    Button("从 Safari / Chrome 导入密码 (CSV)…") {
+                        importPasswordsFromCSV()
+                    }
+                    .controlSize(.small)
+
                     Spacer()
+
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
@@ -560,6 +643,12 @@ public struct SecuritySettingsView: View {
                     }
                 }
                 .padding(.top, 2)
+
+                if let importStatusMessage {
+                    Text(importStatusMessage)
+                        .font(.system(size: 11))
+                        .foregroundColor(.accentColor)
+                }
             }
             .padding(12)
             .background(Color.secondary.opacity(0.06))
@@ -608,7 +697,10 @@ public struct SecuritySettingsView: View {
             Spacer()
         }
         .padding(20)
-        .frame(width: 480, height: 360)
+        .frame(width: 500, height: 500)
+        .onAppear {
+            refreshSavedCredentials()
+        }
     }
 
     @MainActor

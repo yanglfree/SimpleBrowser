@@ -16,8 +16,12 @@
   window.__zhuoAutoFillInjected = true;
 
   let currentActiveInput = null;
+  let lastEnteredUsername = '';
+  let lastReportedKey = '';
+  let lastReportedAt = 0;
 
   const USERNAME_KEYWORDS_REGEX = /(user|username|account|login|email|mail|phone|mobile|tel|identifier|账号|用户名|邮箱|手机)/i;
+  const TOGGLE_BUTTON_REGEX = /(show|hide|reveal|toggle|eye|visibility|显示|隐藏)/i;
 
   function isEditableInput(el) {
     if (!el || el.tagName !== 'INPUT') return false;
@@ -76,10 +80,8 @@
     } catch (_) {}
   }
 
-  function handleFocus(event) {
-    const target = event.target;
+  function reportFocus(target) {
     if (!isLoginCandidate(target)) return;
-
     currentActiveInput = target;
 
     postToNative('focus', {
@@ -90,6 +92,10 @@
     });
   }
 
+  function handleFocus(event) {
+    reportFocus(event.target);
+  }
+
   function handleBlur() {
     setTimeout(() => {
       const active = document.activeElement;
@@ -98,6 +104,87 @@
         postToNative('blur', {});
       }
     }, 200);
+  }
+
+  function handleUsernameUpdate(event) {
+    const target = event.target;
+    if (isUsernameInput(target)) {
+      const trimmed = (target.value || '').trim();
+      if (trimmed) {
+        lastEnteredUsername = trimmed;
+      }
+    }
+  }
+
+  function isPasswordVisibilityToggle(button) {
+    if (!button) return false;
+    const meta = [
+      button.getAttribute('aria-label') || '',
+      button.getAttribute('title') || '',
+      button.className || '',
+      button.id || ''
+    ].join(' ');
+    return TOGGLE_BUTTON_REGEX.test(meta);
+  }
+
+  function findCredentialsInContainer(root) {
+    if (!root || !root.querySelectorAll) return { username: '', password: '' };
+    let submittedUser = '';
+    let submittedPass = '';
+    const inputs = Array.from(root.querySelectorAll('input'));
+    for (const input of inputs) {
+      if (!submittedPass && isPasswordInput(input) && input.value) {
+        submittedPass = input.value;
+      } else if (!submittedUser && isUsernameInput(input) && input.value) {
+        submittedUser = input.value.trim();
+      }
+    }
+    return { username: submittedUser, password: submittedPass };
+  }
+
+  function reportSubmissionCandidate(root) {
+    let found = findCredentialsInContainer(root);
+    if (!found.password && root !== document) {
+      found = findCredentialsInContainer(document);
+    }
+
+    const submittedPass = found.password;
+    if (!submittedPass || submittedPass.length === 0) return;
+
+    const submittedUser = found.username || lastEnteredUsername;
+    const dedupKey = submittedUser + '\u0000' + submittedPass;
+    const now = Date.now();
+    if (dedupKey === lastReportedKey && now - lastReportedAt < 3000) {
+      return;
+    }
+    lastReportedKey = dedupKey;
+    lastReportedAt = now;
+
+    postToNative('submitted', {
+      url: window.location.href,
+      hostname: window.location.hostname,
+      username: submittedUser,
+      password: submittedPass
+    });
+  }
+
+  function handleClick(event) {
+    const target = event.target;
+    if (isLoginCandidate(target) && (target === document.activeElement || typeof target.focus === 'function')) {
+      reportFocus(target);
+      return;
+    }
+
+    const button = target && target.closest ? target.closest('button, input[type="submit"], [role="button"]') : null;
+    if (button && !isPasswordVisibilityToggle(button)) {
+      reportSubmissionCandidate(button.closest('form') || document);
+    }
+  }
+
+  function handleKeydown(event) {
+    if (event.key === 'Enter' && isPasswordInput(event.target) && event.target.value) {
+      reportSubmissionCandidate(event.target.closest('form') || document);
+    }
   }
 
   // Set the value through the native setter so React / Vue controlled inputs see the change.
@@ -157,6 +244,7 @@
       let filledAny = false;
       if (username && usernameField) {
         setNativeValue(usernameField, username);
+        lastEnteredUsername = username.trim();
         filledAny = true;
       }
       if (password && passwordField) {
@@ -170,32 +258,19 @@
 
   // Report successful-looking submissions so the native side can persist the password.
   function handleFormSubmit(event) {
-    const form = event.target;
-    if (!form || !form.querySelectorAll) return;
-
-    let submittedUser = '';
-    let submittedPass = '';
-
-    const inputs = Array.from(form.querySelectorAll('input'));
-    for (const input of inputs) {
-      if (isPasswordInput(input) && input.value) {
-        submittedPass = input.value;
-      } else if (isUsernameInput(input) && input.value) {
-        submittedUser = input.value;
-      }
-    }
-
-    if (submittedPass && submittedPass.length > 0) {
-      postToNative('submitted', {
-        url: window.location.href,
-        hostname: window.location.hostname,
-        username: submittedUser,
-        password: submittedPass
-      });
-    }
+    reportSubmissionCandidate(event.target);
   }
 
   document.addEventListener('focusin', handleFocus, true);
   document.addEventListener('focusout', handleBlur, true);
+  document.addEventListener('input', handleUsernameUpdate, true);
+  document.addEventListener('change', handleUsernameUpdate, true);
+  document.addEventListener('click', handleClick, true);
+  document.addEventListener('keydown', handleKeydown, true);
   document.addEventListener('submit', handleFormSubmit, true);
+
+  // If the page auto-focused an input before atDocumentEnd injection, report it immediately.
+  if (isLoginCandidate(document.activeElement)) {
+    reportFocus(document.activeElement);
+  }
 })();

@@ -258,15 +258,317 @@ final class AutoFillTests: XCTestCase {
         webView.navigationDelegate = nil
         controller.removeScriptMessageHandler(forName: "zhuoAutoFill", contentWorld: .defaultClient)
     }
+
+    func testAutoFillIframeOriginPolicy() {
+        // App Store Connect embeds idmsa.apple.com via HTTPS iframe — same registrable root domain.
+        XCTAssertTrue(TabController.isAutoFillAllowed(
+            frameHost: "idmsa.apple.com",
+            frameScheme: "https",
+            topLevelHost: "appstoreconnect.apple.com",
+            isMainFrame: false
+        ))
+        XCTAssertEqual(
+            TabController.effectiveAutoFillHost(
+                frameHost: "idmsa.apple.com",
+                topLevelHost: "appstoreconnect.apple.com",
+                isMainFrame: false
+            ),
+            "idmsa.apple.com"
+        )
+
+        // Third-party embeds or insecure HTTP iframes must be rejected.
+        XCTAssertFalse(TabController.isAutoFillAllowed(
+            frameHost: "idmsa.apple.com",
+            frameScheme: "https",
+            topLevelHost: "evil.com",
+            isMainFrame: false
+        ))
+        XCTAssertFalse(TabController.isAutoFillAllowed(
+            frameHost: "idmsa.apple.com",
+            frameScheme: "http",
+            topLevelHost: "appstoreconnect.apple.com",
+            isMainFrame: false
+        ))
+
+        // Main frame is allowed when a host exists.
+        XCTAssertTrue(TabController.isAutoFillAllowed(
+            frameHost: "login.example.com",
+            frameScheme: "https",
+            topLevelHost: "login.example.com",
+            isMainFrame: true
+        ))
+        XCTAssertFalse(TabController.isAutoFillAllowed(
+            frameHost: "",
+            frameScheme: "about",
+            topLevelHost: "",
+            isMainFrame: true
+        ))
+    }
+
+    @MainActor
+    func testAgentReportsAlreadyFocusedAndClickedInput() {
+        let recorder = AutoFillMessageRecorder()
+        let controller = WKUserContentController()
+        controller.add(recorder, contentWorld: .defaultClient, name: "zhuoAutoFill")
+        guard let script = InjectedScripts.shared.makeAutoFillScript() else {
+            XCTFail("autofill-agent script missing")
+            return
+        }
+        controller.addUserScript(script)
+
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController = controller
+        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400), configuration: configuration)
+        defer {
+            webView.stopLoading()
+            webView.navigationDelegate = nil
+            controller.removeScriptMessageHandler(forName: "zhuoAutoFill", contentWorld: .defaultClient)
+        }
+
+        let html = """
+        <html><body>
+          <input id="u" autocomplete="username webauthn">
+          <script>document.getElementById('u').focus();</script>
+        </body></html>
+        """
+
+        let navigation = NavigationFinished()
+        webView.navigationDelegate = navigation
+        let loaded = expectation(description: "page loaded")
+        navigation.onFinish = { loaded.fulfill() }
+        webView.loadHTMLString(html, baseURL: URL(string: "https://idmsa.apple.com/")!)
+        wait(for: [loaded], timeout: 5)
+
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        let initialFocusCount = recorder.actions.filter { $0 == "focus" }.count
+        XCTAssertGreaterThanOrEqual(initialFocusCount, 1, "agent should report an already-focused candidate on init")
+
+        let clicked = expectation(description: "clicked")
+        webView.evaluateJavaScript("document.getElementById('u').click(); true") { _, error in
+            XCTAssertNil(error)
+            clicked.fulfill()
+        }
+        wait(for: [clicked], timeout: 5)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+
+        let afterClickFocusCount = recorder.actions.filter { $0 == "focus" }.count
+        XCTAssertGreaterThan(afterClickFocusCount, initialFocusCount, "clicking an already-focused candidate should re-report focus")
+    }
+
+    @MainActor
+    func testAgentCapturesTwoStepAndEnterKeySubmission() {
+        let recorder = AutoFillMessageRecorder()
+        let controller = WKUserContentController()
+        controller.add(recorder, contentWorld: .defaultClient, name: "zhuoAutoFill")
+        guard let script = InjectedScripts.shared.makeAutoFillScript() else {
+            XCTFail("autofill-agent script missing")
+            return
+        }
+        controller.addUserScript(script)
+
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController = controller
+        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400), configuration: configuration)
+        defer {
+            webView.stopLoading()
+            webView.navigationDelegate = nil
+            controller.removeScriptMessageHandler(forName: "zhuoAutoFill", contentWorld: .defaultClient)
+        }
+
+        let html = """
+        <html><body>
+          <div id="step1"><input id="u" autocomplete="username"></div>
+          <div id="step2" style="display:none"><input id="p" type="password" autocomplete="current-password"></div>
+        </body></html>
+        """
+
+        let navigation = NavigationFinished()
+        webView.navigationDelegate = navigation
+        let loaded = expectation(description: "page loaded")
+        navigation.onFinish = { loaded.fulfill() }
+        webView.loadHTMLString(html, baseURL: URL(string: "https://idmsa.apple.com/")!)
+        wait(for: [loaded], timeout: 5)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+
+        // Step 1: type username and remove username input; Step 2: fill password and press Enter twice
+        let stepScript = """
+        (() => {
+          const u = document.getElementById('u');
+          u.focus();
+          u.value = 'alice@apple.com';
+          u.dispatchEvent(new Event('input', { bubbles: true }));
+          document.getElementById('step1').remove();
+
+          document.getElementById('step2').style.display = 'block';
+          const p = document.getElementById('p');
+          p.focus();
+          p.value = 'twoStepSecret!';
+          p.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+          p.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+          return true;
+        })()
+        """
+        let done = expectation(description: "two-step done")
+        webView.evaluateJavaScript(stepScript) { _, error in
+            XCTAssertNil(error)
+            done.fulfill()
+        }
+        wait(for: [done], timeout: 5)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+
+        let submissions = recorder.messages.filter { $0.action == "submitted" }
+        XCTAssertEqual(submissions.count, 1, "repeated Enter within 3s should be deduplicated")
+        XCTAssertEqual(submissions.first?.payload["username"] as? String, "alice@apple.com")
+        XCTAssertEqual(submissions.first?.payload["password"] as? String, "twoStepSecret!")
+    }
+
+    @MainActor
+    func testWKFrameInfoTargetedFillDoesNotLeakToParentFrame() {
+        let recorder = AutoFillMessageRecorder()
+        let controller = WKUserContentController()
+        controller.add(recorder, contentWorld: .defaultClient, name: "zhuoAutoFill")
+        guard let script = InjectedScripts.shared.makeAutoFillScript() else {
+            XCTFail("autofill-agent script missing")
+            return
+        }
+        controller.addUserScript(script)
+
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController = controller
+        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400), configuration: configuration)
+        defer {
+            webView.stopLoading()
+            webView.navigationDelegate = nil
+            controller.removeScriptMessageHandler(forName: "zhuoAutoFill", contentWorld: .defaultClient)
+        }
+
+        let html = """
+        <html><body>
+          <input id="decoyPass" type="password" name="password">
+          <iframe id="f" style="width:300px;height:200px" srcdoc="
+            <html><body>
+              <form onsubmit='return false;'>
+                <input id='iu' name='username' autocomplete='username'>
+                <input id='ip' type='password' name='password'>
+              </form>
+            </body></html>
+          "></iframe>
+          <script>
+            window.__broadcast = 0;
+            window.addEventListener('message', function (e) {
+              if (e.data && e.data.type === 'zhuo-autofill-broadcast-fill') { window.__broadcast += 1; }
+            });
+          </script>
+        </body></html>
+        """
+
+        let navigation = NavigationFinished()
+        webView.navigationDelegate = navigation
+        let loaded = expectation(description: "iframe page loaded")
+        navigation.onFinish = { loaded.fulfill() }
+        webView.loadHTMLString(html, baseURL: URL(string: "https://appstoreconnect.apple.com/")!)
+        wait(for: [loaded], timeout: 5)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+
+        let focusedIframe = expectation(description: "focused iframe input")
+        webView.evaluateJavaScript("document.getElementById('f').contentDocument.getElementById('iu').focus(); true") { _, error in
+            XCTAssertNil(error)
+            focusedIframe.fulfill()
+        }
+        wait(for: [focusedIframe], timeout: 5)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+
+        guard let iframeMsg = recorder.messages.last(where: { $0.action == "focus" && !$0.frameInfo.isMainFrame }) else {
+            XCTFail("Expected a focus message from the iframe's WKFrameInfo")
+            return
+        }
+
+        let filled = expectation(description: "targeted fill")
+        webView.evaluateJavaScript(
+            "window.__zhuoAutoFill.fill('iframeUser', 'iframeSecret')",
+            in: iframeMsg.frameInfo,
+            in: .defaultClient
+        ) { result in
+            if case .failure(let error) = result {
+                XCTFail("Targeted frame fill failed: \(error)")
+            }
+            filled.fulfill()
+        }
+        wait(for: [filled], timeout: 5)
+
+        let verified = expectation(description: "verified isolation")
+        let verifyJS = """
+        JSON.stringify({
+          iu: document.getElementById('f').contentDocument.getElementById('iu').value,
+          ip: document.getElementById('f').contentDocument.getElementById('ip').value,
+          decoy: document.getElementById('decoyPass').value,
+          broadcast: window.__broadcast
+        })
+        """
+        webView.evaluateJavaScript(verifyJS) { result, error in
+            XCTAssertNil(error)
+            let json = (result as? String).flatMap { $0.data(using: .utf8) } ?? Data()
+            let state = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any]
+            XCTAssertEqual(state?["iu"] as? String, "iframeUser")
+            XCTAssertEqual(state?["ip"] as? String, "iframeSecret")
+            XCTAssertEqual(state?["decoy"] as? String, "", "parent frame decoy password must stay untouched")
+            XCTAssertEqual(state?["broadcast"] as? Int, 0, "no postMessage broadcast allowed")
+            verified.fulfill()
+        }
+        wait(for: [verified], timeout: 5)
+    }
+
+    @MainActor
+    func testCredentialCSVImporterParsesSafariAndChromeFormats() {
+        let testHost1 = "csv-apple-\(UUID().uuidString.lowercased()).example.com"
+        let testHost2 = "csv-chrome-\(UUID().uuidString.lowercased()).example.com"
+        defer {
+            let store = CredentialStore.shared
+            store.delete(SavedCredential(domain: testHost1, username: "alice@example.com"))
+            store.delete(SavedCredential(domain: testHost2, username: "bob@example.com"))
+        }
+
+        // Safari format with UTF-8 BOM, quoted comma in Title, escaped quotes in password
+        let safariCSV = "\u{FEFF}Title,URL,Username,Password,Notes,OTPAuth\r\n" +
+            "\"Apple, Inc.\",https://\(testHost1)/auth/signin,alice@example.com,\"p@ss\"\"word,1\",note,\r\n" +
+            "EmptyPass,https://ignored.example.com,nobody,,note,\r\n" +
+            "Placeholder,https://ignored2.example.com,fake,\(SavedCredential.legacyPlaceholderPassword),note,\r\n"
+
+        let parsedSafari = CredentialCSVImporter.parse(csv: safariCSV)
+        XCTAssertEqual(parsedSafari.count, 1)
+        XCTAssertEqual(parsedSafari.first?.domain, testHost1)
+        XCTAssertEqual(parsedSafari.first?.username, "alice@example.com")
+        XCTAssertEqual(parsedSafari.first?.password, "p@ss\"word,1")
+
+        // Chrome format with bare hostname
+        let chromeCSV = "name,url,username,password,note\n" +
+            "Work,\(testHost2),bob@example.com,chromeSecret99,work\n"
+
+        let summary1 = CredentialStore.shared.importCSV(safariCSV)
+        XCTAssertEqual(summary1.imported, 1)
+        XCTAssertEqual(summary1.skipped, 2)
+
+        let summary2 = CredentialStore.shared.importCSV(chromeCSV)
+        XCTAssertEqual(summary2.imported, 1)
+        XCTAssertEqual(summary2.skipped, 0)
+
+        let all = CredentialStore.shared.allCredentials()
+        XCTAssertTrue(all.contains { $0.domain == testHost1 && $0.username == "alice@example.com" })
+        XCTAssertTrue(all.contains { $0.domain == testHost2 && $0.username == "bob@example.com" })
+        XCTAssertEqual(CredentialStore.shared.password(forDomain: testHost1, username: "alice@example.com"), "p@ss\"word,1")
+        XCTAssertEqual(CredentialStore.shared.password(forDomain: testHost2, username: "bob@example.com"), "chromeSecret99")
+    }
 }
 
 private final class AutoFillMessageRecorder: NSObject, WKScriptMessageHandler {
     private(set) var actions: [String] = []
+    private(set) var messages: [(action: String, payload: [String: Any], frameInfo: WKFrameInfo)] = []
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any],
               let action = body["action"] as? String else { return }
         actions.append(action)
+        messages.append((action: action, payload: body, frameInfo: message.frameInfo))
     }
 }
 

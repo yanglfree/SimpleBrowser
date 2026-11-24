@@ -106,6 +106,9 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     private var hasRegisteredPageExtensionBridge: Bool = false
     private var appliedSessionStorageGeneration: Int = -1
     private var isContentProtectionBypassedForAllowlist: Bool = false
+    private var activeAutoFillFrame: WKFrameInfo?
+    private var autoFillFocusGeneration: Int = 0
+    private var isShowingSavePasswordPrompt: Bool = false
 
     /// - Parameters:
     ///   - initialURL: navigation target used only when no restorable snapshot exists
@@ -691,6 +694,8 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         canGoBackObservation = nil
         canGoForwardObservation = nil
 
+        autoFillFocusGeneration += 1
+        activeAutoFillFrame = nil
         AutoFillPopoverController.shared.dismiss()
         webView?.stopLoading()
         webView?.navigationDelegate = nil
@@ -827,6 +832,8 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     // MARK: - WKNavigationDelegate
 
     public func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        autoFillFocusGeneration += 1
+        activeAutoFillFrame = nil
         AutoFillPopoverController.shared.dismiss()
         lastMainFrameMIMEType = nil
         session?.updateTab(tabID) { tab in
@@ -1443,8 +1450,58 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
         extManager.handleScriptMessage(message, sourceWebView: webView, tabID: tabID)
     }
 
-    fileprivate func handleAutoFillMessage(action: String, payload: [String: Any]) {
-        guard let webView = webView else { return }
+    /// Determines whether AutoFill is permitted for a given WebKit frame.
+    ///
+    /// Main frames are always eligible when a host exists. Subframes (e.g. `idmsa.apple.com`
+    /// inside `appstoreconnect.apple.com`) must be HTTPS and share the same registrable root domain
+    /// as the top-level page so third-party embeds can never trigger or receive credentials.
+    public static func isAutoFillAllowed(
+        frameHost: String,
+        frameScheme: String,
+        topLevelHost: String,
+        isMainFrame: Bool
+    ) -> Bool {
+        let normalizedFrameHost = frameHost.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedScheme = frameScheme.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedTopHost = topLevelHost.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if isMainFrame {
+            return !normalizedFrameHost.isEmpty || !normalizedTopHost.isEmpty
+        }
+
+        guard normalizedScheme == "https",
+              !normalizedFrameHost.isEmpty,
+              !normalizedTopHost.isEmpty else {
+            return false
+        }
+
+        return SavedCredential.extractRootDomain(from: normalizedFrameHost)
+            == SavedCredential.extractRootDomain(from: normalizedTopHost)
+    }
+
+    /// Resolves the trusted host for AutoFill from WebKit's `WKFrameInfo` origin rather than JS-supplied strings.
+    public static func effectiveAutoFillHost(
+        frameHost: String,
+        topLevelHost: String,
+        isMainFrame: Bool
+    ) -> String {
+        let normalizedFrameHost = frameHost.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if !normalizedFrameHost.isEmpty {
+            return normalizedFrameHost
+        }
+        let normalizedTopHost = topLevelHost.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return isMainFrame ? normalizedTopHost : ""
+    }
+
+    fileprivate func handleAutoFillMessage(_ message: WKScriptMessage) {
+        guard let webView = webView,
+              let payload = message.body as? [String: Any],
+              let action = payload["action"] as? String else { return }
+
+        let frameInfo = message.frameInfo
+        let frameHost = frameInfo.securityOrigin.host
+        let frameScheme = frameInfo.securityOrigin.protocol
+        let topLevelHost = webView.url?.host ?? ""
 
         switch action {
         case "focus":
@@ -1456,44 +1513,111 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                 return
             }
 
-            // Only top-level login forms get suggestions. Filling a cross-origin iframe would mean
-            // broadcasting the password into frames chosen by the page, not by the user.
-            let isTopFrame = (rectDict["isTopFrame"] as? Bool) ?? true
-            guard isTopFrame else {
+            guard Self.isAutoFillAllowed(
+                frameHost: frameHost,
+                frameScheme: frameScheme,
+                topLevelHost: topLevelHost,
+                isMainFrame: frameInfo.isMainFrame
+            ) else {
+                autoFillFocusGeneration += 1
+                activeAutoFillFrame = nil
                 AutoFillPopoverController.shared.dismiss()
                 return
             }
 
-            let hostname = (payload["hostname"] as? String) ?? webView.url?.host ?? ""
+            let hostname = Self.effectiveAutoFillHost(
+                frameHost: frameHost,
+                topLevelHost: topLevelHost,
+                isMainFrame: frameInfo.isMainFrame
+            )
             let matched = CredentialStore.shared.credentials(for: hostname)
 
             // With no saved secret for this site, stay out of the way instead of showing a menu
             // whose only entries would have to be fabricated.
             guard !matched.isEmpty else {
+                autoFillFocusGeneration += 1
+                activeAutoFillFrame = nil
                 AutoFillPopoverController.shared.dismiss()
                 return
             }
 
-            AutoFillPopoverController.shared.show(
-                in: webView,
-                fieldRect: CGRect(x: x, y: y, width: width, height: height),
-                hostname: hostname,
-                credentials: matched,
-                onSelect: { [weak self] credential in
-                    self?.authorizeAndFill(credential)
+            autoFillFocusGeneration += 1
+            let generation = autoFillFocusGeneration
+            activeAutoFillFrame = frameInfo
+
+            let present: (CGRect) -> Void = { [weak self] finalRect in
+                guard let self,
+                      let wv = self.webView,
+                      self.autoFillFocusGeneration == generation else { return }
+                AutoFillPopoverController.shared.show(
+                    in: wv,
+                    fieldRect: finalRect,
+                    hostname: hostname,
+                    credentials: matched,
+                    onSelect: { [weak self] credential in
+                        self?.authorizeAndFill(credential, targetFrame: frameInfo)
+                    }
+                )
+            }
+
+            let fieldRect = CGRect(x: x, y: y, width: width, height: height)
+            if frameInfo.isMainFrame {
+                present(fieldRect)
+            } else {
+                let probeScript = """
+                (() => {
+                    let el = document.activeElement;
+                    while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+                        el = el.shadowRoot.activeElement;
+                    }
+                    if (el && (el.tagName === 'IFRAME' || el.tagName === 'FRAME')) {
+                        const r = el.getBoundingClientRect();
+                        return { x: r.left, y: r.top };
+                    }
+                    return { x: 0, y: 0 };
+                })()
+                """
+                webView.evaluateJavaScript(probeScript, in: nil, in: .defaultClient) { result in
+                    var adjusted = fieldRect
+                    if case .success(let value) = result,
+                       let dict = value as? [String: Any],
+                       let ox = (dict["x"] as? NSNumber)?.doubleValue,
+                       let oy = (dict["y"] as? NSNumber)?.doubleValue,
+                       (ox != 0 || oy != 0) {
+                        adjusted.origin.x += ox
+                        adjusted.origin.y += oy
+                    }
+                    present(adjusted)
                 }
-            )
+            }
 
         case "blur":
-            AutoFillPopoverController.shared.dismiss()
+            if activeAutoFillFrame == nil
+                || (activeAutoFillFrame?.securityOrigin.host == frameHost
+                    && activeAutoFillFrame?.isMainFrame == frameInfo.isMainFrame) {
+                autoFillFocusGeneration += 1
+                activeAutoFillFrame = nil
+                AutoFillPopoverController.shared.dismiss()
+            }
 
         case "submitted":
             // Private browsing must not leave a password behind.
             guard !isPrivateTab else { return }
+            guard Self.isAutoFillAllowed(
+                frameHost: frameHost,
+                frameScheme: frameScheme,
+                topLevelHost: topLevelHost,
+                isMainFrame: frameInfo.isMainFrame
+            ) else { return }
+
             if let user = payload["username"] as? String,
                let pass = payload["password"] as? String,
                !pass.isEmpty {
-                let host = (payload["hostname"] as? String) ?? webView.url?.host ?? ""
+                let host = Self.effectiveAutoFillHost(
+                    frameHost: frameHost,
+                    topLevelHost: topLevelHost,
+                    isMainFrame: frameInfo.isMainFrame
+                )
                 promptToSavePassword(hostname: host, username: user, password: pass)
             }
 
@@ -1505,7 +1629,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// Releases a saved password only after Touch ID or the Mac login password confirms the person
     /// at the keyboard. Safari asks for the same proof before AutoFill inserts a password; without
     /// it, a click alone would expose the secret to anyone using an unlocked Mac.
-    private func authorizeAndFill(_ credential: SavedCredential) {
+    private func authorizeAndFill(_ credential: SavedCredential, targetFrame: WKFrameInfo?) {
         let context = LAContext()
         context.localizedFallbackTitle = "使用登录密码"
         var policyError: NSError?
@@ -1528,12 +1652,12 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
                     NSSound.beep()
                     return
                 }
-                self.fillCredentialIntoWebPage(credential, password: password)
+                self.fillCredentialIntoWebPage(credential, password: password, targetFrame: targetFrame)
             }
         }
     }
 
-    private func fillCredentialIntoWebPage(_ credential: SavedCredential, password: String) {
+    private func fillCredentialIntoWebPage(_ credential: SavedCredential, password: String, targetFrame: WKFrameInfo?) {
         guard let webView = webView, SavedCredential.isFillablePassword(password) else { return }
         let js = """
         (() => {
@@ -1542,7 +1666,7 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             }
         })();
         """
-        webView.evaluateJavaScript(js, in: nil, in: .defaultClient, completionHandler: nil)
+        webView.evaluateJavaScript(js, in: targetFrame, in: .defaultClient, completionHandler: nil)
     }
 
     /// JSON-encodes a Swift string so quotes, backslashes, newlines and U+2028/U+2029 cannot break
@@ -1558,9 +1682,15 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     /// Asks before writing a password into the system keychain. The old build stored every submitted
     /// password silently, including failed logins; a browser must never do that.
     private func promptToSavePassword(hostname: String, username: String, password: String) {
-        guard !hostname.isEmpty, SavedCredential.isFillablePassword(password) else { return }
+        guard !hostname.isEmpty,
+              SavedCredential.isFillablePassword(password),
+              !isShowingSavePasswordPrompt else { return }
 
         let account = username.isEmpty ? "未命名账户" : username
+        if CredentialStore.shared.password(forDomain: hostname, username: account) == password {
+            return
+        }
+
         let isUpdate = CredentialStore.shared.hasCredential(domain: hostname, username: account)
         let activeSettings = session?.settings ?? BrowserSettings.shared
         let isCompromised = activeSettings.leakedPasswordDetectionEnabled
@@ -1583,12 +1713,17 @@ public final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
             CredentialStore.shared.save(domain: hostname, username: account, password: password)
         }
 
+        isShowingSavePasswordPrompt = true
         if let window = webView?.window {
-            alert.beginSheetModal(for: window) { response in
+            alert.beginSheetModal(for: window) { [weak self] response in
+                self?.isShowingSavePasswordPrompt = false
                 if response == .alertFirstButtonReturn { _ = save() }
             }
-        } else if alert.runModal() == .alertFirstButtonReturn {
-            _ = save()
+        } else {
+            defer { isShowingSavePasswordPrompt = false }
+            if alert.runModal() == .alertFirstButtonReturn {
+                _ = save()
+            }
         }
     }
 }
@@ -1604,9 +1739,7 @@ private final class WeakAutoFillMessageHandler: NSObject, WKScriptMessageHandler
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
-        guard let body = message.body as? [String: Any],
-              let action = body["action"] as? String else { return }
-        target?.handleAutoFillMessage(action: action, payload: body)
+        target?.handleAutoFillMessage(message)
     }
 }
 

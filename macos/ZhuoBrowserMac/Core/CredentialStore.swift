@@ -74,6 +74,166 @@ struct LegacyStoredCredential: Decodable, Equatable {
     let password: String
 }
 
+/// A parsed row from a Safari or Chrome exported password CSV.
+public struct ImportedCredentialRow: Equatable, Sendable {
+    public let domain: String
+    public let username: String
+    public let password: String
+
+    public init(domain: String, username: String, password: String) {
+        self.domain = domain
+        self.username = username
+        self.password = password
+    }
+}
+
+/// Summary returned after importing passwords from a CSV file.
+public struct CredentialImportSummary: Equatable, Sendable {
+    public let imported: Int
+    public let skipped: Int
+
+    public init(imported: Int, skipped: Int) {
+        self.imported = imported
+        self.skipped = skipped
+    }
+}
+
+/// Parses RFC 4180 password CSV exports produced by Safari (`Title,URL,Username,Password,...`)
+/// and Chromium browsers (`name,url,username,password,...`).
+public enum CredentialCSVImporter {
+    private static let urlHeaders: Set<String> = ["url", "website", "origin", "host", "domain"]
+    private static let usernameHeaders: Set<String> = ["username", "user", "account", "login", "email"]
+    private static let passwordHeaders: Set<String> = ["password", "pass"]
+
+    public static func parse(csv: String) -> [ImportedCredentialRow] {
+        parseDetailed(csv: csv).rows
+    }
+
+    static func parseDetailed(csv: String) -> (rows: [ImportedCredentialRow], skipped: Int) {
+        var content = csv
+        if content.hasPrefix("\u{FEFF}") {
+            content.removeFirst()
+        }
+
+        let records = parseCSVRecords(content)
+        guard let headerIndex = records.firstIndex(where: { row in
+            row.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        }) else {
+            return ([], 0)
+        }
+
+        let headers = records[headerIndex].map {
+            $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        guard let urlCol = headers.firstIndex(where: { urlHeaders.contains($0) }),
+              let passwordCol = headers.firstIndex(where: { passwordHeaders.contains($0) }) else {
+            return ([], 0)
+        }
+        let usernameCol = headers.firstIndex(where: { usernameHeaders.contains($0) })
+
+        var parsed: [ImportedCredentialRow] = []
+        var skipped = 0
+
+        for row in records.dropFirst(headerIndex + 1) {
+            let isEmptyRow = row.allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            if isEmptyRow { continue }
+
+            let rawURL = urlCol < row.count ? row[urlCol] : ""
+            let rawPass = passwordCol < row.count ? row[passwordCol] : ""
+            let rawUser = (usernameCol != nil && usernameCol! < row.count)
+                ? row[usernameCol!].trimmingCharacters(in: .whitespacesAndNewlines)
+                : ""
+
+            guard let host = extractNormalizedHost(from: rawURL),
+                  SavedCredential.isFillablePassword(rawPass) else {
+                skipped += 1
+                continue
+            }
+
+            parsed.append(ImportedCredentialRow(domain: host, username: rawUser, password: rawPass))
+        }
+
+        return (parsed, skipped)
+    }
+
+    public static func extractNormalizedHost(from rawValue: String) -> String? {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let candidateURL: URL?
+        if trimmed.contains("://") {
+            candidateURL = URL(string: trimmed)
+        } else {
+            candidateURL = URL(string: "https://\(trimmed)")
+        }
+
+        if let host = candidateURL?.host?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines),
+           !host.isEmpty {
+            return host
+        }
+
+        // Fallback for bare hosts with ports or paths that URL failed to parse
+        let stripped = trimmed
+            .components(separatedBy: "/").first?
+            .components(separatedBy: ":").first?
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return stripped.isEmpty ? nil : stripped
+    }
+
+    private static func parseCSVRecords(_ text: String) -> [[String]] {
+        var records: [[String]] = []
+        var currentRow: [String] = []
+        var currentField = ""
+        var inQuotes = false
+
+        let scalars = Array(text.unicodeScalars)
+        var i = 0
+        while i < scalars.count {
+            let ch = scalars[i]
+            if inQuotes {
+                if ch == "\"" {
+                    if i + 1 < scalars.count && scalars[i + 1] == "\"" {
+                        currentField.append("\"")
+                        i += 2
+                        continue
+                    } else {
+                        inQuotes = false
+                    }
+                } else {
+                    currentField.unicodeScalars.append(ch)
+                }
+            } else {
+                if ch == "\"" {
+                    inQuotes = true
+                } else if ch == "," {
+                    currentRow.append(currentField)
+                    currentField = ""
+                } else if ch == "\r" || ch == "\n" {
+                    if ch == "\r" && i + 1 < scalars.count && scalars[i + 1] == "\n" {
+                        i += 1
+                    }
+                    currentRow.append(currentField)
+                    records.append(currentRow)
+                    currentRow = []
+                    currentField = ""
+                } else {
+                    currentField.unicodeScalars.append(ch)
+                }
+            }
+            i += 1
+        }
+
+        if !currentField.isEmpty || !currentRow.isEmpty {
+            currentRow.append(currentField)
+            records.append(currentRow)
+        }
+
+        return records
+    }
+}
+
 /// Reads and writes website passwords in the macOS login keychain.
 @MainActor
 public final class CredentialStore {
@@ -93,6 +253,28 @@ public final class CredentialStore {
     }
 
     // MARK: - Queries
+
+    /// Lists all saved website accounts belonging to this app without reading any secret.
+    public func allCredentials() -> [SavedCredential] {
+        var seen = Set<String>()
+        var found: [SavedCredential] = []
+
+        for row in attributeRows(forServer: nil) {
+            guard let server = row[kSecAttrServer as String] as? String,
+                  let account = row[kSecAttrAccount as String] as? String,
+                  !server.isEmpty,
+                  !account.isEmpty else { continue }
+            let credential = SavedCredential(domain: server, username: account)
+            if seen.insert(credential.id).inserted {
+                found.append(credential)
+            }
+        }
+
+        return found.sorted { lhs, rhs in
+            if lhs.domain != rhs.domain { return lhs.domain < rhs.domain }
+            return lhs.username.localizedStandardCompare(rhs.username) == .orderedAscending
+        }
+    }
 
     /// Lists saved accounts for a host without reading any secret.
     public func credentials(for hostname: String) -> [SavedCredential] {
@@ -175,6 +357,24 @@ public final class CredentialStore {
         return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
     }
 
+    /// Imports password rows from a Safari/Chrome CSV export into the login keychain.
+    @discardableResult
+    public func importCSV(_ csv: String) -> CredentialImportSummary {
+        let parsed = CredentialCSVImporter.parseDetailed(csv: csv)
+        var imported = 0
+        var skipped = parsed.skipped
+
+        for row in parsed.rows {
+            if save(domain: row.domain, username: row.username, password: row.password) {
+                imported += 1
+            } else {
+                skipped += 1
+            }
+        }
+
+        return CredentialImportSummary(imported: imported, skipped: skipped)
+    }
+
     public func delete(_ credential: SavedCredential) {
         SecItemDelete(
             Self.baseQuery(server: credential.domain, account: credential.username) as CFDictionary
@@ -194,7 +394,7 @@ public final class CredentialStore {
         return query
     }
 
-    private func attributeRows(forServer server: String, account: String? = nil) -> [[String: Any]] {
+    private func attributeRows(forServer server: String?, account: String? = nil) -> [[String: Any]] {
         var query = Self.baseQuery(server: server, account: account)
         query[kSecReturnAttributes as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitAll
