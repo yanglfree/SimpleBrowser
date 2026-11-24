@@ -98,6 +98,7 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
             val tab = BrowserTab.home(isPrivate)
             current.copy(tabs = current.tabs + tab, activeTabId = tab.id, showsOverview = false)
         }
+        TelemetryService.recordActionUsage("tab_created", isPrivate)
         persist()
     }
 

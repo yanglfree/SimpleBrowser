@@ -196,6 +196,10 @@ extension BrowserSession {
     func setTelemetryEnabled(_ enabled: Bool) {
         settings.telemetryEnabled = enabled
         persistSettings()
+        TelemetryService.shared.syncConsent(
+            consentAccepted: settings.privacyConsentAccepted,
+            enabled: settings.telemetryEnabled
+        )
     }
 
     func setSearchSuggestionsEnabled(_ enabled: Bool) {
@@ -206,6 +210,10 @@ extension BrowserSession {
     func acceptPrivacyConsent() {
         settings.privacyConsentAccepted = true
         persistSettings()
+        TelemetryService.shared.syncConsent(
+            consentAccepted: settings.privacyConsentAccepted,
+            enabled: settings.telemetryEnabled
+        )
         refreshSiteIcons()
     }
 

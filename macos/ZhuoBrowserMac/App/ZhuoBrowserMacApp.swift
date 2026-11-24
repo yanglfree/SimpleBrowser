@@ -23,6 +23,13 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
             _ = HomeBackgroundManager.shared
             _ = FavoritesManager.shared
         }
+        TelemetryService.shared.handleAppForegrounded()
+        TelemetryService.shared.recordActionUsage("app_launch", isPrivate: false)
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        guard !RuntimeEnvironment.isRunningUnitTests else { return }
+        TelemetryService.shared.handleAppForegrounded()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -43,6 +50,7 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidResignActive(_ notification: Notification) {
         ProfileManager.shared.persistAllSessionsForResignActive()
+        TelemetryService.shared.handleAppBackgrounded()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -61,6 +69,7 @@ final class ZhuoBrowserMacAppDelegate: NSObject, NSApplicationDelegate {
         WebPopupWindowManager.shared.closeAllPopups()
         BrowserSettings.shared.flushSynchronously()
         ProfileManager.shared.flushAllSessionsForTermination()
+        TelemetryService.shared.flushAsync()
     }
 
     private func installTerminationSignalHandlers() {

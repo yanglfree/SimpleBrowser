@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.youdroid.zhuobrowser.session.BrowserSession
+import com.youdroid.zhuobrowser.session.TelemetryService
 import com.youdroid.zhuobrowser.ui.BrowserScreen
 import com.youdroid.zhuobrowser.ui.Tokens
 
@@ -24,5 +25,15 @@ class MainActivity : ComponentActivity() {
                 BrowserScreen(session)
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        TelemetryService.handleAppForegrounded(session.state.value.activeTab?.isPrivate == true)
+    }
+
+    override fun onStop() {
+        TelemetryService.handleAppBackgrounded(session.state.value.activeTab?.isPrivate == true)
+        super.onStop()
     }
 }

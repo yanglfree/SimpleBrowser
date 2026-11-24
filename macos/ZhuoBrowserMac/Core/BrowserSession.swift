@@ -264,6 +264,9 @@ public final class BrowserSession: ObservableObject {
         } else {
             enforceMemoryBudget()
         }
+        if !isPrivate {
+            TelemetryService.shared.recordActionUsage("tab_created", isPrivate: false)
+        }
         return newTab
     }
 
@@ -638,6 +641,7 @@ public final class BrowserSession: ObservableObject {
     }
 
     public func printActiveTab() {
+        TelemetryService.shared.recordActionUsage("page_printed", isPrivate: activeTab?.isPrivate == true)
         activeController?.printCurrentDocument()
     }
 
@@ -1077,6 +1081,7 @@ public final class BrowserSession: ObservableObject {
     }
 
     public func openBookmarkManager(selectingFolderID: String? = nil) {
+        TelemetryService.shared.recordActionUsage("bookmark_manager_opened", isPrivate: activeTab?.isPrivate == true)
         if let selectingFolderID {
             bookmarkManagerSelectedFolderID = selectingFolderID
         }

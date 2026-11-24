@@ -36,6 +36,7 @@ export default class EntryAbility extends UIAbility {
     this.tabTransfer = String(want.parameters?.['dolphin.tabTransfer'] ?? '');
     AppContext.setContext(this.windowToken, this.context);
     this.routeExternalOpen(want);
+    TelemetryService.initialize(this.context);
     TelemetryService.registerCrashObservers();
     Logger.info(TAG, 'Ability created');
   }
@@ -96,8 +97,13 @@ export default class EntryAbility extends UIAbility {
     TelemetryService.recordMemoryPressure(level as number);
   }
 
+  onForeground(): void {
+    TelemetryService.handleAppForegrounded();
+  }
+
   onBackground(): void {
     PrivacyService.persistCookiesAcrossProcessDeath();
+    TelemetryService.handleAppBackgrounded();
   }
 
   onDestroy(): void {

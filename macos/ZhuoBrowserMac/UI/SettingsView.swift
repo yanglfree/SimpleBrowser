@@ -22,6 +22,7 @@ public struct SettingsView: View {
     @State private var isShowingClearHistoryAlert: Bool = false
     @State private var isShowingClearDataAlert: Bool = false
     @State private var didClearDataNotice: Bool = false
+    @State private var telemetryEnabled: Bool = TelemetryService.shared.isEnabled
 
     public init(session: BrowserSession, isPresented: Binding<Bool>, initialSubpage: SettingsSubpage = .main) {
         self.session = session
@@ -614,6 +615,13 @@ public struct SettingsView: View {
                 .font(.system(size: 13))
                 .onChange(of: settings.cosmeticCleanupEnabled) { _ in
                     session.applyContentProtectionSettingsToAllTabs(evaluateLiveScripts: true)
+                }
+
+            Toggle("发送匿名性能与功能统计（不含网址、搜索词及无痕标签页）", isOn: $telemetryEnabled)
+                .toggleStyle(.checkbox)
+                .font(.system(size: 13))
+                .onChange(of: telemetryEnabled) { newValue in
+                    TelemetryService.shared.setEnabled(newValue)
                 }
         }
     }

@@ -245,9 +245,11 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, newValue in
             if newValue != .active {
                 session.captureActivePageState()
+                TelemetryService.shared.handleAppBackgrounded(context: session.telemetryContextForLifecycle())
             } else {
                 Task { await session.pro.refreshForForeground() }
                 session.consumeInboundShares()
+                TelemetryService.shared.handleAppForegrounded(context: session.telemetryContextForLifecycle())
             }
         }
         .onChange(of: session.settings.onboardingCompleted) { _, completed in

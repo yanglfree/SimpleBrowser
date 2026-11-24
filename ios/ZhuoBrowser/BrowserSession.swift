@@ -188,6 +188,10 @@ final class BrowserSession: ObservableObject {
         refreshSiteIcons()
 
         if isPrimaryWindow {
+            TelemetryService.shared.syncConsent(
+                consentAccepted: settings.privacyConsentAccepted,
+                enabled: settings.telemetryEnabled
+            )
             let milliseconds = (ProcessInfo.processInfo.systemUptime - initializationStartedAt) * 1_000
             TelemetryService.shared.recordStartup(
                 milliseconds: milliseconds,
@@ -414,6 +418,10 @@ final class BrowserSession: ObservableObject {
 
     func clearTabThumbnails() {
         tabThumbnails.removeAll()
+    }
+
+    func telemetryContextForLifecycle() -> TelemetryContext {
+        telemetryContext()
     }
 
     private func telemetryContext(tabID: String? = nil) -> TelemetryContext {
