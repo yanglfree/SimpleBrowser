@@ -909,6 +909,7 @@ public struct ZhuoBrowserMacApp: App {
     public init() {
         guard !RuntimeEnvironment.isRunningUnitTests else { return }
         SingleInstanceGuard.shared.enforceSingleInstanceOrExit()
+        InputSourceCrashGuard.install()
         // Migrate the retired private credential store (including its plaintext UserDefaults copy)
         // at launch, not only the first time the user focuses a login field.
         _ = CredentialStore.shared
