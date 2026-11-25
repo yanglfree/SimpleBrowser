@@ -3,25 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#FAF9F7">
-  <meta name="description" content="卓阅浏览器（Zhuo Browser）是一款为 macOS 与 HarmonyOS NEXT 原生打造的极简、极速、极致省内存网页浏览器。">
+  <meta name="theme-color" content="#F8FAFA">
+  <meta name="description" content="Zhuo浏览器（原卓阅浏览器 / Zhuo Browser）是一款为 macOS 与 HarmonyOS NEXT 原生打造的极简、极速、极致省内存网页浏览器。">
   <link rel="canonical" href="https://browser.youdroid.top/">
-  <link rel="icon" href="/assets/mac-icon.svg?v=20261110" type="image/svg+xml">
+  <link rel="icon" href="/assets/favicon.svg?v=20261125" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20261118-clean2">
+  <link rel="stylesheet" href="/styles.css?v=20261125-editorial">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="zh_CN">
-  <meta property="og:title" content="卓阅浏览器 (Zhuo Browser)｜原生轻量 · 极简 · 极致省内存">
+  <meta property="og:title" content="Zhuo浏览器 (Zhuo Browser)｜原生轻量 · 极简 · 极致省内存">
   <meta property="og:description" content="基于 macOS 原生 WebKit 与 HarmonyOS ArkWeb 构建。常驻标签瞬时切换、C++ 网络层内容拦截与系统钥匙串自动填充。">
   <meta property="og:url" content="https://browser.youdroid.top/">
   <meta property="og:image" content="https://browser.youdroid.top/assets/og-card.png?v=20260818-square">
   <meta name="twitter:card" content="summary_large_image">
-  <title>卓阅浏览器 (Zhuo Browser)｜少一点打扰，多一点浏览</title>
+  <title>Zhuo浏览器 (Zhuo Browser)｜少一点打扰，多一点浏览</title>
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      "name": "卓阅浏览器 (Zhuo Browser)",
+      "name": "Zhuo浏览器 (Zhuo Browser)",
       "applicationCategory": "BrowserApplication",
       "operatingSystem": "macOS 14.0+, HarmonyOS NEXT",
       "softwareVersion": "1.0.0",
@@ -41,335 +41,571 @@
 
   <header class="site-header">
     <nav class="shell nav" aria-label="主导航">
-      <a class="brand" href="#top" aria-label="卓阅浏览器首页">
-        <img src="/assets/mac-icon.svg?v=20261110" width="36" height="36" alt="卓阅浏览器图标">
-        <span class="brand-name">卓阅浏览器 <span class="brand-sub">Zhuo Browser</span></span>
+      <a class="brand" href="#top" aria-label="Zhuo浏览器首页">
+        <img src="/assets/mac-icon.svg?v=20261110" width="24" height="24" alt="Zhuo浏览器图标">
+        <span class="brand-wordmark">Zhuo浏览器</span>
       </a>
+
       <div class="nav-links">
-        <a href="#features">特性</a>
-        <a href="#channels">获取方式</a>
-        <a href="#privacy">隐私</a>
-        <a class="nav-cta" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>下载 Mac 版</a>
+        <a href="#overview" data-nav="overview">概览</a>
+        <a href="#architecture" data-nav="architecture">架构</a>
+        <a href="#engine" data-nav="engine">性能</a>
+        <a href="#privacy" data-nav="privacy">隐私</a>
+        <a href="#matrix" data-nav="matrix">能力矩阵</a>
+        <a href="#channels" data-nav="channels">获取</a>
       </div>
+
+      <span class="nav-readout" id="nav-readout" aria-live="polite">v1.0.0 · 23.7 MB</span>
+      <a class="nav-mobile-action" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>下载 Mac 版</a>
     </nav>
   </header>
 
   <main id="main">
-    <!-- Hero Section -->
-    <section class="hero shell" id="top" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow">ZHUO BROWSER · MACOS &amp; HARMONYOS NEXT</p>
-        <h1 id="hero-title">
-          <span class="headline-line">少一点打扰，</span>
-          <span class="headline-line">多一点浏览。</span>
-        </h1>
-        <p class="hero-intro">
-          基于 macOS 原生 WebKit 与 HarmonyOS ArkWeb 打造的轻量浏览器。常驻标签瞬时切换、网络层原生广告拦截与系统钥匙串自动填充，都藏在一套安静、克制的界面里。
+    <!-- Full-Bleed Editorial Hero -->
+    <section class="hero" id="top" aria-labelledby="hero-title" data-chapter="v1.0.0 · 23.7 MB">
+      <img class="hero-media" src="/assets/hero-vista.webp" width="1792" height="1024" alt="" aria-hidden="true" fetchpriority="high">
+      <div class="hero-veil" aria-hidden="true"></div>
+      <div class="shell hero-content">
+        <h1 id="hero-title">少一点打扰，<br>多一点浏览。</h1>
+        <p class="hero-lead">
+          为 macOS 与 HarmonyOS NEXT 原生打造的极简浏览器。基于系统 WebKit 与 ArkWeb，让常驻标签瞬时切换、网络层内容拦截与钥匙串自动填充回归安静与克制。
         </p>
-
         <div class="hero-actions">
-          <a class="primary-link" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <a class="btn-primary" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
             <span>下载 Mac 公证版 (.dmg)</span>
           </a>
-          <a class="secondary-link" href="#channels">全部版本与渠道</a>
+          <a class="text-action" href="#channels">全部渠道与鸿蒙版</a>
         </div>
-
         <p class="hero-meta">v1.0.0 · Universal (Apple Silicon &amp; Intel) · 23.7 MB · 需 macOS 14.0+</p>
       </div>
-
-      <!-- Clean Architectural Window Preview -->
-      <div class="mac-stage" aria-label="卓阅浏览器 macOS 桌面界面预览">
-        <div class="stage-caption" aria-hidden="true">
-          <span>ZHUO / MACOS 14+</span>
-          <span>WEBKIT · UNIVERSAL</span>
-        </div>
-
-        <div class="mac-window" role="img" aria-label="卓阅浏览器 Mac 窗口界面：极简一体化工具栏、零重载常驻标签与轻量起始页">
-          <div class="mac-toolbar">
-            <div class="mac-traffic" aria-hidden="true">
-              <span class="dot dot-red"></span>
-              <span class="dot dot-yellow"></span>
-              <span class="dot dot-green"></span>
-            </div>
-            <div class="mac-nav-btns" aria-hidden="true">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="10 3.5 5.5 8 10 12.5"/>
-              </svg>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 3.5 10.5 8 6 12.5"/>
-              </svg>
-            </div>
-            <div class="mac-omnibox">
-              <svg class="omnibox-lock-svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/>
-                <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>
-              </svg>
-              <span class="omnibox-url">browser.youdroid.top</span>
-              <span class="omnibox-badge">已净化</span>
-            </div>
-            <div class="mac-toolbar-right">
-              <span class="toolbar-pill pill-memory">常驻 · 0 重载</span>
-            </div>
-          </div>
-
-          <div class="mac-tabstrip" aria-hidden="true">
-            <div class="mac-tab mac-tab-active">
-              <span class="tab-mark">Z</span>
-              <span class="tab-title">卓阅浏览器 — 原生轻量</span>
-            </div>
-            <div class="mac-tab">
-              <span class="tab-mark">A</span>
-              <span class="tab-title">Apple Developer Documentation</span>
-            </div>
-            <div class="mac-tab">
-              <span class="tab-mark">W</span>
-              <span class="tab-title">WebKit Content Rules</span>
-            </div>
-          </div>
-
-          <div class="mac-viewport">
-            <div class="mac-start-card">
-              <div class="mac-start-brand">
-                <img src="/assets/mac-icon.svg?v=20261110" width="44" height="44" alt="">
-                <div>
-                  <div class="mac-start-title">卓阅浏览器</div>
-                  <div class="mac-start-sub">安静 · 极速 · 极致省内存</div>
-                </div>
-              </div>
-              <div class="mac-search-bar">
-                <span class="mac-search-left">
-                  <svg class="mac-search-svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
-                    <circle cx="7" cy="7" r="4.5"/>
-                    <line x1="10.4" y1="10.4" x2="13.5" y2="13.5"/>
-                  </svg>
-                  <span>搜索或输入网址...</span>
-                </span>
-                <kbd>⌘L</kbd>
-              </div>
-              <div class="mac-metrics-grid">
-                <div class="mac-metric">
-                  <span class="metric-val">23.7 MB</span>
-                  <span class="metric-lbl">原生双架构体积</span>
-                </div>
-                <div class="mac-metric">
-                  <span class="metric-val">0 ms</span>
-                  <span class="metric-lbl">规则拦截脚本开销</span>
-                </div>
-                <div class="mac-metric">
-                  <span class="metric-val">0 重载</span>
-                  <span class="metric-lbl">常驻标签瞬时切换</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </section>
 
-    <!-- Architectural Principles -->
-    <section class="principles shell" aria-label="核心架构原则">
-      <p>原生 WebKit 与 ArkWeb</p>
-      <p>常驻标签零重载切换</p>
-      <p>C++ 网络层内容拦截</p>
-      <p>系统钥匙串与 Touch ID</p>
-    </section>
-
-    <!-- 2x2 Core Features Grid -->
-    <section class="feature-section shell" id="features" aria-labelledby="features-title">
-      <div class="section-heading">
-        <p class="eyebrow">BUILT TO GET OUT OF YOUR WAY</p>
-        <h2 id="features-title">
-          <span class="headline-line">浏览器应该</span>
-          <span class="headline-line">退后一步。</span>
-        </h2>
-        <p>必要时能力触手可及，其余时间只留下网页。</p>
-      </div>
-
-      <div class="feature-grid">
-        <article class="feature-card">
-          <div class="feature-card-head">
-            <div class="feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            </div>
-            <span class="feature-number">01</span>
-          </div>
-          <h3>原生轻量，瞬时切换</h3>
-          <p>直接构建于系统原生 WebKit 之上，安装包仅 23.7 MB。会话内标签页常驻保活、切换零重载，亦支持自动冻结后台标签节省内存。</p>
-        </article>
-
-        <article class="feature-card">
-          <div class="feature-card-head">
-            <div class="feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
-            <span class="feature-number">02</span>
-          </div>
-          <h3>网络层净化，零脚本负担</h3>
-          <p>将过滤规则编译为系统原生字节码，在网络层直接阻断广告与追踪请求，无需注入沉重脚本，支持地址栏单站点白名单一键放行。</p>
-        </article>
-
-        <article class="feature-card">
-          <div class="feature-card-head">
-            <div class="feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v9H5z"/></svg>
-            </div>
-            <span class="feature-number">03</span>
-          </div>
-          <h3>系统钥匙串与通行密钥</h3>
-          <p>网站密码加密存入 macOS 登录钥匙串，通过 Touch ID 生物识别自动填充；完整支持 WebAuthn 通行密钥、加密 DNS 与防欺诈安全浏览。</p>
-        </article>
-
-        <article class="feature-card">
-          <div class="feature-card-head">
-            <div class="feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            </div>
-            <span class="feature-number">04</span>
-          </div>
-          <h3>精选扩展，按需延展</h3>
-          <p>内置暗黑护眼、网页双语翻译、流媒体嗅探、超级复制与脚本管理五大工具；官网公证独立版同时兼容 Chrome MV3 扩展与 UserScript。</p>
-        </article>
-      </div>
-    </section>
-
-    <!-- Distribution Channels & Platforms -->
-    <section class="channels-section shell" id="channels" aria-labelledby="channels-title">
-      <div id="release-channels" class="anchor-guard" aria-hidden="true"></div>
-      <div class="section-heading">
-        <p class="eyebrow">PLATFORMS &amp; CHANNELS</p>
-        <h2 id="channels-title">按你的设备与偏好选择。</h2>
-        <p>macOS 提供官方商店沙盒版与官网公证独立版双渠道，移动端原生适配 HarmonyOS NEXT。</p>
-      </div>
-
-      <div class="channel-grid">
-        <article class="channel-card">
-          <div class="channel-top">
-            <span class="channel-badge">官方商店 · 沙盒认证</span>
-            <h3>Mac App Store 官方版</h3>
-            <p>遵循 Apple App Sandbox 严格安全规范，支持系统自动更新。内置 5 大精选扩展与完整钥匙串能力（依规不开放外部扩展包导入）。</p>
-          </div>
-          <div class="channel-foot">
-            <span class="channel-status-pill">Mac App Store 审核上架中</span>
-          </div>
-        </article>
-
-        <article class="channel-card channel-card-featured">
-          <div class="channel-top">
-            <span class="channel-badge channel-badge-accent">Apple 公证 · 完整扩展</span>
-            <h3>macOS 官网公证版</h3>
-            <p>Developer ID 签名并通过 Apple 公证。包含全部核心能力，并额外开放 Chrome MV3 扩展（.crx / 已解压目录）与 .user.js 脚本导入。</p>
-          </div>
-          <div class="channel-foot">
-            <a class="primary-link channel-btn" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>下载 Universal DMG (23.7 MB)</a>
-          </div>
-        </article>
-
-        <article class="channel-card">
-          <div class="channel-top">
-            <span class="channel-badge">华为应用市场 · 原生鸿蒙</span>
-            <h3>HarmonyOS NEXT 版</h3>
-            <p>基于 ArkTS 与 ArkWeb 原生打造，适配鸿蒙手机、平板与二合一设备，支持纯净阅读模式、页内查找与离线文章库。</p>
-          </div>
-          <div class="channel-foot">
-            <a class="secondary-link channel-btn store-link" href="https://appgallery.huawei.com/app/detail?id=com.youdroid.browser&channelId=SHARE&source=appshare" target="_blank" rel="noopener noreferrer">在华为 AppGallery 获取</a>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <!-- Privacy & Collapsible Specs -->
-    <section class="quiet-section" id="privacy" aria-labelledby="privacy-title">
-      <div class="shell quiet-layout">
-        <div>
-          <p class="eyebrow eyebrow-light">PRIVATE BY CONSTRUCTION</p>
-          <h2 id="privacy-title">你的浏览，<br>不需要成为谁的数据。</h2>
-        </div>
-
-        <div class="privacy-copy">
+    <!-- Editorial Overview & Baseline Parameters -->
+    <section class="band" id="overview" aria-labelledby="overview-title" data-chapter="概览 · 原生轻量">
+      <div class="shell overview-grid">
+        <div class="overview-prose">
+          <h2 id="overview-title">退后一步的浏览器哲学</h2>
           <p>
-            卓阅不强制注册账号，浏览历史、书签与会话默认保存在本机沙盒；无痕标签页采用独立内存存储，关闭即焚。可选的云端同步支持随时在应用内一键永久注销并清除云端数据。
+            Zhuo浏览器（原卓阅浏览器）不在用户设备上再塞入一套臃肿的第三方运行时。macOS 端直接基于系统共享的 WebKit 与 SwiftUI 构建，HarmonyOS NEXT 端基于 ArkTS 与 ArkWeb 原生实现，动态链接库与系统共享缓存复用，安装包仅 23.7 MB。
           </p>
+          <p>
+            当浏览器本身退后一步，地址栏、标签条与工具栏便只保留必要的功能入口。必要时能力触手可及，其余时间，屏幕只留给网页与文字本身。
+          </p>
+        </div>
 
-          <dl class="privacy-facts">
-            <div><dt>0</dt><dd>必需账号</dd></div>
-            <div><dt>本机</dt><dd>默认数据位置</dd></div>
-            <div><dt>沙盒</dt><dd>原生权限隔离</dd></div>
+        <aside class="param-table" aria-label="构建基准参数">
+          <h3 class="param-table-title">构建基准参数</h3>
+          <dl class="param-list">
+            <div>
+              <dt>原生渲染引擎</dt>
+              <dd>macOS WebKit · HarmonyOS ArkWeb</dd>
+            </div>
+            <div>
+              <dt>Universal 安装包</dt>
+              <dd>23.7 MB（arm64 + x86_64）</dd>
+            </div>
+            <div>
+              <dt>标签切换策略</dt>
+              <dd>会话内常驻保活 · 0 次页面重建</dd>
+            </div>
+            <div>
+              <dt>内容拦截层</dt>
+              <dd>C++ 网络进程原生字节码过滤</dd>
+            </div>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Interactive Architecture Transect -->
+    <section class="band band-tint" id="architecture" aria-labelledby="arch-title" data-chapter="架构 · 四层剖面">
+      <div class="shell">
+        <div class="section-bar">
+          <div>
+            <h2 id="arch-title">四层原生架构剖面</h2>
+            <p class="section-sub">从界面交互到底层沙盒，每一层职责清晰且可独立验证。点击右侧标签或剖面层级查看细节。</p>
+          </div>
+          <div class="segmented-tabs" role="tablist" aria-label="架构层级选择">
+            <button type="button" class="seg-btn is-active" role="tab" aria-selected="true" data-layer-tab="0">渲染引擎</button>
+            <button type="button" class="seg-btn" role="tab" aria-selected="false" data-layer-tab="1">常驻标签</button>
+            <button type="button" class="seg-btn" role="tab" aria-selected="false" data-layer-tab="2">网络拦截</button>
+            <button type="button" class="seg-btn" role="tab" aria-selected="false" data-layer-tab="3">钥匙串沙盒</button>
+          </div>
+        </div>
+
+        <div class="transect-grid">
+          <div class="transect-diagram">
+            <svg class="transect-svg" viewBox="0 0 640 336" role="img" aria-label="Zhuo浏览器四层原生架构剖面图">
+              <line x1="20" y1="24" x2="620" y2="24" stroke="#B5C4C0" stroke-width="1"/>
+
+              <g class="layer-band is-active" data-layer-band="0" tabindex="0" role="button" aria-label="第一层：极简原生界面层">
+                <rect x="20" y="34" width="600" height="64" rx="2"/>
+                <circle class="layer-dot" cx="44" cy="66" r="5"/>
+                <text class="layer-code" x="62" y="61">L1 · 界面与引擎基座</text>
+                <text class="layer-desc" x="62" y="81">SwiftUI + WebKit / ArkTS + ArkWeb 原生渲染</text>
+                <text class="layer-metric" x="602" y="70" text-anchor="end">23.7 MB</text>
+              </g>
+
+              <g class="layer-band" data-layer-band="1" tabindex="0" role="button" aria-label="第二层：常驻标签保活池">
+                <rect x="20" y="108" width="600" height="64" rx="2"/>
+                <circle class="layer-dot" cx="44" cy="140" r="5"/>
+                <text class="layer-code" x="62" y="135">L2 · 常驻标签与快照池</text>
+                <text class="layer-desc" x="62" y="155">独立 WebView 视图复用，可选 LRU 后台冻结</text>
+                <text class="layer-metric" x="602" y="144" text-anchor="end">0 重载</text>
+              </g>
+
+              <g class="layer-band" data-layer-band="2" tabindex="0" role="button" aria-label="第三层：网络层字节码拦截">
+                <rect x="20" y="182" width="600" height="64" rx="2"/>
+                <circle class="layer-dot" cx="44" cy="214" r="5"/>
+                <text class="layer-code" x="62" y="209">L3 · 网络层内容净化</text>
+                <text class="layer-desc" x="62" y="229">WKContentRuleList / AdsBlockManager 原生规则</text>
+                <text class="layer-metric" x="602" y="218" text-anchor="end">0 ms JS</text>
+              </g>
+
+              <g class="layer-band" data-layer-band="3" tabindex="0" role="button" aria-label="第四层：钥匙串与系统沙盒">
+                <rect x="20" y="256" width="600" height="64" rx="2"/>
+                <circle class="layer-dot" cx="44" cy="288" r="5"/>
+                <text class="layer-code" x="62" y="283">L4 · 系统钥匙串与隔离沙盒</text>
+                <text class="layer-desc" x="62" y="303">Login Keychain · Touch ID · 非持久化无痕内存</text>
+                <text class="layer-metric" x="602" y="292" text-anchor="end">0 账号</text>
+              </g>
+            </svg>
+          </div>
+
+          <div class="transect-detail" id="transect-detail">
+            <h3 id="td-title">原生渲染引擎与克制界面</h3>
+            <p id="td-summary">
+              抛弃内嵌 Chromium 与 Electron 冗余运行时，直接调用 macOS <code>WebKit.framework</code> 与 HarmonyOS <code>ArkWeb</code>。浏览器共享系统动态库缓存，冷启动迅速，界面遵循统一的一体化轻量尺度。
+            </p>
+            <dl class="param-list">
+              <div>
+                <dt>系统基座</dt>
+                <dd id="td-base">macOS 14.0+ / HarmonyOS NEXT</dd>
+              </div>
+              <div>
+                <dt>安装体积</dt>
+                <dd id="td-footprint">23.7 MB Universal（arm64 + x86_64）</dd>
+              </div>
+              <div>
+                <dt>界面框架</dt>
+                <dd id="td-ui">SwiftUI / ArkTS 原生控件</dd>
+              </div>
+              <div>
+                <dt>键盘与交互</dt>
+                <dd id="td-ux">全快捷键映射 · 显式可达操作路径</dd>
+              </div>
+            </dl>
+            <p class="transect-jump">
+              <a class="text-action" id="td-link" href="#engine">阅读性能章节</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Engineering Chapter 1: Memory & Resident Tabs -->
+    <section class="band" id="engine" aria-labelledby="engine-title" data-chapter="内核 · 0 重载切换">
+      <div class="shell">
+        <header class="chapter-header">
+          <h2 id="engine-title">常驻轻量，瞬时切换</h2>
+          <p class="chapter-lead">把频繁的页面重载还给静态内存，也把节能的主动权交回给你。</p>
+        </header>
+
+        <dl class="spec-strip">
+          <div>
+            <dt>引擎基座</dt>
+            <dd>系统共享 WebKit / ArkWeb</dd>
+          </div>
+          <div>
+            <dt>默认保活</dt>
+            <dd>会话内 0 次页面重建</dd>
+          </div>
+          <div>
+            <dt>应急阀门</dt>
+            <dd>仅临界内存压力按 LRU 冻结</dd>
+          </div>
+          <div>
+            <dt>省内存模式</dt>
+            <dd>可选 1–8 活跃标签配额</dd>
+          </div>
+        </dl>
+
+        <div class="editorial-spread">
+          <div class="spread-copy">
+            <p>
+              在常规浏览会话中，每一个打开的标签页都默认持有各自活跃的原生 <code>WKWebView</code> 实例。切换标签只是重新挂载已经完成排版的视图层级——不重新发起网络请求，不丢失滚动位置、表单输入、DOM 状态与前进后退历史。
+            </p>
+            <p>
+              如果你同时开启几十个参考页面或工作在内存紧张的设备上，可在设置中随时开启「省内存模式」，设定 1 至 8 个常驻活跃标签上限。超出配额的后台标签会通过 <code>WKWebView.interactionState</code> 序列化为交互快照并释放渲染进程，唤醒时自动还原上下文；而系统的警告级内存压力不会打断当前浏览，仅在临界内存压力下按最近最少使用顺序触发应急冻结。
+            </p>
+            <aside class="field-note">
+              <h4>关于「0 重载」的可观测契约</h4>
+              <p>
+                工具栏中的状态指示器（<code>切换复用 / 页面重建</code>）让标签切换行为随时可观测。在正常保活会话中，每一次标签切换都保证复用现有视图；已冻结标签也会清晰标识睡眠与快照时效，超过时效后自动透明刷新。
+              </p>
+            </aside>
+          </div>
+
+          <figure class="editorial-figure">
+            <img src="/assets/plate-webkit.webp" width="1280" height="853" loading="lazy" alt="三层轻薄半透明玻璃与纸页叠放的架构插画，示意原生 WebKit 与常驻视图层的低开销结构">
+            <figcaption>图 1. 原生视图层与交互状态快照分离示意：活跃页面零开销切换，后台页面按需归档释放。</figcaption>
+          </figure>
+        </div>
+
+        <!-- Engineering Chapter 2: Content Blocking & Extensions -->
+        <div class="chapter-divider">
+          <header class="chapter-header">
+            <h2 id="blocking-title">网络层净化，按需延展</h2>
+            <p class="chapter-lead">拦截规则编译在网络进程里运行，不给网页额外注入一毫秒脚本负担。</p>
+          </header>
+
+          <dl class="spec-strip">
+            <div>
+              <dt>拦截编译</dt>
+              <dd>WKContentRuleList / AdsBlockManager</dd>
+            </div>
+            <div>
+              <dt>运行开销</dt>
+              <dd>0 ms 注入脚本负担</dd>
+            </div>
+            <div>
+              <dt>内置扩展</dt>
+              <dd>5 大精选轻量工具</dd>
+            </div>
+            <div>
+              <dt>扩展兼容</dt>
+              <dd>官网版开放 MV3 与 UserScript</dd>
+            </div>
           </dl>
 
-          <details class="tech-disclosure">
-            <summary>查看完整技术规格与安装包校验信息</summary>
-            <div class="tech-disclosure-body">
-              <dl class="tech-specs-list">
-                <div>
-                  <dt>Bundle ID</dt>
-                  <dd><code>com.youdroid.zhuobrowser.mac</code></dd>
-                </div>
-                <div>
-                  <dt>Developer Team</dt>
-                  <dd><code>Y4MB2B6UD3</code> (Developer ID Signed &amp; Notarized)</dd>
-                </div>
-                <div>
-                  <dt>架构与系统</dt>
-                  <dd>macOS 14.0+ · Universal (<code>arm64</code> + <code>x86_64</code>)</dd>
-                </div>
-                <div>
-                  <dt>DMG SHA-256</dt>
-                  <dd><code>cc9f79546bb454bf246060522de6102ade5e5bc3deee55b9f10fa6e1e2d3db82</code></dd>
-                </div>
-              </dl>
-              <p class="reviewer-note">
-                <strong>For Apple Review &amp; Users:</strong> Mac App Store build includes the 5 curated built-in extensions under full App Sandbox isolation; the notarized universal DMG above additionally enables loading unpacked Chrome MV3 extensions &amp; <code>.crx</code> / <code>.user.js</code> packages. No sign-in is required to use any core browsing feature.
-              </p>
-            </div>
-          </details>
+          <div class="prose-columns">
+            <p>
+              macOS 端通过原生内容规则编译器，将内置的 EasyList 精选规则编译为 <code>WKContentRuleList</code> 二进制字节码，交由 WebKit 网络进程在 C++ 层直接拦截广告、追踪器与弹窗请求；HarmonyOS 端则直接调度 ArkWeb <code>AdsBlockManager</code> 进行分类拦截统计。无需向页面注入沉重的 JavaScript，遇到需要放行的网站时，可在地址栏一键加入单站点白名单。
+            </p>
+            <p>
+              围绕日常高频阅读与查阅场景，浏览器原生内置了暗黑护眼、网页双语翻译、流媒体嗅探、超级复制与脚本管理五大工具，在 App Sandbox 下安全运行。若你在 macOS 桌面端需要更丰富的扩展生态，官网公证独立分发版额外支持导入已解压或 <code>.crx</code> 格式的 Chrome MV3 扩展以及 <code>.user.js</code> 用户脚本。
+            </p>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Closing CTA -->
-    <section class="closing shell" aria-labelledby="closing-title">
-      <img src="/assets/mac-icon.svg?v=20261110" width="88" height="88" alt="卓阅浏览器图标">
-      <div>
-        <p class="eyebrow">ZHUO BROWSER</p>
-        <h2 id="closing-title">
-          <span class="headline-line">轻装上阵，</span>
-          <span class="headline-line">回归纯粹浏览。</span>
-        </h2>
-        <p>为 macOS 与 HarmonyOS NEXT 原生打造。</p>
-        <div class="closing-actions">
-          <a class="primary-link" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            <span>下载官网公证 DMG (23.7 MB)</span>
-          </a>
-          <a class="secondary-link" href="#channels">查看版本说明</a>
+    <!-- Dark Privacy Chapter -->
+    <section class="band band-night" id="privacy" aria-labelledby="privacy-title" data-chapter="隐私 · 本机优先">
+      <div class="shell">
+        <header class="chapter-header chapter-header-night">
+          <h2 id="privacy-title">你的浏览，不需要成为谁的数据。</h2>
+          <p class="chapter-lead">无强制账号、默认本机沙盒存储、独立无痕内存，以及由硬件生物识别守护的系统钥匙串。</p>
+        </header>
+
+        <dl class="spec-strip spec-strip-night">
+          <div>
+            <dt>必需账号</dt>
+            <dd>0 个，开箱即用全部核心功能</dd>
+          </div>
+          <div>
+            <dt>默认存储</dt>
+            <dd>仅限本机系统沙盒目录</dd>
+          </div>
+          <div>
+            <dt>无痕隔离</dt>
+            <dd>独立非持久化内存，关闭即焚</dd>
+          </div>
+          <div>
+            <dt>凭证保护</dt>
+            <dd>macOS 登录钥匙串 + Touch ID</dd>
+          </div>
+        </dl>
+
+        <figure class="editorial-figure editorial-figure-dark">
+          <img src="/assets/plate-privacy-dark.webp" width="1400" height="800" loading="lazy" alt="深色黑曜石松绿背景下的磨砂折叠棱镜与晶环插画，象征本地隐私与硬件级隔离">
+          <figcaption>图 2. 本地优先的隐私边界：无痕会话与多资料容器相互隔离，登录凭证由系统钥匙串与 Touch ID 守护。</figcaption>
+        </figure>
+
+        <div class="prose-columns prose-columns-night">
+          <p>
+            安装后无需登录任何账号即可使用全部核心浏览功能。浏览历史、书签、离线文章、批注、站点权限与拦截规则默认保存在设备本地沙盒中，日常访问的网址、网页正文与搜索词不会上传至任何服务器。无痕标签页在 macOS 端基于 <code>WKWebsiteDataStore.nonPersistent()</code> 运行于独立内存，不写入历史记录或会话恢复文件，关闭标签即刻销毁；多个人资料容器更可将不同工作身份的 Cookie 与存储完全隔离。
+          </p>
+          <p>
+            网站密码直接加密存入 macOS 系统登录钥匙串，每次自动填充均需通过 Touch ID 或系统密码验证，并完整支持 WebAuthn 通行密钥与安全 DNS（DoH）。如果你选择开启可选的云端同步以在设备间延续书签与偏好设置，仅你主动同步的配置会保存在加密存储中，且随时可在应用内「账号中心」一键永久注销账号并清除全部云端记录。
+          </p>
         </div>
+      </div>
+    </section>
+
+    <!-- Interactive Capability & Platform Index -->
+    <section class="band" id="matrix" aria-labelledby="matrix-title" data-chapter="矩阵 · 全平台能力">
+      <div class="shell">
+        <div class="section-bar">
+          <div>
+            <h2 id="matrix-title">全平台能力索引</h2>
+            <p class="section-sub">按分发渠道筛选核对 macOS 官网公证版、Mac App Store 官方版与 HarmonyOS NEXT 版的具体能力边界。</p>
+          </div>
+          <div class="segmented-tabs" role="tablist" aria-label="按分发渠道筛选">
+            <button type="button" class="seg-btn is-active" role="tab" aria-selected="true" data-channel-filter="all">全部渠道</button>
+            <button type="button" class="seg-btn" role="tab" aria-selected="false" data-channel-filter="dmg">官网公证 DMG</button>
+            <button type="button" class="seg-btn" role="tab" aria-selected="false" data-channel-filter="mas">Mac App Store</button>
+            <button type="button" class="seg-btn" role="tab" aria-selected="false" data-channel-filter="hm">HarmonyOS NEXT</button>
+          </div>
+        </div>
+
+        <p class="matrix-count" id="matrix-count" aria-live="polite">显示 10 项核心能力</p>
+
+        <div class="table-scroll">
+          <table class="index-table">
+            <thead>
+              <tr>
+                <th scope="col">能力项</th>
+                <th scope="col">分类</th>
+                <th scope="col">关键规格</th>
+                <th scope="col">渠道支持</th>
+                <th scope="col">工程说明</th>
+              </tr>
+            </thead>
+            <tbody id="matrix-body">
+              <tr data-channels="dmg mas hm">
+                <td class="col-name">原生系统引擎</td>
+                <td>渲染基础</td>
+                <td>WebKit / ArkWeb</td>
+                <td>
+                  <span class="plat-grid" aria-label="支持官网公证版、Mac App Store、HarmonyOS NEXT">
+                    <span class="plat-cell is-on">DMG</span>
+                    <span class="plat-cell is-on">MAS</span>
+                    <span class="plat-cell is-on">HM</span>
+                  </span>
+                </td>
+                <td>直接调用系统动态共享库，拒绝冗余多核包体</td>
+              </tr>
+              <tr data-channels="dmg mas">
+                <td class="col-name">常驻零重载切换</td>
+                <td>标签调度</td>
+                <td>0 次页面重建</td>
+                <td>
+                  <span class="plat-grid" aria-label="支持官网公证版、Mac App Store">
+                    <span class="plat-cell is-on">DMG</span>
+                    <span class="plat-cell is-on">MAS</span>
+                    <span class="plat-cell">HM</span>
+                  </span>
+                </td>
+                <td>桌面端每标签持有活跃 WebView，切换保留滚动与表单状态</td>
+              </tr>
+              <tr data-channels="dmg mas hm">
+                <td class="col-name">后台标签冻结省内存</td>
+                <td>内存管理</td>
+                <td>1–8 配额 / LRU</td>
+                <td>
+                  <span class="plat-grid" aria-label="全平台支持">
+                    <span class="plat-cell is-on">DMG</span>
+                    <span class="plat-cell is-on">MAS</span>
+                    <span class="plat-cell is-on">HM</span>
+                  </span>
+                </td>
+                <td>macOS 支持可选交互快照冻结；HarmonyOS 自动休眠后台页</td>
+              </tr>
+              <tr data-channels="dmg mas hm">
+                <td class="col-name">网络层内容拦截</td>
+                <td>净化过滤</td>
+                <td>0 ms 脚本开销</td>
+                <td>
+                  <span class="plat-grid" aria-label="全平台支持">
+                    <span class="plat-cell is-on">DMG</span>
+                    <span class="plat-cell is-on">MAS</span>
+                    <span class="plat-cell is-on">HM</span>
+                  </span>
+                </td>
+                <td>EasyList 编译为原生规则，支持单站点白名单一键放行</td>
+              </tr>
+              <tr data-channels="dmg mas">
+                <td class="col-name">钥匙串与 Touch ID</td>
+                <td>身份认证</td>
+                <td>Login Keychain</td>
+                <td>
+                  <span class="plat-grid" aria-label="支持官网公证版、Mac App Store">
+                    <span class="plat-cell is-on">DMG</span>
+                    <span class="plat-cell is-on">MAS</span>
+                    <span class="plat-cell">HM</span>
+                  </span>
+                </td>
+                <td>密码本地加密存入系统钥匙串，生物识别验证后自动填充</td>
+              </tr>
+              <tr data-channels="dmg mas hm">
+                <td class="col-name">安全连接与通行密钥</td>
+                <td>网络安全</td>
+                <td>WebAuthn · DoH</td>
+                <td>
+                  <span class="plat-grid" aria-label="全平台支持">
+                    <span class="plat-cell is-on">DMG</span>
+                    <span class="plat-cell is-on">MAS</span>
+                    <span class="plat-cell is-on">HM</span>
+                  </span>
+                </td>
+                <td>支持通行密钥免密登录、加密 DNS 解析与防欺诈告警</td>
+              </tr>
+              <tr data-channels="dmg mas">
+                <td class="col-name">五大内置精选工具</td>
+                <td>内置扩展</td>
+                <td>5 项原生集成</td>
+                <td>
+                  <span class="plat-grid" aria-label="支持官网公证版、Mac App Store">
+                    <span class="plat-cell is-on">DMG</span>
+                    <span class="plat-cell is-on">MAS</span>
+                    <span class="plat-cell">HM</span>
+                  </span>
+                </td>
+                <td>暗黑护眼、网页双语翻译、流媒体嗅探、超级复制、脚本管理</td>
+              </tr>
+              <tr data-channels="dmg">
+                <td class="col-name">外部 MV3 与用户脚本</td>
+                <td>扩展生态</td>
+                <td>.crx / .user.js</td>
+                <td>
+                  <span class="plat-grid" aria-label="仅官网公证版开放">
+                    <span class="plat-cell is-on">DMG</span>
+                    <span class="plat-cell">MAS</span>
+                    <span class="plat-cell">HM</span>
+                  </span>
+                </td>
+                <td>官网公证独立分发版开放已解压 Chrome MV3 扩展与脚本导入</td>
+              </tr>
+              <tr data-channels="hm">
+                <td class="col-name">阅读模式与离线文章库</td>
+                <td>深度阅读</td>
+                <td>ArkWeb 正文抽取</td>
+                <td>
+                  <span class="plat-grid" aria-label="支持 HarmonyOS NEXT">
+                    <span class="plat-cell">DMG</span>
+                    <span class="plat-cell">MAS</span>
+                    <span class="plat-cell is-on">HM</span>
+                  </span>
+                </td>
+                <td>适配手机、平板与二合一设备，支持行距调节、批注与全文检索</td>
+              </tr>
+              <tr data-channels="dmg mas hm">
+                <td class="col-name">无痕内存与多资料容器</td>
+                <td>隐私隔离</td>
+                <td>nonPersistent()</td>
+                <td>
+                  <span class="plat-grid" aria-label="全平台支持">
+                    <span class="plat-cell is-on">DMG</span>
+                    <span class="plat-cell is-on">MAS</span>
+                    <span class="plat-cell is-on">HM</span>
+                  </span>
+                </td>
+                <td>无痕标签关闭即焚，macOS 端额外提供多资料 Cookie 容器隔离</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Distribution Channels & Checksum Verification -->
+    <section class="band band-tint" id="channels" aria-labelledby="channels-title" data-chapter="分发 · 双渠道获取">
+      <div id="release-channels" class="anchor-guard" aria-hidden="true"></div>
+      <div class="shell">
+        <header class="chapter-header">
+          <h2 id="channels-title">按你的设备与偏好获取</h2>
+          <p class="chapter-lead">macOS 提供官网公证独立版与官方商店沙盒版双渠道，移动端原生适配 HarmonyOS NEXT。</p>
+        </header>
+
+        <div class="channel-columns">
+          <article class="channel-col">
+            <div class="channel-head">
+              <span class="channel-label is-accent">Apple 公证 · 完整扩展</span>
+              <h3>macOS 官网公证版</h3>
+              <p>
+                Developer ID 签名并通过 Apple 公证。包含全部核心浏览与钥匙串能力，并额外开放 Chrome MV3 扩展（<code>.crx</code> / 已解压目录）与 <code>.user.js</code> 脚本导入。
+              </p>
+            </div>
+            <div class="channel-action">
+              <a class="btn-primary btn-block" href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>下载 Universal DMG (23.7 MB)</a>
+            </div>
+          </article>
+
+          <article class="channel-col">
+            <div class="channel-head">
+              <span class="channel-label">官方商店 · 沙盒认证</span>
+              <h3>Mac App Store 官方版</h3>
+              <p>
+                遵循 Apple App Sandbox 严格安全规范，支持系统自动更新。内置五大精选扩展与完整钥匙串生物识别能力（依商店规范不开放外部扩展包导入）。
+              </p>
+            </div>
+            <div class="channel-action">
+              <span class="status-flat">Mac App Store 审核上架中</span>
+            </div>
+          </article>
+
+          <article class="channel-col">
+            <div class="channel-head">
+              <span class="channel-label">华为应用市场 · 原生鸿蒙</span>
+              <h3>HarmonyOS NEXT 版</h3>
+              <p>
+                基于 ArkTS 与 ArkWeb 原生打造，适配鸿蒙手机、平板与二合一设备，支持纯净阅读模式、页内查找、大屏阅读工作台与离线文章库。
+              </p>
+            </div>
+            <div class="channel-action">
+              <a class="btn-outline btn-block store-link" href="https://appgallery.huawei.com/app/detail?id=com.youdroid.browser&channelId=SHARE&source=appshare" target="_blank" rel="noopener noreferrer">在华为 AppGallery 获取</a>
+            </div>
+          </article>
+        </div>
+
+        <details class="spec-disclosure">
+          <summary>查看完整技术规格、SHA-256 校验与 Apple Review 说明</summary>
+          <div class="spec-disclosure-body">
+            <dl class="param-list">
+              <div>
+                <dt>Bundle ID</dt>
+                <dd><code>com.youdroid.zhuobrowser.mac</code></dd>
+              </div>
+              <div>
+                <dt>Developer Team</dt>
+                <dd><code>Y4MB2B6UD3</code> (Developer ID Signed &amp; Notarized)</dd>
+              </div>
+              <div>
+                <dt>架构与系统</dt>
+                <dd>macOS 14.0+ · Universal (<code>arm64</code> + <code>x86_64</code>)</dd>
+              </div>
+              <div>
+                <dt>DMG SHA-256</dt>
+                <dd><code>cc9f79546bb454bf246060522de6102ade5e5bc3deee55b9f10fa6e1e2d3db82</code></dd>
+              </div>
+            </dl>
+            <aside class="field-note field-note-review">
+              <p>
+                <strong>For Apple Review &amp; Users:</strong> Mac App Store build includes the 5 curated built-in extensions under full App Sandbox isolation; the notarized universal DMG above additionally enables loading unpacked Chrome MV3 extensions &amp; <code>.crx</code> / <code>.user.js</code> packages. No sign-in is required to use any core browsing feature.
+              </p>
+            </aside>
+          </div>
+        </details>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="shell footer-layout">
-      <p>© 2026 youdroid. 卓阅浏览器 (Zhuo Browser).</p>
-      <p class="footer-links">
+      <div class="footer-brand">
+        <p class="footer-title">Zhuo浏览器</p>
+        <p class="footer-note">原卓阅浏览器 · 为 macOS 与 HarmonyOS NEXT 原生打造。</p>
+        <p class="footer-copy">© 2026 youdroid.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#top">返回顶部</a>
         <a href="/downloads/ZhuoBrowser-1.0.0-mac-universal.dmg" download>下载 Mac 版 (.dmg)</a>
         <a class="store-link" href="https://appgallery.huawei.com/app/detail?id=com.youdroid.browser&channelId=SHARE&source=appshare" target="_blank" rel="noopener noreferrer">华为 AppGallery</a>
         <a href="/terms.html">用户协议</a>
         <a href="/privacy.html">隐私政策</a>
-      </p>
+      </div>
     </div>
   </footer>
 
   <script>
     (function () {
+      // HarmonyOS AppGallery deep link handling
       var STORE_URL = 'https://appgallery.huawei.com/app/detail?id=com.youdroid.browser&channelId=SHARE&source=appshare';
       var STORE_SCHEME = 'store://appgallery.huawei.com/app/detail?id=com.youdroid.browser';
 
@@ -395,6 +631,169 @@
       var storeLinks = document.querySelectorAll('.store-link');
       for (var i = 0; i < storeLinks.length; i++) {
         storeLinks[i].addEventListener('click', handleStoreClick);
+      }
+
+      // Architecture transect interactive inspector
+      var layers = [
+        {
+          title: '原生渲染引擎与克制界面',
+          summary: '抛弃内嵌 Chromium 与 Electron 冗余运行时，直接调用 macOS WebKit.framework 与 HarmonyOS ArkWeb。浏览器共享系统动态库缓存，冷启动迅速，界面遵循统一的一体化轻量尺度。',
+          base: 'macOS 14.0+ / HarmonyOS NEXT',
+          footprint: '23.7 MB Universal（arm64 + x86_64）',
+          ui: 'SwiftUI / ArkTS 原生控件',
+          ux: '全快捷键映射 · 显式可达操作路径',
+          href: '#engine',
+          linkText: '阅读性能章节'
+        },
+        {
+          title: '常驻标签池与交互快照',
+          summary: '默认让会话内的每个标签持有独立活跃视图，切换零网络重建与滚动丢失。开启可选「省内存模式」后，超出 1–8 配额的后台标签通过系统 interactionState 归档释放内存。',
+          base: '默认常驻 · 可选省内存配额',
+          footprint: '约 80–250 MB / 活跃标签进程',
+          ui: '切换复用 / 页面重建实时状态标牌',
+          ux: '仅临界内存压力触发应急 LRU 冻结',
+          href: '#engine',
+          linkText: '查看内存契约'
+        },
+        {
+          title: 'C++ 网络层字节码拦截',
+          summary: '将 EasyList 精选规则预先编译为原生内容过滤字节码，直接在 WebKit 网络进程内阻断广告、追踪脚本与弹出窗口，页面零注入开销，并支持地址栏单站点放行。',
+          base: 'WKContentRuleList / AdsBlockManager',
+          footprint: '0 ms 页面脚本注入负担',
+          ui: '五大内置精选工具 + 地址栏白名单',
+          ux: '官网公证版开放 MV3 与 .user.js 导入',
+          href: '#blocking-title',
+          linkText: '了解净化与扩展'
+        },
+        {
+          title: '系统钥匙串与沙盒隔离',
+          summary: '无需注册账号即可使用全部核心能力。密码加密存入系统登录钥匙串并由 Touch ID 校验填充；无痕模式运行在非持久化独立内存中，关闭标签即彻底销毁。',
+          base: 'Login Keychain + App Sandbox',
+          footprint: '0 个必需账号 · 默认纯本机存储',
+          ui: 'WebAuthn 通行密钥 · 安全 DNS (DoH)',
+          ux: '多资料容器隔离 · 云端账号一键永久注销',
+          href: '#privacy',
+          linkText: '阅读隐私架构'
+        }
+      ];
+
+      var tabBtns = document.querySelectorAll('[data-layer-tab]');
+      var bandEls = document.querySelectorAll('[data-layer-band]');
+      var tdTitle = document.getElementById('td-title');
+      var tdSummary = document.getElementById('td-summary');
+      var tdBase = document.getElementById('td-base');
+      var tdFootprint = document.getElementById('td-footprint');
+      var tdUi = document.getElementById('td-ui');
+      var tdUx = document.getElementById('td-ux');
+      var tdLink = document.getElementById('td-link');
+
+      function selectLayer(idx) {
+        var data = layers[idx];
+        if (!data || !tdTitle) return;
+        for (var j = 0; j < tabBtns.length; j++) {
+          var active = j === idx;
+          tabBtns[j].classList.toggle('is-active', active);
+          tabBtns[j].setAttribute('aria-selected', active ? 'true' : 'false');
+        }
+        for (var k = 0; k < bandEls.length; k++) {
+          bandEls[k].classList.toggle('is-active', k === idx);
+        }
+        tdTitle.textContent = data.title;
+        tdSummary.textContent = data.summary;
+        tdBase.textContent = data.base;
+        tdFootprint.textContent = data.footprint;
+        tdUi.textContent = data.ui;
+        tdUx.textContent = data.ux;
+        tdLink.setAttribute('href', data.href);
+        tdLink.textContent = data.linkText;
+      }
+
+      for (var t = 0; t < tabBtns.length; t++) {
+        (function (index) {
+          tabBtns[index].addEventListener('click', function () {
+            selectLayer(index);
+          });
+        })(t);
+      }
+
+      for (var b = 0; b < bandEls.length; b++) {
+        (function (index) {
+          bandEls[index].addEventListener('click', function () {
+            selectLayer(index);
+          });
+          bandEls[index].addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter' || ev.key === ' ') {
+              ev.preventDefault();
+              selectLayer(index);
+            }
+          });
+        })(b);
+      }
+
+      // Platform capability matrix filter
+      var filterBtns = document.querySelectorAll('[data-channel-filter]');
+      var matrixRows = document.querySelectorAll('#matrix-body tr');
+      var matrixCount = document.getElementById('matrix-count');
+      var filterNames = {
+        all: '全部渠道',
+        dmg: '官网公证 DMG',
+        mas: 'Mac App Store',
+        hm: 'HarmonyOS NEXT'
+      };
+
+      function applyFilter(channel) {
+        var visible = 0;
+        for (var r = 0; r < matrixRows.length; r++) {
+          var row = matrixRows[r];
+          var supported = (row.getAttribute('data-channels') || '').split(' ');
+          var show = channel === 'all' || supported.indexOf(channel) !== -1;
+          row.hidden = !show;
+          if (show) visible++;
+        }
+        for (var f = 0; f < filterBtns.length; f++) {
+          var btn = filterBtns[f];
+          var active = btn.getAttribute('data-channel-filter') === channel;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        }
+        if (matrixCount) {
+          matrixCount.textContent = channel === 'all'
+            ? '显示 ' + visible + ' 项核心能力'
+            : filterNames[channel] + '：显示 ' + visible + ' 项支持能力';
+        }
+      }
+
+      for (var fb = 0; fb < filterBtns.length; fb++) {
+        filterBtns[fb].addEventListener('click', function () {
+          applyFilter(this.getAttribute('data-channel-filter'));
+        });
+      }
+
+      // Scroll-aware header readout & active nav link
+      var readout = document.getElementById('nav-readout');
+      var navItems = document.querySelectorAll('.nav-links a[data-nav]');
+      var chapters = document.querySelectorAll('[data-chapter]');
+
+      if ('IntersectionObserver' in window && chapters.length) {
+        var observer = new IntersectionObserver(function (entries) {
+          for (var e = 0; e < entries.length; e++) {
+            if (entries[e].isIntersecting) {
+              var el = entries[e].target;
+              var chapterText = el.getAttribute('data-chapter');
+              var id = el.getAttribute('id');
+              if (readout && chapterText) {
+                readout.textContent = chapterText;
+              }
+              for (var n = 0; n < navItems.length; n++) {
+                navItems[n].classList.toggle('is-active', navItems[n].getAttribute('data-nav') === id);
+              }
+            }
+          }
+        }, { rootMargin: '-35% 0px -55% 0px', threshold: 0 });
+
+        for (var c = 0; c < chapters.length; c++) {
+          observer.observe(chapters[c]);
+        }
       }
     })();
   </script>

@@ -1,14 +1,14 @@
 {
-  "name": "卓阅浏览器",
-  "short_name": "卓阅",
+  "name": "Zhuo浏览器",
+  "short_name": "Zhuo",
   "lang": "zh-CN",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FAF9F7",
-  "theme_color": "#FAF9F7",
+  "background_color": "#F8FAFA",
+  "theme_color": "#F8FAFA",
   "icons": [
     {
-      "src": "/assets/icon.svg?v=20260818-square",
+      "src": "/assets/favicon.svg?v=20261125",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
