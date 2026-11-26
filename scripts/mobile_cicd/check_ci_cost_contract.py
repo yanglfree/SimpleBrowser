@@ -19,6 +19,7 @@ FORBIDDEN = (
 REQUIRED = {
     "ci.yml": "name: CI",
     "harmony-artifacts.yml": "name: HarmonyOS Signed Artifacts",
+    "ci-alert.yml": "name: CI Failure Alert",
 }
 
 
@@ -61,6 +62,22 @@ for fragment in (
 ):
     if fragment not in release:
         fail(f"harmony-artifacts.yml is missing accepted-source invariant: {fragment}")
+
+alert = (WORKFLOWS / "ci-alert.yml").read_text(encoding="utf-8")
+for fragment in (
+    "workflow_run:",
+    "workflows: [CI]",
+    "types: [completed]",
+    "issues: write",
+    "actions: read",
+    "scripts/mobile_cicd/ci-alert.mjs",
+):
+    if fragment not in alert:
+        fail(f"ci-alert.yml is missing failure-alert invariant: {fragment}")
+if "conclusion == 'success'" in alert:
+    fail("ci-alert.yml must react to failed CI runs, not only successful ones")
+if not (ROOT / "scripts" / "mobile_cicd" / "ci-alert.mjs").is_file():
+    fail("ci-alert.yml references a missing scripts/mobile_cicd/ci-alert.mjs")
 
 all_workflows = "\n".join(path.read_text(encoding="utf-8").lower() for path in workflow_files)
 for legacy_source in ("harmony_signing_profile:", "build-profile.release.json5", "build-profile.device.json5", "portal_admin_token", "portal_recovery_token"):

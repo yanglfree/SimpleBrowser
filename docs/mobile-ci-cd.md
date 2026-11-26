@@ -52,6 +52,42 @@ The repository has native iOS and Android targets. CI verifies only Android, and
 is no iOS archive/Ad Hoc/TestFlight/App Store workflow or Android retained/store
 publication workflow in this migration.
 
+## CI failure alerting
+
+CI runs on a 30-minute schedule, so a broken `main` can stay red without anyone
+noticing — it did from 2026-11-01 to 2026-11-26. `ci-alert.yml` reacts to every CI
+completion on `main` and turns a sustained streak into one tracked issue. The
+workflow only orchestrates; the decision lives in `scripts/mobile_cicd/ci-alert.mjs`
+and is covered by `ci-alert.test.mjs`:
+
+```text
+CI completes on main
+  -> recompute the current failure streak from run history
+  -> streak >= threshold (default 3) and no open alert
+     -> open issue titled "[ci-alert] CI on main has failed N runs in a row"
+  -> streak >= threshold and an alert is already open
+     -> refresh that issue's body (no extra notifications)
+  -> streak == 0 and an alert is open
+     -> comment the recovery and close the issue
+```
+
+Properties worth keeping:
+
+- The streak is recomputed from the `ci.yml` run history, never taken from the
+  triggering event, so a manual dispatch and an automatic run agree. Cancelled and
+  in-progress runs neither extend nor reset the streak.
+- Dedupe uses the fixed `[ci-alert]` title prefix instead of a label, so no label
+  lifecycle has to survive a runner rebuild.
+- The workflow only needs `contents: read`, `actions: read` and `issues: write`; it
+  never touches signing, artifacts, or the publication pointer.
+- `workflow_dispatch` accepts `threshold` and `dry_run` for testing the decision
+  without writing to the tracker:
+
+```bash
+GH_TOKEN=… node scripts/mobile_cicd/ci-alert.mjs --repository <owner/repo> --dry-run
+```
+
+
 ## Required external state
 
 GitHub environment `mobile-distribution`:

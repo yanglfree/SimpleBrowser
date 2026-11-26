@@ -1,0 +1,62 @@
+name: CI Failure Alert
+
+# CI runs every 30 minutes on a schedule, so a broken main can stay red for weeks
+# without anyone noticing (it did from 2026-11-01 to 2026-11-26). This workflow turns
+# a sustained failure streak into one tracked issue and closes it once CI is green.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: Consecutive failed CI runs required before an alert issue is opened
+        required: false
+        default: '3'
+      dry_run:
+        description: Report the decision without creating, editing or closing issues
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: zhuobrowser-ci-alert
+  cancel-in-progress: false
+
+env:
+  PATH: /Users/liang/Library/Huawei/CommandLineTools/current/bin:/Users/liang/.nvm/versions/node/v24.19.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+jobs:
+  alert:
+    name: Track consecutive CI failures
+    runs-on: [self-hosted, macOS, ARM64, harmonyos, zhuobrowser]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout alert logic from the default branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Evaluate CI health on main
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          REQUESTED_THRESHOLD: ${{ github.event.inputs.threshold }}
+          REQUESTED_DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=(--repository "$REPOSITORY")
+          if [[ -n "${REQUESTED_THRESHOLD:-}" ]]; then
+            args+=(--threshold "$REQUESTED_THRESHOLD")
+          fi
+          if [[ "${REQUESTED_DRY_RUN:-false}" == "true" ]]; then
+            args+=(--dry-run)
+          fi
+          node scripts/mobile_cicd/ci-alert.mjs "${args[@]}"
