@@ -27,6 +27,15 @@
     {
       "binding": "WALLPAPERS",
       "bucket_name": "zhuobrowser-wallpapers"
+    },
+    {
+      "binding": "SYNC_BUNDLES",
+      "bucket_name": "zhuobrowser-sync-bundles"
+    }
+  ],
+  "send_email": [
+    {
+      "name": "EMAIL"
     }
   ],
   "triggers": {
@@ -38,6 +47,10 @@
   "vars": {
     "APP_ID": "zhuobrowser-mac",
     "IAP_GATEWAY_URL": "https://gateway.youdroid.top",
-    "OAUTH_REDIRECT_BASE": "https://auth.zhuobrowser.youdroid.top"
+    "OAUTH_REDIRECT_BASE": "https://auth.zhuobrowser.youdroid.top",
+    "APPLE_CLIENT_IDS": "com.youdroid.zhuobrowser,com.youdroid.zhuobrowser.mac",
+    "EMAIL_FROM": "noreply@auth-mail.youdroid.top",
+    "EMAIL_FROM_NAME": "卓阅浏览器",
+    "RESEND_FROM": "卓阅浏览器 <no-reply@youdroid.top>"
   }
 }

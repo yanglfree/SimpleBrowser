@@ -74,7 +74,9 @@ export async function handleGetAuthProviders(
     {
       id: 'email_otp',
       enabled: true,
-      configured: Boolean(env.RESEND_API_KEY || env.EMAIL_WEBHOOK_URL || env.ALLOW_DEV_OTP_ECHO === 'true'),
+      configured: Boolean(
+        env.RESEND_API_KEY || env.EMAIL || env.EMAIL_WEBHOOK_URL || env.ALLOW_DEV_OTP_ECHO === 'true'
+      ),
     },
     { id: 'email_password', enabled: true, configured: true },
   ];
@@ -198,6 +200,21 @@ export async function handleOtpSend(
       }),
     });
     delivered = resp.ok;
+  } else if (env.EMAIL) {
+    try {
+      const fromEmail = (env.EMAIL_FROM || 'noreply@auth-mail.youdroid.top').trim();
+      const fromName = (env.EMAIL_FROM_NAME || '卓阅浏览器').trim();
+      const result = await env.EMAIL.send({
+        from: { email: fromEmail, name: fromName },
+        to: [email],
+        subject: '卓阅浏览器登录验证码',
+        text: `你的卓阅浏览器登录验证码为：${code}（10 分钟内有效，请勿泄露给他人）。`,
+        html: `<p>你的卓阅浏览器登录验证码为：<strong>${code}</strong></p><p>10 分钟内有效，请勿泄露给他人。</p>`,
+      });
+      delivered = Boolean(result?.messageId);
+    } catch {
+      delivered = false;
+    }
   } else if (env.EMAIL_WEBHOOK_URL) {
     const resp = await externalFetch(env.EMAIL_WEBHOOK_URL, {
       method: 'POST',

@@ -1,11 +1,26 @@
+export interface EmailMessagePayload {
+  from: string | { email: string; name: string };
+  to: string | string[];
+  subject: string;
+  text?: string;
+  html?: string;
+}
+
+export interface SendEmailBinding {
+  send(message: EmailMessagePayload): Promise<{ messageId: string }>;
+}
+
 export interface Env {
   AUTH_DB: D1Database;
   AVATARS?: R2Bucket;
   WALLPAPERS?: R2Bucket;
   SYNC_BUNDLES?: R2Bucket;
+  EMAIL?: SendEmailBinding;
   APP_ID?: string;
   IAP_GATEWAY_URL?: string;
   OAUTH_REDIRECT_BASE?: string;
+  EMAIL_FROM?: string;
+  EMAIL_FROM_NAME?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM?: string;
   EMAIL_WEBHOOK_URL?: string;

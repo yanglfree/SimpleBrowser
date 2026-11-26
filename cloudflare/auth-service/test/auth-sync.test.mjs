@@ -683,3 +683,40 @@ test('Pro entitlement binding unlocks cross-platform Pro article sync & deletes 
     setIapFetchOverrideForTesting(null);
   }
 });
+
+test('send_email Workers binding delivers OTP without third-party API secrets', async () => {
+  const sentMessages = [];
+  const env = {
+    ...makeEnv(),
+    ALLOW_DEV_OTP_ECHO: 'false',
+    EMAIL_FROM: 'noreply@auth-mail.youdroid.top',
+    EMAIL_FROM_NAME: '卓阅浏览器',
+    EMAIL: {
+      async send(msg) {
+        sentMessages.push(msg);
+        return { messageId: 'cf-msg-001' };
+      },
+    },
+  };
+
+  const providersResp = await api(env, '/api/auth/providers?platform=ios&region=CN');
+  assert.equal(providersResp.status, 200);
+  const providersData = await providersResp.json();
+  const otpProvider = providersData.providers.find((p) => p.id === 'email_otp');
+  assert.equal(otpProvider?.configured, true);
+
+  const sendResp = await api(env, '/api/auth/otp/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'otp-binding@example.com' }),
+  });
+  assert.equal(sendResp.status, 200);
+  const sendData = await sendResp.json();
+  assert.equal(sendData.ok, true);
+  assert.equal(sendData.devCode, undefined);
+  assert.equal(sentMessages.length, 1);
+  assert.equal(sentMessages[0].from.email, 'noreply@auth-mail.youdroid.top');
+  assert.deepEqual(sentMessages[0].to, ['otp-binding@example.com']);
+  assert.match(sentMessages[0].text, /\d{6}/);
+  assert.match(sentMessages[0].html, /<strong>\d{6}<\/strong>/);
+});
