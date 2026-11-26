@@ -149,7 +149,7 @@ class AccountSyncClient(context: Context) {
         val encodedDeviceId = URLEncoder.encode(deviceId, "UTF-8")
         val encodedDeviceName = URLEncoder.encode(deviceName, "UTF-8")
         return "$PRIMARY_AUTH_BASE_URL/api/auth/oauth/google/start" +
-            "?platform=android&redirect_uri=$redirectUri&device_id=$encodedDeviceId&device_name=$encodedDeviceName"
+            "?platform=android&client_redirect_uri=$redirectUri&device_id=$encodedDeviceId&device_name=$encodedDeviceName"
     }
 
     fun exchangeOAuthCallback(uriString: String): AuthActionResult {

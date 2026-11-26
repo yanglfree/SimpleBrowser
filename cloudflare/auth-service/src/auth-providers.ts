@@ -432,7 +432,11 @@ export async function handleOAuthStart(
     return jsonResponse({ error: 'Unsupported browser OAuth provider' }, headers, 400);
   }
 
-  const clientRedirectUri = (url.searchParams.get('client_redirect_uri') || '').trim();
+  const clientRedirectUri = (
+    url.searchParams.get('client_redirect_uri') ||
+    url.searchParams.get('redirect_uri') ||
+    ''
+  ).trim();
   const isAllowedRedirect = ALLOWED_CLIENT_REDIRECT_PREFIXES.some((prefix) =>
     clientRedirectUri.startsWith(prefix)
   );
