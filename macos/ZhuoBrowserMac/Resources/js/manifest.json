@@ -15,7 +15,6 @@
     "tracker-block.js",
     "content-cleanup-standard.js",
     "content-cleanup-strict.js",
-    "article-capture.js",
-    "autofill-agent.js"
+    "article-capture.js"
   ]
 }
