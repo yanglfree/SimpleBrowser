@@ -344,7 +344,7 @@ export class ShuYiShuAnalytics {
       return;
     }
     const nowMs: number = this.now().getTime();
-    const merged: ShuYiShuJsonObject = { ...properties };
+    const merged: ShuYiShuJsonObject = this.cloneJsonObject(properties);
     if (this.sessionLastScreen !== undefined && this.sessionLastScreen !== screenName && merged.previous_screen === undefined) {
       merged.previous_screen = this.sessionLastScreen;
     }
@@ -405,11 +405,13 @@ export class ShuYiShuAnalytics {
     this.sessionEventCount = 0;
     this.sessionScreenCount = 0;
 
-    const merged: ShuYiShuJsonObject = {
-      event_count: eventCount,
-      screen_count: screenCount,
-      ...properties,
-    };
+    const merged: ShuYiShuJsonObject = this.cloneJsonObject(properties);
+    if (merged.event_count === undefined) {
+      merged.event_count = eventCount;
+    }
+    if (merged.screen_count === undefined) {
+      merged.screen_count = screenCount;
+    }
     if (durationMs !== undefined && merged.duration_ms === undefined) {
       merged.duration_ms = durationMs;
     }
@@ -500,7 +502,7 @@ export class ShuYiShuAnalytics {
           throw error;
         }
         this.restore(events);
-        throw error;
+        throw error instanceof Error ? error : new ShuYiShuIngestionError(0);
       }
     }
   }
@@ -715,18 +717,78 @@ export class ShuYiShuAnalytics {
     }
   }
 
+  // ArkTS has no object spread, so property maps need an explicit field-by-field copy.
+  private cloneJsonObject(source: ShuYiShuJsonObject): ShuYiShuJsonObject {
+    const clone: ShuYiShuJsonObject = {};
+    if (source.screen !== undefined) {
+      clone.screen = source.screen;
+    }
+    if (source.previous_screen !== undefined) {
+      clone.previous_screen = source.previous_screen;
+    }
+    if (source.dwell_ms !== undefined) {
+      clone.dwell_ms = source.dwell_ms;
+    }
+    if (source.name !== undefined) {
+      clone.name = source.name;
+    }
+    if (source.feature !== undefined) {
+      clone.feature = source.feature;
+    }
+    if (source.source !== undefined) {
+      clone.source = source.source;
+    }
+    if (source.tab !== undefined) {
+      clone.tab = source.tab;
+    }
+    if (source.surface !== undefined) {
+      clone.surface = source.surface;
+    }
+    if (source.section !== undefined) {
+      clone.section = source.section;
+    }
+    if (source.action !== undefined) {
+      clone.action = source.action;
+    }
+    if (source.outcome !== undefined) {
+      clone.outcome = source.outcome;
+    }
+    if (source.error_category !== undefined) {
+      clone.error_category = source.error_category;
+    }
+    if (source.latency_ms !== undefined) {
+      clone.latency_ms = source.latency_ms;
+    }
+    if (source.duration_ms !== undefined) {
+      clone.duration_ms = source.duration_ms;
+    }
+    if (source.event_count !== undefined) {
+      clone.event_count = source.event_count;
+    }
+    if (source.screen_count !== undefined) {
+      clone.screen_count = source.screen_count;
+    }
+    if (source.last_screen !== undefined) {
+      clone.last_screen = source.last_screen;
+    }
+    if (source.end_reason !== undefined) {
+      clone.end_reason = source.end_reason;
+    }
+    return clone;
+  }
+
   private async postBatchWithRetry(body: string): Promise<void> {
-    let lastError: Error = new ShuYiShuIngestionError(0);
+    let lastError: ShuYiShuIngestionError = new ShuYiShuIngestionError(0);
 
     for (let attempt: number = 0; attempt <= this.retryAttempts; attempt += 1) {
       try {
-        const response: ShuYiShuTransportResponse = await this.options.transport.postJson({
+        const requestHeaders: ShuYiShuHeaders = { 'content-type': 'application/json' };
+        const request: ShuYiShuTransportRequest = {
           url: this.buildEventsUrl(),
-          headers: {
-            'content-type': 'application/json',
-          },
-          body,
-        });
+          headers: requestHeaders,
+          body: body,
+        };
+        const response: ShuYiShuTransportResponse = await this.options.transport.postJson(request);
 
         if (response.statusCode >= 200 && response.statusCode < 300) {
           return;
@@ -741,7 +803,7 @@ export class ShuYiShuAnalytics {
         if (error instanceof ShuYiShuIngestionError && !error.isRetryable) {
           throw error;
         }
-        lastError = error instanceof Error ? error : new ShuYiShuIngestionError(0);
+        lastError = error instanceof ShuYiShuIngestionError ? error : new ShuYiShuIngestionError(0);
       }
 
       if (attempt < this.retryAttempts) {

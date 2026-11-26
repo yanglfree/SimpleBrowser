@@ -236,7 +236,7 @@ export class TelemetryService {
   static setEnabled(enabled: boolean): void {
     TelemetryService.enabled = enabled;
     TelemetryService.consentResolved = true;
-    TelemetryService.client?.setConsentState(enabled ? 'granted' : 'denied');
+    TelemetryService.client?.setConsent(enabled ? 'granted' : 'denied');
     const pendingStartupMs: number | undefined = TelemetryService.pendingStartupMs;
     TelemetryService.pendingStartupMs = undefined;
     if (enabled && pendingStartupMs !== undefined) {
@@ -262,7 +262,7 @@ export class TelemetryService {
       TelemetryService.pendingForeground = true;
       return;
     }
-    client.setConsentState('granted');
+    client.setConsent('granted');
     client.handleAppForegrounded();
   }
 
@@ -418,7 +418,7 @@ export class TelemetryService {
     if (client === undefined) {
       return;
     }
-    client.setConsentState('granted');
+    client.setConsent('granted');
     client.track(eventName, props, extras);
   }
 
