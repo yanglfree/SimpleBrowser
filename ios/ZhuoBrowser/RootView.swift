@@ -1,5 +1,28 @@
 import SwiftUI
 
+/// One of the alerts RootView can present. SwiftUI honours only one presentation per
+/// view, so every alert has to come through a single `.alert(item:)`; separate modifiers
+/// on the same view shadow each other.
+private enum RootAlert: Identifiable {
+    case expiredTabs
+    case tabSoftLimit
+    case download(DownloadPolicyRequest)
+    case insecureSite(SiteSecurityWarning)
+    case externalProtocol(ExternalProtocolRequest)
+    case pageIssue(PageIssueDiagnostic)
+
+    var id: String {
+        switch self {
+        case .expiredTabs: return "expired-tabs"
+        case .tabSoftLimit: return "tab-soft-limit"
+        case let .download(request): return "download-\(request.taskID)"
+        case let .insecureSite(warning): return "insecure-site-\(warning.id.uuidString)"
+        case let .externalProtocol(request): return "external-protocol-\(request.id)"
+        case .pageIssue: return "page-issue"
+        }
+    }
+}
+
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openWindow) private var openWindow
@@ -140,69 +163,89 @@ struct RootView: View {
             )
                 .preferredColorScheme(preferredColorScheme)
         }
-        .alert("恢复过期标签页？", isPresented: $session.showsExpiredTabsPrompt) {
-            Button("恢复") { session.restoreExpiredTabs() }
-            Button("稍后处理", role: .cancel) {}
-        } message: {
-            Text("有 \(session.archivedTabs.count) 个标签页超过保留期限。")
-        }
-        .alert("标签页较多", isPresented: $session.showsTabSoftLimitPrompt) {
-            Button("清理旧标签页") { session.cleanupSoftLimitTabs() }
-            Button("继续新建", role: .cancel) {}
-        } message: {
-            Text("已达到 \(session.settings.tabSoftLimit) 个标签页。可以清理较旧的标签页，也可以继续新建。")
-        }
-        .alert(item: downloadPolicyBinding) { request in
-            switch request.reason {
-            case .wifiRequired:
+        // SwiftUI keeps only one presentation per view, so stacking several `.alert`
+        // modifiers here silently disabled every alert but the last of each kind
+        // (external protocols, HTTP password warnings, download policy, expired tabs).
+        // Funnel them through a single alert instead.
+        .alert(item: rootAlertBinding) { alert in
+            switch alert {
+            case .expiredTabs:
                 return Alert(
-                    title: Text("需要 Wi-Fi"),
-                    message: Text("“\(request.fileName)”将在连接 Wi-Fi 后才能下载。"),
-                    dismissButton: .cancel(Text("取消下载")) {
-                        session.downloads.cancelPolicy(request.taskID)
+                    title: Text("恢复过期标签页？"),
+                    message: Text("有 \(session.archivedTabs.count) 个标签页超过保留期限。"),
+                    primaryButton: .default(Text("恢复")) {
+                        session.showsExpiredTabsPrompt = false
+                        session.restoreExpiredTabs()
+                    },
+                    secondaryButton: .cancel(Text("稍后处理")) {
+                        session.showsExpiredTabsPrompt = false
                     }
                 )
-            case .largeFile:
+            case .tabSoftLimit:
                 return Alert(
-                    title: Text("使用移动网络下载？"),
-                    message: Text("“\(request.fileName)”超过大文件提醒阈值。"),
-                    primaryButton: .default(Text("继续下载")) {
-                        session.downloads.approvePolicy(request.taskID)
+                    title: Text("标签页较多"),
+                    message: Text("已达到 \(session.settings.tabSoftLimit) 个标签页。可以清理较旧的标签页，也可以继续新建。"),
+                    primaryButton: .default(Text("清理旧标签页")) {
+                        session.showsTabSoftLimitPrompt = false
+                        session.cleanupSoftLimitTabs()
+                    },
+                    secondaryButton: .cancel(Text("继续新建")) {
+                        session.showsTabSoftLimitPrompt = false
+                    }
+                )
+            case let .download(request):
+                switch request.reason {
+                case .wifiRequired:
+                    return Alert(
+                        title: Text("需要 Wi-Fi"),
+                        message: Text("“\(request.fileName)”将在连接 Wi-Fi 后才能下载。"),
+                        dismissButton: .cancel(Text("取消下载")) {
+                            session.downloads.cancelPolicy(request.taskID)
+                        }
+                    )
+                case .largeFile:
+                    return Alert(
+                        title: Text("使用移动网络下载？"),
+                        message: Text("“\(request.fileName)”超过大文件提醒阈值。"),
+                        primaryButton: .default(Text("继续下载")) {
+                            session.downloads.approvePolicy(request.taskID)
+                        },
+                        secondaryButton: .cancel(Text("取消")) {
+                            session.downloads.cancelPolicy(request.taskID)
+                        }
+                    )
+                }
+            case let .insecureSite(warning):
+                return Alert(
+                    title: Text("此页面连接不安全"),
+                    message: Text("\(warning.host) 使用未加密的 HTTP 连接。请勿在此页面输入密码或其他敏感信息。"),
+                    dismissButton: .default(Text("知道了")) {
+                        session.securityWarning = nil
+                    }
+                )
+            case let .externalProtocol(request):
+                return Alert(
+                    title: Text(request.promptTitle),
+                    message: Text(request.promptMessage),
+                    primaryButton: .default(Text("打开")) {
+                        session.openExternalProtocol(request)
                     },
                     secondaryButton: .cancel(Text("取消")) {
-                        session.downloads.cancelPolicy(request.taskID)
+                        session.cancelPendingExternalProtocol()
+                    }
+                )
+            case let .pageIssue(diagnostic):
+                return Alert(
+                    title: Text("页面问题诊断"),
+                    message: Text(diagnostic.summary),
+                    primaryButton: .default(Text("复制诊断信息")) {
+                        session.copyPageIssueDiagnostic(diagnostic)
+                    },
+                    secondaryButton: .cancel(Text("取消")) {
+                        session.pageIssueDiagnostic = nil
                     }
                 )
             }
-        }
-        .alert(item: $session.securityWarning) { warning in
-            Alert(
-                title: Text("此页面连接不安全"),
-                message: Text("\(warning.host) 使用未加密的 HTTP 连接。请勿在此页面输入密码或其他敏感信息。"),
-                dismissButton: .default(Text("知道了"))
-            )
-        }
-        .alert(item: $session.externalProtocolRequest) { request in
-            Alert(
-                title: Text(request.promptTitle),
-                message: Text(request.promptMessage),
-                primaryButton: .default(Text("打开")) {
-                    session.openExternalProtocol(request)
-                },
-                secondaryButton: .cancel(Text("取消")) {
-                    session.cancelPendingExternalProtocol()
-                }
-            )
-        }
-        .alert(item: $session.pageIssueDiagnostic) { diagnostic in
-            Alert(
-                title: Text("页面问题诊断"),
-                message: Text(diagnostic.summary),
-                primaryButton: .default(Text("复制诊断信息")) {
-                    session.copyPageIssueDiagnostic(diagnostic)
-                },
-                secondaryButton: .cancel(Text("取消"))
-            )
         }
         .onAppear {
             addressText = displayAddress(session.activeTab?.displayAddressURL ?? "")
@@ -961,10 +1004,34 @@ struct RootView: View {
         }
     }
 
-    private var downloadPolicyBinding: Binding<DownloadPolicyRequest?> {
+    /// The single alert presentation RootView owns. Sources keep their existing state
+    /// properties; this only picks the first pending one and hands it to `.alert(item:)`.
+    /// Each alert action clears its own state, because a computed binding cannot rely on
+    /// SwiftUI dismissing (and resetting) an `isPresented` flag for us.
+    private var rootAlertBinding: Binding<RootAlert?> {
         Binding(
-            get: { session.downloads.policyRequest },
-            set: { session.downloads.policyRequest = $0 }
+            get: {
+                if let request = session.externalProtocolRequest {
+                    return .externalProtocol(request)
+                }
+                if let warning = session.securityWarning {
+                    return .insecureSite(warning)
+                }
+                if let request = session.downloads.policyRequest {
+                    return .download(request)
+                }
+                if session.showsExpiredTabsPrompt {
+                    return .expiredTabs
+                }
+                if session.showsTabSoftLimitPrompt {
+                    return .tabSoftLimit
+                }
+                if let diagnostic = session.pageIssueDiagnostic {
+                    return .pageIssue(diagnostic)
+                }
+                return nil
+            },
+            set: { _ in }
         )
     }
 
