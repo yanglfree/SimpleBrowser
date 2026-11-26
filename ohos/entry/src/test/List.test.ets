@@ -32,6 +32,7 @@ import longScreenshotServiceTest from './LongScreenshotService.test';
 import bookmarkTransferServiceTest from './BookmarkTransferService.test';
 import sitePermissionPolicyTest from './SitePermissionPolicy.test';
 import telemetryPolicyTest from './TelemetryPolicy.test';
+import shuYiShuAnalyticsTest from './ShuYiShuAnalytics.test';
 import homeBackgroundPresetsTest from './HomeBackgroundPresets.test';
 import feedbackServiceTest from './FeedbackService.test';
 import quickSiteSemanticTest from './QuickSiteSemantic.test';
@@ -74,6 +75,7 @@ export default function testsuite(): void {
   bookmarkTransferServiceTest();
   sitePermissionPolicyTest();
   telemetryPolicyTest();
+  shuYiShuAnalyticsTest();
   homeBackgroundPresetsTest();
   feedbackServiceTest();
   quickSiteSemanticTest();
