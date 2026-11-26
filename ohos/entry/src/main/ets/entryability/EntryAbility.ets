@@ -9,6 +9,7 @@ import { MemoryPressureService } from '../services/MemoryPressureService';
 import { PrivacyService } from '../services/PrivacyService';
 import { TelemetryService } from '../services/TelemetryService';
 import { createExternalOpenRequest, extractSharedUrl } from '../models/ExternalOpenRequest';
+import { AccountAuthService } from '../services/AccountAuthService';
 import { ExternalOpenRouter } from '../services/ExternalOpenRouter';
 
 const TAG: string = 'EntryAbility';
@@ -47,6 +48,13 @@ export default class EntryAbility extends UIAbility {
   }
 
   private routeExternalOpen(want: Want): void {
+    const rawUri: string = typeof want.uri === 'string' ? want.uri : '';
+    if (rawUri.startsWith('zhuobrowser-auth://oauth/callback')) {
+      void AccountAuthService.getInstance().initialize(this.context).then((): void => {
+        void AccountAuthService.getInstance().completeOAuthCallbackUrl(this.context, rawUri);
+      });
+      return;
+    }
     const url: string = extractSharedUrl(want.uri, want.parameters);
     const title: string = String(want.parameters?.['title'] ?? want.parameters?.['subject'] ?? '');
     const sourceApp: string = String(

@@ -29,6 +29,9 @@ final class BrowserSession: ObservableObject {
     @Published var libraryTab: LibraryTab = .bookmarks
     @Published var history: [HistoryEntry] = []
     @Published var savedItems: [SavedItem] = []
+    @Published var bookmarkFolders: [BookmarkFolder] = []
+    @Published var bookmarkTombstones: [BookmarkTombstone] = []
+    @Published var articleTombstones: [ArticleTombstone] = []
     @Published var allowedHosts: [String] = []
     @Published var sitePermissions: [SitePermission] = []
     @Published var permissionPrompt: PermissionPrompt?
@@ -170,6 +173,9 @@ final class BrowserSession: ObservableObject {
             retentionDays: loadedSettings.historyRetention.rawValue
         )
         savedItems = persistence.load(.savedItems, as: [SavedItem].self) { [] }
+        bookmarkFolders = persistence.load(.bookmarkFolders, as: [BookmarkFolder].self) { [] }
+        bookmarkTombstones = persistence.load(.bookmarkTombstones, as: [BookmarkTombstone].self) { [] }
+        articleTombstones = persistence.load(.articleTombstones, as: [ArticleTombstone].self) { [] }
         allowedHosts = persistence.load(.allowedHosts, as: [String].self) { [] }
         sitePermissions = persistence.load(.sitePermissions, as: [SitePermission].self) { [] }
         quickSites = Array(
@@ -771,6 +777,9 @@ final class BrowserSession: ObservableObject {
     func persistLibrary() {
         persistence.save(history, for: .history)
         persistence.save(savedItems, for: .savedItems)
+        persistence.save(bookmarkFolders, for: .bookmarkFolders)
+        persistence.save(bookmarkTombstones, for: .bookmarkTombstones)
+        persistence.save(articleTombstones, for: .articleTombstones)
     }
 
     func persistQuickSites() {

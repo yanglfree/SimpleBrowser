@@ -214,6 +214,10 @@ import {
   ReaderExtractionReport,
   parseReaderExtractionReport
 } from '../models/ReaderExtractionModels';
+import { AccountCenterSheet } from '../components/AccountCenterSheet';
+import { AccountUserProfile, RemoteDeviceTabGroup } from '../models/AccountSyncModels';
+import { AccountAuthService } from '../services/AccountAuthService';
+import { CloudSyncService } from '../services/CloudSyncService';
 
 const TAG: string = 'Index';
 const RECENTLY_CLOSED_TAB_LIMIT: number = 10;
@@ -248,7 +252,8 @@ export enum Overlay {
   HttpAuth = 27,
   JsPrompt = 28,
   ProPaywall = 25,
-  PrivacyConsent = 26
+  PrivacyConsent = 26,
+  AccountCenter = 29
 }
 
 export function shouldUseResponsivePanel(isWide: boolean, sheet: Overlay): boolean {
@@ -468,6 +473,8 @@ struct Index {
   @State private blockEvents: BlockEvent[] = [];
   @State private siteControl: SiteControl = defaultSiteControl('');
   @State private liveTabIds: string[] = [];
+  @State private accountLabel: string = '';
+  @State private remoteDeviceTabs: RemoteDeviceTabGroup[] = [];
   @State private swipePreviewHost: string = '';
   @State private isSwipeBoundary: boolean = false;
   @State private tabSwitchOffset: number = 0;
@@ -592,6 +599,7 @@ struct Index {
       TelemetryService.setEnabled(
         this.viewModel.settings.privacyConsentAccepted && this.viewModel.settings.telemetryEnabled);
       await FaviconService.initialize(this.appContext());
+      await AccountAuthService.getInstance().initialize(this.appContext());
       this.syncState();
       if (this.settings.startPageBackgroundEnabled &&
         this.settings.startPageBackgroundSource === StartPageBackgroundSource.Daily) {
@@ -644,6 +652,7 @@ struct Index {
       this.refreshSiteIcons();
       void this.viewModel.adsBlockService.updateRulesIfNeeded();
       void this.syncProEntitlement('app_start');
+      void this.refreshAccountAndSync();
       this.promptExpiredTabs();
     }, 600);
   }
@@ -2099,6 +2108,7 @@ struct Index {
         isRulesUpdating: this.isRulesUpdating,
         appVersion: this.appVersionName,
         isPro: this.isPro,
+        accountLabel: this.accountLabel,
         onChange: (settings: BrowserSettings): void => { this.applySettings(settings); },
         onResetGestures: (): void => { this.resetGestures(); },
         onClearData: (selection: ClearDataSelection): void => { this.clearBrowsingData(selection); },
@@ -2113,6 +2123,7 @@ struct Index {
         onUpdateRules: (): void => { void this.updateRules(); },
         onSetDefaultBrowser: (): void => { void this.setDefaultBrowser(); },
         onOpenPro: (): void => { this.sheet = Overlay.ProPaywall; },
+        onOpenAccount: (): void => { this.sheet = Overlay.AccountCenter; },
         onBack: (): void => {
           this.settingsInitialPicker = PickerKind.None;
           this.sheet = Overlay.None;
@@ -2125,6 +2136,17 @@ struct Index {
         proExpiresText: this.proExpiresText(),
         onClose: (): void => { this.sheet = Overlay.None; },
         onEntitlementChanged: (): void => { this.refreshProState(); }
+      })
+        .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+    } else if (this.sheet === Overlay.AccountCenter) {
+      AccountCenterSheet({
+        topInset: this.topInset,
+        isPro: this.isPro,
+        remoteDeviceTabs: this.remoteDeviceTabs,
+        onSyncNow: async (): Promise<boolean> => await this.runCloudSync(),
+        onOpenUrl: (url: string): void => { this.navigateTo(url); },
+        onAuthChanged: (): void => { void this.refreshAccountAndSync(); },
+        onDismiss: (): void => { this.sheet = Overlay.None; }
       })
         .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
     } else if (this.sheet === Overlay.Permission && this.pendingSitePermission !== undefined) {
@@ -5115,6 +5137,26 @@ struct Index {
     this.isPro = ProEntitlementService.getInstance().isPro();
   }
 
+  private async refreshAccountAndSync(): Promise<void> {
+    const auth: AccountAuthService = AccountAuthService.getInstance();
+    if (auth.isLoggedIn()) {
+      await auth.refreshMe(this.appContext());
+      await this.runCloudSync();
+    } else {
+      this.remoteDeviceTabs = [];
+      this.syncState();
+    }
+    this.refreshProState();
+  }
+
+  private async runCloudSync(): Promise<boolean> {
+    const ok: boolean = await CloudSyncService.getInstance().sync(this.appContext(), this.viewModel);
+    this.remoteDeviceTabs = CloudSyncService.getInstance().getRemoteDeviceTabs();
+    this.syncState();
+    this.refreshProState();
+    return ok;
+  }
+
   private proExpiresText(): ResourceStr {
     const entitlement = ProEntitlementService.getInstance().current();
     if (entitlement === null || entitlement.expiresAt <= 0) {
@@ -6043,6 +6085,8 @@ struct Index {
     this.isActiveBookmarked = this.viewModel.isSaved(url);
     this.isActiveSavedForLater = this.viewModel.isSavedForLater(url);
     this.isSiteAllowed = this.viewModel.isHostAllowed(url);
+    const currentUser: AccountUserProfile | null = AccountAuthService.getInstance().getCurrentUser();
+    this.accountLabel = currentUser !== null ? (currentUser.email || currentUser.displayName) : '';
     this.refreshSiteIcons();
     this.repairPaneReferences();
     this.refreshSystemBarStyle();

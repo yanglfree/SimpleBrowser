@@ -1,6 +1,7 @@
 import Foundation
 
 enum SettingsSection: String, CaseIterable {
+    case account
     case pro
     case appearance
     case search
@@ -23,6 +24,7 @@ struct SettingsSearchEntry: Equatable {
 
 enum SettingsSearchPolicy {
     static let entries: [SettingsSearchEntry] = [
+        .init(section: .account, label: "账号与云同步", keywords: "登录 账号 同步 书签 跨端 Apple Google 邮箱 注销"),
         .init(section: .pro, label: "卓阅 Pro", keywords: "升级 激活 订阅 购买 恢复 支持 联系"),
         .init(section: .appearance, label: "应用外观", keywords: "主题 系统 深色 浅色"),
         .init(section: .appearance, label: "网页外观", keywords: "网页 深色 暗色 模式 图片 视频"),

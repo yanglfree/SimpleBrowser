@@ -12,31 +12,40 @@ struct SavedItem: Identifiable, Equatable, Codable {
     var id: String
     var title: String
     var url: String
+    var folderID: String?
     var createdAt: TimeInterval
     var updatedAt: TimeInterval
     var isRead: Bool
     var tags: [String]
+    var isPinnedToStartPage: Bool
+    var sortOrder: Int
 
     init(
         id: String,
         title: String,
         url: String,
+        folderID: String? = nil,
         createdAt: TimeInterval,
         updatedAt: TimeInterval,
         isRead: Bool = true,
-        tags: [String] = []
+        tags: [String] = [],
+        isPinnedToStartPage: Bool = false,
+        sortOrder: Int = 0
     ) {
         self.id = id
         self.title = title
         self.url = url
+        self.folderID = folderID
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.isRead = isRead
         self.tags = tags
+        self.isPinnedToStartPage = isPinnedToStartPage
+        self.sortOrder = sortOrder
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, url, createdAt, updatedAt, isRead, tags
+        case id, title, url, folderID, createdAt, updatedAt, isRead, tags, isPinnedToStartPage, sortOrder
     }
 
     init(from decoder: Decoder) throws {
@@ -44,11 +53,49 @@ struct SavedItem: Identifiable, Equatable, Codable {
         id = try container.decode(String.self, forKey: .id)
         title = try container.decode(String.self, forKey: .title)
         url = try container.decode(String.self, forKey: .url)
+        folderID = try container.decodeIfPresent(String.self, forKey: .folderID)
         createdAt = try container.decode(TimeInterval.self, forKey: .createdAt)
         updatedAt = try container.decode(TimeInterval.self, forKey: .updatedAt)
         isRead = try container.decodeIfPresent(Bool.self, forKey: .isRead) ?? true
         tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
+        isPinnedToStartPage = try container.decodeIfPresent(Bool.self, forKey: .isPinnedToStartPage) ?? false
+        sortOrder = try container.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0
     }
+}
+
+struct BookmarkFolder: Identifiable, Equatable, Codable {
+    var id: String
+    var name: String
+    var iconName: String
+    var createdAt: TimeInterval
+    var updatedAt: TimeInterval
+    var sortOrder: Int
+    var isPinnedToStartPage: Bool
+
+    init(
+        id: String = UUID().uuidString,
+        name: String,
+        iconName: String = "folder.fill",
+        createdAt: TimeInterval = Date().timeIntervalSince1970,
+        updatedAt: TimeInterval? = nil,
+        sortOrder: Int = 0,
+        isPinnedToStartPage: Bool = true
+    ) {
+        self.id = id
+        self.name = name
+        self.iconName = iconName
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt ?? createdAt
+        self.sortOrder = sortOrder
+        self.isPinnedToStartPage = isPinnedToStartPage
+    }
+}
+
+struct BookmarkTombstone: Identifiable, Equatable, Codable {
+    var id: String
+    var url: String?
+    var isFolder: Bool
+    var deletedAt: TimeInterval
 }
 
 enum LibraryEntryKind: String, Equatable {

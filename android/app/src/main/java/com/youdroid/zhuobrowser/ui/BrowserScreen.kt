@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -118,7 +119,7 @@ fun BrowserScreen(session: BrowserSession) {
         }
     }
 
-    val overlayOpen = state.showsSettings || state.showsLibrary || state.showsOverview || state.showsDownloads
+    val overlayOpen = state.showsSettings || state.showsLibrary || state.showsOverview || state.showsDownloads || state.showsAccount
     BackHandler(
         enabled = state.permissionPrompt != null || state.showsFind || overlayOpen ||
             (tab != null && !UrlPolicy.isHomeUrl(tab.url))
@@ -126,6 +127,7 @@ fun BrowserScreen(session: BrowserSession) {
         when {
             state.permissionPrompt != null -> session.denyPermission()
             state.showsFind -> session.endFind()
+            state.showsAccount -> session.setShowsAccount(false)
             state.showsDownloads -> session.setShowsDownloads(false)
             state.showsLibrary -> session.setShowsLibrary(false)
             state.showsSettings -> session.setShowsSettings(false)
@@ -226,6 +228,7 @@ fun BrowserScreen(session: BrowserSession) {
         }
         Box(modifier = Modifier.weight(1f)) {
             when {
+                state.showsAccount -> AccountPane(session)
                 state.showsSettings -> SettingsPane(session)
                 state.showsDownloads -> DownloadsPane(session, onShare = { shareDownload(it) })
                 state.showsLibrary -> LibraryPane(session)
@@ -718,14 +721,80 @@ private fun LibraryPane(session: BrowserSession) {
         }
         Box(modifier = Modifier.weight(1f)) {
             if (state.libraryTab == LibraryTab.Bookmarks) {
-                BookmarkList(
-                    items = state.savedItems,
-                    onOpen = { url ->
-                        session.setShowsLibrary(false)
-                        session.openInActiveTab(url)
-                    },
-                    onRemove = { session.removeSavedItem(it) }
-                )
+                val filteredBookmarks = if (state.selectedFolderId == null) {
+                    state.savedItems
+                } else {
+                    state.savedItems.filter { it.folderId == state.selectedFolderId }
+                }
+                Column(modifier = Modifier.fillMaxSize()) {
+                    if (state.bookmarkFolders.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "全部",
+                                fontSize = 13.sp,
+                                color = if (state.selectedFolderId == null) Tokens.accent else Tokens.textSecondary,
+                                fontWeight = if (state.selectedFolderId == null) FontWeight.SemiBold else FontWeight.Normal,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Tokens.surfaceSubtle)
+                                    .clickable { session.setSelectedFolder(null) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                            state.bookmarkFolders.forEach { folder ->
+                                val selected = state.selectedFolderId == folder.id
+                                Text(
+                                    text = folder.name,
+                                    fontSize = 13.sp,
+                                    color = if (selected) Tokens.accent else Tokens.textSecondary,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Tokens.surfaceSubtle)
+                                        .clickable { session.setSelectedFolder(folder.id) }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        BookmarkList(
+                            items = filteredBookmarks,
+                            onOpen = { url ->
+                                session.setShowsLibrary(false)
+                                session.openInActiveTab(url)
+                            },
+                            onRemove = { session.removeSavedItem(it) }
+                        )
+                    }
+                    if (state.remoteDeviceTabs.isNotEmpty()) {
+                        HorizontalDivider(color = Tokens.border, modifier = Modifier.padding(vertical = 6.dp))
+                        Text("其他设备的标签页", fontSize = 13.sp, color = Tokens.textSecondary, modifier = Modifier.padding(bottom = 4.dp))
+                        state.remoteDeviceTabs.take(3).forEach { group ->
+                            group.tabs.take(3).forEach { remoteTab ->
+                                Text(
+                                    text = "${group.deviceName}: ${remoteTab.title}",
+                                    fontSize = 13.sp,
+                                    color = Tokens.accent,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            session.setShowsLibrary(false)
+                                            session.openInActiveTab(remoteTab.url)
+                                        }
+                                        .padding(vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             } else {
                 HistoryList(
                     items = state.history,
@@ -874,6 +943,34 @@ private fun SettingsPane(session: BrowserSession) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("设置", fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Tokens.textPrimary, modifier = Modifier.weight(1f))
             TextButton(onClick = { session.setShowsSettings(false) }) { Text("完成", color = Tokens.accent) }
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(Tokens.surfacePanel)
+                .border(1.dp, Tokens.border, RoundedCornerShape(12.dp))
+                .clickable { session.setShowsAccount(true) }
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = state.accountUser?.displayName ?: "账号与云同步",
+                    color = Tokens.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = state.accountUser?.let { u ->
+                        if (state.isPro) "${u.email} · Pro 已跨端激活" else u.email
+                    } ?: "未登录 · 点击登录以同步书签与设置",
+                    color = Tokens.textSecondary,
+                    fontSize = 12.sp
+                )
+            }
+            Text("进入", color = Tokens.accent, fontSize = 13.sp)
         }
         Spacer(Modifier.height(16.dp))
         Text("搜索引擎", color = Tokens.textSecondary, fontSize = 13.sp)

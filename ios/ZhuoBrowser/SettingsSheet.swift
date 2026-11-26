@@ -18,6 +18,8 @@ struct SettingsSheet: View {
     @State private var showsClearBrowsingData = false
     @State private var showsFeedback = false
     @State private var showsAbout = false
+    @State private var showsAccount = false
+    @ObservedObject private var account = AccountService.shared
     @State private var selectedHomePhoto: PhotosPickerItem?
     @State private var customSearchTemplate = ""
     @State private var searchTemplateError: String?
@@ -32,6 +34,25 @@ struct SettingsSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("账号与云同步") {
+                    Button {
+                        showsAccount = true
+                    } label: {
+                        HStack {
+                            Label(
+                                account.isLoggedIn ? (account.currentUser?.displayName ?? "已登录账号") : "登录账号开启多端同步",
+                                systemImage: "person.crop.circle.fill"
+                            )
+                            Spacer()
+                            Text(account.isLoggedIn ? "已连接" : "未登录")
+                                .font(.caption)
+                                .foregroundStyle(DesignTokens.textSecondary)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-account")
+                }
+                .settingsSearchVisible(isVisible(.account))
+
                 Section("卓阅 Pro") {
                     Button {
                         session.showsSettings = false
@@ -429,6 +450,10 @@ struct SettingsSheet: View {
         }
         .alert(item: $transferMessage) { message in
             Alert(title: Text(message.title), message: Text(message.message), dismissButton: .default(Text("好")))
+        }
+        .sheet(isPresented: $showsAccount) {
+            AccountSheet()
+                .environmentObject(session)
         }
         .sheet(isPresented: $showsClearBrowsingData) {
             ClearBrowsingDataSheet()

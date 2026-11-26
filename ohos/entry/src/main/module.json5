@@ -75,6 +75,11 @@
               },
               {
                 "scheme": "https"
+              },
+              {
+                "scheme": "zhuobrowser-auth",
+                "host": "oauth",
+                "path": "callback"
               }
             ]
           },

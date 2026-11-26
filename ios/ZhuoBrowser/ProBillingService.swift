@@ -142,9 +142,22 @@ final class ProBillingService: ObservableObject {
             }
         }
         do {
-            applyServerEntitlement(try await IapEntitlementAPI.shared.fetchEntitlement())
+            let serverEnt = try await IapEntitlementAPI.shared.fetchEntitlement()
+            if serverEnt?.isCurrentlyActive() == true {
+                applyServerEntitlement(serverEnt)
+            } else if AccountService.shared.isLoggedIn,
+                      let cloudEnt = await AccountService.shared.fetchCloudProEntitlement(),
+                      cloudEnt.isCurrentlyActive() {
+                applyServerEntitlement(cloudEnt)
+            } else {
+                applyServerEntitlement(serverEnt)
+            }
         } catch {
-            if !ProEntitlementPolicy.canUseCached(
+            if AccountService.shared.isLoggedIn,
+               let cloudEnt = await AccountService.shared.fetchCloudProEntitlement(),
+               cloudEnt.isCurrentlyActive() {
+                applyServerEntitlement(cloudEnt)
+            } else if !ProEntitlementPolicy.canUseCached(
                 entitlement,
                 nowMilliseconds: Date().timeIntervalSince1970 * 1_000
             ) {

@@ -383,6 +383,30 @@ final class ArticleStore: ObservableObject {
         articles = decoded
     }
 
+    func replaceArticlesFromSync(_ synced: [SavedArticle]) {
+        articles = synced
+        try? persistManifest()
+    }
+
+    func readLocalBundle(for article: SavedArticle) -> (html: String, markdown: String, text: String)? {
+        let dir = articleDirectory(article.id)
+        let htmlPath = dir.appendingPathComponent("article.html")
+        guard let html = try? String(contentsOf: htmlPath, encoding: .utf8) else {
+            return nil
+        }
+        let markdown = (try? String(contentsOf: dir.appendingPathComponent("article.md"), encoding: .utf8)) ?? ""
+        let text = (try? String(contentsOf: dir.appendingPathComponent("article.txt"), encoding: .utf8)) ?? article.searchText
+        return (html, markdown, text)
+    }
+
+    func writeSyncedBundle(for articleID: String, html: String, markdown: String, text: String) {
+        let dir = articleDirectory(articleID)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? Data(html.utf8).write(to: dir.appendingPathComponent("article.html"), options: .atomic)
+        try? Data(markdown.utf8).write(to: dir.appendingPathComponent("article.md"), options: .atomic)
+        try? Data(text.utf8).write(to: dir.appendingPathComponent("article.txt"), options: .atomic)
+    }
+
     func persistManifest() throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

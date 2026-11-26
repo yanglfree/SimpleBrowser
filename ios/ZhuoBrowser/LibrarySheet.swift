@@ -22,7 +22,9 @@ private struct HistoryHostDeletionRequest: Identifiable {
 struct LibrarySheet: View {
     @EnvironmentObject private var session: BrowserSession
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var account = AccountService.shared
     @State private var query = ""
+    @State private var selectedFolderID: String? = nil
     @State private var editingSavedItem: SavedItem?
     @State private var historyHostDeletion: HistoryHostDeletionRequest?
 
@@ -78,11 +80,32 @@ struct LibrarySheet: View {
 
     @ViewBuilder
     private var bookmarkList: some View {
-        let items = LibraryPolicy.filteredSavedItems(session.savedItems, query: query)
-        if items.isEmpty {
+        let baseItems = selectedFolderID == nil
+            ? session.savedItems
+            : session.savedItems.filter { $0.folderID == selectedFolderID }
+        let items = LibraryPolicy.filteredSavedItems(baseItems, query: query)
+        if items.isEmpty && account.remoteDeviceTabs.isEmpty && session.bookmarkFolders.isEmpty {
             emptyState(query.isEmpty ? "还没有书签" : "没有匹配的书签")
         } else {
             List {
+                if !session.bookmarkFolders.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            Button("全部") { selectedFolderID = nil }
+                                .buttonStyle(.borderedProminent)
+                                .tint(selectedFolderID == nil ? DesignTokens.accent : DesignTokens.surfaceSubtle)
+                            ForEach(session.bookmarkFolders) { folder in
+                                Button(folder.name) {
+                                    selectedFolderID = selectedFolderID == folder.id ? nil : folder.id
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .listRowSeparator(.hidden)
+                }
+
                 ForEach(items) { item in
                     Button {
                         open(item.url)
@@ -109,6 +132,24 @@ struct LibrarySheet: View {
                         }
                         Button("删除书签", role: .destructive) {
                             session.removeSavedItem(item.id)
+                        }
+                    }
+                }
+
+                if !account.remoteDeviceTabs.isEmpty && query.isEmpty {
+                    ForEach(account.remoteDeviceTabs) { device in
+                        Section("来自 \(device.deviceName) 的标签页") {
+                            ForEach(device.tabs.prefix(8)) { tab in
+                                Button {
+                                    open(tab.url)
+                                } label: {
+                                    LibraryRow(
+                                        title: tab.title,
+                                        subtitle: URLPolicy.displayHost(tab.url),
+                                        trailing: device.platform.uppercased()
+                                    )
+                                }
+                            }
                         }
                     }
                 }

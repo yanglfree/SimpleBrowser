@@ -10,6 +10,16 @@ import {
   WEEKLY_WINDOW_DAYS
 } from '../constants/AppConstants';
 import {
+  ArticleTombstone,
+  BookmarkFolder,
+  BookmarkTombstone
+} from '../models/AccountSyncModels';
+import {
+  cloneBookmarkFolder,
+  cloneBookmarkTombstone,
+  TOMBSTONE_RETENTION_MS
+} from '../services/SyncMergePolicy';
+import {
   BlockStats,
   SavedItem,
   BrowserSession,
@@ -56,6 +66,9 @@ const HIDDEN_QUICK_HOSTS_KEY: string = 'hidden_quick_hosts';
 const CUSTOM_QUICK_SITES_KEY: string = 'custom_quick_sites';
 const QUICK_SITE_ORDER_KEY: string = 'quick_site_order';
 const ACTION_USAGE_KEY: string = 'action_usage';
+const BOOKMARK_FOLDERS_KEY: string = 'bookmark_folders';
+const BOOKMARK_TOMBSTONES_KEY: string = 'bookmark_tombstones';
+const ARTICLE_TOMBSTONES_KEY: string = 'article_tombstones';
 
 interface LegacyBookmark {
   id: string;
@@ -78,6 +91,9 @@ export class BrowserRepository {
   private customQuickSites: QuickSite[] = [];
   private quickSiteOrder: string[] = [];
   private actionUsage: Record<string, number> = {};
+  private bookmarkFolders: BookmarkFolder[] = [];
+  private bookmarkTombstones: BookmarkTombstone[] = [];
+  private articleTombstones: ArticleTombstone[] = [];
   private session: BrowserSession | undefined;
   private archivedTabs: BrowserTab[] = [];
   private sessionKey: string = SESSION_KEY;
@@ -109,6 +125,9 @@ export class BrowserRepository {
       this.quickSiteOrder = this.decode<string>(
         await store.get(QUICK_SITE_ORDER_KEY, '[]'), QUICK_SITE_ORDER_KEY);
       this.actionUsage = this.decodeActionUsage(await store.get(ACTION_USAGE_KEY, '{}'));
+      this.bookmarkFolders = this.decode<BookmarkFolder>(await store.get(BOOKMARK_FOLDERS_KEY, '[]'), BOOKMARK_FOLDERS_KEY);
+      this.bookmarkTombstones = this.decode<BookmarkTombstone>(await store.get(BOOKMARK_TOMBSTONES_KEY, '[]'), BOOKMARK_TOMBSTONES_KEY);
+      this.articleTombstones = this.decode<ArticleTombstone>(await store.get(ARTICLE_TOMBSTONES_KEY, '[]'), ARTICLE_TOMBSTONES_KEY);
       this.session = this.decodeSession(await store.get(this.sessionKey, ''));
       this.archivedTabs = this.decode<BrowserTab>(await store.get(TAB_ARCHIVE_KEY, '[]'), TAB_ARCHIVE_KEY)
         .map((tab: BrowserTab) => this.decodeTab(tab));
@@ -125,6 +144,36 @@ export class BrowserRepository {
 
   getSavedItems(): SavedItem[] {
     return this.savedItems.map((item: SavedItem) => cloneSavedItem(item));
+  }
+
+  getBookmarkFolders(): BookmarkFolder[] {
+    return this.bookmarkFolders.map((folder: BookmarkFolder): BookmarkFolder => cloneBookmarkFolder(folder));
+  }
+
+  getBookmarkTombstones(): BookmarkTombstone[] {
+    return this.bookmarkTombstones.map((tb: BookmarkTombstone): BookmarkTombstone => cloneBookmarkTombstone(tb));
+  }
+
+  getArticleTombstones(): ArticleTombstone[] {
+    return this.articleTombstones.slice(0);
+  }
+
+  async applyBookmarkSyncResult(
+    folders: BookmarkFolder[],
+    items: SavedItem[],
+    tombstones: BookmarkTombstone[]
+  ): Promise<void> {
+    this.bookmarkFolders = folders.map((f: BookmarkFolder): BookmarkFolder => cloneBookmarkFolder(f));
+    this.savedItems = items.map((i: SavedItem): SavedItem => cloneSavedItem(i));
+    this.bookmarkTombstones = tombstones.map((t: BookmarkTombstone): BookmarkTombstone => cloneBookmarkTombstone(t));
+    await this.save(BOOKMARK_FOLDERS_KEY, JSON.stringify(this.bookmarkFolders));
+    await this.save(SAVED_ITEMS_KEY, JSON.stringify(this.savedItems));
+    await this.save(BOOKMARK_TOMBSTONES_KEY, JSON.stringify(this.bookmarkTombstones));
+  }
+
+  async applySettingsFromSync(settings: BrowserSettings): Promise<void> {
+    this.settings = cloneSettings(settings);
+    await this.save(SETTINGS_KEY, JSON.stringify(this.settings));
   }
 
   getHistory(): HistoryEntry[] {
@@ -244,8 +293,24 @@ export class BrowserRepository {
   }
 
   async removeSavedItem(id: string): Promise<void> {
+    const removed: SavedItem | undefined = this.savedItems.find((item: SavedItem) => item.id === id);
     this.savedItems = this.savedItems.filter((item: SavedItem) => item.id !== id);
     await this.save(SAVED_ITEMS_KEY, JSON.stringify(this.savedItems));
+    if (removed !== undefined) {
+      const now: number = Date.now();
+      const cutoff: number = now - TOMBSTONE_RETENTION_MS;
+      const retained: BookmarkTombstone[] = this.bookmarkTombstones.filter(
+        (tb: BookmarkTombstone): boolean => tb.deletedAt >= cutoff && tb.id !== removed.id
+      );
+      retained.push({
+        id: removed.id,
+        url: removed.url,
+        isFolder: false,
+        deletedAt: now
+      });
+      this.bookmarkTombstones = retained;
+      await this.save(BOOKMARK_TOMBSTONES_KEY, JSON.stringify(this.bookmarkTombstones));
+    }
   }
 
   async removeHistoryEntry(id: string): Promise<void> {
@@ -502,12 +567,15 @@ export class BrowserRepository {
           id: item.id ?? `saved-${index}-${Date.now()}`,
           title: item.title ?? '',
           url: item.url,
+          folderId: item.folderId,
           createdAt: item.createdAt ?? Date.now(),
           updatedAt: item.updatedAt ?? item.createdAt ?? Date.now(),
           isRead: item.isRead ?? true,
           tags: Array.isArray(item.tags)
             ? item.tags.filter((tag: string) => typeof tag === 'string')
-            : []
+            : [],
+          isPinnedToStartPage: item.isPinnedToStartPage,
+          sortOrder: item.sortOrder
         }));
     } catch (error) {
       Logger.warn(TAG, `Invalid ${key} payload: ${String(error)}`);

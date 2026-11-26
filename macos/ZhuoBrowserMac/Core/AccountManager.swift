@@ -114,6 +114,7 @@ private struct PersistedAccountSession: Codable {
     let lastSyncTime: Date?
     let cachedAvatarUrl: String?
     let cachedAvatarData: Data?
+    let boundProfileID: UUID?
 }
 
 /// Cloud-backed account and cross-device sync manager.
@@ -121,7 +122,8 @@ private struct PersistedAccountSession: Codable {
 public final class AccountManager: ObservableObject {
     public static let shared = AccountManager()
 
-    nonisolated public static let serverBaseURL = "https://zhuobrowser-auth-service.memoryphoto.workers.dev"
+    nonisolated public static let serverBaseURL = "https://auth.zhuobrowser.youdroid.top"
+    nonisolated public static let fallbackServerBaseURL = "https://zhuobrowser-auth-service.memoryphoto.workers.dev"
     nonisolated public static let maxAvatarDimension: Int = 160
     nonisolated public static let avatarCompressionQuality: CGFloat = 0.75
     nonisolated private static let legacyAvatarByteThreshold: Int = 20 * 1024
@@ -131,13 +133,16 @@ public final class AccountManager: ObservableObject {
     private let lastSyncKey = "ZhuoBrowser_Account_LastSync"
     private let cachedAvatarUrlKey = "ZhuoBrowser_Account_AvatarURL"
     private let cachedAvatarDataKey = "ZhuoBrowser_Account_AvatarData"
+    private let deviceIDKey = "ZhuoBrowser_Account_DeviceID"
     private let userDefaults: UserDefaults
     private let sessionFileURL: URL?
     private let avatarFileURL: URL?
     private let isPersistenceEnabled: Bool
+    private let oauthCoordinator = MacOAuthCoordinator()
     private var cachedAvatarUrl: String?
     private var cachedAvatarData: Data?
     private var settingsSyncTask: Task<Void, Never>?
+    private var scopeVersions: [String: Int] = [:]
 
     @Published public private(set) var currentUser: UserProfile?
     @Published public private(set) var avatarImage: NSImage?
@@ -145,6 +150,10 @@ public final class AccountManager: ObservableObject {
     @Published public private(set) var isLoggedIn: Bool = false
     @Published public private(set) var isSyncing: Bool = false
     @Published public private(set) var lastSyncTime: Date?
+    @Published public private(set) var linkedIdentities: [LinkedIdentityInfo] = []
+    @Published public private(set) var proEntitlement: CloudProEntitlement?
+    @Published public private(set) var remoteDeviceTabs: [RemoteDeviceTabGroup] = []
+    @Published public private(set) var boundProfileID: UUID = ProfileManager.defaultFallbackProfileID
     @Published public var errorMessage: String?
     @Published public var syncErrorMessage: String?
 
@@ -174,6 +183,39 @@ public final class AccountManager: ObservableObject {
         }
 
         reloadStoredSession()
+    }
+
+    private var deviceId: String {
+        if let existing = userDefaults.string(forKey: deviceIDKey), !existing.isEmpty {
+            return existing
+        }
+        let generated = "mac-\(UUID().uuidString.lowercased())"
+        userDefaults.set(generated, forKey: deviceIDKey)
+        return generated
+    }
+
+    private var deviceName: String {
+        Host.current().localizedName ?? "Mac"
+    }
+
+    private static var baseURLCandidates: [String] {
+        [serverBaseURL, fallbackServerBaseURL]
+    }
+
+    private func dataWithFallback(buildRequest: (String) -> URLRequest?) async throws -> (Data, HTTPURLResponse) {
+        var lastError: Error?
+        for base in Self.baseURLCandidates {
+            guard let request = buildRequest(base) else { continue }
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                if let http = response as? HTTPURLResponse {
+                    return (data, http)
+                }
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError ?? NSError(domain: "ZhuoBrowserAuth", code: -1, userInfo: [NSLocalizedDescriptionKey: "网络连接失败"])
     }
 
     /// Center-crops an image to 1:1 square and downscales it to `maxDimension` px as a compact JPEG.
@@ -231,7 +273,6 @@ public final class AccountManager: ObservableObject {
         return rep.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
     }
 
-    /// Downscales and compresses raw image data into a compact square avatar JPEG.
     nonisolated public static func compressAvatarData(
         _ data: Data,
         maxDimension: Int = AccountManager.maxAvatarDimension,
@@ -255,6 +296,9 @@ public final class AccountManager: ObservableObject {
         }
         if let resolvedSyncTime {
             self.lastSyncTime = resolvedSyncTime
+        }
+        if let storedProfileID = fileSession?.boundProfileID {
+            self.boundProfileID = storedProfileID
         }
 
         let storedAvatarUrl = userDefaults.string(forKey: cachedAvatarUrlKey) ?? fileSession?.cachedAvatarUrl
@@ -290,108 +334,225 @@ public final class AccountManager: ObservableObject {
                 }
                 Task {
                     await verifySession()
+                    await refreshProEntitlement()
                 }
             }
         }
+    }
+
+    // MARK: - Auth Flows (Email OTP, Email Password, Apple, non-CN Google)
+
+    public func sendEmailOTP(email: String) async -> Bool {
+        errorMessage = nil
+        let cleaned = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else {
+            errorMessage = "请输入邮箱地址"
+            return false
+        }
+
+        do {
+            let payload = try JSONSerialization.data(withJSONObject: ["email": cleaned])
+            let (data, http) = try await dataWithFallback { base in
+                guard let url = URL(string: "\(base)/api/auth/otp/send") else { return nil }
+                var req = URLRequest(url: url)
+                req.httpMethod = "POST"
+                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                req.httpBody = payload
+                return req
+            }
+            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+            if http.statusCode == 200 {
+                return true
+            }
+            errorMessage = json["error"] as? String ?? "验证码发送失败 (HTTP \(http.statusCode))"
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        return false
+    }
+
+    public func verifyEmailOTP(email: String, code: String, displayName: String = "") async -> Bool {
+        errorMessage = nil
+        let body: [String: Any] = [
+            "email": email.trimmingCharacters(in: .whitespacesAndNewlines),
+            "code": code.trimmingCharacters(in: .whitespacesAndNewlines),
+            "displayName": displayName.trimmingCharacters(in: .whitespacesAndNewlines),
+            "deviceId": deviceId,
+            "deviceName": deviceName,
+            "platform": "macos"
+        ]
+        return await performAuthPost(path: "/api/auth/otp/verify", body: body)
     }
 
     public func register(email: String, password: String, displayName: String) async -> Bool {
         errorMessage = nil
-        guard let url = URL(string: "\(Self.serverBaseURL)/api/auth/register") else { return false }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let body: [String: String] = [
+        let body: [String: Any] = [
             "email": email.trimmingCharacters(in: .whitespacesAndNewlines),
             "password": password,
-            "displayName": displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+            "displayName": displayName.trimmingCharacters(in: .whitespacesAndNewlines),
+            "deviceId": deviceId,
+            "deviceName": deviceName,
+            "platform": "macos"
         ]
-
-        guard let payload = try? JSONSerialization.data(withJSONObject: body) else { return false }
-        request.httpBody = payload
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse else { return false }
-
-            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
-
-            if httpResponse.statusCode == 201 || httpResponse.statusCode == 200 {
-                if let receivedToken = json["token"] as? String,
-                   let userDict = json["user"] as? [String: Any],
-                   let userId = userDict["id"] as? String,
-                   let userEmail = userDict["email"] as? String,
-                   let userDisplayName = userDict["displayName"] as? String {
-                    let userAvatarUrl = userDict["avatarUrl"] as? String ?? userDict["avatar_url"] as? String
-                    let profile = UserProfile(id: userId, email: userEmail, displayName: userDisplayName, avatarUrl: userAvatarUrl)
-                    saveSession(token: receivedToken, profile: profile)
-                    return true
-                }
-            } else {
-                errorMessage = json["error"] as? String ?? "注册失败，请稍后重试"
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        return false
+        return await performAuthPost(path: "/api/auth/register", body: body)
     }
 
     public func login(email: String, password: String) async -> Bool {
         errorMessage = nil
-        guard let url = URL(string: "\(Self.serverBaseURL)/api/auth/login") else { return false }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let body: [String: String] = [
+        let body: [String: Any] = [
             "email": email.trimmingCharacters(in: .whitespacesAndNewlines),
-            "password": password
+            "password": password,
+            "deviceId": deviceId,
+            "deviceName": deviceName,
+            "platform": "macos"
         ]
+        return await performAuthPost(path: "/api/auth/login", body: body)
+    }
 
-        guard let payload = try? JSONSerialization.data(withJSONObject: body) else { return false }
-        request.httpBody = payload
-
+    public func signInWithApple() async -> Bool {
+        errorMessage = nil
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse else { return false }
+            let native = try await oauthCoordinator.performNativeAppleSignIn()
+            var body: [String: Any] = [
+                "provider": "apple",
+                "idToken": native.identityToken,
+                "deviceId": deviceId,
+                "deviceName": deviceName,
+                "platform": "macos"
+            ]
+            if let displayName = native.displayName {
+                body["displayName"] = displayName
+            }
+            return await performAuthPost(path: "/api/auth/oauth/native", body: body, bearerToken: self.token)
+        } catch {
+            // Fallback to browser PKCE OAuth when native Apple Sign-In entitlement is absent in local/DMG build
+            do {
+                let ticket = try await oauthCoordinator.performWebOAuth(provider: "apple", baseURL: Self.serverBaseURL)
+                return await performAuthPost(path: "/api/auth/oauth/exchange", body: ["ticket": ticket])
+            } catch let fallbackError {
+                errorMessage = fallbackError.localizedDescription
+                return false
+            }
+        }
+    }
 
+    public func signInWithGoogle() async -> Bool {
+        guard RegionAuthPolicy.isGoogleSignInAvailable() else {
+            errorMessage = "当前地区暂不支持 Google 登录"
+            return false
+        }
+        errorMessage = nil
+        do {
+            let ticket = try await oauthCoordinator.performWebOAuth(provider: "google", baseURL: Self.serverBaseURL)
+            return await performAuthPost(path: "/api/auth/oauth/exchange", body: ["ticket": ticket])
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    private func performAuthPost(path: String, body: [String: Any], bearerToken: String? = nil) async -> Bool {
+        guard let payload = try? JSONSerialization.data(withJSONObject: body) else { return false }
+        do {
+            let (data, httpResponse) = try await dataWithFallback { base in
+                guard let url = URL(string: "\(base)\(path)") else { return nil }
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                if let bearerToken {
+                    request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+                }
+                request.httpBody = payload
+                return request
+            }
             let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
-
-            if httpResponse.statusCode == 200 {
+            if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
                 if let receivedToken = json["token"] as? String,
                    let userDict = json["user"] as? [String: Any],
-                   let userId = userDict["id"] as? String,
-                   let userEmail = userDict["email"] as? String,
-                   let userDisplayName = userDict["displayName"] as? String {
-                    let userAvatarUrl = userDict["avatarUrl"] as? String ?? userDict["avatar_url"] as? String
-                    let profile = UserProfile(id: userId, email: userEmail, displayName: userDisplayName, avatarUrl: userAvatarUrl)
+                   let profile = Self.parseUserProfile(userDict) {
+                    self.linkedIdentities = Self.parseIdentities(json["identities"])
                     saveSession(token: receivedToken, profile: profile)
+                    if isPersistenceEnabled {
+                        Task { await refreshProEntitlement() }
+                    }
                     return true
                 }
-            } else {
-                errorMessage = json["error"] as? String ?? "账号或密码错误"
             }
+            errorMessage = json["error"] as? String ?? "认证失败，请稍后重试"
         } catch {
             errorMessage = error.localizedDescription
         }
         return false
     }
 
+    @discardableResult
+    public func unlinkIdentity(provider: String) async -> Bool {
+        guard let token = self.token else { return false }
+        errorMessage = nil
+        do {
+            let (data, http) = try await dataWithFallback { base in
+                guard let url = URL(string: "\(base)/api/auth/identities/\(provider)") else { return nil }
+                var req = URLRequest(url: url)
+                req.httpMethod = "DELETE"
+                req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                return req
+            }
+            let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+            if http.statusCode == 200 {
+                self.linkedIdentities = Self.parseIdentities(json["identities"])
+                return true
+            }
+            errorMessage = json["error"] as? String ?? "解绑失败"
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        return false
+    }
+
+    public func refreshProEntitlement() async {
+        guard let token = self.token, isPersistenceEnabled else { return }
+        do {
+            let (data, http) = try await dataWithFallback { base in
+                guard let url = URL(string: "\(base)/api/pro/entitlement") else { return nil }
+                var req = URLRequest(url: url)
+                req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                return req
+            }
+            guard http.statusCode == 200,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let entDict = json["entitlement"] as? [String: Any],
+                  let entData = try? JSONSerialization.data(withJSONObject: entDict),
+                  let decoded = try? JSONDecoder().decode(CloudProEntitlement.self, from: entData) else {
+                self.proEntitlement = nil
+                return
+            }
+            self.proEntitlement = decoded
+        } catch {
+            // Keep existing entitlement snapshot on transient error
+        }
+    }
+
     public func logout() {
-        if isPersistenceEnabled,
-           let token = self.token,
-           let url = URL(string: "\(Self.serverBaseURL)/api/auth/logout") {
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        logout(clearLocalSyncedData: false)
+    }
+
+    public func logout(clearLocalSyncedData: Bool) {
+        if isPersistenceEnabled, let token = self.token {
             Task {
-                _ = try? await URLSession.shared.data(for: request)
+                _ = try? await dataWithFallback { base in
+                    guard let url = URL(string: "\(base)/api/auth/logout") else { return nil }
+                    var request = URLRequest(url: url)
+                    request.httpMethod = "POST"
+                    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                    return request
+                }
             }
         }
 
+        if clearLocalSyncedData {
+            let targetSession = ProfileManager.shared.session(for: boundProfileID)
+            targetSession.applySyncResult(folders: [], bookmarks: [], tombstones: [])
+        }
         clearLocalSessionState()
     }
 
@@ -410,20 +571,13 @@ public final class AccountManager: ObservableObject {
             return true
         }
 
-        guard let url = URL(string: "\(Self.serverBaseURL)/api/auth/account") else {
-            errorMessage = "账号注销地址无效"
-            return false
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                errorMessage = "未收到服务器响应"
-                return false
+            let (data, httpResponse) = try await dataWithFallback { base in
+                guard let url = URL(string: "\(base)/api/auth/account") else { return nil }
+                var request = URLRequest(url: url)
+                request.httpMethod = "DELETE"
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                return request
             }
             if httpResponse.statusCode == 200 || httpResponse.statusCode == 401 || httpResponse.statusCode == 404 {
                 clearLocalSessionState()
@@ -443,6 +597,10 @@ public final class AccountManager: ObservableObject {
         self.token = nil
         self.currentUser = nil
         self.isLoggedIn = false
+        self.linkedIdentities = []
+        self.proEntitlement = nil
+        self.remoteDeviceTabs = []
+        self.scopeVersions = [:]
         self.syncErrorMessage = nil
         clearCachedAvatar()
         self.userDefaults.removeObject(forKey: tokenKey)
@@ -459,10 +617,6 @@ public final class AccountManager: ObservableObject {
             errorMessage = "尚未登录"
             return false
         }
-        guard let url = URL(string: "\(Self.serverBaseURL)/api/user/avatar") else {
-            errorMessage = "上传地址无效"
-            return false
-        }
 
         let compactData = Self.compressAvatarData(imageData) ?? imageData
         let uploadMimeType = compactData == imageData ? mimeType : "image/jpeg"
@@ -471,22 +625,19 @@ public final class AccountManager: ObservableObject {
             self.avatarImage = optimisticImage
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(uploadMimeType, forHTTPHeaderField: "Content-Type")
-        request.setValue("ZhuoBrowserMac/1.0", forHTTPHeaderField: "User-Agent")
-        request.httpBody = compactData
-
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                errorMessage = "未收到服务器响应"
-                return false
+            let (data, httpResponse) = try await dataWithFallback { base in
+                guard let url = URL(string: "\(base)/api/user/avatar") else { return nil }
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                request.setValue(uploadMimeType, forHTTPHeaderField: "Content-Type")
+                request.setValue("ZhuoBrowserMac/1.0", forHTTPHeaderField: "User-Agent")
+                request.httpBody = compactData
+                return request
             }
 
             let json = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
-
             if httpResponse.statusCode == 200 {
                 let returnedAvatarUrl = json["avatarUrl"] as? String
                 let resolvedAvatarUrl = returnedAvatarUrl ?? currentUser.avatarUrl
@@ -510,12 +661,15 @@ public final class AccountManager: ObservableObject {
         return false
     }
 
+    // MARK: - Settings Mapping & Scoped Sync v3
+
     nonisolated public static func extractUpdatedAt(from dict: [String: Any]) -> Int64 {
         if let number = dict["updatedAt"] as? NSNumber {
-            return number.int64Value
+            let raw = number.int64Value
+            return raw > 0 && raw < 10_000_000_000 ? raw * 1000 : raw
         }
         if let str = dict["updatedAt"] as? String, let parsed = Int64(str) {
-            return parsed
+            return parsed > 0 && parsed < 10_000_000_000 ? parsed * 1000 : parsed
         }
         return 0
     }
@@ -532,32 +686,58 @@ public final class AccountManager: ObservableObject {
     }
 
     public func applySettings(_ dict: [String: Any], to settings: BrowserSettings) {
+        applySettingsInternal(dict, to: settings, includeDesktopDeviceSettings: true)
+    }
+
+    public func applyRemoteSyncSettings(_ dict: [String: Any], to settings: BrowserSettings) {
+        applySettingsInternal(dict, to: settings, includeDesktopDeviceSettings: false)
+    }
+
+    private func applySettingsInternal(
+        _ dict: [String: Any],
+        to settings: BrowserSettings,
+        includeDesktopDeviceSettings: Bool
+    ) {
         let remoteUpdatedAt = Self.extractUpdatedAt(from: dict)
         settings.performRemoteUpdate(remoteUpdatedAt: remoteUpdatedAt > 0 ? remoteUpdatedAt : nil) { target in
-            if let adBlock = dict["adBlockEnabled"] as? Bool {
+            if let blockAds = dict["blockAds"] as? Bool {
+                target.adBlockEnabled = blockAds
+            } else if let adBlock = dict["adBlockEnabled"] as? Bool {
                 target.adBlockEnabled = adBlock
             }
-            if let cosmetic = dict["cosmeticCleanupEnabled"] as? Bool {
+            if let blockTrackers = dict["blockTrackers"] as? Bool {
+                target.cosmeticCleanupEnabled = blockTrackers
+            } else if let cosmetic = dict["cosmeticCleanupEnabled"] as? Bool {
                 target.cosmeticCleanupEnabled = cosmetic
             }
             if let allowlisted = dict["adBlockAllowlistedHosts"] as? [String] {
                 target.adBlockAllowlistedHosts = PersistedBrowserSettings.normalizeHosts(allowlisted)
             }
-            if let budget = dict["liveWebViewBudget"] as? Int {
-                target.liveWebViewBudget = budget
-            }
-            if let hibernation = dict["tabHibernationEnabled"] as? Bool {
-                target.tabHibernationEnabled = hibernation
+            if includeDesktopDeviceSettings {
+                if let budget = dict["liveWebViewBudget"] as? Int {
+                    target.liveWebViewBudget = budget
+                }
+                if let hibernation = dict["tabHibernationEnabled"] as? Bool {
+                    target.tabHibernationEnabled = hibernation
+                }
+                if let restoreSession = dict["restoreSessionOnLaunch"] as? Bool {
+                    target.restoreSessionOnLaunch = restoreSession
+                }
             }
             if let quickSites = dict["quickSitesEnabled"] as? Bool {
                 target.quickSitesEnabled = quickSites
             }
-            if let restoreSession = dict["restoreSessionOnLaunch"] as? Bool {
-                target.restoreSessionOnLaunch = restoreSession
-            }
             if let engineRaw = dict["searchEngine"] as? String,
                let engine = SearchEngine.from(engineRaw) {
                 target.searchEngine = engine
+            } else if let engineNum = dict["searchEngine"] as? Int {
+                switch engineNum {
+                case 0: target.searchEngine = .bing
+                case 1: target.searchEngine = .baidu
+                case 2: target.searchEngine = .google
+                case 3: target.searchEngine = .duckDuckGo
+                default: break
+                }
             }
             if let safeRaw = dict["safeBrowsingLevel"] as? String,
                let safeLevel = SafeBrowsingLevel(rawValue: safeRaw) {
@@ -586,15 +766,19 @@ public final class AccountManager: ObservableObject {
     }
 
     public func settingsPayload(from settings: BrowserSettings) -> [String: Any] {
+        crossPlatformSettingsPayload(from: settings)
+    }
+
+    /// Emits cross-platform user-intent preferences without overwriting device-specific memory budgets.
+    public func crossPlatformSettingsPayload(from settings: BrowserSettings) -> [String: Any] {
         let timestamp = settings.updatedAt > 0 ? settings.updatedAt : BrowserSettings.currentTimestampMillis()
         return [
             "adBlockEnabled": settings.adBlockEnabled,
+            "blockAds": settings.adBlockEnabled,
             "cosmeticCleanupEnabled": settings.cosmeticCleanupEnabled,
+            "blockTrackers": settings.cosmeticCleanupEnabled,
             "adBlockAllowlistedHosts": settings.adBlockAllowlistedHosts,
-            "liveWebViewBudget": settings.liveWebViewBudget,
-            "tabHibernationEnabled": settings.tabHibernationEnabled,
             "quickSitesEnabled": settings.quickSitesEnabled,
-            "restoreSessionOnLaunch": settings.restoreSessionOnLaunch,
             "searchEngine": settings.searchEngine.rawValue,
             "safeBrowsingLevel": settings.safeBrowsingLevel.rawValue,
             "alwaysUseSecureConnections": settings.alwaysUseSecureConnections,
@@ -607,9 +791,12 @@ public final class AccountManager: ObservableObject {
         ]
     }
 
-    /// Schedules a debounced cloud sync whenever the user changes a preference locally.
-    public func scheduleSettingsSync() {
+    /// Schedules a debounced cloud sync whenever the bound profile changes a preference locally.
+    public func scheduleSettingsSync(for session: BrowserSession? = nil) {
         guard isPersistenceEnabled, isLoggedIn else { return }
+        let targetSession = session ?? ProfileManager.shared.session(for: boundProfileID)
+        guard targetSession.profileID == boundProfileID else { return }
+
         settingsSyncTask?.cancel()
         settingsSyncTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 300_000_000)
@@ -618,37 +805,41 @@ public final class AccountManager: ObservableObject {
                 try? await Task.sleep(nanoseconds: 150_000_000)
                 guard !Task.isCancelled else { return }
             }
-            if BrowserSettings.shared.hasPendingLocalChanges {
-                await self.syncWithCloud(session: BrowserSession.shared)
+            if targetSession.settings.hasPendingLocalChanges {
+                await self.syncWithCloud(session: targetSession)
             }
         }
     }
 
     public func syncWithCloud(session: BrowserSession) async {
         guard isLoggedIn, let token = self.token else { return }
+        guard session.profileID == boundProfileID || session.isDefaultProfile else {
+            syncErrorMessage = "当前个人资料未绑定云同步账号，为避免数据串写已跳过同步"
+            return
+        }
+
         isSyncing = true
         syncErrorMessage = nil
         defer { isSyncing = false }
 
-        // 1. Pull cloud bookmarks & settings
-        guard let pullURL = URL(string: "\(Self.serverBaseURL)/api/sync/pull") else {
-            syncErrorMessage = "同步地址无效"
-            return
-        }
+        var remoteFolders: [BookmarkFolder] = []
+        var remoteBookmarks: [BookmarkEntry] = []
+        var remoteTombstones: [BookmarkTombstone] = []
+        var remoteSettings: [String: Any]?
+        var remoteAllowlistedHosts: [String] = []
+        var bookmarksBaseVersion = scopeVersions["bookmarks"] ?? 0
+        var settingsBaseVersion = scopeVersions["settings"] ?? 0
+        var siteControlsBaseVersion = scopeVersions["site_controls"] ?? 0
 
-        var pullReq = URLRequest(url: pullURL)
-        pullReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        let remoteFolders: [BookmarkFolder]
-        let remoteBookmarks: [BookmarkEntry]
-        let remoteTombstones: [BookmarkTombstone]
-        let remoteSettings: [String: Any]?
-
+        // 1. Pull v3 scopes & remote device tabs
         do {
-            let (data, response) = try await URLSession.shared.data(for: pullReq)
-            guard let httpResp = response as? HTTPURLResponse else {
-                syncErrorMessage = "未收到云端响应"
-                return
+            let encodedDevice = deviceId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? deviceId
+            let pullPath = "/api/sync/v3/pull?scopes=bookmarks,settings,site_controls,device_tabs&excludeDeviceId=\(encodedDevice)"
+            let (data, httpResp) = try await dataWithFallback { base in
+                guard let pullURL = URL(string: "\(base)\(pullPath)") else { return nil }
+                var pullReq = URLRequest(url: pullURL)
+                pullReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                return pullReq
             }
 
             if httpResp.statusCode == 401 || httpResp.statusCode == 403 {
@@ -656,101 +847,189 @@ public final class AccountManager: ObservableObject {
                 syncErrorMessage = "登录凭据已过期，请重新登录"
                 return
             }
-
-            guard httpResp.statusCode == 200 else {
+            guard httpResp.statusCode == 200,
+                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 syncErrorMessage = "云端拉取失败 (HTTP \(httpResp.statusCode))"
                 return
             }
 
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                syncErrorMessage = "云端数据解析失败"
-                return
+            if let scopes = json["scopes"] as? [String: Any] {
+                if let bmScope = scopes["bookmarks"] as? [String: Any] {
+                    bookmarksBaseVersion = (bmScope["version"] as? NSNumber)?.intValue ?? 0
+                    let parsed = LibraryPolicy.parseRemoteBookmarksPayload(bmScope["payload"])
+                    remoteFolders = parsed.folders
+                    remoteBookmarks = parsed.bookmarks
+                    remoteTombstones = parsed.tombstones
+                }
+                if let stScope = scopes["settings"] as? [String: Any] {
+                    settingsBaseVersion = (stScope["version"] as? NSNumber)?.intValue ?? 0
+                    remoteSettings = stScope["payload"] as? [String: Any]
+                }
+                if let scScope = scopes["site_controls"] as? [String: Any] {
+                    siteControlsBaseVersion = (scScope["version"] as? NSNumber)?.intValue ?? 0
+                    if let scPayload = scScope["payload"] as? [String: Any],
+                       let controls = scPayload["controls"] as? [[String: Any]] {
+                        remoteAllowlistedHosts = controls.compactMap { row -> String? in
+                            guard let host = row["host"] as? String,
+                                  (row["networkBlocking"] as? NSNumber)?.intValue == 2 else { return nil }
+                            return host
+                        }
+                    }
+                }
             }
 
-            let parsed = LibraryPolicy.parseRemoteBookmarksPayload(json["bookmarks"])
-            remoteFolders = parsed.folders
-            remoteBookmarks = parsed.bookmarks
-            remoteTombstones = parsed.tombstones
-            remoteSettings = json["settings"] as? [String: Any]
+            self.remoteDeviceTabs = Self.parseRemoteDevices(json["remoteDevices"])
         } catch {
-            // CRITICAL DEFENSIVE GUARD: Abort immediately when pull fails to avoid overwriting remote data.
             syncErrorMessage = "同步拉取失败：\(error.localizedDescription)"
             return
         }
 
-        // Two-way merge with tombstone preservation and deletion propagation
-        let mergeResult = LibraryPolicy.mergeSync(
-            localFolders: session.bookmarkFolders,
-            localBookmarks: session.bookmarks,
-            localTombstones: session.tombstones,
-            remoteFolders: remoteFolders,
-            remoteBookmarks: remoteBookmarks,
-            remoteTombstones: remoteTombstones
-        )
-        session.applySyncResult(
-            folders: mergeResult.mergedFolders,
-            bookmarks: mergeResult.mergedBookmarks,
-            tombstones: mergeResult.mergedTombstones
-        )
+        // 2. Merge locally & push with CAS conflict retry
+        var attempts = 0
+        var pushedSettingsTimestamp: Int64 = 0
+        while attempts < 3 {
+            attempts += 1
+            let mergeResult = LibraryPolicy.mergeSync(
+                localFolders: session.bookmarkFolders,
+                localBookmarks: session.bookmarks,
+                localTombstones: session.tombstones,
+                remoteFolders: remoteFolders,
+                remoteBookmarks: remoteBookmarks,
+                remoteTombstones: remoteTombstones
+            )
+            session.applySyncResult(
+                folders: mergeResult.mergedFolders,
+                bookmarks: mergeResult.mergedBookmarks,
+                tombstones: mergeResult.mergedTombstones
+            )
 
-        // Apply remote settings only when remote is newer than local settings and local has no pending edits.
-        if let remoteSettings = remoteSettings,
-           shouldApplyRemoteSettings(remoteSettings, to: session.settings) {
-            applySettings(remoteSettings, to: session.settings)
-            session.enforceMemoryBudget()
-            session.applyContentProtectionSettingsToAllTabs()
-        }
+            if let remoteSettings, shouldApplyRemoteSettings(remoteSettings, to: session.settings) {
+                applyRemoteSyncSettings(remoteSettings, to: session.settings)
+                session.applyContentProtectionSettingsToAllTabs()
+            }
 
-        // 2. Push merged bookmarks & settings to cloud
-        guard let pushURL = URL(string: "\(Self.serverBaseURL)/api/sync/push") else {
-            syncErrorMessage = "推送地址无效"
-            return
-        }
+            if !remoteAllowlistedHosts.isEmpty {
+                let mergedHosts = PersistedBrowserSettings.normalizeHosts(
+                    session.settings.adBlockAllowlistedHosts + remoteAllowlistedHosts
+                )
+                if mergedHosts != session.settings.adBlockAllowlistedHosts {
+                    session.settings.performRemoteUpdate(remoteUpdatedAt: BrowserSettings.currentTimestampMillis()) { target in
+                        target.adBlockAllowlistedHosts = mergedHosts
+                    }
+                }
+            }
 
-        var pushReq = URLRequest(url: pushURL)
-        pushReq.httpMethod = "POST"
-        pushReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        pushReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let structuredBookmarksPayload = LibraryPolicy.encodeBookmarksPayload(
+                folders: session.bookmarkFolders,
+                bookmarks: session.bookmarks,
+                tombstones: session.tombstones
+            )
+            let localSettings = crossPlatformSettingsPayload(from: session.settings)
+            pushedSettingsTimestamp = Self.extractUpdatedAt(from: localSettings)
+            let nowMs = BrowserSettings.currentTimestampMillis()
+            let siteControlsPayload: [String: Any] = [
+                "controls": session.settings.adBlockAllowlistedHosts.map { host -> [String: Any] in
+                    [
+                        "host": host,
+                        "networkBlocking": 2,
+                        "trackerBlocking": 0,
+                        "cosmeticCleanup": 0,
+                        "autoReader": 0,
+                        "darkMode": 0,
+                        "desktopUserAgent": 0,
+                        "updatedAt": nowMs
+                    ]
+                },
+                "tombstones": [],
+                "updatedAt": nowMs
+            ]
 
-        let structuredBookmarksPayload = LibraryPolicy.encodeBookmarksPayload(
-            folders: session.bookmarkFolders,
-            bookmarks: session.bookmarks,
-            tombstones: session.tombstones
-        )
-        let localSettings = settingsPayload(from: session.settings)
-        let pushedSettingsTimestamp = Self.extractUpdatedAt(from: localSettings)
+            let pushBody: [String: Any] = [
+                "deviceId": deviceId,
+                "deviceName": deviceName,
+                "platform": "macos",
+                "scopes": [
+                    "bookmarks": [
+                        "baseVersion": bookmarksBaseVersion,
+                        "encryptionMode": "none",
+                        "payload": structuredBookmarksPayload
+                    ],
+                    "settings": [
+                        "baseVersion": settingsBaseVersion,
+                        "encryptionMode": "none",
+                        "payload": localSettings
+                    ],
+                    "site_controls": [
+                        "baseVersion": siteControlsBaseVersion,
+                        "encryptionMode": "none",
+                        "payload": siteControlsPayload
+                    ]
+                ],
+                "deviceTabs": RegionAuthPolicy.sanitizeDeviceTabs(session.tabs)
+            ]
 
-        let payload: [String: Any] = [
-            "bookmarks": structuredBookmarksPayload,
-            "settings": localSettings
-        ]
-
-        do {
-            guard let data = try? JSONSerialization.data(withJSONObject: payload) else {
+            guard let bodyData = try? JSONSerialization.data(withJSONObject: pushBody) else {
                 syncErrorMessage = "推送数据序列化失败"
                 return
             }
-            pushReq.httpBody = data
 
-            let (_, response) = try await URLSession.shared.data(for: pushReq)
-            guard let httpResp = response as? HTTPURLResponse else {
-                syncErrorMessage = "推送未收到云端响应"
+            do {
+                let (data, httpResp) = try await dataWithFallback { base in
+                    guard let pushURL = URL(string: "\(base)/api/sync/v3/push") else { return nil }
+                    var pushReq = URLRequest(url: pushURL)
+                    pushReq.httpMethod = "POST"
+                    pushReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                    pushReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    pushReq.httpBody = bodyData
+                    return pushReq
+                }
+
+                if httpResp.statusCode == 401 || httpResp.statusCode == 403 {
+                    logout()
+                    syncErrorMessage = "登录凭据已过期，请重新登录"
+                    return
+                }
+
+                let respJson = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+                if let applied = respJson["appliedScopes"] as? [String: [String: Any]] {
+                    for (scope, info) in applied {
+                        if let v = (info["version"] as? NSNumber)?.intValue {
+                            scopeVersions[scope] = v
+                        }
+                    }
+                }
+
+                if httpResp.statusCode == 409,
+                   let conflicts = respJson["conflicts"] as? [[String: Any]] {
+                    for conflict in conflicts {
+                        guard let scope = conflict["scope"] as? String else { continue }
+                        let currentVersion = (conflict["currentVersion"] as? NSNumber)?.intValue ?? 0
+                        if scope == "bookmarks" {
+                            bookmarksBaseVersion = currentVersion
+                            let parsed = LibraryPolicy.parseRemoteBookmarksPayload(conflict["currentPayload"])
+                            remoteFolders = parsed.folders
+                            remoteBookmarks = parsed.bookmarks
+                            remoteTombstones = parsed.tombstones
+                        } else if scope == "settings" {
+                            settingsBaseVersion = currentVersion
+                            remoteSettings = conflict["currentPayload"] as? [String: Any]
+                        } else if scope == "site_controls" {
+                            siteControlsBaseVersion = currentVersion
+                        }
+                    }
+                    continue
+                }
+
+                guard httpResp.statusCode == 200 else {
+                    syncErrorMessage = "云端推送失败 (HTTP \(httpResp.statusCode))"
+                    return
+                }
+
+                break
+            } catch {
+                syncErrorMessage = "同步推送失败：\(error.localizedDescription)"
                 return
             }
-
-            if httpResp.statusCode == 401 || httpResp.statusCode == 403 {
-                logout()
-                syncErrorMessage = "登录凭据已过期，请重新登录"
-                return
-            }
-
-            guard httpResp.statusCode == 200 else {
-                syncErrorMessage = "云端推送失败 (HTTP \(httpResp.statusCode))"
-                return
-            }
-        } catch {
-            syncErrorMessage = "同步推送失败：\(error.localizedDescription)"
-            return
         }
 
         if session.settings.updatedAt <= pushedSettingsTimestamp {
@@ -759,41 +1038,34 @@ public final class AccountManager: ObservableObject {
         let now = Date()
         self.lastSyncTime = now
         self.userDefaults.set(now, forKey: lastSyncKey)
-        if let token = self.token {
-            persistSessionLocally(token: token, profile: self.currentUser)
-        }
+        persistSessionLocally(token: token, profile: self.currentUser)
         self.syncErrorMessage = nil
     }
 
     private func verifySession() async {
-        guard let token = self.token, let url = URL(string: "\(Self.serverBaseURL)/api/auth/me") else { return }
-
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard let token = self.token else { return }
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse else { return }
+            let (data, httpResponse) = try await dataWithFallback { base in
+                guard let url = URL(string: "\(base)/api/auth/me") else { return nil }
+                var request = URLRequest(url: url)
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                return request
+            }
 
             if httpResponse.statusCode == 200 {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let userDict = json["user"] as? [String: Any],
-                   let userId = userDict["id"] as? String,
-                   let userEmail = userDict["email"] as? String,
-                   let userDisplayName = userDict["displayName"] as? String {
-                    let userAvatarUrl = userDict["avatarUrl"] as? String ?? userDict["avatar_url"] as? String
-                    let profile = UserProfile(id: userId, email: userEmail, displayName: userDisplayName, avatarUrl: userAvatarUrl)
+                   let profile = Self.parseUserProfile(userDict) {
                     self.currentUser = profile
                     self.isLoggedIn = true
+                    self.linkedIdentities = Self.parseIdentities(json["identities"])
                     persistSessionLocally(token: token, profile: profile)
                     await fetchAndCacheAvatarIfNeeded(for: profile)
                 }
             } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-                // Only an explicit auth rejection may destroy the local session.
                 logout()
             } else {
-                // Transient server/CDN failure: keep the user signed in locally instead
-                // of silently wiping the keychain token and cached profile.
                 syncErrorMessage = "账号服务暂时不可用 (HTTP \(httpResponse.statusCode))，已保留本地登录状态"
             }
         } catch {
@@ -867,7 +1139,6 @@ public final class AccountManager: ObservableObject {
                 persistSessionLocally(token: token, profile: self.currentUser)
             }
 
-            // Automatically shrink and re-upload legacy oversized avatars once so Cloudflare R2 stays fast for all pulls.
             if data.count > Self.legacyAvatarByteThreshold && compactData.count < data.count {
                 _ = await uploadAvatar(imageData: compactData, mimeType: "image/jpeg")
             }
@@ -878,9 +1149,6 @@ public final class AccountManager: ObservableObject {
 
     private func persistSessionLocally(token: String, profile: UserProfile?) {
         _ = KeychainHelper.saveToken(token)
-        // Always retain redundant copies in UserDefaults and Application Support so that
-        // rebuilding or re-signing the app via run_release never drops the auth token
-        // when macOS legacy Keychain ACL rejects a new binary CDHash.
         self.userDefaults.set(token, forKey: tokenKey)
         if let profile, let data = try? JSONEncoder().encode(profile) {
             self.userDefaults.set(data, forKey: userProfileKey)
@@ -891,7 +1159,8 @@ public final class AccountManager: ObservableObject {
                 profile: profile,
                 lastSyncTime: self.lastSyncTime,
                 cachedAvatarUrl: self.cachedAvatarUrl,
-                cachedAvatarData: self.cachedAvatarData
+                cachedAvatarData: self.cachedAvatarData,
+                boundProfileID: self.boundProfileID
             )
             if let encoded = try? JSONEncoder().encode(persisted) {
                 try? encoded.write(to: sessionFileURL, options: .atomic)
@@ -902,5 +1171,34 @@ public final class AccountManager: ObservableObject {
     private static func loadFileSession(from url: URL?) -> PersistedAccountSession? {
         guard let url, let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(PersistedAccountSession.self, from: data)
+    }
+
+    private static func parseUserProfile(_ dict: [String: Any]) -> UserProfile? {
+        guard let userId = dict["id"] as? String,
+              let userEmail = dict["email"] as? String,
+              let userDisplayName = dict["displayName"] as? String else {
+            return nil
+        }
+        let userAvatarUrl = dict["avatarUrl"] as? String ?? dict["avatar_url"] as? String
+        return UserProfile(id: userId, email: userEmail, displayName: userDisplayName, avatarUrl: userAvatarUrl)
+    }
+
+    private static func parseIdentities(_ raw: Any?) -> [LinkedIdentityInfo] {
+        guard let list = raw as? [[String: Any]] else { return [] }
+        return list.compactMap { item in
+            guard let provider = item["provider"] as? String else { return nil }
+            let email = item["email"] as? String
+            let verified = item["emailVerified"] as? Bool ?? false
+            return LinkedIdentityInfo(provider: provider, email: email, emailVerified: verified)
+        }
+    }
+
+    private static func parseRemoteDevices(_ raw: Any?) -> [RemoteDeviceTabGroup] {
+        guard let list = raw as? [[String: Any]],
+              let data = try? JSONSerialization.data(withJSONObject: list),
+              let decoded = try? JSONDecoder().decode([RemoteDeviceTabGroup].self, from: data) else {
+            return []
+        }
+        return decoded
     }
 }

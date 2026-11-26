@@ -1,5 +1,6 @@
 package com.youdroid.zhuobrowser
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,11 +20,25 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIncomingIntent(intent)
         enableEdgeToEdge()
         setContent {
             Surface(modifier = Modifier.fillMaxSize().systemBarsPadding(), color = Tokens.pageBackground) {
                 BrowserScreen(session)
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
+        val uriString = intent?.dataString ?: return
+        if (uriString.startsWith("zhuobrowser-auth://oauth/callback")) {
+            session.handleOAuthCallbackUri(uriString)
         }
     }
 

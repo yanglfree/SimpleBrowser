@@ -8,6 +8,13 @@ import android.webkit.WebView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.youdroid.zhuobrowser.account.AccountSyncClient
+import com.youdroid.zhuobrowser.account.AccountUserProfile
+import com.youdroid.zhuobrowser.account.AuthActionResult
+import com.youdroid.zhuobrowser.account.BookmarkFolder
+import com.youdroid.zhuobrowser.account.BookmarkTombstone
+import com.youdroid.zhuobrowser.account.RegionAuthPolicy
+import com.youdroid.zhuobrowser.account.RemoteDeviceTabGroup
 import com.youdroid.zhuobrowser.policy.SearchEngine
 import com.youdroid.zhuobrowser.policy.UrlPolicy
 import com.youdroid.zhuobrowser.web.NetworkBlocker
@@ -18,8 +25,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
 
 data class BrowserUiState(
     val tabs: List<BrowserTab> = listOf(BrowserTab.home(false)),
@@ -27,11 +36,21 @@ data class BrowserUiState(
     val showsOverview: Boolean = false,
     val showsSettings: Boolean = false,
     val showsLibrary: Boolean = false,
+    val showsAccount: Boolean = false,
     val libraryTab: LibraryTab = LibraryTab.Bookmarks,
     val settings: BrowserSettings = BrowserSettings(),
     val allowedHosts: List<String> = emptyList(),
     val history: List<HistoryEntry> = emptyList(),
     val savedItems: List<SavedItem> = emptyList(),
+    val bookmarkFolders: List<BookmarkFolder> = emptyList(),
+    val selectedFolderId: String? = null,
+    val bookmarkTombstones: List<BookmarkTombstone> = emptyList(),
+    val accountUser: AccountUserProfile? = null,
+    val isPro: Boolean = false,
+    val isSyncing: Boolean = false,
+    val lastSyncAt: Long = 0L,
+    val accountError: String? = null,
+    val remoteDeviceTabs: List<RemoteDeviceTabGroup> = emptyList(),
     val readerSettings: ReaderSettings = ReaderSettings(),
     val showsFind: Boolean = false,
     val findQuery: String = "",
@@ -50,6 +69,7 @@ data class BrowserUiState(
 class BrowserSession(application: Application) : AndroidViewModel(application) {
     val blocker = NetworkBlocker()
     val downloads = DownloadStore(application)
+    private val accountClient = AccountSyncClient(application)
     private val prefs = application.getSharedPreferences("zhuo", Context.MODE_PRIVATE)
     private val webViews = mutableMapOf<String, WebView>()
     private var permissionReply: ((Boolean) -> Unit)? = null
@@ -59,10 +79,16 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
     init {
         val restored = restore()
         _state.value = restored.copy(
-            activeTabId = restored.activeTabId.ifEmpty { restored.tabs.first().id }
+            activeTabId = restored.activeTabId.ifEmpty { restored.tabs.first().id },
+            accountUser = accountClient.savedUser(),
+            isPro = accountClient.savedProState().active,
+            lastSyncAt = accountClient.lastSyncAt
         )
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { blocker.load(getApplication<Application>().assets) }
+            if (accountClient.isLoggedIn()) {
+                refreshAccountAndSyncInternal()
+            }
         }
     }
 
@@ -133,15 +159,32 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
     }
 
     fun setShowsSettings(visible: Boolean) {
-        _state.update { it.copy(showsSettings = visible) }
+        _state.update { it.copy(showsSettings = visible, showsAccount = if (visible) false else it.showsAccount) }
     }
 
     fun setShowsLibrary(visible: Boolean) {
-        _state.update { it.copy(showsLibrary = visible) }
+        _state.update { it.copy(showsLibrary = visible, showsAccount = if (visible) false else it.showsAccount) }
     }
 
     fun setShowsDownloads(visible: Boolean) {
-        _state.update { it.copy(showsDownloads = visible) }
+        _state.update { it.copy(showsDownloads = visible, showsAccount = if (visible) false else it.showsAccount) }
+    }
+
+    fun setShowsAccount(visible: Boolean) {
+        _state.update {
+            it.copy(
+                showsAccount = visible,
+                showsSettings = if (visible) false else it.showsSettings,
+                showsLibrary = if (visible) false else it.showsLibrary,
+                showsDownloads = if (visible) false else it.showsDownloads,
+                showsOverview = if (visible) false else it.showsOverview,
+                accountError = null
+            )
+        }
+    }
+
+    fun setSelectedFolder(folderId: String?) {
+        _state.update { it.copy(selectedFolderId = folderId) }
     }
 
     fun openDownloads() {
@@ -150,7 +193,8 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
                 showsDownloads = true,
                 showsSettings = false,
                 showsOverview = false,
-                showsLibrary = false
+                showsLibrary = false,
+                showsAccount = false
             )
         }
     }
@@ -235,7 +279,8 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
                 showsLibrary = true,
                 showsSettings = false,
                 showsOverview = false,
-                showsDownloads = false
+                showsDownloads = false,
+                showsAccount = false
             )
         }
     }
@@ -383,11 +428,17 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
         val tab = _state.value.activeTab ?: return
         if (UrlPolicy.isHomeUrl(tab.url)) return
         val existing = _state.value.savedItems.firstOrNull { it.url == tab.url }
+        val now = System.currentTimeMillis()
         if (existing != null) {
-            _state.update { it.copy(savedItems = LibraryPolicy.removeSavedItem(it.savedItems, existing.id)) }
+            val tb = BookmarkTombstone(id = existing.id, url = existing.url, isFolder = false, deletedAt = now)
+            _state.update {
+                it.copy(
+                    savedItems = LibraryPolicy.removeSavedItem(it.savedItems, existing.id),
+                    bookmarkTombstones = listOf(tb) + it.bookmarkTombstones.filterNot { prev -> prev.id == existing.id }
+                )
+            }
             flash("已取消书签")
         } else {
-            val now = System.currentTimeMillis()
             val title = tab.title.ifEmpty { UrlPolicy.displayHost(tab.url) }
             _state.update { current ->
                 current.copy(
@@ -409,8 +460,180 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
     }
 
     fun removeSavedItem(id: String) {
-        _state.update { it.copy(savedItems = LibraryPolicy.removeSavedItem(it.savedItems, id)) }
+        val removed = _state.value.savedItems.firstOrNull { it.id == id }
+        val now = System.currentTimeMillis()
+        _state.update { current ->
+            val nextTombstones = if (removed != null) {
+                listOf(BookmarkTombstone(id = removed.id, url = removed.url, isFolder = false, deletedAt = now)) +
+                    current.bookmarkTombstones.filterNot { it.id == removed.id }
+            } else current.bookmarkTombstones
+            current.copy(
+                savedItems = LibraryPolicy.removeSavedItem(current.savedItems, id),
+                bookmarkTombstones = nextTombstones
+            )
+        }
         persistLibrary()
+    }
+
+    fun sendOtp(email: String, onSent: (Boolean) -> Unit) {
+        _state.update { it.copy(isSyncing = true, accountError = null) }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { accountClient.sendEmailOtp(email) }
+            _state.update { it.copy(isSyncing = false, accountError = result.errorMessage) }
+            if (result.ok) flash("验证码已发送")
+            onSent(result.ok)
+        }
+    }
+
+    fun verifyOtp(email: String, code: String, displayName: String) {
+        runAuthAction { accountClient.verifyEmailOtp(email, code, displayName) }
+    }
+
+    fun loginPassword(email: String, password: String) {
+        runAuthAction { accountClient.loginWithPassword(email, password) }
+    }
+
+    fun registerPassword(email: String, password: String, displayName: String) {
+        runAuthAction { accountClient.registerWithPassword(email, password, displayName) }
+    }
+
+    fun startGoogleSignInUrl(): String? {
+        if (!RegionAuthPolicy.isGoogleSignInAvailable(Locale.getDefault().country)) {
+            _state.update { it.copy(accountError = "当前地区不支持 Google 登录") }
+            return null
+        }
+        return accountClient.buildGoogleWebOAuthStartUrl()
+    }
+
+    fun handleOAuthCallbackUri(uri: String) {
+        if (!uri.startsWith("zhuobrowser-auth://oauth/callback")) return
+        runAuthAction { accountClient.exchangeOAuthCallback(uri) }
+    }
+
+    fun syncNow() {
+        if (!accountClient.isLoggedIn()) return
+        _state.update { it.copy(isSyncing = true, accountError = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            refreshAccountAndSyncInternal()
+        }
+    }
+
+    fun logoutAccount() {
+        _state.update { it.copy(isSyncing = true, accountError = null) }
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { accountClient.logout() }
+            _state.update {
+                it.copy(
+                    isSyncing = false,
+                    accountUser = null,
+                    isPro = false,
+                    lastSyncAt = 0L,
+                    remoteDeviceTabs = emptyList(),
+                    accountError = null
+                )
+            }
+            flash("已退出登录")
+        }
+    }
+
+    fun deleteAccount() {
+        _state.update { it.copy(isSyncing = true, accountError = null) }
+        viewModelScope.launch {
+            val res = withContext(Dispatchers.IO) { accountClient.deleteAccount() }
+            if (res.ok) {
+                _state.update {
+                    it.copy(
+                        isSyncing = false,
+                        accountUser = null,
+                        isPro = false,
+                        lastSyncAt = 0L,
+                        remoteDeviceTabs = emptyList(),
+                        accountError = null
+                    )
+                }
+                flash("账号已永久注销")
+            } else {
+                _state.update { it.copy(isSyncing = false, accountError = res.errorMessage) }
+            }
+        }
+    }
+
+    private fun runAuthAction(block: () -> AuthActionResult) {
+        _state.update { it.copy(isSyncing = true, accountError = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = block()
+            if (result.ok) {
+                _state.update {
+                    it.copy(
+                        accountUser = result.user,
+                        isPro = result.pro?.active == true,
+                        accountError = null
+                    )
+                }
+                refreshAccountAndSyncInternal()
+            } else {
+                _state.update { it.copy(isSyncing = false, accountError = result.errorMessage) }
+            }
+        }
+    }
+
+    private suspend fun refreshAccountAndSyncInternal() {
+        val meResult = accountClient.refreshMeAndPro()
+        val snap = _state.value
+        val syncOutcome = if (accountClient.isLoggedIn()) {
+            accountClient.syncV3(
+                localFolders = snap.bookmarkFolders,
+                localItems = snap.savedItems,
+                localTombstones = snap.bookmarkTombstones,
+                localSettings = snap.settings,
+                localAllowedHosts = snap.allowedHosts,
+                localTabs = snap.tabs
+            )
+        } else null
+
+        withContext(Dispatchers.Main) {
+            if (syncOutcome?.unauthorized == true) {
+                _state.update {
+                    it.copy(
+                        isSyncing = false,
+                        accountUser = null,
+                        isPro = false,
+                        remoteDeviceTabs = emptyList(),
+                        accountError = syncOutcome.errorMessage
+                    )
+                }
+                return@withContext
+            }
+            if (syncOutcome != null && syncOutcome.ok) {
+                _state.update { current ->
+                    current.copy(
+                        isSyncing = false,
+                        accountUser = meResult.user ?: current.accountUser,
+                        isPro = syncOutcome.pro?.active ?: meResult.pro?.active ?: current.isPro,
+                        lastSyncAt = syncOutcome.lastSyncAt,
+                        bookmarkFolders = syncOutcome.folders,
+                        savedItems = syncOutcome.items,
+                        bookmarkTombstones = syncOutcome.tombstones,
+                        settings = syncOutcome.settings ?: current.settings,
+                        allowedHosts = syncOutcome.allowedHosts ?: current.allowedHosts,
+                        remoteDeviceTabs = syncOutcome.remoteDeviceTabs,
+                        accountError = null
+                    )
+                }
+                persistSettings()
+                persistAllowList()
+                persistLibrary()
+            } else {
+                _state.update { current ->
+                    current.copy(
+                        isSyncing = false,
+                        accountUser = meResult.user ?: current.accountUser,
+                        isPro = meResult.pro?.active ?: current.isPro,
+                        accountError = syncOutcome?.errorMessage ?: meResult.errorMessage
+                    )
+                }
+            }
+        }
     }
 
     fun removeHistory(id: String) {
@@ -687,6 +910,8 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
         }
         val saved = JSONArray()
         _state.value.savedItems.forEach { item ->
+            val tagsArr = JSONArray()
+            item.tags.forEach { tagsArr.put(it) }
             saved.put(
                 JSONObject()
                     .put("id", item.id)
@@ -694,11 +919,41 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
                     .put("url", item.url)
                     .put("createdAt", item.createdAt)
                     .put("updatedAt", item.updatedAt)
+                    .put("folderId", item.folderId.orEmpty())
+                    .put("isRead", item.isRead)
+                    .put("tags", tagsArr)
+                    .put("isPinnedToStartPage", item.isPinnedToStartPage)
+                    .put("sortOrder", item.sortOrder)
+            )
+        }
+        val folders = JSONArray()
+        _state.value.bookmarkFolders.forEach { f ->
+            folders.put(
+                JSONObject()
+                    .put("id", f.id)
+                    .put("name", f.name)
+                    .put("iconName", f.iconName)
+                    .put("createdAt", f.createdAt)
+                    .put("updatedAt", f.updatedAt)
+                    .put("sortOrder", f.sortOrder)
+                    .put("isPinnedToStartPage", f.isPinnedToStartPage)
+            )
+        }
+        val tombstones = JSONArray()
+        _state.value.bookmarkTombstones.forEach { tb ->
+            tombstones.put(
+                JSONObject()
+                    .put("id", tb.id)
+                    .put("url", tb.url)
+                    .put("isFolder", tb.isFolder)
+                    .put("deletedAt", tb.deletedAt)
             )
         }
         prefs.edit()
             .putString("history", history.toString())
             .putString("savedItems", saved.toString())
+            .putString("bookmarkFolders", folders.toString())
+            .putString("bookmarkTombstones", tombstones.toString())
             .apply()
     }
 
@@ -757,13 +1012,60 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
             buildList {
                 for (i in 0 until array.length()) {
                     val obj = array.getJSONObject(i)
+                    val tagsJson = obj.optJSONArray("tags") ?: JSONArray()
+                    val tags = buildList {
+                        for (t in 0 until tagsJson.length()) {
+                            val s = tagsJson.optString(t).trim()
+                            if (s.isNotEmpty()) add(s)
+                        }
+                    }
                     add(
                         SavedItem(
                             id = obj.getString("id"),
                             title = obj.optString("title"),
                             url = obj.getString("url"),
                             createdAt = obj.optLong("createdAt"),
-                            updatedAt = obj.optLong("updatedAt")
+                            updatedAt = obj.optLong("updatedAt"),
+                            folderId = obj.optString("folderId").takeIf { it.isNotBlank() && it != "null" },
+                            isRead = obj.optBoolean("isRead", false),
+                            tags = tags,
+                            isPinnedToStartPage = if (obj.has("isPinnedToStartPage")) obj.optBoolean("isPinnedToStartPage", true) else true,
+                            sortOrder = obj.optInt("sortOrder", 0)
+                        )
+                    )
+                }
+            }
+        }.getOrDefault(emptyList())
+        val bookmarkFolders = runCatching {
+            val array = JSONArray(prefs.getString("bookmarkFolders", "[]"))
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    add(
+                        BookmarkFolder(
+                            id = obj.getString("id"),
+                            name = obj.optString("name").ifEmpty { "文件夹" },
+                            iconName = obj.optString("iconName").ifEmpty { "folder.fill" },
+                            createdAt = obj.optLong("createdAt"),
+                            updatedAt = obj.optLong("updatedAt"),
+                            sortOrder = obj.optInt("sortOrder", 0),
+                            isPinnedToStartPage = obj.optBoolean("isPinnedToStartPage", true)
+                        )
+                    )
+                }
+            }
+        }.getOrDefault(emptyList())
+        val bookmarkTombstones = runCatching {
+            val array = JSONArray(prefs.getString("bookmarkTombstones", "[]"))
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    add(
+                        BookmarkTombstone(
+                            id = obj.optString("id"),
+                            url = obj.optString("url"),
+                            isFolder = obj.optBoolean("isFolder", false),
+                            deletedAt = obj.optLong("deletedAt")
                         )
                     )
                 }
@@ -796,6 +1098,8 @@ class BrowserSession(application: Application) : AndroidViewModel(application) {
             sitePermissions = sitePermissions,
             history = history,
             savedItems = savedItems,
+            bookmarkFolders = bookmarkFolders,
+            bookmarkTombstones = bookmarkTombstones,
             readerSettings = readerSettings
         )
     }

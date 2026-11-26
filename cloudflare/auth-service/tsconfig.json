@@ -5,6 +5,7 @@
     "moduleResolution": "bundler",
     "lib": ["es2022"],
     "types": ["@cloudflare/workers-types"],
+    "allowImportingTsExtensions": true,
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true

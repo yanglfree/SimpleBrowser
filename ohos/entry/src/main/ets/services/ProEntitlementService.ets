@@ -2,6 +2,7 @@ import preferences from '@ohos.data.preferences';
 
 import { ProEntitlement, isActiveProEntitlement } from '../models/ProModels';
 import { Logger } from '../utils/Logger';
+import { AccountAuthService } from './AccountAuthService';
 import { ProEntitlementApiService } from './ProEntitlementApiService';
 
 const TAG: string = 'ProEntitlement';
@@ -38,9 +39,25 @@ export class ProEntitlementService {
   async refresh(context: Context, reason: string): Promise<boolean> {
     try {
       const entitlement = await ProEntitlementApiService.getInstance().fetchEntitlements(context);
-      await this.applyServerEntitlement(context, entitlement);
+      if (isActiveProEntitlement(entitlement)) {
+        await this.applyServerEntitlement(context, entitlement);
+        if (AccountAuthService.getInstance().isLoggedIn()) {
+          await AccountAuthService.getInstance().bindCurrentInstallForPro(context);
+        }
+      } else if (AccountAuthService.getInstance().isLoggedIn()) {
+        const cloudEnt = await AccountAuthService.getInstance().fetchCloudProEntitlement();
+        await this.applyServerEntitlement(context, cloudEnt ?? entitlement);
+      } else {
+        await this.applyServerEntitlement(context, entitlement);
+      }
     } catch (error) {
       Logger.warn(TAG, `Entitlement refresh failed, reason=${reason}: ${String(error)}`);
+      if (AccountAuthService.getInstance().isLoggedIn()) {
+        const cloudEnt = await AccountAuthService.getInstance().fetchCloudProEntitlement();
+        if (isActiveProEntitlement(cloudEnt)) {
+          await this.applyServerEntitlement(context, cloudEnt);
+        }
+      }
     }
     return this.isPro();
   }

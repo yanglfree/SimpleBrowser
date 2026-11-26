@@ -1,14 +1,23 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// View for user login, registration, and cloud sync status management.
+private enum MacAuthTab: String, CaseIterable {
+    case otp = "验证码"
+    case password = "密码"
+}
+
+/// View for user login, registration, multi-provider auth, and cloud sync status management.
 public struct AccountView: View {
     @ObservedObject var session: BrowserSession
     @Binding var isPresented: Bool
     @ObservedObject private var accountManager = AccountManager.shared
 
+    @State private var authTab: MacAuthTab = .otp
     @State private var isRegisterMode: Bool = false
     @State private var emailInput: String = ""
+    @State private var otpCodeInput: String = ""
+    @State private var otpSent: Bool = false
+    @State private var otpCooldown: Int = 0
     @State private var passwordInput: String = ""
     @State private var displayNameInput: String = ""
     @State private var isSubmitting: Bool = false
@@ -20,7 +29,6 @@ public struct AccountView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Header
             HStack {
                 HStack(spacing: 8) {
                     Image(systemName: "person.crop.circle.fill")
@@ -51,7 +59,7 @@ public struct AccountView: View {
                 authFormContent
             }
         }
-        .frame(width: 360)
+        .frame(width: 380)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             if emailInput.isEmpty, let savedEmail = accountManager.currentUser?.email {
@@ -76,180 +84,232 @@ public struct AccountView: View {
         }
     }
 
-    // Logged In State View
     private var loggedInContent: some View {
-        VStack(spacing: 20) {
-            // Avatar & Profile
-            VStack(spacing: 8) {
-                Button(action: { pickAndUploadAvatar() }) {
-                    ZStack(alignment: .bottomTrailing) {
-                        avatarImage(size: 68)
-                            .overlay(
-                                Circle()
-                                    .fill(Color.black.opacity(isHoveringAvatar ? 0.35 : 0))
-                                    .overlay(
-                                        Image(systemName: "camera.fill")
-                                            .foregroundColor(.white)
-                                            .font(.system(size: 18))
-                                            .opacity(isHoveringAvatar ? 1.0 : 0)
-                                    )
-                            )
-                            .clipShape(Circle())
-
-                        if isUploadingAvatar {
-                            Circle()
-                                .fill(Color.black.opacity(0.45))
-                                .frame(width: 68, height: 68)
+        ScrollView {
+            VStack(spacing: 16) {
+                VStack(spacing: 8) {
+                    Button(action: { pickAndUploadAvatar() }) {
+                        ZStack(alignment: .bottomTrailing) {
+                            avatarImage(size: 64)
                                 .overlay(
-                                    ProgressView()
-                                        .controlSize(.small)
+                                    Circle()
+                                        .fill(Color.black.opacity(isHoveringAvatar ? 0.35 : 0))
+                                        .overlay(
+                                            Image(systemName: "camera.fill")
+                                                .foregroundColor(.white)
+                                                .font(.system(size: 16))
+                                                .opacity(isHoveringAvatar ? 1.0 : 0)
+                                        )
                                 )
+                                .clipShape(Circle())
+
+                            if isUploadingAvatar {
+                                Circle()
+                                    .fill(Color.black.opacity(0.45))
+                                    .frame(width: 64, height: 64)
+                                    .overlay(ProgressView().controlSize(.small))
+                            }
+
+                            Circle()
+                                .fill(Color(nsColor: .windowBackgroundColor))
+                                .frame(width: 22, height: 22)
+                                .overlay(
+                                    Image(systemName: "pencil.circle.fill")
+                                        .foregroundColor(.accentColor)
+                                        .font(.system(size: 18))
+                                )
+                                .offset(x: 2, y: 2)
                         }
-
-                        // Badge edit icon
-                        Circle()
-                            .fill(Color(nsColor: .windowBackgroundColor))
-                            .frame(width: 22, height: 22)
-                            .overlay(
-                                Image(systemName: "pencil.circle.fill")
-                                    .foregroundColor(.accentColor)
-                                    .font(.system(size: 18))
-                            )
-                            .offset(x: 2, y: 2)
                     }
-                }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    isHoveringAvatar = hovering
-                }
-                .disabled(isUploadingAvatar)
-                .help("点击更换头像")
+                    .buttonStyle(.plain)
+                    .onHover { isHoveringAvatar = $0 }
+                    .disabled(isUploadingAvatar)
+                    .help("点击更换头像")
 
-                Button(action: { pickAndUploadAvatar() }) {
-                    Text(isUploadingAvatar ? "正在上传头像..." : "更换头像")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.accentColor)
-                }
-                .buttonStyle(.plain)
-                .disabled(isUploadingAvatar)
+                    Text(accountManager.currentUser?.displayName ?? "用户")
+                        .font(.system(size: 16, weight: .semibold))
 
-                Text(accountManager.currentUser?.displayName ?? "用户")
-                    .font(.system(size: 16, weight: .semibold))
-
-                Text(accountManager.currentUser?.email ?? "")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-
-                if let errorMsg = accountManager.errorMessage {
-                    Text(errorMsg)
-                        .font(.system(size: 11))
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 12)
-                }
-            }
-            .padding(.top, 12)
-
-            // Cloud Sync Status Card
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Image(systemName: "icloud.fill")
-                        .foregroundColor(.blue)
-                        .font(.system(size: 14))
-
-                    Text("云端同步 (Cloudflare D1)")
-                        .font(.system(size: 12, weight: .semibold))
-
-                    Spacer()
-
-                    if accountManager.isSyncing {
-                        ProgressView()
-                            .controlSize(.mini)
-                    }
-                }
-
-                HStack {
-                    Text("上次同步时间：")
-                        .font(.system(size: 11))
+                    Text(accountManager.currentUser?.email ?? "")
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
 
-                    if let syncTime = accountManager.lastSyncTime {
-                        Text(syncTime, style: .time)
+                    if let pro = accountManager.proEntitlement, pro.active {
+                        Label("卓阅 Pro 跨端权益已激活", systemImage: "crown.fill")
                             .font(.system(size: 11, weight: .medium))
-                    } else {
-                        Text("尚未同步")
+                            .foregroundColor(.orange)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 3)
+                            .background(Color.orange.opacity(0.12))
+                            .cornerRadius(999)
+                    }
+
+                    if let errorMsg = accountManager.errorMessage {
+                        Text(errorMsg)
+                            .font(.system(size: 11))
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(.top, 12)
+
+                // Cloud Sync Status Card
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Image(systemName: "icloud.fill")
+                            .foregroundColor(.blue)
+                            .font(.system(size: 14))
+                        Text("多端云同步 (书签 / 偏好 / 站点规则)")
+                            .font(.system(size: 12, weight: .semibold))
+                        Spacer()
+                        if accountManager.isSyncing {
+                            ProgressView().controlSize(.mini)
+                        }
+                    }
+
+                    HStack {
+                        Text("上次同步时间：")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
+                        if let syncTime = accountManager.lastSyncTime {
+                            Text(syncTime, style: .time)
+                                .font(.system(size: 11, weight: .medium))
+                        } else {
+                            Text("尚未同步")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
                     }
-                }
 
-                if let syncError = accountManager.syncErrorMessage {
-                    Text(syncError)
-                        .font(.system(size: 11))
-                        .foregroundColor(.red)
-                        .lineLimit(2)
-                }
-
-                Button(action: {
-                    Task {
-                        await accountManager.syncWithCloud(session: session)
-                    }
-                }) {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "arrow.triangle.2.circlepath")
+                    if let syncError = accountManager.syncErrorMessage {
+                        Text(syncError)
                             .font(.system(size: 11))
-                        Text(accountManager.isSyncing ? "正在同步..." : "立即同步书签与偏好")
-                            .font(.system(size: 12, weight: .medium))
-                        Spacer()
+                            .foregroundColor(.red)
+                            .lineLimit(2)
                     }
-                    .padding(.vertical, 7)
-                    .background(Color.accentColor.opacity(0.15))
-                    .cornerRadius(8)
+
+                    Button(action: {
+                        Task {
+                            await accountManager.syncWithCloud(session: session)
+                        }
+                    }) {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 11))
+                            Text(accountManager.isSyncing ? "正在同步..." : "立即同步全端数据")
+                                .font(.system(size: 12, weight: .medium))
+                            Spacer()
+                        }
+                        .padding(.vertical, 7)
+                        .background(Color.accentColor.opacity(0.15))
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(accountManager.isSyncing)
                 }
-                .buttonStyle(.plain)
-                .disabled(accountManager.isSyncing)
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+                )
+
+                // Remote Device Tabs
+                if !accountManager.remoteDeviceTabs.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("来自其他设备的标签页")
+                            .font(.system(size: 12, weight: .semibold))
+                        ForEach(accountManager.remoteDeviceTabs) { device in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("\(device.deviceName) (\(device.platform))")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                ForEach(device.tabs.prefix(5)) { tab in
+                                    Button(action: {
+                                        _ = session.createTab(url: tab.url)
+                                        isPresented = false
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "safari")
+                                                .font(.system(size: 11))
+                                                .foregroundColor(.accentColor)
+                                            Text(tab.title)
+                                                .font(.system(size: 11.5))
+                                                .lineLimit(1)
+                                            Spacer()
+                                        }
+                                        .padding(.vertical, 3)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .cornerRadius(10)
+                }
+
+                // Linked Identities
+                if !accountManager.linkedIdentities.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("已关联登录方式")
+                            .font(.system(size: 12, weight: .semibold))
+                        ForEach(accountManager.linkedIdentities) { identity in
+                            HStack {
+                                Text(identity.displayLabel)
+                                    .font(.system(size: 11.5))
+                                if let email = identity.email, !email.isEmpty {
+                                    Text(email)
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer()
+                                if accountManager.linkedIdentities.count > 1 {
+                                    Button("解绑") {
+                                        Task { await accountManager.unlinkIdentity(provider: identity.provider) }
+                                    }
+                                    .font(.system(size: 11))
+                                    .buttonStyle(.plain)
+                                    .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .cornerRadius(10)
+                }
+
+                HStack(spacing: 18) {
+                    Button(action: { accountManager.logout() }) {
+                        Text("退出登录")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isDeletingAccount)
+
+                    Text("·")
+                        .foregroundColor(.secondary.opacity(0.5))
+
+                    Button(action: { isShowingDeleteAccountAlert = true }) {
+                        Text(isDeletingAccount ? "正在注销..." : "永久注销并删除账号...")
+                            .font(.system(size: 12))
+                            .foregroundColor(.red)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isDeletingAccount)
+                }
+                .padding(.bottom, 16)
             }
-            .padding(12)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
-            )
-
-            Spacer()
-
-            // Logout & Permanent Account Deletion (App Store Guideline 5.1.1(v))
-            HStack(spacing: 18) {
-                Button(action: {
-                    accountManager.logout()
-                }) {
-                    Text("退出登录")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 6)
-                }
-                .buttonStyle(.plain)
-                .disabled(isDeletingAccount)
-
-                Text("·")
-                    .foregroundColor(.secondary.opacity(0.5))
-
-                Button(action: {
-                    isShowingDeleteAccountAlert = true
-                }) {
-                    Text(isDeletingAccount ? "正在注销..." : "永久注销并删除账号...")
-                        .font(.system(size: 12))
-                        .foregroundColor(.red)
-                        .padding(.vertical, 6)
-                }
-                .buttonStyle(.plain)
-                .disabled(isDeletingAccount)
-            }
-            .padding(.bottom, 16)
+            .padding(.horizontal, 20)
         }
-        .padding(.horizontal, 20)
+        .frame(maxHeight: 520)
         .alert("确定永久注销并删除此账号？", isPresented: $isShowingDeleteAccountAlert) {
             Button("永久删除账号", role: .destructive) {
                 isDeletingAccount = true
@@ -267,37 +327,42 @@ public struct AccountView: View {
         }
     }
 
-    // Login & Register Form
     private var authFormContent: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 12) {
-                if isRegisterMode {
+        VStack(spacing: 14) {
+            Picker("登录方式", selection: $authTab) {
+                ForEach(MacAuthTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.top, 6)
+
+            VStack(spacing: 10) {
+                if authTab == .password && isRegisterMode {
                     TextField("昵称", text: $displayNameInput)
                         .textFieldStyle(.roundedBorder)
-                        .onSubmit {
-                            if canSubmit {
-                                submitAuth()
-                            }
-                        }
                 }
 
                 TextField("邮箱地址", text: $emailInput)
                     .textFieldStyle(.roundedBorder)
-                    .onSubmit {
-                        if canSubmit {
-                            submitAuth()
-                        }
-                    }
 
-                SecureField("密码 (至少 6 位)", text: $passwordInput)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit {
-                        if canSubmit {
-                            submitAuth()
+                if authTab == .otp {
+                    HStack(spacing: 8) {
+                        TextField("6 位邮箱验证码", text: $otpCodeInput)
+                            .textFieldStyle(.roundedBorder)
+                        Button(otpCooldown > 0 ? "\(otpCooldown)s" : (otpSent ? "重发" : "获取验证码")) {
+                            sendOtp()
                         }
+                        .disabled(isSubmitting || otpCooldown > 0 || emailInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
+                } else {
+                    SecureField("密码 (至少 6 位)", text: $passwordInput)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit {
+                            if canSubmit { submitAuth() }
+                        }
+                }
             }
-            .padding(.top, 10)
 
             if let errorMsg = accountManager.errorMessage {
                 Text(errorMsg)
@@ -306,18 +371,13 @@ public struct AccountView: View {
                     .lineLimit(2)
             }
 
-            // Submit Button
-            Button(action: {
-                submitAuth()
-            }) {
+            Button(action: { submitAuth() }) {
                 HStack {
                     Spacer()
                     if isSubmitting {
-                        ProgressView()
-                            .controlSize(.mini)
-                            .padding(.trailing, 4)
+                        ProgressView().controlSize(.mini).padding(.trailing, 4)
                     }
-                    Text(isRegisterMode ? "立即注册" : "登录")
+                    Text(authTab == .otp ? "验证码登录 / 注册" : (isRegisterMode ? "立即注册" : "登录"))
                         .font(.system(size: 13, weight: .semibold))
                     Spacer()
                 }
@@ -330,18 +390,71 @@ public struct AccountView: View {
             .keyboardShortcut(.defaultAction)
             .disabled(!canSubmit)
 
-            // Switch Mode Button
-            Button(action: {
-                isRegisterMode.toggle()
-                accountManager.errorMessage = nil
-            }) {
-                Text(isRegisterMode ? "已有账号？返回登录" : "没有账号？免费注册")
-                    .font(.system(size: 11))
-                    .foregroundColor(.accentColor)
+            if authTab == .password {
+                Button(action: {
+                    isRegisterMode.toggle()
+                    accountManager.errorMessage = nil
+                }) {
+                    Text(isRegisterMode ? "已有账号？返回登录" : "没有账号？免费注册")
+                        .font(.system(size: 11))
+                        .foregroundColor(.accentColor)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
-            Spacer()
+            Divider()
+
+            VStack(spacing: 8) {
+                Button(action: {
+                    isSubmitting = true
+                    Task {
+                        let ok = await accountManager.signInWithApple()
+                        isSubmitting = false
+                        if ok {
+                            await accountManager.syncWithCloud(session: session)
+                        }
+                    }
+                }) {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "apple.logo")
+                        Text("通过 Apple 登录")
+                            .font(.system(size: 12.5, weight: .medium))
+                        Spacer()
+                    }
+                    .padding(.vertical, 7)
+                    .background(Color.primary.opacity(0.08))
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+                .disabled(isSubmitting)
+
+                if RegionAuthPolicy.isGoogleSignInAvailable() {
+                    Button(action: {
+                        isSubmitting = true
+                        Task {
+                            let ok = await accountManager.signInWithGoogle()
+                            isSubmitting = false
+                            if ok {
+                                await accountManager.syncWithCloud(session: session)
+                            }
+                        }
+                    }) {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "globe")
+                            Text("通过 Google 登录")
+                                .font(.system(size: 12.5, weight: .medium))
+                            Spacer()
+                        }
+                        .padding(.vertical, 7)
+                        .background(Color.primary.opacity(0.08))
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSubmitting)
+                }
+            }
 
             HStack(spacing: 4) {
                 Text("使用账号服务即同意")
@@ -366,39 +479,51 @@ public struct AccountView: View {
             .padding(.bottom, 14)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 10)
+        .padding(.top, 8)
     }
 
     private var canSubmit: Bool {
-        !isSubmitting &&
-        !emailInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !passwordInput.isEmpty &&
-        (!isRegisterMode || !displayNameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        guard !isSubmitting else { return false }
+        let hasEmail = !emailInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if authTab == .otp {
+            return hasEmail && otpCodeInput.trimmingCharacters(in: .whitespacesAndNewlines).count == 6
+        }
+        return hasEmail && !passwordInput.isEmpty && (!isRegisterMode || !displayNameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    private func sendOtp() {
+        isSubmitting = true
+        Task {
+            let ok = await accountManager.sendEmailOTP(email: emailInput)
+            isSubmitting = false
+            if ok {
+                otpSent = true
+                otpCooldown = 60
+                Task {
+                    while otpCooldown > 0 {
+                        try? await Task.sleep(nanoseconds: 1_000_000_000)
+                        if otpCooldown > 0 { otpCooldown -= 1 }
+                    }
+                }
+            }
+        }
     }
 
     private func submitAuth() {
         guard canSubmit else { return }
         isSubmitting = true
         Task {
-            if isRegisterMode {
-                let success = await accountManager.register(
-                    email: emailInput,
-                    password: passwordInput,
-                    displayName: displayNameInput
-                )
-                isSubmitting = false
-                if success {
-                    await accountManager.syncWithCloud(session: session)
-                }
+            let success: Bool
+            if authTab == .otp {
+                success = await accountManager.verifyEmailOTP(email: emailInput, code: otpCodeInput, displayName: displayNameInput)
+            } else if isRegisterMode {
+                success = await accountManager.register(email: emailInput, password: passwordInput, displayName: displayNameInput)
             } else {
-                let success = await accountManager.login(
-                    email: emailInput,
-                    password: passwordInput
-                )
-                isSubmitting = false
-                if success {
-                    await accountManager.syncWithCloud(session: session)
-                }
+                success = await accountManager.login(email: emailInput, password: passwordInput)
+            }
+            isSubmitting = false
+            if success {
+                await accountManager.syncWithCloud(session: session)
             }
         }
     }
@@ -414,19 +539,13 @@ public struct AccountView: View {
             AsyncImage(url: avatarURL) { phase in
                 switch phase {
                 case .success(let img):
-                    img
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: size, height: size)
+                    img.resizable().scaledToFill().frame(width: size, height: size)
                 case .failure:
                     initialsAvatar(size: size)
                 case .empty:
                     ZStack {
-                        Circle()
-                            .fill(Color.accentColor.opacity(0.15))
-                            .frame(width: size, height: size)
-                        ProgressView()
-                            .controlSize(.small)
+                        Circle().fill(Color.accentColor.opacity(0.15)).frame(width: size, height: size)
+                        ProgressView().controlSize(.small)
                     }
                 @unknown default:
                     initialsAvatar(size: size)
@@ -440,10 +559,7 @@ public struct AccountView: View {
 
     private func initialsAvatar(size: CGFloat) -> some View {
         ZStack {
-            Circle()
-                .fill(Color.accentColor.opacity(0.15))
-                .frame(width: size, height: size)
-
+            Circle().fill(Color.accentColor.opacity(0.15)).frame(width: size, height: size)
             Text(accountManager.currentUser?.displayName.prefix(1).uppercased() ?? "U")
                 .font(.system(size: size * 0.4, weight: .bold))
                 .foregroundColor(.accentColor)
@@ -473,13 +589,10 @@ public struct AccountView: View {
 
         Task {
             defer { isUploadingAvatar = false }
-
-            // Center-crop to 1:1 and downscale to 160x160 JPEG (~5-8 KB) for fast Cloudflare upload & pull
             guard let jpegData = AccountManager.compressAvatarImage(image) else {
                 accountManager.errorMessage = "图片压缩转换失败"
                 return
             }
-
             await accountManager.uploadAvatar(imageData: jpegData, mimeType: "image/jpeg")
         }
     }

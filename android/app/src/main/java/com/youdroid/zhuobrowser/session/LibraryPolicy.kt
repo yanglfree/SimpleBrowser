@@ -15,7 +15,12 @@ data class SavedItem(
     val title: String,
     val url: String,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val folderId: String? = null,
+    val isRead: Boolean = false,
+    val tags: List<String> = emptyList(),
+    val isPinnedToStartPage: Boolean = true,
+    val sortOrder: Int = 0
 )
 
 enum class SuggestionKind { History, Bookmark, Search }

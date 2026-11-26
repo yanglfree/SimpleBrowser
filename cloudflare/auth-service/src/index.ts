@@ -1,9 +1,41 @@
-export interface Env {
-  AUTH_DB: D1Database;
-  AVATARS?: R2Bucket;
-  WALLPAPERS?: R2Bucket;
-  APP_ID?: string;
-}
+import {
+  createSessionWithDevice,
+  handleGetAuthProviders,
+  handleListDevices,
+  handleListIdentities,
+  handleNativeOAuth,
+  handleOAuthCallback,
+  handleOAuthExchange,
+  handleOAuthStart,
+  handleOtpSend,
+  handleOtpVerify,
+  handleUnlinkIdentity,
+  listUserIdentities,
+  upsertUserIdentity,
+} from './auth-providers.ts';
+import { handleGetProEntitlement, handleProBind } from './pro-entitlement.ts';
+import { ensureAuthSyncV2Schema } from './schema.ts';
+import {
+  handleArticleBundleDelete,
+  handleArticleBundleGet,
+  handleArticleBundlePut,
+  handleSyncV3Pull,
+  handleSyncV3Push,
+} from './sync-v3.ts';
+import {
+  type Env,
+  type SessionRow,
+  type SyncRow,
+  type UserRow,
+  extractBearerToken,
+  generateSalt,
+  hashPassword,
+  jsonResponse,
+  sanitizeUser,
+  sha256Hex,
+} from './types.ts';
+
+export type { Env } from './types.ts';
 
 interface BingWallpaperRow {
   end_date: string;
@@ -31,41 +63,11 @@ interface BingUpstreamImage {
   title?: string;
 }
 
-interface UserRow {
-  id: string;
-  email: string;
-  password_hash: string;
-  salt: string;
-  display_name: string;
-  avatar_url?: string | null;
-  created_at: number;
-  updated_at: number;
-}
-
-interface SessionRow {
-  id: string;
-  user_id: string;
-  created_at: number;
-  expires_at: number;
-}
-
-interface SyncRow {
-  user_id: string;
-  bookmarks_json: string | null;
-  settings_json: string | null;
-  version: number;
-  updated_at: number;
-}
-
-// 30 days in milliseconds
-const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
-
 export default {
   async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get('Origin') || '*';
 
-    // CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
@@ -78,7 +80,7 @@ export default {
       });
     }
 
-    const corsHeaders = {
+    const corsHeaders: Record<string, string> = {
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Content-Type': 'application/json',
@@ -86,10 +88,18 @@ export default {
 
     try {
       if (url.pathname === '/' || url.pathname === '/health') {
-        return jsonResponse({ status: 'ok', service: 'ZhuoBrowser Auth & Sync Service', timestamp: Date.now() }, corsHeaders);
+        return jsonResponse(
+          { status: 'ok', service: 'ZhuoBrowser Auth & Sync Service', version: 2, timestamp: Date.now() },
+          corsHeaders
+        );
       }
 
-      // Authentication routes
+      // Auth provider discovery (region-aware)
+      if (url.pathname === '/api/auth/providers' && request.method === 'GET') {
+        return await handleGetAuthProviders(request, url, env, corsHeaders);
+      }
+
+      // Email & password auth (v1 compatible)
       if (url.pathname === '/api/auth/register' && request.method === 'POST') {
         return await handleRegister(request, env, corsHeaders);
       }
@@ -98,12 +108,68 @@ export default {
         return await handleLogin(request, env, corsHeaders);
       }
 
+      // Email OTP passwordless auth
+      if (url.pathname === '/api/auth/otp/send' && request.method === 'POST') {
+        return await handleOtpSend(request, env, corsHeaders);
+      }
+
+      if (url.pathname === '/api/auth/otp/verify' && request.method === 'POST') {
+        return await handleOtpVerify(request, env, corsHeaders);
+      }
+
+      // Multi-IdP OAuth (Apple, Huawei, Google)
+      if (url.pathname === '/api/auth/oauth/native' && request.method === 'POST') {
+        const currentUser = await authenticateRequest(request, env);
+        return await handleNativeOAuth(request, env, currentUser, corsHeaders);
+      }
+
+      if (url.pathname === '/api/auth/oauth/exchange' && request.method === 'POST') {
+        return await handleOAuthExchange(request, env, corsHeaders);
+      }
+
+      const oauthStartMatch = url.pathname.match(/^\/api\/auth\/oauth\/([a-z0-9_-]+)\/start$/i);
+      if (oauthStartMatch && request.method === 'GET') {
+        return await handleOAuthStart(oauthStartMatch[1], url, env, corsHeaders);
+      }
+
+      const oauthCallbackMatch = url.pathname.match(/^\/api\/auth\/oauth\/([a-z0-9_-]+)\/callback$/i);
+      if (oauthCallbackMatch && (request.method === 'GET' || request.method === 'POST')) {
+        return await handleOAuthCallback(oauthCallbackMatch[1], request, url, env, corsHeaders);
+      }
+
       if (url.pathname === '/api/auth/me' && request.method === 'GET') {
         const user = await authenticateRequest(request, env);
         if (!user) {
           return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
         }
-        return jsonResponse({ ok: true, user: sanitizeUser(user) }, corsHeaders);
+        await ensureAuthSyncV2Schema(env);
+        const identities = await listUserIdentities(env, user.id);
+        return jsonResponse({ ok: true, user: sanitizeUser(user), identities }, corsHeaders);
+      }
+
+      if (url.pathname === '/api/auth/identities' && request.method === 'GET') {
+        const user = await authenticateRequest(request, env);
+        if (!user) {
+          return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
+        }
+        return await handleListIdentities(user, env, corsHeaders);
+      }
+
+      const unlinkMatch = url.pathname.match(/^\/api\/auth\/identities\/([a-z0-9_-]+)$/i);
+      if (unlinkMatch && request.method === 'DELETE') {
+        const user = await authenticateRequest(request, env);
+        if (!user) {
+          return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
+        }
+        return await handleUnlinkIdentity(unlinkMatch[1], user, env, corsHeaders);
+      }
+
+      if (url.pathname === '/api/auth/devices' && request.method === 'GET') {
+        const user = await authenticateRequest(request, env);
+        if (!user) {
+          return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
+        }
+        return await handleListDevices(user, extractBearerToken(request), env, corsHeaders);
       }
 
       if (url.pathname === '/api/auth/logout' && request.method === 'POST') {
@@ -122,7 +188,59 @@ export default {
         return await handleDeleteAccount(user, env, corsHeaders);
       }
 
-      // Cloud Sync routes
+      // Cross-platform Pro entitlement binding
+      if (url.pathname === '/api/pro/bind' && request.method === 'POST') {
+        const user = await authenticateRequest(request, env);
+        if (!user) {
+          return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
+        }
+        return await handleProBind(request, user, env, corsHeaders);
+      }
+
+      if (url.pathname === '/api/pro/entitlement' && request.method === 'GET') {
+        const user = await authenticateRequest(request, env);
+        if (!user) {
+          return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
+        }
+        return await handleGetProEntitlement(user, env, corsHeaders);
+      }
+
+      // Cloud Sync v3 (scoped CAS + remote device tabs + R2 article bundles)
+      if (url.pathname === '/api/sync/v3/pull' && request.method === 'GET') {
+        const user = await authenticateRequest(request, env);
+        if (!user) {
+          return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
+        }
+        return await handleSyncV3Pull(url, user, env, corsHeaders);
+      }
+
+      if (url.pathname === '/api/sync/v3/push' && request.method === 'POST') {
+        const user = await authenticateRequest(request, env);
+        if (!user) {
+          return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
+        }
+        return await handleSyncV3Push(request, user, env, corsHeaders);
+      }
+
+      const bundleMatch = url.pathname.match(/^\/api\/sync\/v3\/articles\/([^/]+)\/bundle$/);
+      if (bundleMatch) {
+        const user = await authenticateRequest(request, env);
+        if (!user) {
+          return jsonResponse({ error: 'Unauthorized' }, corsHeaders, 401);
+        }
+        const articleId = decodeURIComponent(bundleMatch[1]);
+        if (request.method === 'PUT') {
+          return await handleArticleBundlePut(articleId, request, user, env, corsHeaders);
+        }
+        if (request.method === 'GET') {
+          return await handleArticleBundleGet(articleId, user, env, corsHeaders);
+        }
+        if (request.method === 'DELETE') {
+          return await handleArticleBundleDelete(articleId, user, env, corsHeaders);
+        }
+      }
+
+      // Legacy v1 Cloud Sync routes (kept for backward compatibility)
       if (url.pathname === '/api/sync/pull' && request.method === 'GET') {
         const user = await authenticateRequest(request, env);
         if (!user) {
@@ -193,12 +311,15 @@ export default {
   },
 };
 
-// Handlers
 async function handleRegister(request: Request, env: Env, headers: Record<string, string>): Promise<Response> {
+  await ensureAuthSyncV2Schema(env);
   const body = (await request.json().catch(() => ({}))) as {
     email?: string;
     password?: string;
     displayName?: string;
+    deviceId?: string;
+    deviceName?: string;
+    platform?: string;
   };
 
   const email = (body.email || '').trim().toLowerCase();
@@ -213,7 +334,6 @@ async function handleRegister(request: Request, env: Env, headers: Record<string
     return jsonResponse({ error: 'Password must be between 6 and 128 characters' }, headers, 400);
   }
 
-  // Check if email already registered
   const existing = await env.AUTH_DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
   if (existing) {
     return jsonResponse({ error: 'Email already registered' }, headers, 409);
@@ -230,12 +350,23 @@ async function handleRegister(request: Request, env: Env, headers: Record<string
     .bind(userId, email, passwordHash, salt, displayName, now, now)
     .run();
 
-  const token = generateToken();
-  const expiresAt = now + SESSION_LIFETIME_MS;
+  await upsertUserIdentity(env, {
+    userId,
+    provider: 'email',
+    subject: email,
+    email,
+    emailVerified: false,
+    profileJson: JSON.stringify({ displayName }),
+    now,
+  });
 
-  await env.AUTH_DB.prepare('INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
-    .bind(token, userId, now, expiresAt)
-    .run();
+  const token = await createSessionWithDevice(env, userId, {
+    deviceId: body.deviceId,
+    deviceName: body.deviceName,
+    platform: body.platform,
+    now,
+  });
+  const identities = await listUserIdentities(env, userId);
 
   return jsonResponse(
     {
@@ -247,6 +378,7 @@ async function handleRegister(request: Request, env: Env, headers: Record<string
         displayName,
         avatarUrl: null,
       },
+      identities,
     },
     headers,
     201
@@ -254,9 +386,13 @@ async function handleRegister(request: Request, env: Env, headers: Record<string
 }
 
 async function handleLogin(request: Request, env: Env, headers: Record<string, string>): Promise<Response> {
+  await ensureAuthSyncV2Schema(env);
   const body = (await request.json().catch(() => ({}))) as {
     email?: string;
     password?: string;
+    deviceId?: string;
+    deviceName?: string;
+    platform?: string;
   };
 
   const email = (body.email || '').trim().toLowerCase();
@@ -276,19 +412,21 @@ async function handleLogin(request: Request, env: Env, headers: Record<string, s
     return jsonResponse({ error: 'Invalid email or password' }, headers, 401);
   }
 
-  const token = generateToken();
   const now = Date.now();
-  const expiresAt = now + SESSION_LIFETIME_MS;
-
-  await env.AUTH_DB.prepare('INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
-    .bind(token, user.id, now, expiresAt)
-    .run();
+  const token = await createSessionWithDevice(env, user.id, {
+    deviceId: body.deviceId,
+    deviceName: body.deviceName,
+    platform: body.platform,
+    now,
+  });
+  const identities = await listUserIdentities(env, user.id);
 
   return jsonResponse(
     {
       ok: true,
       token,
       user: sanitizeUser(user),
+      identities,
     },
     headers
   );
@@ -298,15 +436,34 @@ async function handleLogout(request: Request, env: Env): Promise<void> {
   const token = extractBearerToken(request);
   if (token) {
     await env.AUTH_DB.prepare('DELETE FROM sessions WHERE id = ?').bind(token).run();
+    const sessionKey = await sha256Hex(token);
+    await env.AUTH_DB.prepare('DELETE FROM device_sessions WHERE session_id = ?').bind(sessionKey).run().catch(() => undefined);
   }
 }
 
 async function handleDeleteAccount(user: UserRow, env: Env, headers: Record<string, string>): Promise<Response> {
+  await ensureAuthSyncV2Schema(env);
+
   if (env.AVATARS) {
     const avatarKeys = ['jpg', 'png', 'webp', 'gif'].map((ext) => `avatars/${user.id}.${ext}`);
     await Promise.all(avatarKeys.map((key) => env.AVATARS?.delete(key).catch(() => undefined)));
   }
 
+  const bundleBucket = env.SYNC_BUNDLES || env.AVATARS;
+  if (bundleBucket) {
+    const bundleRows = await env.AUTH_DB.prepare('SELECT r2_key FROM user_article_bundles WHERE user_id = ?')
+      .bind(user.id)
+      .all<{ r2_key: string }>();
+    await Promise.all((bundleRows.results || []).map((row) => bundleBucket.delete(row.r2_key).catch(() => undefined)));
+  }
+
+  await env.AUTH_DB.prepare('DELETE FROM device_sessions WHERE user_id = ?').bind(user.id).run();
+  await env.AUTH_DB.prepare('DELETE FROM user_identities WHERE user_id = ?').bind(user.id).run();
+  await env.AUTH_DB.prepare('DELETE FROM user_sync_scopes WHERE user_id = ?').bind(user.id).run();
+  await env.AUTH_DB.prepare('DELETE FROM user_device_tabs WHERE user_id = ?').bind(user.id).run();
+  await env.AUTH_DB.prepare('DELETE FROM user_pro_bindings WHERE user_id = ?').bind(user.id).run();
+  await env.AUTH_DB.prepare('DELETE FROM user_pro_entitlements WHERE user_id = ?').bind(user.id).run();
+  await env.AUTH_DB.prepare('DELETE FROM user_article_bundles WHERE user_id = ?').bind(user.id).run();
   await env.AUTH_DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id).run();
   await env.AUTH_DB.prepare('DELETE FROM user_sync_data WHERE user_id = ?').bind(user.id).run();
   await env.AUTH_DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id).run();
@@ -497,19 +654,12 @@ async function handleGetAvatar(
 
   const ifNoneMatch = request.headers.get('If-None-Match');
   if (ifNoneMatch && ifNoneMatch === object.httpEtag) {
-    return new Response(null, {
-      status: 304,
-      headers: responseHeaders,
-    });
+    return new Response(null, { status: 304, headers: responseHeaders });
   }
 
-  return new Response(object.body, {
-    status: 200,
-    headers: responseHeaders,
-  });
+  return new Response(object.body, { status: 200, headers: responseHeaders });
 }
 
-// Helpers
 async function authenticateRequest(request: Request, env: Env): Promise<UserRow | null> {
   const token = extractBearerToken(request);
   if (!token) return null;
@@ -523,61 +673,6 @@ async function authenticateRequest(request: Request, env: Env): Promise<UserRow 
 
   const user = await env.AUTH_DB.prepare('SELECT * FROM users WHERE id = ?').bind(session.user_id).first<UserRow>();
   return user || null;
-}
-
-function extractBearerToken(request: Request): string | null {
-  const authHeader = request.headers.get('Authorization') || '';
-  if (!authHeader.startsWith('Bearer ')) return null;
-  return authHeader.slice(7).trim();
-}
-
-function sanitizeUser(user: UserRow) {
-  return {
-    id: user.id,
-    email: user.email,
-    displayName: user.display_name,
-    avatarUrl: user.avatar_url || null,
-    createdAt: user.created_at,
-  };
-}
-
-function jsonResponse(data: unknown, headers: Record<string, string>, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers,
-  });
-}
-
-function generateSalt(): string {
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function generateToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function hashPassword(password: string, salt: string): Promise<string> {
-  const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, [
-    'deriveBits',
-  ]);
-
-  const derivedBits = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt: enc.encode(salt),
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
-    keyMaterial,
-    256
-  );
-
-  return Array.from(new Uint8Array(derivedBits), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 // ============================================================================
@@ -919,7 +1014,6 @@ async function handleGetBingWallpaperImage(
     }
   }
 
-  // Lazy fetch from Bing and persist into R2
   const archivedBytes = await archiveSingleBingVariantToR2(row, variant, env);
   if (!archivedBytes) {
     return jsonResponse({ error: 'Upstream wallpaper image unavailable' }, headers, 502);

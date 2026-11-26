@@ -32,6 +32,21 @@ export class SiteControlRepository {
     return control === undefined ? defaultSiteControl(host) : cloneSiteControl(control);
   }
 
+  getAll(): SiteControl[] {
+    return this.controls.map((item: SiteControl): SiteControl => cloneSiteControl(item));
+  }
+
+  async replaceAll(controls: SiteControl[]): Promise<void> {
+    this.controls = controls
+      .map((item: SiteControl): SiteControl => cloneSiteControl(item))
+      .filter((item: SiteControl): boolean => item.host.length > 0 && hasSiteControlOverride(item));
+    if (this.store === undefined) {
+      return;
+    }
+    await this.store.put(CONTROLS_KEY, JSON.stringify(this.controls));
+    await this.store.flush();
+  }
+
   async save(control: SiteControl): Promise<void> {
     const host: string = control.host.toLowerCase();
     if (host.length === 0) {

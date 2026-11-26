@@ -12,9 +12,10 @@ and `README.md` for the V1 scope boundary.
 
 ## Multi-platform scope
 
-HarmonyOS remains the shipping client. iOS and Android are separate native
-shells that consume `core/` (scripts, rule compilation, model keys). They do
-not share UI. Machine-readable buckets live in `core/spec/phone-v1.json`.
+HarmonyOS remains the shipping client. iOS, macOS, and Android are separate
+native shells that consume `core/` (scripts, rule compilation, sync policy, and
+model keys). They do not share UI. Machine-readable buckets live in
+`core/spec/phone-v1.json`.
 
 | Bucket | Meaning | Examples |
 |---|---|---|
@@ -22,7 +23,9 @@ not share UI. Machine-readable buckets live in `core/spec/phone-v1.json`.
 | **Deferred** | Exists on Harmony; port after Phone V1 | Split panes, specified multi-window, fold crease, desktop tab strip, sidebar, default-browser, IAP / article library |
 | **Harmony-only** | Tied to ArkWeb, AGC, or this repo's signing pipeline | `AdsBlockManager`, specified `windowToken` windows, Harmony IAPKit, HAP signing, specified-device delivery |
 
-Account sync, extensions, VPN/DNS filtering, and a signed EasyList subscription
+All four clients also support an optional cross-platform account & v3 cloud sync
+system (`cloudflare/auth-service`); core browsing stays 100% functional without
+signing in. Extensions, VPN/DNS filtering, and a signed EasyList subscription
 service stay out of scope on every platform (`README.md`).
 
 ## 1. Tabs & sessions
@@ -225,9 +228,30 @@ Two independent systems, deliberately not unified (see `CLAUDE.md`):
 - Public marketing site (`web/`) sharing the in-app design tokens, not a
   separate theme — out of scope for app feature work but maintained alongside it.
 
+## 9. Optional cross-platform account & cloud sync
+
+- Completely optional: core browsing, local adblocking, bookmarks, and reader mode
+  remain 100% usable without signing in (`BRO-40`, `BRO-54`).
+- Region-aware multi-IdP authentication backed by `cloudflare/auth-service`
+  (`https://auth.zhuobrowser.youdroid.top` with workers.dev fallback):
+  - Universal: 6-digit email OTP and email/password login/registration, identity
+    linking (`user_identities`), and permanent self-service account deletion.
+  - Apple: native Sign in with Apple on iOS and macOS (`ASAuthorization`).
+  - HarmonyOS: native Huawei Account sign-in (`@kit.AccountKit`).
+  - Non-Mainland China regions (`country != CN`): Google Sign-In across iOS,
+    macOS, HarmonyOS, and Android; hidden and disabled in Mainland China (`CN`).
+- Scoped v3 optimistic-concurrency (`baseVersion` CAS + 60-day tombstones + UTC ms)
+  sync in `core/src/sync-policy.mjs`:
+  - Free tier: unified bookmarks + folders (`folderId`, `isRead`, `tags`, start-page
+    pinning, `sortOrder`), cross-platform settings allowlist (preserving
+    device-specific hardware limits), site controls, and non-private remote device tabs.
+  - Pro tier: shared Pro membership via `user_id` ↔ `install_id` binding against
+    the IAP gateway plus `articles_meta` (highlights, notes, reading position) and
+    R2 offline article snapshot bundles.
+
 ## Explicitly out of scope (V1)
 
-Per `README.md`: AI page assistance, account sync, extension distribution,
+Per `README.md`: AI page assistance, extension distribution,
 VPN/DNS-level filtering, and a full remote EasyList update *service* (the current
 jsDelivr-mirrored fetch is a refresh mechanism, not a signed subscription
 service). The bundled rule file is a small, auditable starter set — production

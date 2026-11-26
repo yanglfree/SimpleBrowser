@@ -131,6 +131,8 @@ public struct BookmarkEntry: Identifiable, Equatable, Hashable, Codable {
     public var folderID: String?
     public var createdAt: TimeInterval
     public var updatedAt: TimeInterval
+    public var isRead: Bool
+    public var tags: [String]
     public var isPinnedToStartPage: Bool
     public var iconName: String
     public var iconLetter: String
@@ -145,6 +147,8 @@ public struct BookmarkEntry: Identifiable, Equatable, Hashable, Codable {
         folderID: String? = nil,
         createdAt: TimeInterval = Date().timeIntervalSince1970,
         updatedAt: TimeInterval? = nil,
+        isRead: Bool = true,
+        tags: [String] = [],
         isPinnedToStartPage: Bool = false,
         iconName: String = "",
         iconLetter: String = "",
@@ -158,6 +162,8 @@ public struct BookmarkEntry: Identifiable, Equatable, Hashable, Codable {
         self.folderID = folderID
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
+        self.isRead = isRead
+        self.tags = tags
         self.isPinnedToStartPage = isPinnedToStartPage
         self.iconName = iconName
         let fallbackLetter = String((!title.isEmpty ? title : url).prefix(1)).uppercased()
@@ -174,6 +180,8 @@ public struct BookmarkEntry: Identifiable, Equatable, Hashable, Codable {
         case folderID
         case createdAt
         case updatedAt
+        case isRead
+        case tags
         case isPinnedToStartPage
         case iconName
         case iconLetter
@@ -190,6 +198,8 @@ public struct BookmarkEntry: Identifiable, Equatable, Hashable, Codable {
         let folderID = try container.decodeIfPresent(String.self, forKey: .folderID)
         let createdAt = try container.decodeIfPresent(TimeInterval.self, forKey: .createdAt) ?? Date().timeIntervalSince1970
         let updatedAt = try container.decodeIfPresent(TimeInterval.self, forKey: .updatedAt) ?? createdAt
+        let isRead = try container.decodeIfPresent(Bool.self, forKey: .isRead) ?? true
+        let tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
         let isPinnedToStartPage = try container.decodeIfPresent(Bool.self, forKey: .isPinnedToStartPage) ?? false
         let iconName = try container.decodeIfPresent(String.self, forKey: .iconName) ?? ""
         let iconLetter = try container.decodeIfPresent(String.self, forKey: .iconLetter) ?? ""
@@ -204,6 +214,8 @@ public struct BookmarkEntry: Identifiable, Equatable, Hashable, Codable {
             folderID: folderID,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            isRead: isRead,
+            tags: tags,
             isPinnedToStartPage: isPinnedToStartPage,
             iconName: iconName,
             iconLetter: iconLetter,
@@ -408,6 +420,8 @@ public enum LibraryPolicy {
             folderID: resolvedFolderID,
             createdAt: existing?.createdAt ?? now,
             updatedAt: now,
+            isRead: existing?.isRead ?? true,
+            tags: existing?.tags ?? [],
             isPinnedToStartPage: resolvedPinned,
             iconName: iconName ?? existing?.iconName ?? "",
             iconLetter: iconLetter ?? existing?.iconLetter ?? String(displayTitle.prefix(1)).uppercased(),
@@ -883,7 +897,14 @@ public enum LibraryPolicy {
         )
     }
 
+    /// Normalizes second or millisecond timestamps into `TimeInterval` (seconds) for local models.
+    nonisolated public static func normalizeTimestampSeconds(_ raw: Double?, fallback: TimeInterval) -> TimeInterval {
+        guard let raw, raw.isFinite, raw > 0 else { return fallback }
+        return raw >= 10_000_000_000 ? raw / 1000.0 : raw
+    }
+
     /// Encodes folders, bookmarks, and tombstones into a structured cloud sync payload dictionary.
+    /// Wire timestamps use UTC milliseconds (v3 superset) while remaining compatible with v2 parsers.
     public static func encodeBookmarksPayload(
         folders: [BookmarkFolder],
         bookmarks: [BookmarkEntry],
@@ -891,25 +912,51 @@ public enum LibraryPolicy {
         now: TimeInterval = Date().timeIntervalSince1970
     ) -> [String: Any] {
         [
-            "version": 2,
+            "version": 3,
             "folders": folders.map { f in
                 [
                     "id": f.id,
                     "name": f.name,
                     "iconName": f.iconName,
-                    "createdAt": f.createdAt,
-                    "updatedAt": f.updatedAt,
+                    "createdAt": Int64((f.createdAt * 1000.0).rounded()),
+                    "updatedAt": Int64((f.updatedAt * 1000.0).rounded()),
                     "sortOrder": f.sortOrder,
                     "isPinnedToStartPage": f.isPinnedToStartPage
                 ]
+            },
+            "items": bookmarks.map { b in
+                var dict: [String: Any] = [
+                    "id": b.id,
+                    "title": b.title,
+                    "url": b.url,
+                    "createdAt": Int64((b.createdAt * 1000.0).rounded()),
+                    "updatedAt": Int64((b.updatedAt * 1000.0).rounded()),
+                    "isRead": b.isRead,
+                    "tags": b.tags,
+                    "isPinnedToStartPage": b.isPinnedToStartPage,
+                    "iconName": b.iconName,
+                    "iconLetter": b.iconLetter,
+                    "colorHex": b.colorHex,
+                    "sortOrder": b.sortOrder
+                ]
+                if let shortTitle = b.shortTitle {
+                    dict["shortTitle"] = shortTitle
+                }
+                if let folderID = b.folderID {
+                    dict["folderId"] = folderID
+                    dict["folderID"] = folderID
+                }
+                return dict
             },
             "entries": bookmarks.map { b in
                 var dict: [String: Any] = [
                     "id": b.id,
                     "title": b.title,
                     "url": b.url,
-                    "createdAt": b.createdAt,
-                    "updatedAt": b.updatedAt,
+                    "createdAt": Int64((b.createdAt * 1000.0).rounded()),
+                    "updatedAt": Int64((b.updatedAt * 1000.0).rounded()),
+                    "isRead": b.isRead,
+                    "tags": b.tags,
                     "isPinnedToStartPage": b.isPinnedToStartPage,
                     "iconName": b.iconName,
                     "iconLetter": b.iconLetter,
@@ -928,7 +975,7 @@ public enum LibraryPolicy {
                 var dict: [String: Any] = [
                     "id": t.id,
                     "isFolder": t.isFolder,
-                    "deletedAt": t.deletedAt
+                    "deletedAt": Int64((t.deletedAt * 1000.0).rounded())
                 ]
                 if let url = t.url {
                     dict["url"] = url
@@ -940,7 +987,7 @@ public enum LibraryPolicy {
     }
 
     /// Parses raw remote bookmarks payload from Cloudflare Workers pull API,
-    /// supporting both v2 structured dictionaries and v1 legacy `[[String: Any]]` arrays.
+    /// supporting v3 superset (`items` + UTC ms), v2 structured (`entries`), and v1 legacy arrays.
     public static func parseRemoteBookmarksPayload(
         _ raw: Any?
     ) -> (folders: [BookmarkFolder], bookmarks: [BookmarkEntry], tombstones: [BookmarkTombstone]) {
@@ -948,7 +995,9 @@ public enum LibraryPolicy {
             return ([], [], [])
         }
 
-        // Case 1: Structured Dictionary payload (Version 2)
+        let fallbackNow = Date().timeIntervalSince1970
+
+        // Case 1: Structured Dictionary payload (Version 2 / 3)
         if let dict = raw as? [String: Any] {
             var folders: [BookmarkFolder] = []
             if let folderDicts = dict["folders"] as? [[String: Any]] {
@@ -956,8 +1005,8 @@ public enum LibraryPolicy {
                     if let id = fd["id"] as? String,
                        let name = fd["name"] as? String {
                         let iconName = fd["iconName"] as? String ?? "folder.fill"
-                        let createdAt = (fd["createdAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
-                        let updatedAt = (fd["updatedAt"] as? NSNumber)?.doubleValue ?? createdAt
+                        let createdAt = normalizeTimestampSeconds((fd["createdAt"] as? NSNumber)?.doubleValue, fallback: fallbackNow)
+                        let updatedAt = normalizeTimestampSeconds((fd["updatedAt"] as? NSNumber)?.doubleValue, fallback: createdAt)
                         let sortOrder = (fd["sortOrder"] as? NSNumber)?.intValue ?? 0
                         let isPinned = fd["isPinnedToStartPage"] as? Bool ?? true
                         folders.append(BookmarkFolder(
@@ -974,15 +1023,20 @@ public enum LibraryPolicy {
             }
 
             var bookmarks: [BookmarkEntry] = []
-            let entryDicts = (dict["entries"] as? [[String: Any]]) ?? (dict["bookmarks"] as? [[String: Any]]) ?? []
+            let entryDicts = (dict["items"] as? [[String: Any]])
+                ?? (dict["entries"] as? [[String: Any]])
+                ?? (dict["bookmarks"] as? [[String: Any]])
+                ?? []
             for bd in entryDicts {
                 if let url = bd["url"] as? String, !url.isEmpty {
                     let id = bd["id"] as? String ?? UUID().uuidString
                     let title = bd["title"] as? String ?? url
                     let shortTitle = bd["shortTitle"] as? String
-                    let folderID = bd["folderID"] as? String
-                    let createdAt = (bd["createdAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
-                    let updatedAt = (bd["updatedAt"] as? NSNumber)?.doubleValue ?? createdAt
+                    let folderID = (bd["folderId"] as? String) ?? (bd["folderID"] as? String)
+                    let createdAt = normalizeTimestampSeconds((bd["createdAt"] as? NSNumber)?.doubleValue, fallback: fallbackNow)
+                    let updatedAt = normalizeTimestampSeconds((bd["updatedAt"] as? NSNumber)?.doubleValue, fallback: createdAt)
+                    let isRead = bd["isRead"] as? Bool ?? true
+                    let tags = bd["tags"] as? [String] ?? []
                     let isPinned = bd["isPinnedToStartPage"] as? Bool ?? false
                     let iconName = bd["iconName"] as? String ?? ""
                     let iconLetter = bd["iconLetter"] as? String ?? ""
@@ -997,6 +1051,8 @@ public enum LibraryPolicy {
                         folderID: folderID,
                         createdAt: createdAt,
                         updatedAt: updatedAt,
+                        isRead: isRead,
+                        tags: tags,
                         isPinnedToStartPage: isPinned,
                         iconName: iconName,
                         iconLetter: iconLetter,
@@ -1012,7 +1068,7 @@ public enum LibraryPolicy {
                     if let id = td["id"] as? String {
                         let url = td["url"] as? String
                         let isFolder = td["isFolder"] as? Bool ?? false
-                        let deletedAt = (td["deletedAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
+                        let deletedAt = normalizeTimestampSeconds((td["deletedAt"] as? NSNumber)?.doubleValue, fallback: fallbackNow)
                         tombstones.append(BookmarkTombstone(
                             id: id,
                             url: url,

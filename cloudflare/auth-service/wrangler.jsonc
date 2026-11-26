@@ -5,6 +5,12 @@
   "compatibility_date": "2026-09-01",
   "workers_dev": true,
   "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "auth.zhuobrowser.youdroid.top",
+      "custom_domain": true
+    }
+  ],
   "d1_databases": [
     {
       "binding": "AUTH_DB",
@@ -30,6 +36,8 @@
     ]
   },
   "vars": {
-    "APP_ID": "zhuobrowser-mac"
+    "APP_ID": "zhuobrowser-mac",
+    "IAP_GATEWAY_URL": "https://gateway.youdroid.top",
+    "OAUTH_REDIRECT_BASE": "https://auth.zhuobrowser.youdroid.top"
   }
 }

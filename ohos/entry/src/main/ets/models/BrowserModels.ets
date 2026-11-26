@@ -256,10 +256,13 @@ export interface SavedItem {
   id: string;
   title: string;
   url: string;
+  folderId?: string;
   createdAt: number;
   updatedAt: number;
   isRead: boolean;
   tags: string[];
+  isPinnedToStartPage?: boolean;
+  sortOrder?: number;
 }
 
 export interface HistoryEntry {
@@ -454,10 +457,13 @@ export function cloneSavedItem(item: SavedItem): SavedItem {
     id: item.id,
     title: item.title,
     url: item.url,
+    folderId: item.folderId,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     isRead: item.isRead,
-    tags: item.tags.slice(0)
+    tags: item.tags.slice(0),
+    isPinnedToStartPage: item.isPinnedToStartPage,
+    sortOrder: item.sortOrder
   };
 }
 

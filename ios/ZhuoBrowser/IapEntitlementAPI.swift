@@ -119,6 +119,10 @@ actor IapEntitlementAPI {
         return token
     }
 
+    func currentInstallID() -> String {
+        installID()
+    }
+
     private func installID() -> String {
         appAccountToken().uuidString.lowercased()
     }

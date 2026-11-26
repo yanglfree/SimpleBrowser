@@ -37,6 +37,7 @@ extension BrowserSession {
         }
         if let existing = savedItems.first(where: { $0.url == tab.url }) {
             savedItems = LibraryPolicy.removeSavedItem(savedItems, id: existing.id)
+            recordBookmarkTombstone(id: existing.id, url: existing.url, isFolder: false)
             flash("已取消书签")
         } else {
             let now = Date().timeIntervalSince1970
@@ -57,7 +58,25 @@ extension BrowserSession {
     }
 
     func removeSavedItem(_ id: String) {
+        if let removed = savedItems.first(where: { $0.id == id }) {
+            recordBookmarkTombstone(id: removed.id, url: removed.url, isFolder: false)
+        }
         savedItems = LibraryPolicy.removeSavedItem(savedItems, id: id)
+        persistLibrary()
+    }
+
+    func recordBookmarkTombstone(id: String, url: String?, isFolder: Bool) {
+        let now = Date().timeIntervalSince1970
+        let cutoff = now - CloudSyncEngine.tombstoneRetentionSeconds
+        bookmarkTombstones = bookmarkTombstones.filter {
+            $0.deletedAt >= cutoff && $0.id != id
+        } + [BookmarkTombstone(id: id, url: url, isFolder: isFolder, deletedAt: now)]
+    }
+
+    func applyCloudBookmarkMerge(folders: [BookmarkFolder], items: [SavedItem], tombstones: [BookmarkTombstone]) {
+        bookmarkFolders = folders
+        savedItems = items
+        bookmarkTombstones = tombstones
         persistLibrary()
     }
 

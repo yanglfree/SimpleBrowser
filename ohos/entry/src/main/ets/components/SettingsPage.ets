@@ -206,6 +206,7 @@ export struct SettingsPage {
   @Prop isRulesUpdating: boolean = false;
   @Prop appVersion: string = '';
   @Prop isPro: boolean = false;
+  @Prop accountLabel: string = '';
   @Prop initialPicker: PickerKind = PickerKind.None;
   onChange: (settings: BrowserSettings) => void = (_settings: BrowserSettings): void => {};
   onResetGestures: () => void = (): void => {};
@@ -220,6 +221,7 @@ export struct SettingsPage {
   onUpdateRules: () => void = (): void => {};
   onSetDefaultBrowser: () => void = (): void => {};
   onOpenPro: () => void = (): void => {};
+  onOpenAccount: () => void = (): void => {};
   onBack: () => void = (): void => {};
   @State private picker: PickerKind = PickerKind.None;
   @State private isEditingSearchTemplate: boolean = false;
@@ -277,7 +279,18 @@ export struct SettingsPage {
           if (this.searchQuery.trim().length > 0) {
             this.SearchResults()
           } else {
-          this.GroupLabel($r('app.string.group_rules'), 22)
+          this.GroupLabel($r('app.string.account_settings_group'), 22)
+          Column() {
+            this.ValueRowText(
+              $r('app.string.account_settings_row'),
+              () => this.accountLabel.length > 0 ? this.accountLabel : $r('app.string.account_status_signed_out'),
+              false,
+              () => this.onOpenAccount()
+            )
+          }
+          .groupCard()
+
+          this.GroupLabel($r('app.string.group_rules'), 20)
           Column() {
             this.SwitchRow({
               label: $r('app.string.content_protection'),
@@ -634,6 +647,12 @@ export struct SettingsPage {
 
   private searchEntries(): SettingsSearchEntry[] {
     return [
+      {
+        key: 'account_sync',
+        label: $r('app.string.account_settings_row'),
+        keywords: '账号 登录 同步 华为 Google 邮箱 注销 跨端',
+        action: () => this.onOpenAccount()
+      },
       {
         key: 'content_protection',
         label: $r('app.string.content_protection'),
