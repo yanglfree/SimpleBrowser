@@ -2,15 +2,16 @@ import Foundation
 import UIKit
 import WebKit
 
-final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate {
     let id: String
     let isPrivate: Bool
     let webView: WKWebView
     weak var session: BrowserSession?
+    /// Popup tabs receive the opener's `WKUserContentController`, so only the tab that
+    /// created it may add/remove handlers, scripts or content rule lists on it.
+    private let ownsUserContentController: Bool
     private var installedRuleLists: Set<String>
     private var navigationStartedAt: TimeInterval?
-    private let pageStateMessageHandler: WeakScriptMessageHandler
-    private let securityMessageHandler: WeakScriptMessageHandler
 
     init(
         tab: BrowserTab,
@@ -22,11 +23,13 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         self.isPrivate = tab.isPrivate
         let configuration: WKWebViewConfiguration
         let isPopup = popupConfiguration != nil
+        self.ownsUserContentController = !isPopup
         if let popupConfiguration {
             WebKernel.configure(
                 popupConfiguration,
                 blockAds: session.adsBlockEnabled(for: tab.url),
-                minimumFontSize: session.settings.minimumFontSize
+                minimumFontSize: session.settings.minimumFontSize,
+                inheritsUserContent: true
             )
             configuration = popupConfiguration
         } else {
@@ -37,36 +40,41 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
                 minimumFontSize: session.settings.minimumFontSize
             )
         }
-        let pageStateMessageHandler = WeakScriptMessageHandler()
-        let securityMessageHandler = WeakScriptMessageHandler()
-        configuration.userContentController.add(
-            pageStateMessageHandler,
-            contentWorld: .defaultClient,
-            name: PageStatePolicy.messageHandlerName
-        )
-        configuration.userContentController.addUserScript(
-            WKUserScript(
-                source: PageStatePolicy.formDraftWatcherScript,
-                injectionTime: .atDocumentStart,
-                forMainFrameOnly: true,
-                in: .defaultClient
+        var pageStateMessageHandler: WeakScriptMessageHandler?
+        var securityMessageHandler: WeakScriptMessageHandler?
+        if !isPopup {
+            let stateHandler = WeakScriptMessageHandler()
+            let securityHandler = WeakScriptMessageHandler()
+            configuration.userContentController.add(
+                stateHandler,
+                contentWorld: .defaultClient,
+                name: PageStatePolicy.messageHandlerName
             )
-        )
-        configuration.userContentController.add(
-            securityMessageHandler,
-            name: SiteSecurityPolicy.messageHandlerName
-        )
+            configuration.userContentController.addUserScript(
+                WKUserScript(
+                    source: PageStatePolicy.formDraftWatcherScript,
+                    injectionTime: .atDocumentStart,
+                    forMainFrameOnly: true,
+                    in: .defaultClient
+                )
+            )
+            configuration.userContentController.add(
+                securityHandler,
+                name: SiteSecurityPolicy.messageHandlerName
+            )
+            pageStateMessageHandler = stateHandler
+            securityMessageHandler = securityHandler
+        }
         self.installedRuleLists = WebKernel.installedRuleLists(from: configuration)
-        self.pageStateMessageHandler = pageStateMessageHandler
-        self.securityMessageHandler = securityMessageHandler
         self.webView = WKWebView(frame: .zero, configuration: configuration)
         self.session = session
         super.init()
+        pageStateMessageHandler?.delegate = self
+        securityMessageHandler?.delegate = self
+        TabControllerRegistry.shared.register(self, for: webView)
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
-        pageStateMessageHandler.delegate = self
-        securityMessageHandler.delegate = self
         applyUserAgent(isDesktop: tab.isDesktop)
         applyWebAppearance(for: tab.url)
         if !isPopup && !URLPolicy.isHomeURL(tab.url) {
@@ -76,13 +84,10 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     deinit {
-        webView.configuration.userContentController.removeScriptMessageHandler(
-            forName: PageStatePolicy.messageHandlerName,
-            contentWorld: .defaultClient
-        )
-        webView.configuration.userContentController.removeScriptMessageHandler(
-            forName: SiteSecurityPolicy.messageHandlerName
-        )
+        // Handlers are deliberately left in place: a popup shares this controller, and
+        // its handler wrappers only hold weak references, so removing them here would
+        // silently blind a popup whose opener was closed first.
+        TabControllerRegistry.shared.remove(webView)
     }
 
     func load(_ raw: String, rewriteDesktop: Bool = true) {
@@ -298,6 +303,9 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func applyContentBlocker(for url: String? = nil) {
+        // The popup shares the opener's rule lists; mutating them here would strip the
+        // opener's blocking (or duplicate lists) for the opener's whole tab.
+        guard ownsUserContentController else { return }
         let controller = webView.configuration.userContentController
         let target = url ?? session?.tab(id)?.url ?? ""
         if session?.adsBlockEnabled(for: target) != true {
@@ -313,6 +321,7 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
     }
 
     func replaceContentBlockerLists() {
+        guard ownsUserContentController else { return }
         let controller = webView.configuration.userContentController
         controller.removeAllContentRuleLists()
         installedRuleLists = []
@@ -361,7 +370,10 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         }
     }
 
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+    /// Handles page-state and security messages for this tab. Popup tabs reuse their
+    /// opener's handlers, so `WeakScriptMessageHandler` resolves the owner by web view
+    /// before calling in here instead of trusting the handler's tab.
+    fileprivate func handleScriptMessage(_ message: WKScriptMessage) {
         if message.name == SiteSecurityPolicy.messageHandlerName {
             guard message.frameInfo.isMainFrame,
                   let payload = message.body as? [String: Any],
@@ -787,9 +799,43 @@ final class TabController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
 }
 
 private final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
-    weak var delegate: WKScriptMessageHandler?
+    weak var delegate: TabController?
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        delegate?.userContentController(userContentController, didReceive: message)
+        // A popup inherits the opener's handlers, so the tab that owns this handler is
+        // not necessarily the tab that sent the message: resolve it by web view.
+        let owner = message.webView.flatMap { TabControllerRegistry.shared.controller(for: $0) }
+        (owner ?? delegate)?.handleScriptMessage(message)
+    }
+}
+
+/// Maps web views to their tab controllers. Popup tabs share the opener's user content
+/// controller, so script messages have to be routed by source web view; the map keeps
+/// weak references on both sides and never extends a tab's lifetime.
+private final class TabControllerRegistry {
+    static let shared = TabControllerRegistry()
+
+    private let lock = NSLock()
+    private let controllers = NSMapTable<WKWebView, TabController>(
+        keyOptions: .weakMemory,
+        valueOptions: .weakMemory
+    )
+
+    func register(_ controller: TabController, for webView: WKWebView) {
+        lock.lock()
+        defer { lock.unlock() }
+        controllers.setObject(controller, forKey: webView)
+    }
+
+    func controller(for webView: WKWebView) -> TabController? {
+        lock.lock()
+        defer { lock.unlock() }
+        return controllers.object(forKey: webView)
+    }
+
+    func remove(_ webView: WKWebView) {
+        lock.lock()
+        defer { lock.unlock() }
+        controllers.removeObject(forKey: webView)
     }
 }

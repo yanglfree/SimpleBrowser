@@ -34,16 +34,26 @@ enum WebKernel {
 
     /// Configures either a newly created or WebKit-provided popup `WKWebViewConfiguration`
     /// without replacing the configuration object itself (which preserves `window.opener`).
+    ///
+    /// WebKit hands `createWebViewWith` a copy of the opener's configuration that keeps the
+    /// *same* `WKUserContentController` instance. Scripts, message handlers and content rule
+    /// lists therefore already exist for the popup, so `inheritsUserContent` stops us from
+    /// duplicating scripts or throwing on a duplicate message handler name.
     static func configure(
         _ configuration: WKWebViewConfiguration,
         blockAds: Bool,
-        minimumFontSize: Int
+        minimumFontSize: Int,
+        inheritsUserContent: Bool = false
     ) {
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.allowsInlineMediaPlayback = true
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.preferences.isFraudulentWebsiteWarningEnabled = true
         configuration.preferences.minimumFontSize = CGFloat(minimumFontSize)
+
+        guard !inheritsUserContent else {
+            return
+        }
 
         let controller = configuration.userContentController
         for name in documentStartFiles {
