@@ -50,8 +50,9 @@ targets:
         ZHUO_DISTRIBUTION_CHANNEL: dmg
         GENERATE_INFOPLIST_FILE: false
         INFOPLIST_FILE: ZhuoBrowserMac/Info.plist
-        INFOPLIST_KEY_CFBundleDisplayName: "卓阅"
         INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026 youdroid. All rights reserved."
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
   ZhuoBrowserMacTests:
     type: bundle.unit-test
     platform: macOS
