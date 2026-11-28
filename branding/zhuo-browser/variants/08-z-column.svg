@@ -1,0 +1,10 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Zhuo 08 — Z Column</title>
+  <desc id="d">An abstract 卓: a standing column above the Z, the character distilled into a single vertical accent.</desc>
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M50 14V34" stroke-width="8.4"/>
+    <path d="M43 21L50 14" stroke-width="6.2"/>
+    <circle cx="61.5" cy="19.5" r="3" fill="currentColor" stroke="none"/>
+    <path d="M31 48H69L31 76H69" stroke-width="8.2"/>
+  </g>
+</svg>

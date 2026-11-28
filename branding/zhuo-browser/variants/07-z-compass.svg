@@ -1,0 +1,14 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Zhuo 07 — Z Compass</title>
+  <desc id="d">The Z sits on a compass card: the diagonal is a needle pointing north-east, the direction of discovery.</desc>
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="50" cy="50" r="35.5" stroke-width="2.2" opacity="0.38"/>
+    <path d="M50 15.5V24" stroke-width="2.2" opacity="0.38"/>
+    <path d="M50 76V84.5" stroke-width="2.2" opacity="0.38"/>
+    <path d="M15.5 50H24" stroke-width="2.2" opacity="0.38"/>
+    <path d="M76 50H84.5" stroke-width="2.2" opacity="0.38"/>
+    <path d="M33 36H67L33 64H67" stroke-width="7.6"/>
+    <path d="M70.5 29.5L76.5 23" stroke-width="3.4"/>
+    <circle cx="76.5" cy="23" r="3" fill="currentColor" stroke="none"/>
+  </g>
+</svg>

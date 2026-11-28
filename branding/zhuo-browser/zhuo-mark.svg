@@ -1,0 +1,8 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Zhuo browser mark</title>
+  <desc id="d">Monochrome brand mark for interface use. Apply as a template image so it inherits the surrounding text colour.</desc>
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="50" cy="50" r="35" stroke-width="2.4" stroke-dasharray="186 34" transform="rotate(-38 50 50)" opacity="0.4"/>
+    <path d="M33 35H67L33 65H67" stroke-width="8.6"/>
+  </g>
+</svg>

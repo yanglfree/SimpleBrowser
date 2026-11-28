@@ -1,0 +1,14 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Zhuo 06 — Z Matrix</title>
+  <desc id="d">A dot-matrix Z: the browser as a grid of information, reduced to the smallest possible module.</desc>
+  <g fill="currentColor">
+    <circle cx="33" cy="33" r="3.2"/><circle cx="41.5" cy="33" r="3.2"/><circle cx="50" cy="33" r="3.2"/><circle cx="58.5" cy="33" r="3.2"/><circle cx="67" cy="33" r="3.2"/>
+    <circle cx="60" cy="41.5" r="3.2"/>
+    <circle cx="52" cy="50" r="3.2"/>
+    <circle cx="44" cy="58.5" r="3.2"/>
+    <circle cx="33" cy="67" r="3.2"/><circle cx="41.5" cy="67" r="3.2"/><circle cx="50" cy="67" r="3.2"/><circle cx="58.5" cy="67" r="3.2"/><circle cx="67" cy="67" r="3.2"/>
+  </g>
+  <g fill="none" stroke="currentColor" stroke-linecap="round" opacity="0.3">
+    <path d="M20 20H80V80H20Z" stroke-width="1.4"/>
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Zhuo 03 — Z Window</title>
+  <desc id="d">The Z lives inside a browser window: a tab strip above, a page below, one continuous letter.</desc>
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="22.5" y="21.5" width="55" height="57" rx="11" stroke-width="3.2" opacity="0.45"/>
+    <path d="M22.5 36.5H77.5" stroke-width="3.2" opacity="0.45"/>
+    <path d="M33.5 41H66.5L33.5 68H66.5" stroke-width="7.8"/>
+    <path d="M33 27.5H47" stroke-width="3.2" opacity="0.45"/>
+    <circle cx="62" cy="27.5" r="1.8" fill="currentColor" stroke="none" opacity="0.45"/>
+  </g>
+</svg>

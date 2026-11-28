@@ -1,0 +1,68 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-labelledby="t">
+  <title id="t">Zhuo 浏览器 — editorial paper showcase</title>
+  <defs>
+    <linearGradient id="paperbg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#FAF7F0"/>
+      <stop offset="0.55" stop-color="#F2EDE2"/>
+      <stop offset="1" stop-color="#E8E1D3"/>
+    </linearGradient>
+    <radialGradient id="warm" cx="0.2" cy="0.15" r="0.8">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vigL" cx="0.5" cy="0.45" r="0.8">
+      <stop offset="0.55" stop-color="#6B5B43" stop-opacity="0"/>
+      <stop offset="1" stop-color="#6B5B43" stop-opacity="0.16"/>
+    </radialGradient>
+    <linearGradient id="ib" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#3E8C79"/>
+      <stop offset="0.5" stop-color="#2E6B5C"/>
+      <stop offset="1" stop-color="#1B473D"/>
+    </linearGradient>
+    <linearGradient id="iz" x1="0.2" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F0E9DB"/>
+    </linearGradient>
+    <filter id="grainL" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <filter id="softL" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="40"/>
+    </filter>
+    <symbol id="app" viewBox="0 0 1024 1024">
+      <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#ib)"/>
+      <path d="M112 704C258 774 402 800 548 792C682 785 796 748 912 672" fill="none" stroke="#FAF9F7" stroke-opacity="0.32" stroke-width="13" stroke-linecap="round"/>
+      <path d="M378 336H652L378 656H652" fill="none" stroke="url(#iz)" stroke-width="108" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#paperbg)"/>
+  <rect width="1600" height="900" fill="url(#warm)"/>
+  <rect width="1600" height="900" filter="url(#grainL)" opacity="0.05"/>
+  <rect width="1600" height="900" fill="url(#vigL)"/>
+
+  <ellipse cx="392" cy="742" rx="196" ry="26" fill="#5C4B33" opacity="0.13" filter="url(#softL)"/>
+  <use xlink:href="#app" x="150" y="220" width="470" height="470"/>
+
+  <g font-family="Helvetica Neue, PingFang SC, Inter, sans-serif">
+    <text x="80" y="82" font-size="11" letter-spacing="4" fill="#2C2A25" opacity="0.45">PRODUCT IDENTITY / 03</text>
+    <text x="80" y="106" font-size="11" letter-spacing="4" fill="#2C2A25" opacity="0.25">WARM PAPER · INK GREEN</text>
+
+    <text x="1520" y="82" font-size="11" letter-spacing="3" fill="#2C2A25" opacity="0.4" text-anchor="end">ZHUO BROWSER</text>
+    <text x="1520" y="106" font-size="11" letter-spacing="3" fill="#2C2A25" opacity="0.22" text-anchor="end">2026 / SHENZHEN</text>
+
+    <text x="742" y="252" font-size="11" letter-spacing="4" fill="#2E6B5C" opacity="0.85">A BROWSER FOR READING</text>
+    <text x="740" y="336" font-size="62" font-weight="600" letter-spacing="0.5" fill="#1A1A18">Zhuo浏览器</text>
+    <path d="M742 378H1420" stroke="#1A1A18" stroke-opacity="0.16" stroke-width="1"/>
+
+    <text x="742" y="424" font-size="15" letter-spacing="0.4" fill="#4A463E">极简的界面，克制的色彩，</text>
+    <text x="742" y="452" font-size="15" letter-spacing="0.4" fill="#4A463E">把注意力还给页面本身。</text>
+
+    <text x="742" y="520" font-size="12" letter-spacing="2" fill="#2C2A25" opacity="0.38">Z / 折页 · 地平线 · 一页纸</text>
+    <text x="742" y="544" font-size="12" letter-spacing="2" fill="#2C2A25" opacity="0.38">INK GREEN #2E6B5C · PAPER #FAF9F7</text>
+
+    <text x="80" y="828" font-size="12" letter-spacing="3" fill="#2C2A25" opacity="0.35">MACOS 14+ · v. 1.0.0</text>
+    <text x="1520" y="828" font-size="12" letter-spacing="3" fill="#2C2A25" opacity="0.35" text-anchor="end">极简 · 极速 · 极致节省内存</text>
+  </g>
+</svg>

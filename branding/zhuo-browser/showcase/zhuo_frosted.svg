@@ -1,0 +1,70 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-labelledby="t">
+  <title id="t">Zhuo 浏览器 — frosted showcase</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#2C3032"/>
+      <stop offset="0.55" stop-color="#1B1E1F"/>
+      <stop offset="1" stop-color="#0F1112"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.3" r="0.6">
+      <stop offset="0" stop-color="#B7D3C8" stop-opacity="0.15"/>
+      <stop offset="0.55" stop-color="#B7D3C8" stop-opacity="0.045"/>
+      <stop offset="1" stop-color="#B7D3C8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="0.5" cy="0.44" r="0.8">
+      <stop offset="0.5" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.55"/>
+    </radialGradient>
+    <linearGradient id="ib" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#3E8C79"/>
+      <stop offset="0.5" stop-color="#2E6B5C"/>
+      <stop offset="1" stop-color="#1B473D"/>
+    </linearGradient>
+    <linearGradient id="iz" x1="0.2" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F0E9DB"/>
+    </linearGradient>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="48"/>
+    </filter>
+    <filter id="blur14" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <symbol id="app" viewBox="0 0 1024 1024">
+      <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#ib)"/>
+      <path d="M112 704C258 774 402 800 548 792C682 785 796 748 912 672" fill="none" stroke="#FAF9F7" stroke-opacity="0.32" stroke-width="13" stroke-linecap="round"/>
+      <path d="M378 336H652L378 656H652" fill="none" stroke="url(#iz)" stroke-width="108" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#halo)"/>
+  <rect width="1600" height="900" filter="url(#grain)" opacity="0.075"/>
+
+  <ellipse cx="800" cy="762" rx="236" ry="38" fill="#000000" opacity="0.6" filter="url(#soft)"/>
+  <ellipse cx="800" cy="600" rx="330" ry="300" fill="#8FBFAF" opacity="0.10" filter="url(#soft)"/>
+
+  <use xlink:href="#app" x="500" y="110" width="600" height="600"/>
+
+  <rect width="1600" height="900" fill="url(#vig)"/>
+
+  <g font-family="Helvetica Neue, PingFang SC, Inter, sans-serif">
+    <text x="80" y="84" font-size="19" letter-spacing="7" fill="#FAF9F7" opacity="0.9">ZHUO</text>
+    <text x="80" y="109" font-size="12" letter-spacing="3" fill="#FAF9F7" opacity="0.42">浏览器 / BROWSER</text>
+
+    <text x="1520" y="84" font-size="12" letter-spacing="2.5" fill="#FAF9F7" opacity="0.42" text-anchor="end">MACOS 14+ · APPLE SILICON</text>
+    <text x="1520" y="109" font-size="12" letter-spacing="2.5" fill="#FAF9F7" opacity="0.26" text-anchor="end">ICON SYSTEM / 01</text>
+
+    <text x="80" y="786" font-size="44" font-weight="600" letter-spacing="0.5" fill="#FAF9F7">Zhuo浏览器</text>
+    <text x="80" y="818" font-size="15" letter-spacing="1.5" fill="#FAF9F7" opacity="0.52">极简 · 极速 · 极致节省内存</text>
+
+    <text x="1520" y="786" font-size="12" letter-spacing="2" fill="#FAF9F7" opacity="0.4" text-anchor="end">v. 1.0.0 // 2026</text>
+    <text x="1520" y="810" font-size="12" letter-spacing="2" fill="#FAF9F7" opacity="0.26" text-anchor="end">A QUIET PLACE TO READ THE WEB</text>
+
+    <text x="800" y="864" font-size="10" letter-spacing="5" fill="#FAF9F7" opacity="0.3" text-anchor="middle">DESIGNED IN INK GREEN AND WARM PAPER</text>
+  </g>
+</svg>

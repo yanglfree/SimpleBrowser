@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zhuo浏览器 · Mac 应用图标与品牌方案</title>
+<style>
+  :root{
+    --paper:#FAF9F7;
+    --panel:#FFFFFF;
+    --subtle:#F1EFEA;
+    --ink:#1A1A18;
+    --ink-2:#4A463E;
+    --muted:#8B877F;
+    --border:#E5E2DB;
+    --green:#2E6B5C;
+    --green-deep:#1B473D;
+    --green-light:#3E8C79;
+    --green-pale:#E7EFEA;
+    --sans:"SF Pro Display","SF Pro Text","Helvetica Neue","PingFang SC","Hiragino Sans GB",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);-webkit-font-smoothing:antialiased;
+    font-size:16px;line-height:1.6;
+  }
+  ::selection{background:#2E6B5C;color:#FAF9F7}
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%;display:block}
+
+  .wrap{max-width:1240px;margin:0 auto;padding:0 40px}
+  .rule{height:1px;background:var(--border);border:0;margin:0}
+
+  /* ---------- header ---------- */
+  header.site{
+    position:sticky;top:0;z-index:50;
+    background:rgba(250,249,247,.86);
+    backdrop-filter:saturate(180%) blur(18px);
+    border-bottom:1px solid var(--border);
+  }
+  .nav{display:flex;align-items:center;justify-content:space-between;height:72px}
+  .lockup{display:flex;align-items:center;gap:12px;font-weight:600;font-size:17px;letter-spacing:-.01em}
+  .lockup img{width:30px;height:30px}
+  .nav-links{display:flex;gap:28px;font-size:12px;letter-spacing:.08em;color:var(--muted)}
+  .nav-links a{transition:color .18s}
+  .nav-links a:hover{color:var(--green)}
+  .nav-meta{font-size:11px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+
+  /* ---------- hero ---------- */
+  .hero{padding:96px 0 88px;display:grid;grid-template-columns:1.05fr .95fr;gap:72px;align-items:center}
+  .eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--green);margin:0 0 22px}
+  h1{
+    font-size:clamp(52px,6.2vw,82px);line-height:1.02;letter-spacing:-.035em;
+    font-weight:650;margin:0 0 26px;
+  }
+  h1 .cn{font-weight:400;color:var(--ink-2)}
+  .lede{font-size:19px;line-height:1.75;color:var(--ink-2);max-width:24em;margin:0 0 34px}
+  .hero-meta{display:flex;gap:40px;border-top:1px solid var(--border);padding-top:20px;max-width:440px}
+  .hero-meta dt{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .hero-meta dd{margin:0;font-size:13px;color:var(--ink-2)}
+
+  .hero-art{
+    position:relative;border:1px solid var(--border);border-radius:36px;
+    background:
+      radial-gradient(120% 100% at 50% 0%,#FFFFFF 0%,#EDF3EF 46%,#F7F5F0 100%);
+    padding:56px;display:grid;place-items:center;min-height:460px;overflow:hidden;
+  }
+  .hero-art::after{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(60% 50% at 50% 42%,rgba(46,107,92,.10),transparent 70%);
+    pointer-events:none;
+  }
+  .hero-art img{
+    width:min(360px,78%);position:relative;z-index:2;
+    filter:drop-shadow(0 34px 44px rgba(20,48,40,.28)) drop-shadow(0 6px 10px rgba(20,48,40,.14));
+    transition:transform .5s cubic-bezier(.2,.7,.2,1);
+  }
+  .hero-art:hover img{transform:translateY(-6px) scale(1.012)}
+  .art-caption{
+    position:absolute;left:28px;right:28px;bottom:20px;display:flex;justify-content:space-between;
+    font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;z-index:3;
+  }
+
+  /* ---------- sections ---------- */
+  section{padding:88px 0}
+  .section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:40px;margin-bottom:44px}
+  .section-index{font-size:11px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase}
+  h2{font-size:clamp(30px,3.4vw,44px);line-height:1.14;letter-spacing:-.03em;margin:10px 0 0;font-weight:620}
+  .section-note{max-width:38ch;font-size:14px;line-height:1.75;color:var(--ink-2);margin:0}
+
+  /* concept */
+  .concept-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:20px;overflow:hidden}
+  .concept{background:var(--panel);padding:34px 30px 38px}
+  .concept .n{font-size:11px;letter-spacing:.18em;color:var(--green);margin-bottom:26px}
+  .concept h3{font-size:20px;margin:0 0 12px;letter-spacing:-.01em;font-weight:600}
+  .concept p{margin:0;font-size:14px;line-height:1.8;color:var(--ink-2)}
+  .concept .glyph{font-size:44px;line-height:1;margin-bottom:22px;color:var(--green);font-weight:300}
+
+  /* palette */
+  .palette{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .swatch{border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--panel)}
+  .swatch .chip{height:120px}
+  .swatch .meta{padding:14px 16px 16px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .swatch .name{font-size:13px;font-weight:560}
+  .swatch .hex{font-size:11px;color:var(--muted);letter-spacing:.06em;font-variant-numeric:tabular-nums}
+  .palette-note{margin-top:22px;font-size:13px;color:var(--muted);max-width:70ch}
+
+  /* variants */
+  .variants{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .variant{
+    background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px;
+    transition:transform .25s,border-color .25s,box-shadow .25s;position:relative;
+  }
+  .variant:hover{transform:translateY(-3px);border-color:#C9D8D2;box-shadow:0 18px 30px -22px rgba(20,48,40,.35)}
+  .variant.selected{border-color:var(--green);box-shadow:inset 0 0 0 1px var(--green)}
+  .variant .tile{background:var(--subtle);border-radius:12px;display:grid;place-items:center;height:150px;margin-bottom:16px}
+  .variant .tile img{width:92px;height:92px}
+  .variant .idx{font-size:10px;letter-spacing:.16em;color:var(--muted)}
+  .variant .title{font-size:14px;font-weight:600;margin:5px 0 6px}
+  .variant .desc{font-size:12px;line-height:1.65;color:var(--muted);margin:0}
+  .badge{
+    position:absolute;top:14px;right:14px;background:var(--green);color:#fff;
+    font-size:9px;letter-spacing:.14em;padding:5px 9px;border-radius:999px;text-transform:uppercase;
+  }
+
+  /* sizes */
+  .size-panel{border:1px solid var(--border);border-radius:22px;background:var(--panel);padding:36px}
+  .size-row{display:flex;align-items:flex-end;gap:52px;flex-wrap:wrap}
+  .size-item{display:flex;flex-direction:column;align-items:center;gap:16px}
+  .size-item img{filter:drop-shadow(0 8px 12px rgba(20,48,40,.16))}
+  .size-item span{font-size:10px;letter-spacing:.12em;color:var(--muted);font-variant-numeric:tabular-nums}
+  .size-notes{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:38px;padding-top:30px;border-top:1px solid var(--border)}
+  .size-notes h4{margin:0 0 8px;font-size:13px;font-weight:600}
+  .size-notes p{margin:0;font-size:12.5px;line-height:1.7;color:var(--muted)}
+
+  /* showcase */
+  .shots{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .shot{border-radius:18px;overflow:hidden;border:1px solid var(--border);background:#111}
+  .shot img{width:100%;height:auto}
+  .shot figcaption{display:flex;justify-content:space-between;padding:13px 16px;background:var(--panel);font-size:11px;letter-spacing:.08em;color:var(--muted);border-top:1px solid var(--border)}
+
+  /* rollout */
+  .rollout{display:grid;grid-template-columns:1fr 1fr;gap:0 64px;border-top:1px solid var(--border)}
+  .rollout-item{display:flex;gap:18px;padding:20px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+  .rollout-item .status{
+    flex:0 0 auto;font-size:9px;letter-spacing:.12em;padding:4px 8px;border-radius:999px;
+    border:1px solid var(--border);color:var(--muted);margin-top:3px;text-transform:uppercase;
+  }
+  .rollout-item .status.done{color:var(--green);border-color:#BED3CB;background:var(--green-pale)}
+  .rollout-item h4{margin:0 0 4px;font-size:13.5px;font-weight:600}
+  .rollout-item p{margin:0;font-size:12.5px;line-height:1.65;color:var(--muted)}
+  .rollout-item code{font-family:"SF Mono",ui-monospace,monospace;font-size:11.5px;color:var(--ink-2)}
+
+  /* footer */
+  footer{padding:72px 0 56px;border-top:1px solid var(--border);margin-top:40px}
+  .foot-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:60px;align-items:start}
+  .foot-brand{display:flex;align-items:center;gap:14px;font-size:20px;font-weight:600;margin-bottom:16px}
+  .foot-brand img{width:40px;height:40px}
+  .foot p{font-size:13px;color:var(--muted);margin:0;max-width:48ch;line-height:1.75}
+  .files{list-style:none;margin:0;padding:0;font-size:12.5px}
+  .files li{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);gap:20px}
+  .files a{color:var(--ink-2);border-bottom:1px solid transparent;transition:color .16s,border-color .16s}
+  .files a:hover{color:var(--green);border-color:var(--green)}
+  .files span{color:var(--muted);font-size:11px}
+  .copyright{margin-top:44px;display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+
+  @media (max-width:1024px){
+    .hero{grid-template-columns:1fr;gap:48px;padding:64px 0}
+    .variants{grid-template-columns:repeat(2,1fr)}
+    .palette{grid-template-columns:repeat(2,1fr)}
+    .concept-grid{grid-template-columns:1fr}
+    .rollout{grid-template-columns:1fr}
+    .shots{grid-template-columns:1fr}
+  }
+  @media (max-width:760px){
+    .section-head{flex-direction:column;align-items:flex-start;gap:14px}
+    .section-note{max-width:none}
+  }
+  @media (max-width:640px){
+    .wrap{padding:0 22px}
+    .nav-links{display:none}
+    .nav-meta{display:none}
+    .lede{max-width:none}
+    .hero-meta{flex-wrap:wrap;gap:24px}
+    .variants{grid-template-columns:1fr}
+    .size-row{gap:30px}
+    .hero-art{padding:32px;min-height:340px}
+    .size-notes{grid-template-columns:1fr}
+    .foot-grid{grid-template-columns:1fr}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important;scroll-behavior:auto!important}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="lockup" href="#top"><img src="dist/png/zhuo-icon-128.png" alt="">Zhuo浏览器</a>
+    <nav class="nav-links">
+      <a href="#concept">概念</a>
+      <a href="#palette">配色</a>
+      <a href="#variants">方向</a>
+      <a href="#sizes">尺寸</a>
+      <a href="#rollout">一致性</a>
+    </nav>
+    <div class="nav-meta">Mac App Icon / 1.0</div>
+  </div>
+</header>
+
+<main id="top">
+
+  <div class="wrap">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Brand &amp; App Icon · macOS 14+</p>
+        <h1>Zhuo<span class="cn">浏览器</span></h1>
+        <p class="lede">一页纸，一个字母，一条地平线。把「Zhuo」做成一个安静、可缩放、能被记住的浏览器符号。</p>
+        <dl class="hero-meta">
+          <div><dt>主色</dt><dd>Ink Green #2E6B5C</dd></div>
+          <div><dt>字形</dt><dd>纸白 Z · 三笔折页</dd></div>
+          <div><dt>最小尺寸</dt><dd>16 px（独立光学版）</dd></div>
+        </dl>
+      </div>
+      <div class="hero-art">
+        <img src="dist/png/zhuo-icon-1024.png" alt="Zhuo浏览器 Mac 应用图标">
+        <div class="art-caption"><span>01 / Final mark</span><span>1024 px master</span></div>
+      </div>
+    </section>
+  </div>
+
+  <hr class="rule">
+
+  <div class="wrap">
+    <section id="concept">
+      <div class="section-head">
+        <div>
+          <div class="section-index">01 — Concept</div>
+          <h2>符号先于控件</h2>
+        </div>
+        <p class="section-note">不画地址栏，也不画地球。先让字母站得住，再让浏览器的语境为它赋义。</p>
+      </div>
+
+      <div class="concept-grid">
+        <article class="concept">
+          <div class="glyph">Z</div>
+          <div class="n">01 / THE FOLD</div>
+          <h3>Z 是折页</h3>
+          <p>三段笔画是一张纸被折起后留下的边：上缘、折痕、落点。它同时是品牌首字母，也是浏览器最古老的动作——翻页。</p>
+        </article>
+        <article class="concept">
+          <div class="glyph">⌒</div>
+          <div class="n">02 / THE HORIZON</div>
+          <h3>地平线是页边</h3>
+          <p>下缘一条 32% 透明度的弧线，既是纸张的边缘，也是窗口之外的那片网络。它在 128 px 以上出现，小尺寸主动消失。</p>
+        </article>
+        <article class="concept">
+          <div class="glyph">◼</div>
+          <div class="n">03 / THE QUIET GREEN</div>
+          <h3>墨绿是安静的界面</h3>
+          <p>沿用设计系统的 ink-green 与暖纸，让图标、工具栏和落地页共享同一种气质：留白、克制、适合长时间阅读。</p>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <hr class="rule">
+
+  <div class="wrap">
+    <section id="palette">
+      <div class="section-head">
+        <div>
+          <div class="section-index">02 — Palette</div>
+          <h2>两种材料，一个强调色</h2>
+        </div>
+        <p class="section-note">绿色只承担「品牌」与「可交互」两种语义。图标内部不使用第三种颜色。</p>
+      </div>
+
+      <div class="palette">
+        <div class="swatch"><div class="chip" style="background:#2E6B5C"></div><div class="meta"><span class="name">Ink Green</span><span class="hex">#2E6B5C</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#3E8C79"></div><div class="meta"><span class="name">Light Green</span><span class="hex">#3E8C79</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#1B473D"></div><div class="meta"><span class="name">Deep Green</span><span class="hex">#1B473D</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#84A794"></div><div class="meta"><span class="name">Dark Accent</span><span class="hex">#84A794</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#FAF9F7;box-shadow:inset 0 0 0 1px #E5E2DB"></div><div class="meta"><span class="name">Paper</span><span class="hex">#FAF9F7</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#F0E9DB"></div><div class="meta"><span class="name">Warm Paper</span><span class="hex">#F0E9DB</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#1A1A18"></div><div class="meta"><span class="name">Ink</span><span class="hex">#1A1A18</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#E5E2DB"></div><div class="meta"><span class="name">Border</span><span class="hex">#E5E2DB</span></div></div>
+      </div>
+      <p class="palette-note">图标主体使用 3E8C79 → 2E6B5C → 1B473D 的纵向渐变，左上叠加 16% 白色柔光；Z 使用 FFFFFF → F0E9DB 的纸白渐变。两者都只做一次明暗过渡，避免在 Retina 缩放下产生色带。</p>
+    </section>
+  </div>
+
+  <hr class="rule">
+
+  <div class="wrap">
+    <section id="variants">
+      <div class="section-head">
+        <div>
+          <div class="section-index">03 — Directions</div>
+          <h2>八个方向，一个答案</h2>
+        </div>
+        <p class="section-note">从「更浏览器」到「更品牌」逐级收敛。最终采用 01 的骨架：保留 Z 与开口圆环的空间关系，把圆环换成一条地平线。</p>
+      </div>
+
+      <div class="variants">
+        <article class="variant selected">
+          <span class="badge">选定方向</span>
+          <div class="tile"><img src="dist/variants/01-z-horizon.png" alt="Z Horizon 方向"></div>
+          <div class="idx">01</div>
+          <div class="title">Z · Horizon</div>
+          <p class="desc">开口圆环 + Z + 定位点。最像浏览器，但小尺寸圆环会退化成噪点。</p>
+        </article>
+        <article class="variant">
+          <div class="tile"><img src="dist/variants/02-z-paper-disc.png" alt="Paper Disc 方向"></div>
+          <div class="idx">02</div>
+          <div class="title">Z · Paper Disc</div>
+          <p class="desc">纸盘镂空出 Z。概念最强，但 16 px 下容易读成白色圆点。</p>
+        </article>
+        <article class="variant">
+          <div class="tile"><img src="dist/variants/03-z-window.png" alt="Z Window 方向"></div>
+          <div class="idx">03</div>
+          <div class="title">Z · Window</div>
+          <p class="desc">窗口 + 标签栏 + Z。语义最直白，也最接近通用浏览器图标。</p>
+        </article>
+        <article class="variant">
+          <div class="tile"><img src="dist/variants/04-z-fold.png" alt="Z Fold 方向"></div>
+          <div class="idx">04</div>
+          <div class="title">Z · Fold</div>
+          <p class="desc">斜画为受光面，把折页讲清楚。干净，但缺少「网络」的一笔。</p>
+        </article>
+        <article class="variant">
+          <div class="tile"><img src="dist/variants/05-z-orbit.png" alt="Z Orbit 方向"></div>
+          <div class="idx">05</div>
+          <div class="title">Z · Orbit</div>
+          <p class="desc">一笔完成，尾部落回起点。动势好，尾巴在小尺寸下不易解释。</p>
+        </article>
+        <article class="variant">
+          <div class="tile"><img src="dist/variants/06-z-matrix.png" alt="Z Matrix 方向"></div>
+          <div class="idx">06</div>
+          <div class="title">Z · Matrix</div>
+          <p class="desc">点阵 Z。最数字化，但依赖点距，16 px 会糊成一条线。</p>
+        </article>
+        <article class="variant">
+          <div class="tile"><img src="dist/variants/07-z-compass.png" alt="Z Compass 方向"></div>
+          <div class="idx">07</div>
+          <div class="title">Z · Compass</div>
+          <p class="desc">罗盘刻度 + 指针。Safari 语境太强，容易变成「另一个 Safari」。</p>
+        </article>
+        <article class="variant">
+          <div class="tile"><img src="dist/variants/08-z-column.png" alt="Z Column 方向"></div>
+          <div class="idx">08</div>
+          <div class="title">Z · Column</div>
+          <p class="desc">把「卓」拆成竖笔 + Z。中文识别最深，但拉丁品牌语境里过于隐晦。</p>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <hr class="rule">
+
+  <div class="wrap">
+    <section id="sizes">
+      <div class="section-head">
+        <div>
+          <div class="section-index">04 — Optical sizes</div>
+          <h2>不是缩放，是重新配平</h2>
+        </div>
+        <p class="section-note">.icns 的每个槽位都可能被单独看到。大尺寸保留地平线，小尺寸把像素全部让给 Z。</p>
+      </div>
+
+      <div class="size-panel">
+        <div class="size-row">
+          <div class="size-item"><img src="dist/png/zhuo-icon-16.png" width="16" height="16" alt="16 px"><span>16 px · micro</span></div>
+          <div class="size-item"><img src="dist/png/zhuo-icon-32.png" width="32" height="32" alt="32 px"><span>32 px · micro</span></div>
+          <div class="size-item"><img src="dist/png/zhuo-icon-64.png" width="64" height="64" alt="64 px"><span>64 px · small</span></div>
+          <div class="size-item"><img src="dist/png/zhuo-icon-128.png" width="128" height="128" alt="128 px"><span>128 px · small</span></div>
+          <div class="size-item"><img src="dist/png/zhuo-icon-256.png" width="256" height="256" alt="256 px"><span>256 px · full</span></div>
+        </div>
+        <div class="size-notes">
+          <div>
+            <h4>256–1024 · 完整版</h4>
+            <p>渐变主体 + 纸白 Z + 地平线。用于 Dock 大图标、关于面板、官网与展示物料。</p>
+          </div>
+          <div>
+            <h4>64–128 · 小尺寸光学版</h4>
+            <p>去掉地平线，Z 放大约 5%，主体渐变收窄。避免 1 px 弧线在 Dock 里变成脏点。</p>
+          </div>
+          <div>
+            <h4>16–32 · 微尺寸版</h4>
+            <p>纯色主体，Z 放大约 14%，笔画占比从 13.1% 提升到 15.1%，保证约 1.9 px 的有效笔画。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <hr class="rule">
+
+  <div class="wrap">
+    <section id="showcase">
+      <div class="section-head">
+        <div>
+          <div class="section-index">05 — Showcase</div>
+          <h2>四种语境</h2>
+        </div>
+        <p class="section-note">磨砂穹顶、物理影棚、纸本编辑、瑞士扁平。同一枚图标，在冷与暖、深与浅之间都不失重。</p>
+      </div>
+
+      <div class="shots">
+        <figure class="shot"><img src="dist/showcase/zhuo_frosted.png" alt="磨砂穹顶展示"><figcaption><span>FROSTED HORIZON</span><span>磨砂穹顶 / 01</span></figcaption></figure>
+        <figure class="shot"><img src="dist/showcase/zhuo_spotlight.png" alt="物理影棚展示"><figcaption><span>STUDIO SPOTLIGHT</span><span>物理影棚 / 02</span></figcaption></figure>
+        <figure class="shot"><img src="dist/showcase/zhuo_editorial.png" alt="纸本编辑展示"><figcaption><span>EDITORIAL PAPER</span><span>纸本编辑 / 03</span></figcaption></figure>
+        <figure class="shot"><img src="dist/showcase/zhuo_swiss.png" alt="瑞士扁平展示"><figcaption><span>SWISS FLAT</span><span>瑞士扁平 / 04</span></figcaption></figure>
+      </div>
+    </section>
+  </div>
+
+  <hr class="rule">
+
+  <div class="wrap">
+    <section id="rollout">
+      <div class="section-head">
+        <div>
+          <div class="section-index">06 — Consistency</div>
+          <h2>改名之后，名字只出现一种写法</h2>
+        </div>
+        <p class="section-note">Dock、菜单栏、窗口菜单、起始页、关于面板、官网与更新源，必须指向同一个名字和同一枚符号。</p>
+      </div>
+
+      <div class="rollout">
+        <div class="rollout-item">
+          <span class="status done">已落地</span>
+          <div><h4>Dock / Finder / 关于面板</h4><p><code>CFBundleName</code> 与 <code>CFBundleDisplayName</code> 均为 <code>Zhuo浏览器</code>，不再回退到 <code>ZhuoBrowserMac</code>。</p></div>
+        </div>
+        <div class="rollout-item">
+          <span class="status done">已落地</span>
+          <div><h4>菜单栏应用菜单</h4><p>App 菜单读取 <code>CFBundleName</code>；关于面板使用 <code>AppIcon</code> 的 10 个槽位，Dock 与菜单栏来源一致。</p></div>
+        </div>
+        <div class="rollout-item">
+          <span class="status done">已落地</span>
+          <div><h4>起始页字标</h4><p>移除 Safari 系统符号，改用 <code>ZhuoMark</code> 模板图标；「卓阅」替换为「Zhuo浏览器」，图标 58 pt / 字标 30 pt。</p></div>
+        </div>
+        <div class="rollout-item">
+          <span class="status done">已落地</span>
+          <div><h4>窗口菜单 / 调度中心</h4><p>首页窗口标题为 <code>Zhuo浏览器</code>；打开网页后跟随页面标题，不再出现空标题或「新标签页」。</p></div>
+        </div>
+        <div class="rollout-item">
+          <span class="status done">已落地</span>
+          <div><h4>全局强调色</h4><p><code>AccentColor</code> 浅色 <code>#2E6B5C</code>、深色 <code>#84A794</code>，工具栏、进度条、选中态不再出现系统蓝。</p></div>
+        </div>
+        <div class="rollout-item">
+          <span class="status done">已落地</span>
+          <div><h4>设置 · 关于</h4><p>「关于卓阅」改为「关于 Zhuo浏览器」，副标题统一为「Zhuo浏览器 · Mac 原生轻量浏览器」。</p></div>
+        </div>
+        <div class="rollout-item">
+          <span class="status">待同步</span>
+          <div><h4>官网 / 商店 / 更新源</h4><p>站点标题、OG 图、favicon、DMG 卷标、appcast 标题、邮件与隐私协议中的产品名。保留一次「原卓阅」迁移说明即可。</p></div>
+        </div>
+        <div class="rollout-item">
+          <span class="status">待同步</span>
+          <div><h4>iOS / Android / HarmonyOS</h4><p>桌面名称、应用内关于页、商店 listing。各平台按 824/1024 安全区重新裁切，不直接复用 macOS 圆角图。</p></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot-grid">
+        <div>
+          <div class="foot-brand"><img src="dist/png/zhuo-icon-128.png" alt="">Zhuo浏览器</div>
+          <p>一页纸，一个字母，一条地平线。图标、字标与界面共享同一套墨绿与暖纸，让产品在 Dock、菜单栏和网页里保持同一种安静。</p>
+        </div>
+        <div>
+          <ul class="files">
+            <li><a href="dist/Zhuo.icns">Zhuo.icns</a><span>macOS 图标</span></li>
+            <li><a href="dist/png/zhuo-icon-1024.png">zhuo-icon-1024.png</a><span>主图 PNG</span></li>
+            <li><a href="zhuo-app-icon.svg">zhuo-app-icon.svg</a><span>1024 矢量源</span></li>
+            <li><a href="zhuo-mark.svg">zhuo-mark.svg</a><span>界面标记</span></li>
+            <li><a href="README.md">README.md</a><span>完整规范</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="copyright"><span>Zhuo Browser · Brand System 1.0</span><span>2026 / macOS 14+</span></div>
+    </div>
+  </footer>
+
+</main>
+</body>
+</html>

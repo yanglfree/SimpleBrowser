@@ -1,0 +1,70 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-labelledby="t">
+  <title id="t">Zhuo 浏览器 — studio spotlight showcase</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#241E19"/>
+      <stop offset="0.5" stop-color="#151210"/>
+      <stop offset="1" stop-color="#090807"/>
+    </linearGradient>
+    <radialGradient id="key" cx="0.26" cy="0.18" r="0.62">
+      <stop offset="0" stop-color="#FFE8CF" stop-opacity="0.2"/>
+      <stop offset="0.4" stop-color="#FFE8CF" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#FFE8CF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="0.35" cy="0.45" r="0.85">
+      <stop offset="0.45" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.6"/>
+    </radialGradient>
+    <linearGradient id="ib" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#3E8C79"/>
+      <stop offset="0.5" stop-color="#2E6B5C"/>
+      <stop offset="1" stop-color="#1B473D"/>
+    </linearGradient>
+    <linearGradient id="iz" x1="0.2" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F0E9DB"/>
+    </linearGradient>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.62" numOctaves="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="55"/>
+    </filter>
+    <filter id="blur30" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="30"/>
+    </filter>
+    <symbol id="app" viewBox="0 0 1024 1024">
+      <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#ib)"/>
+      <path d="M112 704C258 774 402 800 548 792C682 785 796 748 912 672" fill="none" stroke="#FAF9F7" stroke-opacity="0.32" stroke-width="13" stroke-linecap="round"/>
+      <path d="M378 336H652L378 656H652" fill="none" stroke="url(#iz)" stroke-width="108" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#key)"/>
+  <rect width="1600" height="900" filter="url(#grain)" opacity="0.09"/>
+
+  <ellipse cx="470" cy="738" rx="300" ry="52" fill="#000000" opacity="0.75" filter="url(#soft)"/>
+  <ellipse cx="470" cy="470" rx="360" ry="340" fill="#C9A87C" opacity="0.07" filter="url(#blur30)"/>
+
+  <use xlink:href="#app" x="180" y="170" width="540" height="540"/>
+
+  <rect width="1600" height="900" fill="url(#vig)"/>
+
+  <g font-family="Helvetica Neue, PingFang SC, Inter, sans-serif">
+    <text x="80" y="82" font-size="11" letter-spacing="4" fill="#F3EADF" opacity="0.38">STUDIO / 02</text>
+    <text x="80" y="106" font-size="11" letter-spacing="4" fill="#F3EADF" opacity="0.22">PHYSICAL LIGHT / MATTE PAPER</text>
+
+    <text x="838" y="404" font-size="132" font-weight="300" letter-spacing="-4" fill="#F7F2E9">Zhuo</text>
+    <text x="846" y="474" font-size="46" font-weight="400" letter-spacing="8" fill="#F7F2E9" opacity="0.9">浏览器</text>
+
+    <path d="M846 530H1460" stroke="#F7F2E9" stroke-opacity="0.18" stroke-width="1"/>
+
+    <text x="846" y="576" font-size="14" letter-spacing="1.4" fill="#F7F2E9" opacity="0.5">一扇安静的窗口，留给阅读与思考。</text>
+    <text x="846" y="604" font-size="14" letter-spacing="1.4" fill="#F7F2E9" opacity="0.3">Z / THE FOLD OF THE PAGE</text>
+
+    <text x="1520" y="786" font-size="11" letter-spacing="3" fill="#F7F2E9" opacity="0.34" text-anchor="end">MACOS 14+</text>
+    <text x="1520" y="810" font-size="11" letter-spacing="3" fill="#F7F2E9" opacity="0.2" text-anchor="end">v. 1.0.0 // 2026</text>
+  </g>
+</svg>

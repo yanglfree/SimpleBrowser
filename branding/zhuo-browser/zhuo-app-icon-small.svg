@@ -1,0 +1,26 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Zhuo 浏览器 app icon — 64–128 px optical cut</title>
+  <desc id="d">Optical variant for 64–128 px: the horizon is removed and the Z gains five percent so the glyph keeps the master's visual weight.</desc>
+  <defs>
+    <linearGradient id="bodyS" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#3E8C79"/>
+      <stop offset="0.55" stop-color="#2E6B5C"/>
+      <stop offset="1" stop-color="#235649"/>
+    </linearGradient>
+    <radialGradient id="lightS" cx="0.32" cy="0.08" r="0.72">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="bodyClipS">
+      <rect x="100" y="100" width="824" height="824" rx="185" ry="185"/>
+    </clipPath>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="url(#bodyS)"/>
+
+  <g clip-path="url(#bodyClipS)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#lightS)"/>
+    <path d="M372 330H658L372 662H658" fill="none" stroke="#FCFAF5" stroke-width="112"
+      stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

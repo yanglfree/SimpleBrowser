@@ -1,0 +1,51 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-labelledby="t">
+  <title id="t">Zhuo 浏览器 — Swiss flat showcase</title>
+  <defs>
+    <linearGradient id="ib" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#3E8C79"/>
+      <stop offset="0.5" stop-color="#2E6B5C"/>
+      <stop offset="1" stop-color="#1B473D"/>
+    </linearGradient>
+    <linearGradient id="iz" x1="0.2" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F0E9DB"/>
+    </linearGradient>
+    <symbol id="app" viewBox="0 0 1024 1024">
+      <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#ib)"/>
+      <path d="M112 704C258 774 402 800 548 792C682 785 796 748 912 672" fill="none" stroke="#FAF9F7" stroke-opacity="0.32" stroke-width="13" stroke-linecap="round"/>
+      <path d="M378 336H652L378 656H652" fill="none" stroke="url(#iz)" stroke-width="108" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </defs>
+
+  <rect width="1600" height="900" fill="#F7F7F4"/>
+
+  <g stroke="#1A1A18" stroke-opacity="0.07" stroke-width="1">
+    <path d="M80 0V900"/><path d="M160 0V900"/><path d="M240 0V900"/><path d="M320 0V900"/>
+    <path d="M400 0V900"/><path d="M480 0V900"/><path d="M560 0V900"/><path d="M640 0V900"/>
+    <path d="M720 0V900"/><path d="M800 0V900"/><path d="M880 0V900"/><path d="M960 0V900"/>
+    <path d="M1040 0V900"/><path d="M1120 0V900"/><path d="M1200 0V900"/><path d="M1280 0V900"/>
+    <path d="M1360 0V900"/><path d="M1440 0V900"/><path d="M1520 0V900"/>
+    <path d="M0 80H1600"/><path d="M0 240H1600"/><path d="M0 400H1600"/>
+    <path d="M0 560H1600"/><path d="M0 720H1600"/><path d="M0 880H1600"/>
+  </g>
+
+  <rect x="0" y="0" width="1600" height="10" fill="#2E6B5C"/>
+
+  <use xlink:href="#app" x="1216" y="120" width="280" height="280"/>
+
+  <g font-family="Helvetica Neue, PingFang SC, Inter, sans-serif">
+    <text x="80" y="82" font-size="11" letter-spacing="4" fill="#1A1A18" opacity="0.5">ZHUO / BRAND SYSTEM</text>
+    <text x="80" y="106" font-size="11" letter-spacing="4" fill="#1A1A18" opacity="0.28">MACOS APP ICON · 04</text>
+
+    <text x="1520" y="82" font-size="11" letter-spacing="3" fill="#1A1A18" opacity="0.35" text-anchor="end">v. 1.0.0 // 2026</text>
+
+    <text x="86" y="700" font-size="210" font-weight="700" letter-spacing="-11" fill="#1A1A18">Zhuo</text>
+    <text x="92" y="772" font-size="44" font-weight="500" letter-spacing="10" fill="#1A1A18" opacity="0.9">浏览器</text>
+
+    <text x="1120" y="474" font-size="14" letter-spacing="1.4" fill="#1A1A18" opacity="0.55">一页纸，一个字母，一条地平线。</text>
+    <text x="1120" y="502" font-size="14" letter-spacing="1.4" fill="#1A1A18" opacity="0.3">ONE PAGE. ONE LETTER. ONE HORIZON.</text>
+
+    <text x="80" y="850" font-size="11" letter-spacing="4" fill="#1A1A18" opacity="0.35">极简 · 极速 · 极致节省内存</text>
+    <text x="1520" y="850" font-size="11" letter-spacing="4" fill="#1A1A18" opacity="0.35" text-anchor="end">INK GREEN #2E6B5C</text>
+  </g>
+</svg>

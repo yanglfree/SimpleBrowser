@@ -1,0 +1,39 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Zhuo 浏览器 app icon</title>
+  <desc id="d">macOS master icon: an ink-green squircle, a paper-white Z, and one horizon line. The Z is the fold of the page; the horizon is the web beyond it.</desc>
+  <defs>
+    <linearGradient id="body" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#3E8C79"/>
+      <stop offset="0.5" stop-color="#2E6B5C"/>
+      <stop offset="1" stop-color="#1B473D"/>
+    </linearGradient>
+    <radialGradient id="light" cx="0.32" cy="0.08" r="0.72">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="paper" x1="0.2" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F0E9DB"/>
+    </linearGradient>
+    <clipPath id="bodyClip">
+      <rect x="100" y="100" width="824" height="824" rx="185" ry="185"/>
+    </clipPath>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="url(#body)"/>
+
+  <g clip-path="url(#bodyClip)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#light)"/>
+
+    <!-- the horizon: the page edge, and the web beyond it -->
+    <path d="M112 704C258 774 402 800 548 792C682 785 796 748 912 672"
+      fill="none" stroke="#FAF9F7" stroke-opacity="0.32" stroke-width="13" stroke-linecap="round"/>
+
+    <!-- the Z: one folded sheet -->
+    <path d="M378 336H652L378 656H652" fill="none" stroke="url(#paper)" stroke-width="108"
+      stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="106" y="106" width="812" height="812" rx="180" ry="180" fill="none"
+      stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="4"/>
+  </g>
+</svg>

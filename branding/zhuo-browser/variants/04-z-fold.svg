@@ -1,0 +1,9 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">Zhuo 04 — Z Fold</title>
+  <desc id="d">Three strokes of a Z become a folded sheet: the diagonal is a lighter plane catching the light.</desc>
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 31H70" stroke-width="9.4"/>
+    <path d="M70 31L30 69" stroke-width="9.4" opacity="0.55"/>
+    <path d="M30 69H70" stroke-width="9.4"/>
+  </g>
+</svg>
