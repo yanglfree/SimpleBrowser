@@ -44,7 +44,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.youdroid.zhuobrowser.mac
         PRODUCT_NAME: ZhuoBrowserMac
-        DEVELOPMENT_TEAM: 45499B96R7
+        DEVELOPMENT_TEAM: Y4MB2B6UD3
         CODE_SIGN_STYLE: Automatic
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
