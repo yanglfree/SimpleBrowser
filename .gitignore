@@ -45,3 +45,9 @@ android/.idea/
 .wrangler/
 /web/downloads/*.dmg
 
+
+# Local Kotlin compiler cache (Android builds regenerate it).
+android/.kotlin/
+
+# Generated icon exports; rebuild with branding/zhuo-browser/build-icons.py.
+/branding/zhuo-browser/dist/
